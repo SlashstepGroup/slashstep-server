@@ -1,0 +1,1 @@
+select * from users where ip_address = $1 and is_anonymous = true limit 1;

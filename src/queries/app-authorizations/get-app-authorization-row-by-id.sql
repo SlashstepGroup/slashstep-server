@@ -1,0 +1,1 @@
+select * from app_authorizations where id = $1 limit 1;

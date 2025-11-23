@@ -1,0 +1,1 @@
+delete from app_credentials where id = $1;

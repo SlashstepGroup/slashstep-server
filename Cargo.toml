@@ -11,4 +11,10 @@ keywords = ["project management", "problem management", "issue tracking"]
 publish = false
 
 [dependencies]
-postgres = "0.19.12"
+postgres = { version = "0.19.12", features = ["with-uuid-1"] }
+postgres-types = { version = "0.2.11", features = ["derive"] }
+uuid = { version = "1.18.1", features = ["v7"] }
+
+[dev-dependencies]
+testcontainers = { version = "0.25.2", features = ["blocking"] }
+testcontainers-modules = { version = "0.13.0", features = ["postgres"] }

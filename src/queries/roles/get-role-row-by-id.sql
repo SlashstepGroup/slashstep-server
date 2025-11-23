@@ -1,0 +1,1 @@
+select * from hydrated_roles where id = $1 limit 1;

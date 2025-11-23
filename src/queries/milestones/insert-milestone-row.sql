@@ -1,0 +1,1 @@
+insert into milestones (name, display_name, description, parent_resource_type, parent_project_id, parent_workspace_id) values ($1, $2, $3, $4, $5, $6) returning *;

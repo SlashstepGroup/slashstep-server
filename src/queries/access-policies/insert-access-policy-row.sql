@@ -1,0 +1,20 @@
+insert into access_policies (
+  principal_type, 
+  principal_user_id, 
+  principal_group_id, 
+  principal_role_id,
+  principal_app_id,
+  scoped_resource_type, 
+  scoped_action_id,
+  scoped_app_id,
+  scoped_group_id,
+  scoped_item_id,
+  scoped_milestone_id,
+  scoped_project_id,
+  scoped_role_id,
+  scoped_user_id,
+  scoped_workspace_id,
+  permission_level, 
+  inheritance_level, 
+  action_id
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) returning *;

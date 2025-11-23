@@ -1,0 +1,1 @@
+delete from workspaces where id = $1;

@@ -1,0 +1,1 @@
+select * from apps where id = $1;

@@ -1,0 +1,1 @@
+insert into app_credentials (app_id, expiration_date, creation_ip) values ($1, $2, $3) returning *;

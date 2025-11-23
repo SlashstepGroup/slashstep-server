@@ -1,0 +1,5 @@
+insert into actions (name, display_name, description) values ('slashstep.users.register', 'Register users', 'Register a new user.') on conflict do nothing;
+insert into actions (name, display_name, description) values ('slashstep.items.create', 'Create items', 'Create a new item.') on conflict do nothing;
+insert into actions (name, display_name, description) values ('slashstep.accessPolicies.admin', 'Bypass access policy management restrictions', 'Bypass access policy management restrictions.') on conflict do nothing;
+insert into actions (name, display_name, description) values ('slashstep.sessions.create', 'Create sessions', 'Create a new session.') on conflict do nothing;
+insert into actions (name, display_name, description) values ('slashstep.workspaces.create', 'Create workspaces', 'Create a new workspace.') on conflict do nothing;

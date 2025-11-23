@@ -1,0 +1,1 @@
+delete from access_policies where id = $1;

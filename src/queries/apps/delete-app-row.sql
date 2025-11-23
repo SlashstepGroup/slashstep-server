@@ -1,0 +1,1 @@
+delete from apps where id = $1;

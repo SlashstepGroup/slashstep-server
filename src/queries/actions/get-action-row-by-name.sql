@@ -1,0 +1,1 @@
+select * from hydrated_actions where name = $1;

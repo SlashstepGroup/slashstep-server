@@ -1,0 +1,1 @@
+insert into groups (name, display_name, description, parent_group_id) values ($1, $2, $3, $4) returning *;
