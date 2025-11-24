@@ -1,8 +1,8 @@
 [package]
-name = "slashstep_server_resources"
+name = "slashstep_server"
 version = "0.1.0"
 edition = "2024"
-description = "Required resources for a Slashstep server."
+description = "A server for hosting a Slashstep Server instance."
 readme = "README.md"
 homepage = "https://slashstep.com"
 repository = "https://github.com/SlashstepGroup/server"
