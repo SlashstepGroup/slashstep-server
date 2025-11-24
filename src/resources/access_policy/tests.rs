@@ -16,14 +16,7 @@ use testcontainers_modules::{testcontainers::runners::SyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
 
-struct TestPostgresEnvironment {
-
-  postgres_client: postgres::Client,
-  postgres_container: testcontainers::Container<testcontainers_modules::postgres::Postgres>
-
-}
-
-fn create_test_postgres_environment<'a>() -> TestPostgresEnvironment {
+fn create_test_postgres_environment() -> (postgres::Client, testcontainers::Container<testcontainers_modules::postgres::Postgres>) {
 
   let postgres_container = testcontainers_modules::postgres::Postgres::default()
     .with_tag("18")
@@ -34,10 +27,7 @@ fn create_test_postgres_environment<'a>() -> TestPostgresEnvironment {
   let postgres_connection_string = format!("postgres://postgres:postgres@{}:{}", postgres_host, postgres_port);
   let postgres_client = postgres::Client::connect(&postgres_connection_string, postgres::NoTls).unwrap();
 
-  return TestPostgresEnvironment {
-    postgres_client,
-    postgres_container
-  };
+  return (postgres_client, postgres_container);
 
 }
 
@@ -95,10 +85,10 @@ fn initialize_required_tables(postgres_client: &mut postgres::Client) {
 #[test]
 fn initialize_access_policies_table() {
 
-  let mut test_postgres_environment = create_test_postgres_environment();
-  initialize_required_tables(&mut test_postgres_environment.postgres_client);
+  let (mut postgres_client, _) = create_test_postgres_environment();
+  initialize_required_tables(&mut postgres_client);
 
-  AccessPolicy::initialize_access_policies_table(&mut test_postgres_environment.postgres_client).unwrap();
+  AccessPolicy::initialize_access_policies_table(&mut postgres_client).unwrap();
 
 }
 
@@ -106,12 +96,12 @@ fn initialize_access_policies_table() {
 #[test]
 fn create_access_policy() {
 
-  let mut test_postgres_environment = create_test_postgres_environment();
-  initialize_required_tables(&mut test_postgres_environment.postgres_client);
+  let (mut postgres_client, _) = create_test_postgres_environment();
+  initialize_required_tables(&mut postgres_client);
 
   // Create the access policy.
-  let action = create_random_action(&mut test_postgres_environment.postgres_client);
-  let user = create_random_user(&mut test_postgres_environment.postgres_client);
+  let action = create_random_action(&mut postgres_client);
+  let user = create_random_user(&mut postgres_client);
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,
     permission_level: AccessPolicyPermissionLevel::User,
@@ -132,7 +122,7 @@ fn create_access_policy() {
     scoped_user_id: None,
     scoped_workspace_id: None
   };
-  let access_policy = AccessPolicy::create(&access_policy_properties, &mut test_postgres_environment.postgres_client).unwrap();
+  let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).unwrap();
 
   // Ensure that all the properties were set correctly.
   assert_eq!(access_policy.action_id, access_policy_properties.action_id);
@@ -160,10 +150,10 @@ fn create_access_policy() {
 fn get_access_policy_by_id() {
 
   // Create the access policy.
-  let mut test_postgres_environment = create_test_postgres_environment();
-  initialize_required_tables(&mut test_postgres_environment.postgres_client);
-  let action = create_random_action(&mut test_postgres_environment.postgres_client);
-  let user = create_random_user(&mut test_postgres_environment.postgres_client);
+  let (mut postgres_client, _) = create_test_postgres_environment();
+  initialize_required_tables(&mut postgres_client);
+  let action = create_random_action(&mut postgres_client);
+  let user = create_random_user(&mut postgres_client);
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,
     permission_level: AccessPolicyPermissionLevel::User,
@@ -184,9 +174,9 @@ fn get_access_policy_by_id() {
     scoped_user_id: None,
     scoped_workspace_id: None
   };
-  let created_access_policy = AccessPolicy::create(&access_policy_properties, &mut test_postgres_environment.postgres_client).unwrap();
+  let created_access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).unwrap();
 
-  let retrieved_access_policy = AccessPolicy::get_by_id(&created_access_policy.id, &mut test_postgres_environment.postgres_client).unwrap();
+  let retrieved_access_policy = AccessPolicy::get_by_id(&created_access_policy.id, &mut postgres_client).unwrap();
 
   assert_eq!(created_access_policy.id, retrieved_access_policy.id);
   assert_eq!(created_access_policy.action_id, retrieved_access_policy.action_id);
