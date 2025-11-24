@@ -36,7 +36,8 @@ fn create_test_postgres_environment() -> TestPostgresEnvironment {
   let postgres_host = postgres_container.get_host().unwrap();
   let postgres_port = postgres_container.get_host_port_ipv4(5432).unwrap();
   let postgres_connection_string = format!("postgres://postgres:postgres@{}:{}", postgres_host, postgres_port);
-  let postgres_client = postgres::Client::connect(&postgres_connection_string, postgres::NoTls).unwrap();
+  let mut postgres_client = postgres::Client::connect(&postgres_connection_string, postgres::NoTls).unwrap();
+  initialize_required_tables(&mut postgres_client);
 
   return TestPostgresEnvironment {
     postgres_client,
@@ -95,13 +96,57 @@ fn initialize_required_tables(postgres_client: &mut postgres::Client) {
 
 }
 
+fn assert_access_policy_is_equal_to_initial_properties(access_policy: &AccessPolicy, initial_properties: &InitialAccessPolicyProperties) {
+
+  assert_eq!(access_policy.action_id, initial_properties.action_id);
+  assert_eq!(access_policy.permission_level, initial_properties.permission_level);
+  assert_eq!(access_policy.inheritance_level, initial_properties.inheritance_level);
+  assert_eq!(access_policy.principal_type, initial_properties.principal_type);
+  assert_eq!(access_policy.principal_user_id, initial_properties.principal_user_id);
+  assert_eq!(access_policy.principal_group_id, initial_properties.principal_group_id);
+  assert_eq!(access_policy.principal_role_id, initial_properties.principal_role_id);
+  assert_eq!(access_policy.principal_app_id, initial_properties.principal_app_id);
+  assert_eq!(access_policy.scoped_resource_type, initial_properties.scoped_resource_type);
+  assert_eq!(access_policy.scoped_action_id, initial_properties.scoped_action_id);
+  assert_eq!(access_policy.scoped_app_id, initial_properties.scoped_app_id);
+  assert_eq!(access_policy.scoped_group_id, initial_properties.scoped_group_id);
+  assert_eq!(access_policy.scoped_item_id, initial_properties.scoped_item_id);
+  assert_eq!(access_policy.scoped_milestone_id, initial_properties.scoped_milestone_id);
+  assert_eq!(access_policy.scoped_project_id, initial_properties.scoped_project_id);
+  assert_eq!(access_policy.scoped_role_id, initial_properties.scoped_role_id);
+  assert_eq!(access_policy.scoped_user_id, initial_properties.scoped_user_id);
+
+}
+
+fn assert_access_policies_are_equal(access_policy_1: &AccessPolicy, access_policy_2: &AccessPolicy) {
+
+  assert_eq!(access_policy_1.id, access_policy_2.id);
+  assert_eq!(access_policy_1.action_id, access_policy_2.action_id);
+  assert_eq!(access_policy_1.permission_level, access_policy_2.permission_level);
+  assert_eq!(access_policy_1.inheritance_level, access_policy_2.inheritance_level);
+  assert_eq!(access_policy_1.principal_type, access_policy_2.principal_type);
+  assert_eq!(access_policy_1.principal_user_id, access_policy_2.principal_user_id);
+  assert_eq!(access_policy_1.principal_group_id, access_policy_2.principal_group_id);
+  assert_eq!(access_policy_1.principal_role_id, access_policy_2.principal_role_id);
+  assert_eq!(access_policy_1.principal_app_id, access_policy_2.principal_app_id);
+  assert_eq!(access_policy_1.scoped_resource_type, access_policy_2.scoped_resource_type);
+  assert_eq!(access_policy_1.scoped_action_id, access_policy_2.scoped_action_id);
+  assert_eq!(access_policy_1.scoped_app_id, access_policy_2.scoped_app_id);
+  assert_eq!(access_policy_1.scoped_group_id, access_policy_2.scoped_group_id);
+  assert_eq!(access_policy_1.scoped_item_id, access_policy_2.scoped_item_id);
+  assert_eq!(access_policy_1.scoped_milestone_id, access_policy_2.scoped_milestone_id);
+  assert_eq!(access_policy_1.scoped_project_id, access_policy_2.scoped_project_id);
+  assert_eq!(access_policy_1.scoped_role_id, access_policy_2.scoped_role_id);
+  assert_eq!(access_policy_1.scoped_user_id, access_policy_2.scoped_user_id);
+
+}
+
 /// Verifies that an access_policies table can be initialized.
 #[test]
 fn initialize_access_policies_table() {
 
   let test_postgres_environment = create_test_postgres_environment();
   let mut postgres_client = test_postgres_environment.postgres_client;
-  initialize_required_tables(&mut postgres_client);
 
   AccessPolicy::initialize_access_policies_table(&mut postgres_client).unwrap();
 
@@ -113,7 +158,6 @@ fn create_access_policy() {
 
   let test_postgres_environment = create_test_postgres_environment();
   let mut postgres_client = test_postgres_environment.postgres_client;
-  initialize_required_tables(&mut postgres_client);
 
   // Create the access policy.
   let action = create_random_action(&mut postgres_client);
@@ -141,23 +185,7 @@ fn create_access_policy() {
   let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).unwrap();
 
   // Ensure that all the properties were set correctly.
-  assert_eq!(access_policy.action_id, access_policy_properties.action_id);
-  assert_eq!(access_policy.permission_level, access_policy_properties.permission_level);
-  assert_eq!(access_policy.inheritance_level, access_policy_properties.inheritance_level);
-  assert_eq!(access_policy.principal_type, access_policy_properties.principal_type);
-  assert_eq!(access_policy.principal_user_id, access_policy_properties.principal_user_id);
-  assert_eq!(access_policy.principal_group_id, access_policy_properties.principal_group_id);
-  assert_eq!(access_policy.principal_role_id, access_policy_properties.principal_role_id);
-  assert_eq!(access_policy.principal_app_id, access_policy_properties.principal_app_id);
-  assert_eq!(access_policy.scoped_resource_type, access_policy_properties.scoped_resource_type);
-  assert_eq!(access_policy.scoped_action_id, access_policy_properties.scoped_action_id);
-  assert_eq!(access_policy.scoped_app_id, access_policy_properties.scoped_app_id);
-  assert_eq!(access_policy.scoped_group_id, access_policy_properties.scoped_group_id);
-  assert_eq!(access_policy.scoped_item_id, access_policy_properties.scoped_item_id);
-  assert_eq!(access_policy.scoped_milestone_id, access_policy_properties.scoped_milestone_id);
-  assert_eq!(access_policy.scoped_project_id, access_policy_properties.scoped_project_id);
-  assert_eq!(access_policy.scoped_role_id, access_policy_properties.scoped_role_id);
-  assert_eq!(access_policy.scoped_user_id, access_policy_properties.scoped_user_id);
+  assert_access_policy_is_equal_to_initial_properties(&access_policy, &access_policy_properties);
 
 }
 
@@ -168,7 +196,7 @@ fn get_access_policy_by_id() {
   // Create the access policy.
   let test_postgres_environment = create_test_postgres_environment();
   let mut postgres_client = test_postgres_environment.postgres_client;
-  initialize_required_tables(&mut postgres_client);
+
   let action = create_random_action(&mut postgres_client);
   let user = create_random_user(&mut postgres_client);
   let access_policy_properties = InitialAccessPolicyProperties {
@@ -192,27 +220,9 @@ fn get_access_policy_by_id() {
     scoped_workspace_id: None
   };
   let created_access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).unwrap();
-
   let retrieved_access_policy = AccessPolicy::get_by_id(&created_access_policy.id, &mut postgres_client).unwrap();
 
-  assert_eq!(created_access_policy.id, retrieved_access_policy.id);
-  assert_eq!(created_access_policy.action_id, retrieved_access_policy.action_id);
-  assert_eq!(created_access_policy.permission_level, retrieved_access_policy.permission_level);
-  assert_eq!(created_access_policy.inheritance_level, retrieved_access_policy.inheritance_level);
-  assert_eq!(created_access_policy.principal_type, retrieved_access_policy.principal_type);
-  assert_eq!(created_access_policy.principal_user_id, retrieved_access_policy.principal_user_id);
-  assert_eq!(created_access_policy.principal_group_id, retrieved_access_policy.principal_group_id);
-  assert_eq!(created_access_policy.principal_role_id, retrieved_access_policy.principal_role_id);
-  assert_eq!(created_access_policy.principal_app_id, retrieved_access_policy.principal_app_id);
-  assert_eq!(created_access_policy.scoped_resource_type, retrieved_access_policy.scoped_resource_type);
-  assert_eq!(created_access_policy.scoped_action_id, retrieved_access_policy.scoped_action_id);
-  assert_eq!(created_access_policy.scoped_app_id, retrieved_access_policy.scoped_app_id);
-  assert_eq!(created_access_policy.scoped_group_id, retrieved_access_policy.scoped_group_id);
-  assert_eq!(created_access_policy.scoped_item_id, retrieved_access_policy.scoped_item_id);
-  assert_eq!(created_access_policy.scoped_milestone_id, retrieved_access_policy.scoped_milestone_id);
-  assert_eq!(created_access_policy.scoped_project_id, retrieved_access_policy.scoped_project_id);
-  assert_eq!(created_access_policy.scoped_role_id, retrieved_access_policy.scoped_role_id);
-  assert_eq!(created_access_policy.scoped_user_id, retrieved_access_policy.scoped_user_id);
+  assert_access_policies_are_equal(&created_access_policy, &retrieved_access_policy);
 
 }
 
@@ -220,13 +230,109 @@ fn get_access_policy_by_id() {
 #[test]
 fn list_access_policies_without_query() {
 
+  let test_postgres_environment = create_test_postgres_environment();
+  let mut postgres_client = test_postgres_environment.postgres_client;
 
+  const MAXIMUM_ACTION_COUNT: i32 = 25;
+  let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
+  let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
+  while remaining_action_count > 0 {
+
+    let action = create_random_action(&mut postgres_client);
+    let user = create_random_user(&mut postgres_client);
+    let access_policy_properties = InitialAccessPolicyProperties {
+      action_id: action.id,
+      permission_level: AccessPolicyPermissionLevel::User,
+      inheritance_level: AccessPolicyInheritanceLevel::Enabled,
+      principal_type: AccessPolicyPrincipalType::User,
+      principal_user_id: Some(user.id),
+      principal_group_id: None,
+      principal_role_id: None,
+      principal_app_id: None,
+      scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+      scoped_action_id: None,
+      scoped_app_id: None,
+      scoped_group_id: None,
+      scoped_item_id: None,
+      scoped_milestone_id: None,
+      scoped_project_id: None,
+      scoped_role_id: None,
+      scoped_user_id: None,
+      scoped_workspace_id: None
+    };
+    let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).unwrap();
+    created_access_policies.push(access_policy);
+    remaining_action_count -= 1;
+
+  }
+
+  let retrieved_access_policies = AccessPolicy::list("", &mut postgres_client).unwrap();
+
+  assert_eq!(created_access_policies.len(), retrieved_access_policies.len());
+  for i in 0..created_access_policies.len() {
+
+    let created_access_policy = &created_access_policies[i];
+    let retrieved_access_policy = &retrieved_access_policies[i];
+
+    assert_access_policies_are_equal(created_access_policy, retrieved_access_policy);
+
+  }
 
 }
 
 /// Verifies that a list of access policies can be retrieved with a query.
 #[test]
 fn list_access_policies_with_query() {
+
+  let test_postgres_environment = create_test_postgres_environment();
+  let mut postgres_client = test_postgres_environment.postgres_client;
+
+  const MAXIMUM_ACTION_COUNT: i32 = 5;
+  let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
+  let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
+  while remaining_action_count > 0 {
+
+    let action = create_random_action(&mut postgres_client);
+    let user = create_random_user(&mut postgres_client);
+    let access_policy_properties = InitialAccessPolicyProperties {
+      action_id: action.id,
+      permission_level: AccessPolicyPermissionLevel::User,
+      inheritance_level: AccessPolicyInheritanceLevel::Enabled,
+      principal_type: AccessPolicyPrincipalType::User,
+      principal_user_id: if remaining_action_count == 1 { created_access_policies[0].principal_user_id } else { Some(user.id) },
+      principal_group_id: None,
+      principal_role_id: None,
+      principal_app_id: None,
+      scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+      scoped_action_id: None,
+      scoped_app_id: None,
+      scoped_group_id: None,
+      scoped_item_id: None,
+      scoped_milestone_id: None,
+      scoped_project_id: None,
+      scoped_role_id: None,
+      scoped_user_id: None,
+      scoped_workspace_id: None
+    };
+    let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).unwrap();
+    created_access_policies.push(access_policy);
+    remaining_action_count -= 1;
+
+  }
+
+  let query = format!("principal_user_id = \"{}\"", created_access_policies[0].principal_user_id.unwrap());
+  let retrieved_access_policies = AccessPolicy::list(&query, &mut postgres_client).unwrap();
+
+  let created_access_policies_with_specific_user: Vec<&AccessPolicy> = created_access_policies.iter().filter(|access_policy| access_policy.principal_user_id == Some(created_access_policies[0].principal_user_id.unwrap())).collect();
+  assert_eq!(created_access_policies_with_specific_user.len(), retrieved_access_policies.len());
+  for i in 0..created_access_policies_with_specific_user.len() {
+
+    let created_access_policy = &created_access_policies_with_specific_user[i];
+    let retrieved_access_policy = &retrieved_access_policies[i];
+
+    assert_access_policies_are_equal(created_access_policy, retrieved_access_policy);
+
+  }
 
 }
 

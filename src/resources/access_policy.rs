@@ -16,7 +16,43 @@ use postgres_types::FromSql;
 use uuid::Uuid;
 use crate::{errors::resource_already_exists_error::ResourceAlreadyExistsError, utilities::slashstepql::{SlashstepQLFilterSanitizer, SlashstepQLSanitizeError, SlashstepQLSanitizeFunctionOptions}};
 
-pub const ALLOWED_QUERY_KEYS: &[&str] = &["action_id", "principal_type", "principal_user_id", "principal_group_id", "principal_role_id", "principal_app_id", "scoped_resource_type", "scoped_action_id", "scoped_app_id", "scoped_group_id", "scoped_item_id", "scoped_milestone_id", "scoped_project_id", "scoped_role_id", "scoped_user_id", "scoped_workspace_id"];
+pub const ALLOWED_QUERY_KEYS: &[&str] = &[
+  "id",
+  "action_id", 
+  "principal_type", 
+  "principal_user_id", 
+  "principal_group_id", 
+  "principal_role_id", 
+  "principal_app_id",
+  "scoped_resource_type", 
+  "scoped_action_id", 
+  "scoped_app_id", 
+  "scoped_group_id", 
+  "scoped_item_id", 
+  "scoped_milestone_id", 
+  "scoped_project_id", 
+  "scoped_role_id", 
+  "scoped_user_id", 
+  "scoped_workspace_id"
+];
+
+pub const UUID_QUERY_KEYS: &[&str] = &[
+  "id",
+  "action_id",
+  "principal_user_id", 
+  "principal_group_id", 
+  "principal_role_id", 
+  "principal_app_id",
+  "scoped_action_id", 
+  "scoped_app_id", 
+  "scoped_group_id", 
+  "scoped_item_id", 
+  "scoped_milestone_id", 
+  "scoped_project_id", 
+  "scoped_role_id", 
+  "scoped_user_id", 
+  "scoped_workspace_id"
+];
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy)]
 #[postgres(name = "permission_level")]
@@ -243,6 +279,7 @@ pub enum AccessPolicyCreationError {
   PostgresError(postgres::Error)
 }
 
+#[derive(Debug)]
 pub enum AccessPolicyListError {
   PostgresError(postgres::Error),
   SlashstepQLSanitizeError(SlashstepQLSanitizeError)
@@ -358,7 +395,8 @@ impl AccessPolicy {
       default_limit: None,
       maximum_limit: None,
       should_ignore_limit: true,
-      should_ignore_offset: true
+      should_ignore_offset: true,
+      uuid_fields: UUID_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect()
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let where_clause = sanitized_filter.where_clause.and_then(|string| Some(format!(" where {}", string))).unwrap_or("".to_string());
@@ -524,7 +562,8 @@ impl AccessPolicy {
       default_limit: None,
       maximum_limit: None,
       should_ignore_limit: false,
-      should_ignore_offset: false
+      should_ignore_offset: false,
+      uuid_fields: UUID_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect()
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let where_clause = sanitized_filter.where_clause.and_then(|string| Some(format!(" where {}", string))).unwrap_or("".to_string());

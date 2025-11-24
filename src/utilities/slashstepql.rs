@@ -1,6 +1,7 @@
 use pg_escape::quote_identifier;
 use postgres_types::ToSql;
 use regex::Regex;
+use uuid::Uuid;
 
 use crate::errors::slashstepql_invalid_limit_error::SlashstepQLInvalidLimitError;
 
@@ -20,7 +21,14 @@ pub enum SlashstepQLSanitizeError {
   RegexError(regex::Error),
   ParseIntError(std::num::ParseIntError),
   InvalidOffsetError(String),
-  SlashstepQLInvalidLimitError(SlashstepQLInvalidLimitError)
+  SlashstepQLInvalidLimitError(SlashstepQLInvalidLimitError),
+  UuidParseError(uuid::Error)
+}
+
+impl From<uuid::Error> for SlashstepQLSanitizeError {
+  fn from(error: uuid::Error) -> Self {
+    SlashstepQLSanitizeError::UuidParseError(error)
+  }
 }
 
 impl From<std::num::ParseIntError> for SlashstepQLSanitizeError {
@@ -41,7 +49,8 @@ pub struct SlashstepQLSanitizeFunctionOptions {
   pub default_limit: Option<i64>,
   pub maximum_limit: Option<i64>,
   pub should_ignore_limit: bool,
-  pub should_ignore_offset: bool
+  pub should_ignore_offset: bool,
+  pub uuid_fields: Vec<String>
 }
 
 impl SlashstepQLFilterSanitizer {
@@ -113,7 +122,16 @@ impl SlashstepQLFilterSanitizer {
 
                 if let Some(string_value) = string_value {
 
-                  parameters.push(Box::new(string_value));
+                  if options.uuid_fields.contains(&original_key) {
+
+                    let uuid = Uuid::parse_str(string_value.as_str())?;
+                    parameters.push(Box::new(uuid));
+
+                  } else {
+
+                    parameters.push(Box::new(string_value));
+
+                  }
 
                 } else if let Some(number_value) = number_value {
 
@@ -198,6 +216,12 @@ impl SlashstepQLFilterSanitizer {
       } else {
 
         return Err(SlashstepQLSanitizeError::InvalidQueryError(()));
+
+      }
+
+      if let Some(end) = search_regex.find(&raw_filter) {
+
+        raw_filter = raw_filter[end.len()..].to_string();
 
       }
 
