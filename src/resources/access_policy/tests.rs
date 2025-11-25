@@ -9,13 +9,7 @@
 
 use crate::resources::{
   access_policy::{
-    AccessPolicy, 
-    AccessPolicyInheritanceLevel, 
-    AccessPolicyPermissionLevel, 
-    AccessPolicyPrincipalType, 
-    AccessPolicyScopedResourceType, 
-    DEFAULT_ACCESS_POLICY_LIST_LIMIT, 
-    InitialAccessPolicyProperties
+    AccessPolicy, AccessPolicyInheritanceLevel, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyScopedResourceType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, InitialAccessPolicyProperties
   }, 
   action::{Action, InitialActionProperties}, 
   app::App, 
@@ -528,5 +522,41 @@ fn delete_access_policy() {
 /// Verifies that the implementation can update an access policy.
 #[test]
 fn update_access_policy() {
+
+  let test_postgres_environment = create_test_postgres_environment();
+  let mut postgres_client = test_postgres_environment.postgres_client;
+
+  // Create the access policy.
+  let action = create_random_action(&mut postgres_client);
+  let user = create_random_user(&mut postgres_client);
+  let instance_access_policy_properties = InitialAccessPolicyProperties {
+    action_id: action.id,
+    permission_level: AccessPolicyPermissionLevel::User,
+    inheritance_level: AccessPolicyInheritanceLevel::Enabled,
+    principal_type: AccessPolicyPrincipalType::User,
+    principal_user_id: Some(user.id),
+    principal_group_id: None,
+    principal_role_id: None,
+    principal_app_id: None,
+    scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+    scoped_action_id: None,
+    scoped_app_id: None,
+    scoped_group_id: None,
+    scoped_item_id: None,
+    scoped_milestone_id: None,
+    scoped_project_id: None,
+    scoped_role_id: None,
+    scoped_user_id: None,
+    scoped_workspace_id: None
+  };
+  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &mut postgres_client).unwrap();
+  let updated_access_policy_properties = EditableAccessPolicyProperties {
+    permission_level: Some(AccessPolicyPermissionLevel::Editor),
+    inheritance_level: Some(AccessPolicyInheritanceLevel::Disabled)
+  };
+  let updated_access_policy = instance_access_policy.update(&updated_access_policy_properties, &mut postgres_client).unwrap();
+
+  assert_eq!(updated_access_policy.permission_level, AccessPolicyPermissionLevel::Editor);
+  assert_eq!(updated_access_policy.inheritance_level, AccessPolicyInheritanceLevel::Disabled);
 
 }
