@@ -703,8 +703,6 @@ impl AccessPolicy {
     // Execute the query.
     let parsed_parameters = Self::parse_slashstepql_parameters(&sanitized_filter.parameters)?;
     let parameters = parsed_parameters.iter().map(|parameter| parameter.as_ref()).collect::<Vec<&(dyn ToSql + Sync)>>();
-    println!("{}", query);
-    println!("{:?}", parameters);
     let rows = postgres_client.query(&query, &parameters)?;
     let access_policies = rows.iter().map(AccessPolicy::convert_from_row).collect();
     return Ok(access_policies);

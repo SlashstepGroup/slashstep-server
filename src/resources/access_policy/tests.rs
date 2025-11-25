@@ -489,6 +489,40 @@ fn list_access_policies_by_hierarchy() {
 #[test]
 fn delete_access_policy() {
 
+  let test_postgres_environment = create_test_postgres_environment();
+  let mut postgres_client = test_postgres_environment.postgres_client;
+
+  // Create the access policy.
+  let action = create_random_action(&mut postgres_client);
+  let user = create_random_user(&mut postgres_client);
+  let instance_access_policy_properties = InitialAccessPolicyProperties {
+    action_id: action.id,
+    permission_level: AccessPolicyPermissionLevel::User,
+    inheritance_level: AccessPolicyInheritanceLevel::Enabled,
+    principal_type: AccessPolicyPrincipalType::User,
+    principal_user_id: Some(user.id),
+    principal_group_id: None,
+    principal_role_id: None,
+    principal_app_id: None,
+    scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+    scoped_action_id: None,
+    scoped_app_id: None,
+    scoped_group_id: None,
+    scoped_item_id: None,
+    scoped_milestone_id: None,
+    scoped_project_id: None,
+    scoped_role_id: None,
+    scoped_user_id: None,
+    scoped_workspace_id: None
+  };
+  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &mut postgres_client).unwrap();
+
+  instance_access_policy.delete(&mut postgres_client).unwrap();
+
+  // Ensure that the access policy is no longer in the database.
+  let retrieved_access_policy_result = AccessPolicy::get_by_id(&instance_access_policy.id, &mut postgres_client);
+  assert!(retrieved_access_policy_result.is_err());
+
 }
 
 /// Verifies that the implementation can update an access policy.

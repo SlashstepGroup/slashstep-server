@@ -204,7 +204,6 @@ impl SlashstepQLFilterSanitizer {
 
       } else {
 
-        println!("Regex capture group: {:?}", regex_captures);
         return Err(SlashstepQLSanitizeError::InvalidQueryError(()));
 
       }
