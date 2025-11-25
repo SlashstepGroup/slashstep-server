@@ -18,6 +18,7 @@ pub struct SlashstepQLFilterSanitizer;
 pub enum SlashstepQLSanitizeError {
   InvalidFilterSyntaxError(String),
   InvalidQueryError(()),
+  InvalidFieldError(String),
   RegexError(regex::Error),
   ParseIntError(std::num::ParseIntError),
   InvalidOffsetError(String),
@@ -61,7 +62,7 @@ impl SlashstepQLFilterSanitizer {
     let mut where_clause = String::new();
     let mut raw_filter = options.filter.to_string();
     let mut offset = None;
-    let mut limit = None;
+    let mut limit = options.default_limit;
 
     while raw_filter.len() > 0 {
 
@@ -76,7 +77,7 @@ impl SlashstepQLFilterSanitizer {
 
         if regex_captures.name("openParenthesis").is_some() {
 
-          where_clause.push_str(" (");
+          where_clause.push_str("(");
 
         } else if regex_captures.name("closedParenthesis").is_some() {
 
@@ -84,24 +85,25 @@ impl SlashstepQLFilterSanitizer {
 
         } else if regex_captures.name("and").is_some() {
 
-          where_clause.push_str(" and");
+          where_clause.push_str(" and ");
 
         } else if regex_captures.name("or").is_some() {
 
-          where_clause.push_str(" or");
+          where_clause.push_str(" or ");
 
         } else if regex_captures.name("not").is_some() {
 
-          where_clause.push_str(" not");
+          where_clause.push_str(" not ");
 
         } else if regex_captures.name("assignment").is_some() {
 
           // Ensure the key is a valid identifier. Very important to prevent SQL injection.
           if let Some(original_key) = regex_captures.name("key").and_then(|string_match| Some(string_match.as_str().to_string())) {
 
-            if !options.allowed_fields.contains(&original_key.as_str().to_string()) {
+            let field = original_key.as_str().to_string();
+            if !options.allowed_fields.contains(&field) {
 
-              return Err(SlashstepQLSanitizeError::InvalidQueryError(()));
+              return Err(SlashstepQLSanitizeError::InvalidFieldError(field));
 
             }
 
@@ -116,7 +118,7 @@ impl SlashstepQLFilterSanitizer {
               let identifier = quote_identifier(&original_key);
               let formatted_value = format!("${}", parameters.len() + 1);
               let where_value = if has_null_value { "NULL" } else { formatted_value.as_str() };
-              where_clause.push_str(&format!(" {} {} {}", identifier, operator, where_value));
+              where_clause.push_str(&format!("{} {} {}", identifier, operator, where_value));
 
               if !has_null_value {
 
@@ -215,6 +217,7 @@ impl SlashstepQLFilterSanitizer {
 
       } else {
 
+        println!("Regex capture group: {:?}", regex_captures);
         return Err(SlashstepQLSanitizeError::InvalidQueryError(()));
 
       }

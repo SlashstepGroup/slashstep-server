@@ -9,8 +9,26 @@
 
 use crate::resources::{
   access_policy::{
-    AccessPolicy, AccessPolicyInheritanceLevel, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyScopedResourceType, InitialAccessPolicyProperties
-  }, action::{Action, InitialActionProperties}, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, group::Group, item::Item, milestone::Milestone, project::Project, role::Role, user::{InitialUserProperties, User}, workspace::Workspace
+    AccessPolicy, 
+    AccessPolicyInheritanceLevel, 
+    AccessPolicyPermissionLevel, 
+    AccessPolicyPrincipalType, 
+    AccessPolicyScopedResourceType, 
+    DEFAULT_ACCESS_POLICY_LIST_LIMIT, 
+    InitialAccessPolicyProperties
+  }, 
+  action::{Action, InitialActionProperties}, 
+  app::App, 
+  app_authorization::AppAuthorization, 
+  app_authorization_credential::AppAuthorizationCredential, 
+  app_credential::AppCredential, 
+  group::Group, 
+  item::Item, 
+  milestone::Milestone, 
+  project::Project, 
+  role::Role, 
+  user::{InitialUserProperties, User}, 
+  workspace::Workspace
 };
 use testcontainers_modules::{testcontainers::runners::SyncRunner};
 use testcontainers::{ImageExt};
@@ -340,17 +358,130 @@ fn list_access_policies_with_query() {
 #[test]
 fn list_access_policies_with_default_limit() {
 
+  let test_postgres_environment = create_test_postgres_environment();
+  let mut postgres_client = test_postgres_environment.postgres_client;
+
+  const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1;
+  let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
+  let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
+  while remaining_action_count > 0 {
+
+    let action = create_random_action(&mut postgres_client);
+    let user = create_random_user(&mut postgres_client);
+    let access_policy_properties = InitialAccessPolicyProperties {
+      action_id: action.id,
+      permission_level: AccessPolicyPermissionLevel::User,
+      inheritance_level: AccessPolicyInheritanceLevel::Enabled,
+      principal_type: AccessPolicyPrincipalType::User,
+      principal_user_id: Some(user.id),
+      principal_group_id: None,
+      principal_role_id: None,
+      principal_app_id: None,
+      scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+      scoped_action_id: None,
+      scoped_app_id: None,
+      scoped_group_id: None,
+      scoped_item_id: None,
+      scoped_milestone_id: None,
+      scoped_project_id: None,
+      scoped_role_id: None,
+      scoped_user_id: None,
+      scoped_workspace_id: None
+    };
+    let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).unwrap();
+    created_access_policies.push(access_policy);
+    remaining_action_count -= 1;
+
+  }
+
+  let retrieved_access_policies = AccessPolicy::list("", &mut postgres_client).unwrap();
+
+  assert_eq!(retrieved_access_policies.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
+  
 }
 
 /// Verifies that the implementation can return an accurate count of access policies.
 #[test]
 fn count_access_policies() {
 
+  let test_postgres_environment = create_test_postgres_environment();
+  let mut postgres_client = test_postgres_environment.postgres_client;
+
+  const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1;
+  let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
+  let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
+  while remaining_action_count > 0 {
+
+    let action = create_random_action(&mut postgres_client);
+    let user = create_random_user(&mut postgres_client);
+    let access_policy_properties = InitialAccessPolicyProperties {
+      action_id: action.id,
+      permission_level: AccessPolicyPermissionLevel::User,
+      inheritance_level: AccessPolicyInheritanceLevel::Enabled,
+      principal_type: AccessPolicyPrincipalType::User,
+      principal_user_id: Some(user.id),
+      principal_group_id: None,
+      principal_role_id: None,
+      principal_app_id: None,
+      scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+      scoped_action_id: None,
+      scoped_app_id: None,
+      scoped_group_id: None,
+      scoped_item_id: None,
+      scoped_milestone_id: None,
+      scoped_project_id: None,
+      scoped_role_id: None,
+      scoped_user_id: None,
+      scoped_workspace_id: None
+    };
+    let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).unwrap();
+    created_access_policies.push(access_policy);
+    remaining_action_count -= 1;
+
+  }
+
+  let retrieved_access_policy_count = AccessPolicy::count("", &mut postgres_client).unwrap();
+
+  assert_eq!(retrieved_access_policy_count, MAXIMUM_ACTION_COUNT);
+
 }
 
 /// Verifies that the implementation can return a list of access policies in the proper order given a hierarchy.
 #[test]
 fn list_access_policies_by_hierarchy() {
+
+  let test_postgres_environment = create_test_postgres_environment();
+  let mut postgres_client = test_postgres_environment.postgres_client;
+
+  // Create the access policy.
+  let action = create_random_action(&mut postgres_client);
+  let user = create_random_user(&mut postgres_client);
+  let instance_access_policy_properties = InitialAccessPolicyProperties {
+    action_id: action.id,
+    permission_level: AccessPolicyPermissionLevel::User,
+    inheritance_level: AccessPolicyInheritanceLevel::Enabled,
+    principal_type: AccessPolicyPrincipalType::User,
+    principal_user_id: Some(user.id),
+    principal_group_id: None,
+    principal_role_id: None,
+    principal_app_id: None,
+    scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+    scoped_action_id: None,
+    scoped_app_id: None,
+    scoped_group_id: None,
+    scoped_item_id: None,
+    scoped_milestone_id: None,
+    scoped_project_id: None,
+    scoped_role_id: None,
+    scoped_user_id: None,
+    scoped_workspace_id: None
+  };
+  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &mut postgres_client).unwrap();
+  let access_policy_hierarchy = vec![(&instance_access_policy.scoped_resource_type, None)];
+
+  let retrieved_access_policies = AccessPolicy::list_by_hierarchy(&access_policy_hierarchy, &action.id, &mut postgres_client).unwrap();
+
+  assert_eq!(retrieved_access_policies.len(), access_policy_hierarchy.len());
 
 }
 

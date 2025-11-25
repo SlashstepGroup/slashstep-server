@@ -11,6 +11,7 @@
 
 use core::{fmt};
 use std::str::FromStr;
+use pg_escape::quote_literal;
 use postgres::{error::SqlState, types::ToSql};
 use postgres_types::FromSql;
 use uuid::Uuid;
@@ -53,6 +54,8 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_user_id", 
   "scoped_workspace_id"
 ];
+
+pub const DEFAULT_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy)]
 #[postgres(name = "permission_level")]
@@ -168,6 +171,7 @@ impl FromStr for AccessPolicyScopedResourceType {
   fn from_str(string: &str) -> Result<Self, Self::Err> {
 
     match string {
+      "Instance" => Ok(AccessPolicyScopedResourceType::Instance),
       "Workspace" => Ok(AccessPolicyScopedResourceType::Workspace),
       "Project" => Ok(AccessPolicyScopedResourceType::Project),
       "Milestone" => Ok(AccessPolicyScopedResourceType::Milestone),
@@ -297,6 +301,7 @@ impl From<SlashstepQLSanitizeError> for AccessPolicyListError {
   }
 }
 
+#[derive(Debug)]
 pub enum AccessPolicyCountError {
   PostgresError(postgres::Error),
   CountNotFoundError(()),
@@ -335,7 +340,7 @@ pub struct EditableAccessPolicyProperties {
 
 }
 
-pub type ResourceHierarchy = Vec<(AccessPolicyScopedResourceType, Option<Uuid>)>;
+pub type ResourceHierarchy<'a> = Vec<(&'a AccessPolicyScopedResourceType, Option<&'a Uuid>)>;
 
 /// A piece of information that defines the level of access and inheritance for a principal to perform an action.
 pub struct AccessPolicy {
@@ -386,7 +391,7 @@ impl AccessPolicy {
 
   /* Static methods */
   /// Counts the number of access policies based on a query.
-  pub fn count(postgres_client: &mut postgres::Client, query: &str) -> Result<i64, AccessPolicyCountError> {
+  pub fn count(query: &str, postgres_client: &mut postgres::Client) -> Result<i64, AccessPolicyCountError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -559,7 +564,7 @@ impl AccessPolicy {
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
       allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
-      default_limit: None,
+      default_limit: Some(DEFAULT_ACCESS_POLICY_LIST_LIMIT),
       maximum_limit: None,
       should_ignore_limit: false,
       should_ignore_offset: false,
@@ -573,6 +578,8 @@ impl AccessPolicy {
 
     // Execute the query.
     let parameters = sanitized_filter.parameters.iter().map(|parameter| parameter.as_ref()).collect::<Vec<&(dyn ToSql + Sync)>>();
+    println!("{}", query);
+    println!("{:?}", parameters);
     let rows = postgres_client.query(&query, &parameters)?;
     let access_policies = rows.iter().map(AccessPolicy::convert_from_row).collect();
     return Ok(access_policies);
@@ -607,7 +614,7 @@ impl AccessPolicy {
     // This will turn the query into something like:
     // action_id = $1 and (scoped_resource_type = 'Instance' or scoped_workspace_id = $2 or scoped_project_id = $3 or scoped_milestone_id = $4 or scoped_item_id = $5)
     let mut query_filter = String::new();
-    query_filter.push_str(format!("action_id = {} and (", action_id).as_str());
+    query_filter.push_str(format!("action_id = {} and (", quote_literal(&action_id.to_string())).as_str());
     for i in 0..query_clauses.len() {
 
       if i > 0 {
