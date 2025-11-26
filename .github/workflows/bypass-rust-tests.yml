@@ -1,0 +1,19 @@
+# This workflow is used to bypass the Rust tests on pull requests if no code was changed.
+# This hack is necessary because GitHub Actions doesn't currently support skipping required tests.
+
+name: Bypass Rust tests
+on:
+  pull_request:
+    paths-ignore: 
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/run-rust-tests.yml
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: cargo test # This needs to be the same name as the one in run-rust-tests.yml.
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "No code was changed, so testing is not required."'
