@@ -29,7 +29,10 @@ thiserror = "2.0.17"
 tokio = { version = "1.48.0", features = ["full"] }
 uuid = { version = "1.18.1", features = ["v7", "serde"] }
 reqwest = { version = "0.12.24", features = ["json"] }
+tower = "0.5.2"
+ntest = "0.9.3"
 
 [dev-dependencies]
 testcontainers = { version = "0.25.2", features = ["blocking"] }
 testcontainers-modules = { version = "0.13.0", features = ["postgres"] }
+axum-test = "18.3.0"

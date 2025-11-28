@@ -19,7 +19,7 @@ use reqwest::StatusCode;
 use tokio::net::TcpListener;
 use colored::Colorize;
 
-use crate::resources::{access_policy::AccessPolicy, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, group::Group, http_request::HttpRequest, item::Item, milestone::Milestone, project::Project, role::Role, user::User, workspace::Workspace};
+use crate::resources::{access_policy::AccessPolicy, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, group::Group, http_request::HTTPRequest, item::Item, milestone::Milestone, project::Project, role::Role, user::User, workspace::Workspace};
 
 const DEFAULT_APP_PORT: i16 = 8080;
 const DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT: u32 = 5;
@@ -79,6 +79,7 @@ fn get_app_port_string() -> String {
 pub async fn initialize_required_tables(postgres_client: &mut deadpool_postgres::Client) -> Result<()> {
 
   // Because the access_policies table depends on other tables, we need to initialize them in a specific order.
+  HTTPRequest::initialize_http_requests_table(postgres_client).await?;
   User::initialize_users_table(postgres_client).await?;
   Group::initialize_groups_table(postgres_client).await?;
   App::initialize_apps_table(postgres_client).await?;
@@ -108,7 +109,12 @@ pub enum HTTPError {
 impl fmt::Display for HTTPError {
 
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{}", self)
+    match self {
+      HTTPError::NotFoundError(message) => write!(f, "{}", message.to_owned().unwrap_or("Not found.".to_string())),
+      HTTPError::ConflictError(message) => write!(f, "{}", message.to_owned().unwrap_or("Conflict.".to_string())),
+      HTTPError::BadRequestError(message) => write!(f, "{}", message.to_owned().unwrap_or("Bad request.".to_string())),
+      HTTPError::InternalServerError(message) => write!(f, "{}", message.to_owned().unwrap_or("Internal server error.".to_string()))
+    }
   }
   
 }
@@ -139,7 +145,7 @@ pub struct AppState {
 
 #[derive(Clone)]
 pub struct RequestData {
-  pub http_request: HttpRequest
+  pub http_request: HTTPRequest
 }
 
 fn get_environment_variable(variable_name: &str) -> Result<String> {
@@ -203,7 +209,7 @@ async fn main() -> Result<()> {
   };
 
   let app_port = get_app_port_string();
-  let router = routes::get_router().with_state(state);
+  let router = routes::get_router(state.clone()).with_state(state);
   let listener = TcpListener::bind(format!("0.0.0.0:{}", app_port)).await?;
   let app_ip = local_ip()?;
   println!("{}", format!("Slashstep Server is now listening on port {}. You can access it on your machine at http://localhost:{}, or your local network at http://{}:{}.", app_port, app_port, app_ip, app_port).green());

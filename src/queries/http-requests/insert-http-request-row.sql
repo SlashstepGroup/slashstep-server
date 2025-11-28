@@ -11,5 +11,5 @@ insert into http_requests (
   $3,
   $4,
   $5,
-  COALESCE($6, now() + interval '14 days')
+  $6
 ) returning *;

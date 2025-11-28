@@ -1,6 +1,8 @@
-use axum::{http::{StatusCode}, middleware::Next, response::Response, extract::Request};
+use axum::{extract::{Request, State}, http::StatusCode, middleware::Next, response::Response};
 
-pub async fn authenticate_user(request: Request, next: Next) -> Result<Response, StatusCode> {
+use crate::AppState;
+
+pub async fn authenticate_user(State(state): State<AppState>, request: Request, next: Next) -> Result<Response, StatusCode> {
   // Perform actions before the handler
   println!("Request received: {}", request.uri());
 
@@ -10,7 +12,7 @@ pub async fn authenticate_user(request: Request, next: Next) -> Result<Response,
   // Perform actions after the handler
   println!("Response status: {}", response.status());
 
-  Ok(response)
+  return Ok(response);
 }
 
 pub async fn authenticate_app(request: Request, next: Next) -> Result<Response, StatusCode> {

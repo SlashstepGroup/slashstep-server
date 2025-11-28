@@ -77,7 +77,20 @@ impl ServerLogEntry {
 
   }
 
-  pub async fn from_http_error(http_error: &HTTPError, http_request_id: Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self> {
+  pub async fn create_info_log(message: &str, http_request_id: Option<Uuid>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self> {
+
+    let level = ServerLogEntryLevel::Info;
+    let properties = InitialServerLogEntryProperties {
+      message: message.to_string(),
+      http_request_id,
+      level
+    };
+    let server_log_entry = ServerLogEntry::create(&properties, postgres_client, true).await?;
+    return Ok(server_log_entry);
+
+  }
+
+  pub async fn from_http_error(http_error: &HTTPError, http_request_id: Option<Uuid>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self> {
 
     let level = match http_error {
       HTTPError::InternalServerError(_) => ServerLogEntryLevel::Critical,
@@ -86,7 +99,7 @@ impl ServerLogEntry {
     let message = http_error.to_string();
     let properties = InitialServerLogEntryProperties {
       message,
-      http_request_id: Some(http_request_id),
+      http_request_id,
       level
     };
     let server_log_entry = ServerLogEntry::create(&properties, postgres_client, true).await?;
@@ -157,7 +170,14 @@ impl ServerLogEntry {
 
     };
     let formatted_message = format!("{} {}{}", level_prefix, request_id_prefix, self.message);
-
+    let formatted_message = match &self.level {
+      ServerLogEntryLevel::Success => format!("{}", formatted_message.green()),
+      ServerLogEntryLevel::Critical => format!("{}", formatted_message.on_red()),
+      ServerLogEntryLevel::Error => format!("{}", formatted_message.red()),
+      ServerLogEntryLevel::Warning => format!("{}", formatted_message.yellow()),
+      ServerLogEntryLevel::Info => format!("{}", formatted_message.cyan()),
+      ServerLogEntryLevel::Trace => formatted_message
+    };
     return formatted_message;
     
   }

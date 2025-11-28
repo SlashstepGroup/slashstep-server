@@ -8,6 +8,8 @@ use uuid::Uuid;
 use crate::{resources::{action::{Action, InitialActionProperties}, user::{InitialUserProperties, User}}};
 
 pub struct TestEnvironment {
+
+  pub postgres_pool: deadpool_postgres::Pool,
   
   pub postgres_client: deadpool_postgres::Client,
 
@@ -43,6 +45,7 @@ impl TestEnvironment {
     let postgres_client = postgres_pool.get().await?;
 
     let environment = TestEnvironment {
+      postgres_pool,
       postgres_client,
       postgres_container: postgres_container
     };

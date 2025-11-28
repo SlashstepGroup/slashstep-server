@@ -2,10 +2,10 @@ use std::net::IpAddr;
 use anyhow::Result;
 use postgres_types::ToSql;
 use uuid::Uuid;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 
 #[derive(Debug, Clone)]
-pub struct HttpRequest {
+pub struct HTTPRequest {
 
   /// The ID of the HTTP request.
   pub id: Uuid,
@@ -26,11 +26,11 @@ pub struct HttpRequest {
   pub status_code: Option<i32>,
 
   /// The expiration date of the HTTP request.
-  pub expiration_date: Option<NaiveDateTime>
+  pub expiration_date: Option<DateTime<Utc>>
 
 }
 
-pub struct InitialHttpRequestProperties {
+pub struct InitialHTTPRequestProperties {
 
   /// The HTTP method of the HTTP request.
   pub method: String,
@@ -48,13 +48,13 @@ pub struct InitialHttpRequestProperties {
   pub status_code: Option<i32>,
 
   /// The expiration date of the HTTP request.
-  pub expiration_date: Option<NaiveDateTime>
+  pub expiration_date: Option<DateTime<Utc>>
 
 }
 
-impl HttpRequest {
+impl HTTPRequest {
 
-  pub async fn create(properties: &InitialHttpRequestProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self> {
+  pub async fn create(properties: &InitialHTTPRequestProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self> {
 
     let query = include_str!("../queries/http-requests/insert-http-request-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -67,7 +67,7 @@ impl HttpRequest {
     ];
     let row = postgres_client.query_one(query, parameters).await?;
 
-    let http_request = HttpRequest {
+    let http_request = HTTPRequest {
       id: row.get("id"),
       method: row.get("method"),
       url: row.get("url"),
@@ -78,6 +78,14 @@ impl HttpRequest {
     };
 
     return Ok(http_request);
+
+  }
+
+  pub async fn initialize_http_requests_table(postgres_client: &mut deadpool_postgres::Client) -> Result<()> {
+
+    let query = include_str!("../queries/http-requests/create-http-requests-table.sql");
+    postgres_client.execute(query, &[]).await?;
+    return Ok(());
 
   }
 

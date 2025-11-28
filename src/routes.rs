@@ -10,10 +10,10 @@ async fn fallback() -> impl IntoResponse {
 
 }
 
-pub fn get_router() -> Router<AppState> {
+pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
-    .nest("/access-policies", access_policies::get_router())
+    .merge(access_policies::get_router(state.clone()))
     .fallback(fallback);
   return router;
 

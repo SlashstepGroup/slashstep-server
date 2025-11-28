@@ -9,11 +9,11 @@ async fn list_access_policies() {
 
 }
 
-pub fn get_router() -> Router<AppState> {
+pub fn get_router(state: AppState) -> Router<AppState> {
 
   let mut router = Router::<AppState>::new();
-  router = router.route("/", axum::routing::get(list_access_policies));
-  router = router.nest("/{access_policy_id}", access_policy_id::get_router());
+  router = router.route("/access-policies", axum::routing::get(list_access_policies));
+  router = router.merge(access_policy_id::get_router(state.clone()));
   return router;
 
 }
