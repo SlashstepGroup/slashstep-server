@@ -1,5 +1,4 @@
-use std::{error::Error, fmt};
-
+use std::fmt;
 use pg_escape::quote_identifier;
 use regex::Regex;
 use thiserror::Error;

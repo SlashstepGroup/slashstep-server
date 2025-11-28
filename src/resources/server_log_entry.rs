@@ -1,11 +1,9 @@
 use core::fmt;
 
-use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
-use uuid::{Timestamp, Uuid};
+use uuid::Uuid;
 use colored::Colorize;
 use anyhow::{Result, bail};
-use std::error::Error;
 
 use crate::HTTPError;
 

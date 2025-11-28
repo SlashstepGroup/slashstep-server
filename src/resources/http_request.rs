@@ -2,7 +2,7 @@ use std::net::IpAddr;
 use anyhow::Result;
 use postgres_types::ToSql;
 use uuid::Uuid;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]
 pub struct HTTPRequest {

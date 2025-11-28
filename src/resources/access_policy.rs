@@ -19,7 +19,7 @@ use serde::Serialize;
 use uuid::Uuid;
 use crate::{
   HTTPError, utilities::slashstepql::{
-    SlashstepQLFilterSanitizer, SlashstepQLParameterType, SlashstepQLError, SlashstepQLSanitizeFunctionOptions
+    SlashstepQLFilterSanitizer, SlashstepQLParameterType, SlashstepQLSanitizeFunctionOptions
   }
 };
 use anyhow::{Result, anyhow, bail};
