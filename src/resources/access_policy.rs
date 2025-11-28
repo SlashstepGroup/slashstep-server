@@ -439,25 +439,17 @@ impl AccessPolicy {
 
     let query = include_str!("../queries/access-policies/get-access-policy-row-by-id.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[&id];
-    let row = match postgres_client.query_one(query, parameters).await {
+    let rows = match postgres_client.query(query, parameters).await {
 
-      Ok(row) => row,
+      Ok(rows) => rows,
 
-      Err(error) => match error.code() {
+      Err(error) => bail!(error)
 
-        Some(&postgres::error::SqlState::NO_DATA_FOUND) => {
+    };
+    let row = match rows.get(0) {
 
-          bail!(HTTPError::NotFoundError(Some(format!("Access policy with ID {} not found.", id))));
-
-        },
-
-        _ => {
-
-          bail!(error);
-
-        }
-        
-      }
+      Some(row) => row,
+      None => bail!(HTTPError::NotFoundError(Some(format!("Access policy with ID {} not found.", id))))
 
     };
     let access_policy = AccessPolicy::convert_from_row(&row);

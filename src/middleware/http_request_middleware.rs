@@ -1,9 +1,9 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr};
 
 use anyhow::Result;
-use axum::{body::Body, extract::{ConnectInfo, Request, State}, middleware::Next, response::{Response, IntoResponse}};
+use axum::{body::Body, extract::{ConnectInfo, Request, State}, middleware::Next, response::{IntoResponse, Response}};
 use chrono::{Duration, Utc};
-use crate::{AppState, HTTPError, resources::{http_request::{HTTPRequest, InitialHTTPRequestProperties}, server_log_entry::ServerLogEntry}};
+use crate::{AppState, HTTPError, RequestData, resources::{http_request::{HTTPRequest, InitialHTTPRequestProperties}, server_log_entry::ServerLogEntry}};
 use colored::Colorize;
 
 pub async fn create_http_request(
@@ -67,12 +67,15 @@ pub async fn create_http_request(
     }
 
   };
-
   
-  let _ = ServerLogEntry::create_info_log(&format!("HTTP request handling started."), Some(http_request.id), &mut postgres_client).await;
+  let request_data = RequestData {
+    http_request: http_request,
+  };
+  let request_data = request_data;
 
-  request.extensions_mut().insert(http_request);
-
+  request.extensions_mut().insert(request_data.clone());
+  
+  let _ = ServerLogEntry::create_info_log(&format!("HTTP request handling started."), Some(request_data.http_request.id), &mut postgres_client).await;
   let response = next.run(request).await;
   return Ok(response);
 

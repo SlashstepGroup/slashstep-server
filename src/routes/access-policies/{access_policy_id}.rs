@@ -13,7 +13,7 @@ async fn get_access_policy(
 ) -> Result<Json<AccessPolicy>, HTTPError> {
 
   // Make sure the access policy exists.
-  let http_request_id = request_data.http_request.id;
+  let http_request = request_data.http_request.clone();
   let mut postgres_client = state.database_pool.get().await.map_err(|error| {
     
     let http_error = HTTPError::InternalServerError(Some(error.to_string()));
@@ -28,14 +28,12 @@ async fn get_access_policy(
     Err(_) => {
 
       let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the access policy ID.".to_string()));
-      let _ = ServerLogEntry::from_http_error(&http_error, Some(http_request_id), &mut postgres_client).await;
+      let _ = ServerLogEntry::from_http_error(&http_error, Some(http_request.id), &mut postgres_client).await;
       return Err(http_error);
 
     }
 
   };
-  
-  let http_request = request_data.http_request;
 
   let _ = ServerLogEntry::create_trace_log(&format!("Getting access policy {}...", access_policy_id), Some(http_request.id), &mut postgres_client).await;
   
@@ -49,7 +47,7 @@ async fn get_access_policy(
         Some(error) => error.clone(),
         None => HTTPError::InternalServerError(Some(error.to_string()))
       };
-      let _ = ServerLogEntry::from_http_error(&http_error, Some(http_request_id), &mut postgres_client).await;
+      let _ = ServerLogEntry::from_http_error(&http_error, Some(http_request.id), &mut postgres_client).await;
 
       return Err(http_error);
 
@@ -80,11 +78,10 @@ async fn delete_access_policy() {
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
-    .layer(axum::middleware::from_fn_with_state(state, authentication_middleware::authenticate_user))
     .route("/access-policies/{access_policy_id}", axum::routing::get(get_access_policy))
     .route("/access-policies/{access_policy_id}", axum::routing::patch(patch_access_policy))
-    .route("/access-policies/{access_policy_id}", axum::routing::delete(delete_access_policy));
-
+    .route("/access-policies/{access_policy_id}", axum::routing::delete(delete_access_policy))
+    .layer(axum::middleware::from_fn_with_state(state, authentication_middleware::authenticate_user));
   return router;
 
 }

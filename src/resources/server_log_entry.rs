@@ -174,7 +174,7 @@ impl ServerLogEntry {
       ServerLogEntryLevel::Error => format!("{}", formatted_message.red()),
       ServerLogEntryLevel::Warning => format!("{}", formatted_message.yellow()),
       ServerLogEntryLevel::Info => format!("{}", formatted_message.cyan()),
-      ServerLogEntryLevel::Trace => formatted_message
+      ServerLogEntryLevel::Trace => format!("{}", formatted_message.dimmed())
     };
     return formatted_message;
     

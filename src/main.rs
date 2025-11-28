@@ -9,7 +9,7 @@ mod routes;
 #[cfg(test)]
 mod tests;
 
-use std::fmt;
+use std::{fmt, sync::Arc};
 use anyhow::{Result, bail};
 use axum::{Json, response::{IntoResponse, Response}};
 use deadpool_postgres::{Pool, tokio_postgres};

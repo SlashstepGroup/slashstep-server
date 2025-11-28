@@ -5,13 +5,11 @@ use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
 
-use crate::{resources::{action::{Action, InitialActionProperties}, user::{InitialUserProperties, User}}};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, resources::{action::{Action, InitialActionProperties}, user::{InitialUserProperties, User}}};
 
 pub struct TestEnvironment {
 
   pub postgres_pool: deadpool_postgres::Pool,
-  
-  pub postgres_client: deadpool_postgres::Client,
 
   // This is required to prevent the compiler from complaining about unused fields.
   // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
@@ -41,12 +39,10 @@ impl TestEnvironment {
     };
     let manager = deadpool_postgres::Manager::from_config(postgres_config, NoTls, manager_config);
 
-    let postgres_pool = deadpool_postgres::Pool::builder(manager).max_size(1).build()?;
-    let postgres_client = postgres_pool.get().await?;
+    let postgres_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT as usize).build()?;
 
     let environment = TestEnvironment {
       postgres_pool,
-      postgres_client,
       postgres_container: postgres_container
     };
 
@@ -54,7 +50,7 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_action(&mut self) -> Result<Action> {
+  pub async fn create_random_action(&mut self, postgres_client: &mut deadpool_postgres::Client) -> Result<Action> {
 
     let action_properties = InitialActionProperties {
       name: Uuid::now_v7().to_string(),
@@ -63,13 +59,13 @@ impl TestEnvironment {
       app_id: None
     };
 
-    let action = Action::create(&action_properties, &mut self.postgres_client).await?;
+    let action = Action::create(&action_properties, postgres_client).await?;
 
     return Ok(action);
 
   }
 
-  pub async fn create_random_user(&mut self) -> Result<User> {
+  pub async fn create_random_user(&mut self, postgres_client: &mut deadpool_postgres::Client) -> Result<User> {
 
     let user_properties = InitialUserProperties {
       username: Some(Uuid::now_v7().to_string()),
@@ -79,7 +75,7 @@ impl TestEnvironment {
       ip_address: None
     };
 
-    let user = User::create(&user_properties, &mut self.postgres_client).await?;
+    let user = User::create(&user_properties, postgres_client).await?;
 
     return Ok(user);
 

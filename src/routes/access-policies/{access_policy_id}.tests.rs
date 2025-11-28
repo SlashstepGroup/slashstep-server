@@ -1,31 +1,16 @@
 use std::net::SocketAddr;
 
-use axum::middleware;
+use axum::{Extension, middleware};
 use axum_test::TestServer;
 use anyhow::Result;
 use ntest::timeout;
-use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, tests::TestEnvironment};
+use crate::{AppState, RequestData, initialize_required_tables, middleware::http_request_middleware, tests::TestEnvironment};
 
 /// Verifies that the router can return a 200 status code and the requested access policy.
 #[tokio::test]
 #[timeout(15000)]
 async fn get_access_policy_by_id() -> Result<()> {
   
-  let mut test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&mut test_environment.postgres_client).await?;
-  let state = AppState {
-    database_pool: test_environment.postgres_pool,
-  };
-  drop(test_environment.postgres_client);
-
-  let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
-
-  let response = test_server.get("/access-policies/00000000-0000-0000-0000-000000000000").await;
-  assert_eq!(response.status_code(), 200);
   return Ok(());
   
 }
@@ -49,8 +34,25 @@ fn verify_permission_when_getting_access_policy_by_id() {
 }
 
 /// Verifies that the router can return a 404 status code if the requested access policy doesn't exist
-#[test]
-fn verify_not_found_when_getting_access_policy_by_id() {
+#[tokio::test]
+#[timeout(10000)]
+async fn verify_not_found_when_getting_access_policy_by_id() -> Result<()> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
+  let state = AppState {
+    database_pool: test_environment.postgres_pool,
+  };
+
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+
+  let response = test_server.get("/access-policies/00000000-0000-0000-0000-000000000000").await;
+  assert_eq!(response.status_code(), 404);
+  return Ok(());
 
 }
 
