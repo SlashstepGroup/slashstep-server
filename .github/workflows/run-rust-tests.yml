@@ -28,8 +28,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: openssl genrsa -out ./secrets/jwt-private-key.pem 2048
-      - run: openssl rsa -in ./secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
+      - run: mkdir secrets
+      - run: openssl genrsa -out secrets/jwt-private-key.pem 2048
+      - run: openssl rsa -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
       - run: RUSTFLAGS="-Awarnings" cargo test --all-features
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
