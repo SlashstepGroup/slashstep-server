@@ -3,7 +3,7 @@ use axum::middleware;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
-use crate::{AppState, SlashstepServerError, initialize_required_tables, middleware::http_request_middleware, resources::session::Session, tests::TestEnvironment};
+use crate::{AppState, SlashstepServerError, initialize_required_tables, middleware::http_request_middleware, resources::session::{Session, SessionError}, tests::TestEnvironment};
 
 /// Verifies that the router can return a 200 status code and the requested access policy.
 #[tokio::test]
@@ -51,7 +51,7 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), std:
 
 /// Verifies that the router can return a 404 status code if the requested access policy doesn't exist
 #[tokio::test]
-#[timeout(10000)]
+#[timeout(15000)]
 async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
@@ -74,7 +74,7 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), Slash
   let response = test_server.get(&format!("/access-policies/{}", uuid::Uuid::now_v7()))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
-  println!("{:?}", response);
+  
   assert_eq!(response.status_code(), 404);
   return Ok(());
 

@@ -110,7 +110,7 @@ pub enum AccessPolicyError {
   #[error(transparent)]
   UUIDError(#[from] uuid::Error),
 
-  #[error("An access policy with ID {0} not found.")]
+  #[error("Couldn't find an access policy with ID \"{0}\".")]
   NotFoundError(Uuid),
 
   #[error(transparent)]
@@ -405,7 +405,7 @@ impl AccessPolicy {
   pub async fn create(initial_properties: &InitialAccessPolicyProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, AccessPolicyError> {
 
     // Insert the access policy into the database.
-    let query = include_str!("../queries/access-policies/insert-access-policy-row.sql");
+    let query = include_str!("../../queries/access-policies/insert-access-policy-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.principal_type,
       &initial_properties.principal_user_id,
@@ -473,29 +473,19 @@ impl AccessPolicy {
   /// Gets an access policy by its ID.
   pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, AccessPolicyError> {
 
-    let query = include_str!("../queries/access-policies/get-access-policy-row-by-id.sql");
+    let query = include_str!("../../queries/access-policies/get-access-policy-row-by-id.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[&id];
-    let row = match postgres_client.query_one(query, parameters).await {
+    let row = match postgres_client.query_opt(query, parameters).await {
 
-      Ok(row) => row,
+      Ok(row) => match row {
 
-      Err(error) => {
-        
-        match error.as_db_error() {
+        Some(row) => row,
 
-          Some(db_error) => match db_error.code() {
+        None => return Err(AccessPolicyError::NotFoundError(id.clone()))
 
-            &SqlState::NO_DATA_FOUND => return Err(AccessPolicyError::NotFoundError(id.clone())),
+      },
 
-            _ => return Err(AccessPolicyError::PostgresError(error))
-
-          },
-
-          None => return Err(AccessPolicyError::PostgresError(error))
-
-        }
-
-      }
+      Err(error) => return Err(AccessPolicyError::PostgresError(error))
 
     };
 
@@ -534,10 +524,10 @@ impl AccessPolicy {
   /// Initializes the access policies table.
   pub async fn initialize_access_policies_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), AccessPolicyError> {
 
-    let table_query = include_str!("../queries/access-policies/initialize-access-policies-table.sql");
+    let table_query = include_str!("../../queries/access-policies/initialize-access-policies-table.sql");
     postgres_client.execute(table_query, &[]).await?;
 
-    let view_query = include_str!("../queries/access-policies/initialize-hydrated-access-policies-view.sql");
+    let view_query = include_str!("../../queries/access-policies/initialize-hydrated-access-policies-view.sql");
     postgres_client.execute(view_query, &[]).await?;
     return Ok(());
 
@@ -701,7 +691,7 @@ impl AccessPolicy {
   /// Deletes this access policy.
   pub async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), AccessPolicyError> {
 
-    let query = include_str!("../queries/access-policies/delete-access-policy-row.sql");
+    let query = include_str!("../../queries/access-policies/delete-access-policy-row.sql");
     postgres_client.execute(query, &[&self.id]).await?;
     return Ok(());
 
@@ -745,5 +735,4 @@ impl AccessPolicy {
 
 /// To reduce line count, tests are in a separate module.
 #[cfg(test)]
-#[path = "./access_policy.tests.rs"]
 mod tests;

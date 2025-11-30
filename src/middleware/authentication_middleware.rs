@@ -44,9 +44,23 @@ async fn get_decoded_claims(request_data: &RequestData, postgres_client: &mut de
 
   let decoded_claims = match jsonwebtoken::decode::<SessionTokenClaims>(&session_token, &decoding_key, &validation) {
     Ok(decoded_claims) => decoded_claims,
-    Err(_) => {
+    Err(error) => {
 
-      let http_error = HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string()));
+      let http_error = match &error.kind() {
+
+        jsonwebtoken::errors::ErrorKind::InvalidToken => HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string())),
+
+        jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(claims) => {
+         
+          let _ = ServerLogEntry::warning(&format!("Missing required claim \"{}\" in session token.", claims), Some(&request_data.http_request.id), postgres_client).await;
+          HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string()))
+          
+        },
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to decode session token: {:?}", error)))
+
+      };
+
       let _ = http_error.print_and_save(Some(&request_data.http_request.id), postgres_client).await;
       return Err(http_error.into_response());
 
@@ -90,6 +104,13 @@ async fn get_session_by_id(request_data: &RequestData, postgres_client: &mut dea
 
       let http_error = match error {
         SessionError::NotFoundError(_) => HTTPError::UnauthorizedError(Some(format!("Session with ID {} not found.", session_id))),
+        SessionError::PostgresError(error) => match error.as_db_error() {
+          
+          Some(db_error) => HTTPError::InternalServerError(Some(format!("{:?}", db_error))),
+
+          None => HTTPError::InternalServerError(Some(format!("{:?}", error)))
+          
+        },
         _ => HTTPError::InternalServerError(Some(error.to_string()))
       };
 
@@ -134,7 +155,7 @@ pub async fn authenticate_user(
   let session_token = session_token.value().to_string().replace("Bearer ", "");
 
   // Make sure the user token is valid.
-  let _ = ServerLogEntry::trace("Authenticating as a user...", Some(&request_data.http_request.id), &mut postgres_client).await;
+  let _ = ServerLogEntry::trace("Decoding session token...", Some(&request_data.http_request.id), &mut postgres_client).await;
 
   let jwt_public_key = get_jwt_public_key(&request_data, &mut postgres_client).await?;
   let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
@@ -166,8 +187,11 @@ pub async fn authenticate_user(
     }
     
   };
+  let _ = ServerLogEntry::trace("Getting session...", Some(&request_data.http_request.id), &mut postgres_client).await;
   let session = get_session_by_id(&request_data, &mut postgres_client, &session_id).await?;
+  let _ = ServerLogEntry::trace("Getting user from session...", Some(&request_data.http_request.id), &mut postgres_client).await;
   let user = get_user_by_id(&request_data, &mut postgres_client, &user_id).await?;
+  let _ = ServerLogEntry::trace("Adding user and session to request extensions...", Some(&request_data.http_request.id), &mut postgres_client).await;
   request.extensions_mut().insert(user.clone());
   request.extensions_mut().insert(session.clone());
 

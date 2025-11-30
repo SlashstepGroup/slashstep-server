@@ -1,5 +1,5 @@
 use std::{net::IpAddr};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use jsonwebtoken::Header;
 use postgres::error::SqlState;
 use postgres_types::ToSql;
@@ -46,7 +46,8 @@ pub struct Session {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionTokenClaims {
   pub sub: String,
-  pub jti: String
+  pub jti: String,
+  pub exp: usize
 }
 
 pub struct InitialSessionProperties<'a> {
@@ -84,6 +85,10 @@ impl Session {
 
     let query = include_str!("../queries/sessions/initialize-sessions-table.sql");
     postgres_client.execute(query, &[]).await?;
+
+    let query = include_str!("../queries/sessions/initialize-hydrated-sessions-view.sql");
+    postgres_client.execute(query, &[]).await?;
+
     return Ok(());
 
   }
@@ -143,14 +148,15 @@ impl Session {
 
   }
 
-  pub async fn generate_json_web_token(&self, jwt_secret: &str) -> Result<String, SessionError> {
+  pub async fn generate_json_web_token(&self, private_key: &str) -> Result<String, SessionError> {
 
     let claims = SessionTokenClaims {
       sub: self.user_id.to_string(),
-      jti: self.id.to_string()
+      jti: self.id.to_string(),
+      exp: (Utc::now() + Duration::days(30)).timestamp() as usize
     };
-    let encoding_key = jsonwebtoken::EncodingKey::from_secret(jwt_secret.as_ref());
-    let token = jsonwebtoken::encode(&Header::default(), &claims, &encoding_key)?;
+    let encoding_key = jsonwebtoken::EncodingKey::from_rsa_pem(private_key.as_ref())?;
+    let token = jsonwebtoken::encode(&Header::new(jsonwebtoken::Algorithm::RS256), &claims, &encoding_key)?;
 
     return Ok(token);
 

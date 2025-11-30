@@ -64,7 +64,7 @@ impl Action {
   pub async fn create(initial_properties: &InitialActionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ActionError> {
 
     // Insert the access policy into the database.
-    let query = include_str!("../queries/actions/insert-action-row.sql");
+    let query = include_str!("../../queries/actions/insert-action-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.name,
       &initial_properties.display_name,
@@ -105,7 +105,7 @@ impl Action {
   /// Initializes the actions table.
   pub async fn initialize_actions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionError> {
 
-    let query = include_str!("../queries/actions/initialize-actions-table.sql");
+    let query = include_str!("../../queries/actions/initialize-actions-table.sql");
     postgres_client.execute(query, &[]).await?;
     return Ok(());
 
@@ -114,5 +114,4 @@ impl Action {
 }
 
 #[cfg(test)]
-#[path = "./action.tests.rs"]
 mod tests;

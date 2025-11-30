@@ -1,4 +1,4 @@
-#[path = "./routes/access-policies.rs"]
+#[path = "./access-policies/mod.rs"]
 mod access_policies;
 
 use axum::{Router, response::IntoResponse};

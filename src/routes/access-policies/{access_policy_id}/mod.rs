@@ -82,5 +82,4 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 }
 
 #[cfg(test)]
-#[path = "./{access_policy_id}.tests.rs"]
 mod tests;

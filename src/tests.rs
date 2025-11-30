@@ -9,7 +9,7 @@ use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
 
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, import_env_file, resources::{action::{Action, InitialActionProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, import_env_file, initialize_required_tables, resources::{action::{Action, InitialActionProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}};
 
 pub struct TestEnvironment {
 
@@ -88,6 +88,16 @@ impl TestEnvironment {
     let user = User::create(&user_properties, &mut postgres_client).await?;
 
     return Ok(user);
+
+  }
+
+  pub async fn initialize_required_tables(&self) -> Result<()> {
+
+    let mut postgres_client = self.postgres_pool.get().await?;
+
+    initialize_required_tables(&mut postgres_client).await?;
+
+    return Ok(());
 
   }
 

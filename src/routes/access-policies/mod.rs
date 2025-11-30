@@ -2,7 +2,7 @@ use axum::Router;
 
 use crate::AppState;
 
-#[path = "./access-policies/{access_policy_id}.rs"]
+#[path = "./{access_policy_id}/mod.rs"]
 mod access_policy_id;
 
 async fn list_access_policies() {
@@ -19,5 +19,4 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 }
 
 #[cfg(test)]
-#[path = "./access-policies.tests.rs"]
 mod tests;
