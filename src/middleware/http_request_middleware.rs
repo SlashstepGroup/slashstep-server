@@ -1,10 +1,7 @@
 use std::{net::SocketAddr};
-
-use anyhow::Result;
 use axum::{body::Body, extract::{ConnectInfo, Request, State}, middleware::Next, response::{IntoResponse, Response}};
 use chrono::{Duration, Utc};
-use crate::{AppState, HTTPError, RequestData, resources::{http_request::{HTTPRequest, InitialHTTPRequestProperties}, server_log_entry::ServerLogEntry}};
-use colored::Colorize;
+use crate::{AppState, HTTPError, RequestData, handle_pool_error, resources::{http_transaction::{HTTPTransaction, HTTPTransactionError, InitialHTTPTransactionProperties}, server_log_entry::ServerLogEntry}};
 
 pub async fn create_http_request(
   ConnectInfo(address): ConnectInfo<SocketAddr>,
@@ -23,15 +20,9 @@ pub async fn create_http_request(
   let headers_json_string: serde_json::Value = format!("{:?}", safe_headers).into();
 
   // Create the HTTP request and add it to the request extension.
-  let mut postgres_client = state.database_pool.get().await.map_err(|error| {
-    
-    eprintln!("{}", format!("Failed to get database connection, so the log cannot be saved. Printing to the console: {}", error).red());
-    let http_error = HTTPError::InternalServerError(Some(error.to_string()));
-    http_error.into_response()
+  let mut postgres_client = state.database_pool.get().await.map_err(handle_pool_error)?;
 
-  })?;
-
-  let http_request = match HTTPRequest::create(&InitialHTTPRequestProperties {
+  let http_request = match HTTPTransaction::create(&InitialHTTPTransactionProperties {
     method,
     url,
     ip_address: client_ip,
@@ -44,9 +35,9 @@ pub async fn create_http_request(
 
     Err(error) => {
 
-      let http_error = match error.downcast_ref::<postgres::Error>() {
+      let http_error = match error {
 
-        Some(postgres_error) => {
+        HTTPTransactionError::PostgresError(postgres_error) => {
           
           match postgres_error.as_db_error() {
             
@@ -56,9 +47,7 @@ pub async fn create_http_request(
 
           }
 
-        },
-
-        None => HTTPError::InternalServerError(Some(format!("{:?}", error)))
+        }
 
       };
       let _ = ServerLogEntry::from_http_error(&http_error, None, &mut postgres_client).await;
@@ -75,7 +64,7 @@ pub async fn create_http_request(
 
   request.extensions_mut().insert(request_data.clone());
   
-  let _ = ServerLogEntry::create_info_log(&format!("HTTP request handling started."), Some(request_data.http_request.id), &mut postgres_client).await;
+  let _ = ServerLogEntry::info(&format!("HTTP request handling started."), Some(&request_data.http_request.id), &mut postgres_client).await;
   let response = next.run(request).await;
   return Ok(response);
 

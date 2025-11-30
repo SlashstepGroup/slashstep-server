@@ -11,10 +11,8 @@
 
 use postgres::error::SqlState;
 use postgres_types::ToSql;
+use thiserror::Error;
 use uuid::Uuid;
-use anyhow::{Result, anyhow};
-
-use crate::HTTPError;
 
 pub struct Action {
 
@@ -51,10 +49,19 @@ pub struct InitialActionProperties {
 
 }
 
+#[derive(Debug, Error)]
+pub enum ActionError {
+  #[error("An action with the name \"{0}\" already exists.")]
+  ConflictError(String),
+
+  #[error(transparent)]
+  PostgresError(#[from] postgres::Error)
+}
+
 impl Action {
 
   /// Creates a new action.
-  pub async fn create(initial_properties: &InitialActionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self> {
+  pub async fn create(initial_properties: &InitialActionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ActionError> {
 
     // Insert the access policy into the database.
     let query = include_str!("../queries/actions/insert-action-row.sql");
@@ -70,15 +77,15 @@ impl Action {
 
         match db_error.code() {
 
-          &SqlState::UNIQUE_VIOLATION => anyhow!(HTTPError::ConflictError(Some(format!("An action with that name already exists.")))),
+          &SqlState::UNIQUE_VIOLATION => ActionError::ConflictError(initial_properties.name.clone()),
           
-          _ => anyhow!(error)
+          _ => ActionError::PostgresError(error)
 
         }
 
       },
 
-      None => anyhow!(error)
+      None => ActionError::PostgresError(error)
     
     })?;
 
@@ -96,7 +103,7 @@ impl Action {
   }
 
   /// Initializes the actions table.
-  pub async fn initialize_actions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<()> {
+  pub async fn initialize_actions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionError> {
 
     let query = include_str!("../queries/actions/initialize-actions-table.sql");
     postgres_client.execute(query, &[]).await?;

@@ -1,9 +1,8 @@
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use uuid::Uuid;
-use anyhow::{Result};
 use colored::Colorize;
 
-use crate::{AppState, HTTPError, RequestData, middleware::authentication_middleware, resources::{access_policy::AccessPolicy, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}}};
+use crate::{AppState, HTTPError, RequestData, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyError}, server_log_entry::ServerLogEntry}};
 
 #[axum::debug_handler]
 async fn get_access_policy(
@@ -28,14 +27,14 @@ async fn get_access_policy(
     Err(_) => {
 
       let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the access policy ID.".to_string()));
-      let _ = ServerLogEntry::from_http_error(&http_error, Some(http_request.id), &mut postgres_client).await;
+      let _ = ServerLogEntry::from_http_error(&http_error, Some(&http_request.id), &mut postgres_client).await;
       return Err(http_error);
 
     }
 
   };
 
-  let _ = ServerLogEntry::create_trace_log(&format!("Getting access policy {}...", access_policy_id), Some(http_request.id), &mut postgres_client).await;
+  let _ = ServerLogEntry::trace(&format!("Getting access policy {}...", access_policy_id), Some(&http_request.id), &mut postgres_client).await;
   
   let access_policy = match AccessPolicy::get_by_id(&access_policy_id, &mut postgres_client).await {
 
@@ -43,11 +42,11 @@ async fn get_access_policy(
 
     Err(error) => {
 
-      let http_error = match error.downcast_ref::<HTTPError>() {
-        Some(error) => error.clone(),
-        None => HTTPError::InternalServerError(Some(error.to_string()))
+      let http_error = match error {
+        AccessPolicyError::NotFoundError(_) => HTTPError::NotFoundError(Some(error.to_string())),
+        _ => HTTPError::InternalServerError(Some(error.to_string()))
       };
-      let _ = ServerLogEntry::from_http_error(&http_error, Some(http_request.id), &mut postgres_client).await;
+      let _ = ServerLogEntry::from_http_error(&http_error, Some(&http_request.id), &mut postgres_client).await;
 
       return Err(http_error);
 
@@ -56,11 +55,7 @@ async fn get_access_policy(
   };
 
   // Verify the principal has permission to get the access policy.
-  let _ = ServerLogEntry::create(&InitialServerLogEntryProperties {
-    message: format!("Verifying principal's permissions to get access policy {}...", access_policy_id),
-    http_request_id: Some(http_request.id),
-    level: ServerLogEntryLevel::Trace
-  }, &mut postgres_client, true).await;
+  let _ = ServerLogEntry::trace(&format!("Verifying principal's permissions to get access policy {}...", access_policy_id), Some(&http_request.id), &mut postgres_client).await;
 
   return Ok(Json(access_policy));
 

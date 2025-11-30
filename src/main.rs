@@ -9,17 +9,19 @@ mod routes;
 #[cfg(test)]
 mod tests;
 
+use anyhow::Error;
 use std::{fmt, sync::Arc};
-use anyhow::{Result, bail};
-use axum::{Json, response::{IntoResponse, Response}};
+use axum::{Json, body::Body, response::{IntoResponse, Response}};
 use deadpool_postgres::{Pool, tokio_postgres};
 use local_ip_address::local_ip;
 use postgres::NoTls;
-use reqwest::StatusCode;
+use reqwest::{StatusCode};
 use tokio::net::TcpListener;
 use colored::Colorize;
+use uuid::Uuid;
+use thiserror::Error;
 
-use crate::resources::{access_policy::AccessPolicy, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, group::Group, http_request::HTTPRequest, item::Item, milestone::Milestone, project::Project, role::Role, user::User, workspace::Workspace};
+use crate::resources::{access_policy::{AccessPolicy, AccessPolicyError}, action::{Action, ActionError}, app::{App, AppError}, app_authorization::{AppAuthorization, AppAuthorizationError}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential, AppCredentialError}, group::{Group, GroupError}, http_transaction::{HTTPTransaction, HTTPTransactionError}, item::{Item, ItemError}, milestone::{Milestone, MilestoneError}, project::{Project, ProjectError}, role::{Role, RoleError}, server_log_entry::{ServerLogEntry, ServerLogEntryError}, session::{Session, SessionError}, user::{User, UserError}, workspace::{Workspace, WorkspaceError}};
 
 const DEFAULT_APP_PORT: i16 = 8080;
 const DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT: u32 = 5;
@@ -76,11 +78,85 @@ fn get_app_port_string() -> String {
 
 }
 
-pub async fn initialize_required_tables(postgres_client: &mut deadpool_postgres::Client) -> Result<()> {
+#[derive(Debug, Error)]
+pub enum SlashstepServerError {
+  #[error("Please set a value for the environment variable \"{0}\".")]
+  EnvironmentVariableNotSet(String),
+
+  #[error(transparent)]
+  HTTPTransactionError(#[from] HTTPTransactionError),
+
+  #[error(transparent)]
+  UserError(#[from] UserError),
+
+  #[error(transparent)]
+  SessionError(#[from] SessionError),
+
+  #[error(transparent)]
+  GroupError(#[from] GroupError),
+
+  #[error(transparent)]
+  AppError(#[from] AppError),
+
+  #[error(transparent)]
+  WorkspaceError(#[from] WorkspaceError),
+
+  #[error(transparent)]
+  ProjectError(#[from] ProjectError),
+
+  #[error(transparent)]
+  RoleError(#[from] RoleError),
+
+  #[error(transparent)]
+  ItemError(#[from] ItemError),
+
+  #[error(transparent)]
+  ActionError(#[from] ActionError),
+
+  #[error(transparent)]
+  AppAuthorizationError(#[from] AppAuthorizationError),
+
+  #[error(transparent)]
+  AppAuthorizationCredentialError(#[from] AppAuthorizationCredentialError),
+
+  #[error(transparent)]
+  AppCredentialError(#[from] AppCredentialError),
+
+  #[error(transparent)]
+  MilestoneError(#[from] MilestoneError),
+
+  #[error(transparent)]
+  AccessPolicyError(#[from] AccessPolicyError),
+
+  #[error(transparent)]
+  PostgresError(#[from] postgres::Error),
+
+  #[error(transparent)]
+  ParseIntError(#[from] std::num::ParseIntError),
+
+  #[error(transparent)]
+  DeadpoolBuildError(#[from] deadpool_postgres::BuildError),
+
+  #[error(transparent)]
+  DeadpoolPoolError(#[from] deadpool_postgres::PoolError),
+
+  #[error(transparent)]
+  IOError(#[from] std::io::Error),
+
+  #[error(transparent)]
+  LocalIPAddressError(#[from] local_ip_address::Error),
+
+  #[error(transparent)]
+  AnyhowError(#[from] anyhow::Error)
+
+}
+
+pub async fn initialize_required_tables(postgres_client: &mut deadpool_postgres::Client) -> Result<(), SlashstepServerError> {
 
   // Because the access_policies table depends on other tables, we need to initialize them in a specific order.
-  HTTPRequest::initialize_http_requests_table(postgres_client).await?;
+  HTTPTransaction::initialize_http_transactions_table(postgres_client).await?;
   User::initialize_users_table(postgres_client).await?;
+  Session::initialize_sessions_table(postgres_client).await?;
   Group::initialize_groups_table(postgres_client).await?;
   App::initialize_apps_table(postgres_client).await?;
   Workspace::initialize_workspaces_table(postgres_client).await?;
@@ -103,7 +179,8 @@ pub enum HTTPError {
   NotFoundError(Option<String>),
   ConflictError(Option<String>),
   BadRequestError(Option<String>),
-  InternalServerError(Option<String>)
+  InternalServerError(Option<String>),
+  UnauthorizedError(Option<String>)
 }
 
 impl fmt::Display for HTTPError {
@@ -113,7 +190,8 @@ impl fmt::Display for HTTPError {
       HTTPError::NotFoundError(message) => write!(f, "{}", message.to_owned().unwrap_or("Not found.".to_string())),
       HTTPError::ConflictError(message) => write!(f, "{}", message.to_owned().unwrap_or("Conflict.".to_string())),
       HTTPError::BadRequestError(message) => write!(f, "{}", message.to_owned().unwrap_or("Bad request.".to_string())),
-      HTTPError::InternalServerError(message) => write!(f, "{}", message.to_owned().unwrap_or("Internal server error.".to_string()))
+      HTTPError::InternalServerError(message) => write!(f, "{}", message.to_owned().unwrap_or("Internal server error.".to_string())),
+      HTTPError::UnauthorizedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Unauthorized.".to_string()))
     }
   }
   
@@ -129,6 +207,8 @@ impl IntoResponse for HTTPError {
 
       HTTPError::ConflictError(message) => (StatusCode::CONFLICT, message.unwrap_or("Conflict.".to_string())),
 
+      HTTPError::UnauthorizedError(message) => (StatusCode::UNAUTHORIZED, message.unwrap_or("Unauthorized.".to_string())),
+
       HTTPError::InternalServerError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Something bad happened on our side. Please try again later.".to_string())
 
     };
@@ -138,28 +218,47 @@ impl IntoResponse for HTTPError {
   }
 }
 
+impl HTTPError {
+
+  pub async fn print_and_save(&self, http_request_id: Option<&Uuid>, postgres_client: &mut deadpool_postgres::Client) -> Result<Result<ServerLogEntry, ServerLogEntryError>, ()> {
+
+    let server_log_entry = ServerLogEntry::from_http_error(self, http_request_id, postgres_client).await;
+    return Ok(server_log_entry);
+
+  }
+
+}
+
 #[derive(Clone)]
 pub struct AppState {
-  pub database_pool: deadpool_postgres::Pool,
+  pub database_pool: Arc<deadpool_postgres::Pool>,
 }
 
 #[derive(Clone)]
 pub struct RequestData {
-  pub http_request: HTTPRequest
+  pub http_request: HTTPTransaction
 }
 
-fn get_environment_variable(variable_name: &str) -> Result<String> {
+pub fn handle_pool_error(error: deadpool_postgres::PoolError) -> Response<Body> {
+
+  eprintln!("{}", format!("Failed to get database connection, so the log cannot be saved. Printing to the console: {}", error).red());
+  let http_error = HTTPError::InternalServerError(Some(error.to_string()));
+  return http_error.into_response();
+
+}
+
+fn get_environment_variable(variable_name: &str) -> Result<String, SlashstepServerError> {
 
   let variable_value = match std::env::var(variable_name) {
     Ok(variable_value) => variable_value,
-    Err(_) => bail!("Please set a {} environment variable.", variable_name)
+    Err(_) => return Err(SlashstepServerError::EnvironmentVariableNotSet(variable_name.to_string()))
   };
 
   return Ok(variable_value);
 
 }
 
-async fn create_database_pool() -> Result<deadpool_postgres::Pool> {
+async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServerError> {
 
   let host = get_environment_variable("POSTGRESQL_HOST")?;
   let username = get_environment_variable("POSTGRESQL_USERNAME")?;
@@ -192,10 +291,7 @@ async fn create_database_pool() -> Result<deadpool_postgres::Pool> {
 
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-
-  println!("Slashstep Server v{}", env!("CARGO_PKG_VERSION"));
+pub fn import_env_file() {
 
   if dotenvy::dotenv().is_ok() {
 
@@ -203,9 +299,17 @@ async fn main() -> Result<()> {
 
   }
 
+}
+
+#[tokio::main]
+async fn main() -> Result<(), SlashstepServerError> {
+
+  println!("Slashstep Server v{}", env!("CARGO_PKG_VERSION"));
+
+  import_env_file();
   let pool = create_database_pool().await?;
   let state = AppState {
-    database_pool: pool,
+    database_pool: Arc::new(pool),
   };
 
   let app_port = get_app_port_string();

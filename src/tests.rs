@@ -1,15 +1,19 @@
+use std::sync::Arc;
+
 use anyhow::Result;
+use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
+use local_ip_address::local_ip;
 use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
 
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, resources::{action::{Action, InitialActionProperties}, user::{InitialUserProperties, User}}};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, import_env_file, resources::{action::{Action, InitialActionProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}};
 
 pub struct TestEnvironment {
 
-  pub postgres_pool: deadpool_postgres::Pool,
+  pub postgres_pool: Arc<deadpool_postgres::Pool>,
 
   // This is required to prevent the compiler from complaining about unused fields.
   // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
@@ -22,6 +26,8 @@ impl TestEnvironment {
 
   pub async fn new() -> Result<Self> {
 
+    import_env_file();
+    
     let postgres_container = testcontainers_modules::postgres::Postgres::default()
       .with_tag("18")
       .start()
@@ -42,7 +48,7 @@ impl TestEnvironment {
     let postgres_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT as usize).build()?;
 
     let environment = TestEnvironment {
-      postgres_pool,
+      postgres_pool: Arc::new(postgres_pool),
       postgres_container: postgres_container
     };
 
@@ -50,7 +56,7 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_action(&mut self, postgres_client: &mut deadpool_postgres::Client) -> Result<Action> {
+  pub async fn create_random_action(&self) -> Result<Action> {
 
     let action_properties = InitialActionProperties {
       name: Uuid::now_v7().to_string(),
@@ -59,13 +65,15 @@ impl TestEnvironment {
       app_id: None
     };
 
-    let action = Action::create(&action_properties, postgres_client).await?;
+    let mut postgres_client = self.postgres_pool.get().await?;
+
+    let action = Action::create(&action_properties, &mut postgres_client).await?;
 
     return Ok(action);
 
   }
 
-  pub async fn create_random_user(&mut self, postgres_client: &mut deadpool_postgres::Client) -> Result<User> {
+  pub async fn create_random_user(&self) -> Result<User> {
 
     let user_properties = InitialUserProperties {
       username: Some(Uuid::now_v7().to_string()),
@@ -75,9 +83,29 @@ impl TestEnvironment {
       ip_address: None
     };
 
-    let user = User::create(&user_properties, postgres_client).await?;
+    let mut postgres_client = self.postgres_pool.get().await?;
+
+    let user = User::create(&user_properties, &mut postgres_client).await?;
 
     return Ok(user);
+
+  }
+
+  pub async fn create_session(&self, user_id: &Uuid) -> Result<Session> {
+
+    let local_ip = local_ip()?;
+
+    let session_properties = InitialSessionProperties {
+      user_id: user_id,
+      expiration_date: &(Utc::now() + Duration::days(30)),
+      creation_ip_address: &local_ip
+    };
+
+    let mut postgres_client = self.postgres_pool.get().await?;
+
+    let session = Session::create(&session_properties, &mut postgres_client).await?;
+
+    return Ok(session);
 
   }
 

@@ -1,0 +1,1 @@
+insert into sessions (user_id, expiration_date, creation_ip_address) values ($1, $2, $3) returning *;

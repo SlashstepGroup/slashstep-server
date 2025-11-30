@@ -1,13 +1,13 @@
 use std::net::IpAddr;
-use anyhow::Result;
 use postgres_types::ToSql;
+use thiserror::Error;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]
-pub struct HTTPRequest {
+pub struct HTTPTransaction {
 
-  /// The ID of the HTTP request.
+  /// The ID of the HTTP transaction.
   pub id: Uuid,
 
   /// The HTTP method of the HTTP request.
@@ -30,7 +30,7 @@ pub struct HTTPRequest {
 
 }
 
-pub struct InitialHTTPRequestProperties {
+pub struct InitialHTTPTransactionProperties {
 
   /// The HTTP method of the HTTP request.
   pub method: String,
@@ -52,9 +52,15 @@ pub struct InitialHTTPRequestProperties {
 
 }
 
-impl HTTPRequest {
+#[derive(Debug, Error)]
+pub enum HTTPTransactionError {
+  #[error(transparent)]
+  PostgresError(#[from] postgres::Error)
+}
 
-  pub async fn create(properties: &InitialHTTPRequestProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self> {
+impl HTTPTransaction {
+
+  pub async fn create(properties: &InitialHTTPTransactionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, HTTPTransactionError> {
 
     let query = include_str!("../queries/http-requests/insert-http-request-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -67,7 +73,7 @@ impl HTTPRequest {
     ];
     let row = postgres_client.query_one(query, parameters).await?;
 
-    let http_request = HTTPRequest {
+    let http_request = HTTPTransaction {
       id: row.get("id"),
       method: row.get("method"),
       url: row.get("url"),
@@ -81,7 +87,7 @@ impl HTTPRequest {
 
   }
 
-  pub async fn initialize_http_requests_table(postgres_client: &mut deadpool_postgres::Client) -> Result<()> {
+  pub async fn initialize_http_transactions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), HTTPTransactionError> {
 
     let query = include_str!("../queries/http-requests/create-http-requests-table.sql");
     postgres_client.execute(query, &[]).await?;
