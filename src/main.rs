@@ -20,7 +20,7 @@ use colored::Colorize;
 use uuid::Uuid;
 use thiserror::Error;
 
-use crate::{pre_definitions::initialize_pre_defined_actions, resources::{access_policy::{AccessPolicy, AccessPolicyError}, action::{Action, ActionError}, app::{App, AppError}, app_authorization::{AppAuthorization, AppAuthorizationError}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential, AppCredentialError}, group::{Group, GroupError}, http_transaction::{HTTPTransaction, HTTPTransactionError}, item::{Item, ItemError}, milestone::{Milestone, MilestoneError}, project::{Project, ProjectError}, role::{Role, RoleError}, role_memberships::{RoleMembership, RoleMembershipError}, server_log_entry::{ServerLogEntry, ServerLogEntryError}, session::{Session, SessionError}, user::{User, UserError}, workspace::{Workspace, WorkspaceError}}};
+use crate::{pre_definitions::initialize_pre_defined_actions, pre_definitions::initialize_pre_defined_roles, resources::{access_policy::{AccessPolicy, AccessPolicyError}, action::{Action, ActionError}, app::{App, AppError}, app_authorization::{AppAuthorization, AppAuthorizationError}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential, AppCredentialError}, group::{Group, GroupError}, http_transaction::{HTTPTransaction, HTTPTransactionError}, item::{Item, ItemError}, milestone::{Milestone, MilestoneError}, project::{Project, ProjectError}, role::{Role, RoleError}, role_memberships::{RoleMembership, RoleMembershipError}, server_log_entry::{ServerLogEntry, ServerLogEntryError}, session::{Session, SessionError}, user::{User, UserError}, workspace::{Workspace, WorkspaceError}}};
 
 const DEFAULT_APP_PORT: i16 = 8080;
 const DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT: u32 = 5;
@@ -319,6 +319,7 @@ async fn main() -> Result<(), SlashstepServerError> {
   };
 
   let _ = initialize_pre_defined_actions(&mut state.database_pool.get().await?).await?;
+  let _ = initialize_pre_defined_roles(&mut state.database_pool.get().await?).await?;
 
   let app_port = get_app_port_string();
   let router = routes::get_router(state.clone()).with_state(state);

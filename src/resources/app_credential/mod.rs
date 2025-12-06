@@ -1,7 +1,6 @@
 use std::net::IpAddr;
 
 use chrono::{DateTime, Utc};
-use postgres::error::SqlState;
 use postgres_types::ToSql;
 use thiserror::Error;
 use uuid::Uuid;

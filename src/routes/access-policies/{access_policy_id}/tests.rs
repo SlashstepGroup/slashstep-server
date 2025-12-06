@@ -55,7 +55,10 @@ async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), 
 async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  test_environment.initialize_required_tables().await?;
+  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
+  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };

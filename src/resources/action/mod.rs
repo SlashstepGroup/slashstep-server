@@ -160,8 +160,12 @@ impl Action {
   /// Initializes the actions table.
   pub async fn initialize_actions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionError> {
 
-    let query = include_str!("../../queries/actions/initialize-actions-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    let table_initialization_query = include_str!("../../queries/actions/initialize-actions-table.sql");
+    postgres_client.execute(table_initialization_query, &[]).await?;
+
+    let view_initialization_query = include_str!("../../queries/actions/initialize-hydrated-actions-view.sql");
+    postgres_client.execute(view_initialization_query, &[]).await?;
+
     return Ok(());
 
   }

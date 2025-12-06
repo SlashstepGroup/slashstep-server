@@ -239,7 +239,7 @@ pub async fn authenticate_user(
 
     request.extensions_mut().insert(Some(ip_user.clone()));
 
-    let _ = ServerLogEntry::info(&format!("Authenticted as anonymous user {}.", ip_user.id), Some(&http_transaction.id), &mut postgres_client).await;
+    let _ = ServerLogEntry::info(&format!("Authenticated as anonymous user {}.", ip_user.id), Some(&http_transaction.id), &mut postgres_client).await;
 
     return Ok(next.run(request).await);
 

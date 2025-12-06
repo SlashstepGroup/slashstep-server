@@ -4,7 +4,7 @@ use axum::{Extension, Json, Router, extract::{Path, State}};
 use uuid::Uuid;
 use colored::Colorize;
 
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyError, AccessPolicyPermissionLevel}, action::Action, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::{User, UserError}}, utilities::principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyError, AccessPolicyPermissionLevel}, action::Action, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}};
 
 #[axum::debug_handler]
 async fn get_access_policy(
@@ -122,7 +122,19 @@ async fn get_access_policy(
     Err(error) => {
 
       let http_error = match error {
-        PrincipalPermissionVerifierError::ForbiddenError { .. } => HTTPError::ForbiddenError(Some("You need at least user-level permission to the \"slashstep.accessPolicies.get\" action.".to_string())),
+        PrincipalPermissionVerifierError::ForbiddenError { .. } => {
+          
+          if user.is_anonymous {
+
+            HTTPError::UnauthorizedError(Some("You need at least user-level permission to the \"slashstep.accessPolicies.get\" action.".to_string()))
+
+          } else {
+
+            HTTPError::ForbiddenError(Some("You need at least user-level permission to the \"slashstep.accessPolicies.get\" action.".to_string()))
+          
+          }
+
+        },
         _ => HTTPError::InternalServerError(Some(error.to_string()))
       };
       let _ = ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await;
