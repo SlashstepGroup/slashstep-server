@@ -18,7 +18,7 @@ use postgres::{
   types::ToSql
 };
 use postgres_types::FromSql;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 use crate::{
@@ -72,7 +72,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
 
 pub const DEFAULT_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
 
-#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Default)]
+#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default)]
 #[postgres(name = "permission_level")]
 pub enum AccessPolicyPermissionLevel {
   #[default]
@@ -168,7 +168,7 @@ impl FromStr for AccessPolicyPermissionLevel {
 
 }
 
-#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Default)]
+#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default)]
 #[postgres(name = "inheritance_level")]
 pub enum AccessPolicyInheritanceLevel {
   #[default]
@@ -204,7 +204,7 @@ impl FromStr for AccessPolicyInheritanceLevel {
 
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, ToSql, FromSql, Serialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize, Default)]
 #[postgres(name = "scoped_resource_type")]
 pub enum AccessPolicyScopedResourceType {
   #[default]
@@ -263,7 +263,7 @@ impl FromStr for AccessPolicyScopedResourceType {
 
 }
 
-#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Serialize, Default)]
+#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize, Default)]
 #[postgres(name = "principal_type")]
 pub enum AccessPolicyPrincipalType {
 
@@ -365,7 +365,7 @@ pub struct EditableAccessPolicyProperties {
 pub type ResourceHierarchy = Vec<(AccessPolicyScopedResourceType, Option<Uuid>)>;
 
 /// A piece of information that defines the level of access and inheritance for a principal to perform an action.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AccessPolicy {
 
   /// The access policy's ID.
