@@ -71,6 +71,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
 ];
 
 pub const DEFAULT_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
+pub const DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default, PartialOrd)]
 #[postgres(name = "permission_level")]
@@ -736,8 +737,8 @@ impl AccessPolicy {
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
       allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
-      default_limit: Some(DEFAULT_ACCESS_POLICY_LIST_LIMIT),
-      maximum_limit: None,
+      default_limit: Some(DEFAULT_ACCESS_POLICY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      maximum_limit: Some(DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       should_ignore_limit: false,
       should_ignore_offset: false
     };
@@ -770,7 +771,6 @@ impl AccessPolicy {
 
     };
     let where_clause = if where_clause == "" { where_clause } else { format!(" where {}", where_clause) };
-
     let limit_clause = sanitized_filter.limit.and_then(|limit| Some(format!(" limit {}", limit))).unwrap_or("".to_string());
     let offset_clause = sanitized_filter.offset.and_then(|offset| Some(format!(" offset {}", offset))).unwrap_or("".to_string());
     let query = format!("select * from access_policies{}{}{}", where_clause, limit_clause, offset_clause);

@@ -4,7 +4,7 @@ use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
 use serde::{Deserialize, Serialize};
 
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, ResourceHierarchy}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyError, AccessPolicyPermissionLevel, AccessPolicyResourceType, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, ResourceHierarchy}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}, slashstepql::SlashstepQLError}};
 
 #[path = "./{access_policy_id}/mod.rs"]
 mod access_policy_id;
@@ -41,7 +41,24 @@ async fn handle_list_access_policies_request(
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to list access policies: {:?}", error)));
+      let http_error = match error {
+
+        AccessPolicyError::SlashstepQLError(error) => match error {
+
+          SlashstepQLError::SlashstepQLInvalidLimitError(error) => HTTPError::UnprocessableEntity(Some(format!("The provided limit must be zero or a positive integer of {} or less. You provided {}.", DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, error.limit_string))), // TODO: Make this configurable through resource policies.
+
+          SlashstepQLError::InvalidFieldError(field) => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid. The field \"{}\" is not allowed.", field))),
+
+          SlashstepQLError::InvalidQueryError(()) => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid."))),
+
+          _ => HTTPError::InternalServerError(Some(format!("Failed to list access policies: {:?}", error)))
+
+        },
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to list access policies: {:?}", error)))
+
+      };
+
       let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
       return Err(http_error);
 

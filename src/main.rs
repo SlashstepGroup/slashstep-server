@@ -203,7 +203,8 @@ pub enum HTTPError {
   BadRequestError(Option<String>),
   NotImplementedError(Option<String>),
   InternalServerError(Option<String>),
-  UnauthorizedError(Option<String>)
+  UnauthorizedError(Option<String>),
+  UnprocessableEntity(Option<String>)
 }
 
 #[derive(Debug, Serialize)]
@@ -222,7 +223,8 @@ impl fmt::Display for HTTPError {
       HTTPError::BadRequestError(message) => write!(f, "{}", message.to_owned().unwrap_or("Bad request.".to_string())),
       HTTPError::NotImplementedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Not implemented.".to_string())),
       HTTPError::InternalServerError(message) => write!(f, "{}", message.to_owned().unwrap_or("Internal server error.".to_string())),
-      HTTPError::UnauthorizedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Unauthorized.".to_string()))
+      HTTPError::UnauthorizedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Unauthorized.".to_string())),
+      HTTPError::UnprocessableEntity(message) => write!(f, "{}", message.to_owned().unwrap_or("Unprocessable entity.".to_string()))
     }
   }
   
@@ -245,6 +247,8 @@ impl IntoResponse for HTTPError {
       HTTPError::UnauthorizedError(message) => (StatusCode::UNAUTHORIZED, message.unwrap_or("Unauthorized.".to_string())),
 
       HTTPError::NotImplementedError(message) => (StatusCode::NOT_IMPLEMENTED, message.unwrap_or("Not implemented.".to_string())),
+
+      HTTPError::UnprocessableEntity(message) => (StatusCode::UNPROCESSABLE_ENTITY, message.unwrap_or("Unprocessable entity.".to_string())),
 
       HTTPError::InternalServerError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Something bad happened on our side. Please try again later.".to_string()),
 
