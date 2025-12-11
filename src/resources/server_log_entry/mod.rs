@@ -140,7 +140,7 @@ impl ServerLogEntry {
 
   pub async fn create<'a>(properties: &InitialServerLogEntryProperties<'a>, postgres_client: &mut deadpool_postgres::Client, should_print_to_console: bool) -> Result<Self, ServerLogEntryError> {
 
-    let query = include_str!("../../queries/server-log-entries/insert-server-log-entry-row.sql");
+    let query = include_str!("../../queries/server_log_entries/insert-server-log-entry-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &properties.message,
       &properties.http_request_id,

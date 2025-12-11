@@ -93,6 +93,16 @@ async fn get_access_policy(access_policy_id: &str, http_transaction: &HTTPTransa
 
       let http_error = match error {
         AccessPolicyError::NotFoundError(_) => HTTPError::NotFoundError(Some(error.to_string())),
+        AccessPolicyError::PostgresError(error) => {
+
+          match error.as_db_error() {
+
+            Some(error) => HTTPError::InternalServerError(Some(error.to_string())),
+            None => HTTPError::InternalServerError(Some(error.to_string()))
+
+          }
+
+        }
         _ => HTTPError::InternalServerError(Some(error.to_string()))
       };
       let _ = ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await;
