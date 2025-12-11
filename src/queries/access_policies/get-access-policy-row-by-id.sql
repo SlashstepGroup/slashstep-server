@@ -1,1 +1,1 @@
-select * from hydrated_access_policies where id = $1;
+select * from access_policies where id = $1;

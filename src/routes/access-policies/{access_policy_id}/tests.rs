@@ -5,7 +5,30 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use uuid::Uuid;
-use crate::{Action, AppState, SlashstepServerError, initialize_required_tables, middleware::http_request_middleware, pre_definitions::{initialize_pre_defined_actions, initialize_pre_defined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyError, AccessPolicyInheritanceLevel, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyScopedResourceType, InitialAccessPolicyProperties}, session::Session}, tests::TestEnvironment};
+use crate::{
+  Action, 
+  AppState, 
+  SlashstepServerError, 
+  initialize_required_tables, 
+  middleware::http_request_middleware, 
+  pre_definitions::{
+    initialize_pre_defined_actions, 
+    initialize_pre_defined_roles
+  }, 
+  resources::{
+    access_policy::{
+      AccessPolicy, 
+      AccessPolicyError, 
+      AccessPolicyInheritanceLevel, 
+      AccessPolicyPermissionLevel, 
+      AccessPolicyPrincipalType, 
+      AccessPolicyResourceType, 
+      InitialAccessPolicyProperties
+    }, 
+    session::Session
+  }, 
+  tests::TestEnvironment
+};
 
 /// Verifies that the router can return a 200 status code and the requested access policy.
 #[tokio::test]
@@ -38,7 +61,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), SlashstepServerErro
     inheritance_level: AccessPolicyInheritanceLevel::Enabled,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
@@ -226,7 +249,7 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
     inheritance_level: AccessPolicyInheritanceLevel::Enabled,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
@@ -399,7 +422,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), SlashstepSe
     inheritance_level: AccessPolicyInheritanceLevel::Enabled,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
@@ -586,7 +609,7 @@ async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(),
     inheritance_level: AccessPolicyInheritanceLevel::Enabled,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
@@ -634,7 +657,7 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), Slashstep
     inheritance_level: AccessPolicyInheritanceLevel::Enabled,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyScopedResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;

@@ -13,14 +13,14 @@ async fn handle_list_access_policies_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(user): Extension<Option<Arc<User>>>
-) -> Result<Vec<Json<AccessPolicy>>, HTTPError> {
+) -> Result<Json<Vec<AccessPolicy>>, HTTPError> {
 
-  let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &mut postgres_client).await?;
-  let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &mut postgres_client).await?;
-  let action = get_action_from_name("slashstep.accessPolicies.get", &http_transaction, &mut postgres_client).await?;
+  // let http_transaction = http_transaction.clone();
+  // let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  // let access_policy = get_access_policy(&access_policy_id, &http_transaction, &mut postgres_client).await?;
+  // let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
+  // let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &mut postgres_client).await?;
+  // let action = get_action_from_name("slashstep.accessPolicies.get", &http_transaction, &mut postgres_client).await?;
 
   return Err(HTTPError::NotImplementedError(Some(format!("Not implemented."))));
 

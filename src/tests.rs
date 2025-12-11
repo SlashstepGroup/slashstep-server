@@ -129,7 +129,7 @@ impl TestEnvironment {
       inheritance_level: crate::resources::access_policy::AccessPolicyInheritanceLevel::Enabled,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyScopedResourceType::Instance,
+      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Instance,
       ..Default::default()
     };
 
