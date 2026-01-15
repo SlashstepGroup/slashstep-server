@@ -6,18 +6,12 @@ on:
       - Cargo.toml
       - Cargo.lock
       - .github/workflows/run-rust-tests.yml
-    branches:
-      - production
-      - staging
   pull_request:
     paths: 
       - src/**
       - Cargo.toml
       - Cargo.lock
       - .github/workflows/run-rust-tests.yml
-    branches:
-      - production
-      - staging
   workflow_dispatch:
 
 jobs:
