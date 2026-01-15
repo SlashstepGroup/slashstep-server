@@ -891,7 +891,6 @@ impl AccessPolicy {
     }
     query_filter.push_str(")");
     
-    println!("Query: {}", query_filter);
     let access_policies: Vec<AccessPolicy> = AccessPolicy::list(&query_filter, postgres_client, None).await?;
 
     return Ok(access_policies);
