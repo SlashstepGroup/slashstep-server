@@ -20,41 +20,14 @@ pub const DEFAULT_ACTION_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_ACTION_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
-  "action_id", 
-  "principal_type", 
-  "principal_user_id", 
-  "principal_group_id", 
-  "principal_role_id", 
-  "principal_app_id",
-  "scoped_resource_type", 
-  "scoped_action_id", 
-  "scoped_app_id",
-  "scoped_app_credential_id",
-  "scoped_group_id", 
-  "scoped_item_id", 
-  "scoped_milestone_id", 
-  "scoped_project_id", 
-  "scoped_role_id", 
-  "scoped_user_id", 
-  "scoped_workspace_id"
+  "name",
+  "display_name",
+  "description",
+  "app_id"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "action_id",
-  "principal_user_id", 
-  "principal_group_id", 
-  "principal_role_id", 
-  "principal_app_id",
-  "scoped_action_id", 
-  "scoped_app_id", 
-  "scoped_group_id",
-  "scoped_app_credential_id",
-  "scoped_item_id", 
-  "scoped_milestone_id", 
-  "scoped_project_id", 
-  "scoped_role_id", 
-  "scoped_user_id", 
-  "scoped_workspace_id"
+  "app_id"
 ];
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
