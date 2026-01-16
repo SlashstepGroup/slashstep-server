@@ -22,11 +22,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 use crate::{
-  resources::{action::{Action, ActionError}, action_log_entry::{ActionLogEntry, ActionLogEntryError}, app::{App, AppError, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationError, AppAuthorizationParentResourceType}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential, AppCredentialError}, group_membership::{GroupMembership, GroupMembershipError}, item::{Item, ItemError}, milestone::{Milestone, MilestoneError, MilestoneParentResourceType}, project::{Project, ProjectError}, role::{Role, RoleError, RoleParentResourceType}, role_memberships::{RoleMembership, RoleMembershipError}, session::{Session, SessionError}}, utilities::slashstepql::{
-    SlashstepQLError, 
-    SlashstepQLFilterSanitizer, 
-    SlashstepQLParameterType, 
-    SlashstepQLSanitizeFunctionOptions
+  resources::{action::ActionError, action_log_entry::ActionLogEntryError, app::AppError, app_authorization::AppAuthorizationError, app_authorization_credential::AppAuthorizationCredentialError, app_credential::AppCredentialError, group_membership::GroupMembershipError, item::ItemError, milestone::MilestoneError, project::ProjectError, role::RoleError, role_memberships::RoleMembershipError, session::SessionError}, utilities::slashstepql::{
+    self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions
   }
 };
 
@@ -492,39 +489,11 @@ impl AccessPolicy {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let where_clause = sanitized_filter.where_clause.and_then(|string| Some(string)).unwrap_or("".to_string());
-    let where_clause = match individual_principal {
-      
-      Some(individual_principal) => {
-        
-        let additional_condition = match individual_principal {
-
-          IndividualPrincipal::User(user_id) => format!("can_principal_get_access_policy('User', {}, NULL, access_policies.*)", quote_literal(&user_id.to_string())),
-          IndividualPrincipal::App(app_id) => format!("can_principal_get_access_policy('App', NULL, {}, access_policies.*)", quote_literal(&app_id.to_string()))
-
-        };
-
-        if where_clause == "" { 
-          
-          additional_condition 
-        
-        } else { 
-          
-          format!("({}) AND {}", where_clause, additional_condition)
-        
-        }
-
-      },
-
-      None => where_clause
-
-    };
-    let where_clause = if where_clause == "" { where_clause } else { format!(" where {}", where_clause) };
-    let query = format!("select count(*) from access_policies{}", where_clause);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "access_policies", true);
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query and return the count.
-    let parsed_parameters = Self::parse_slashstepql_parameters(&sanitized_filter.parameters)?;
-    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
     let rows = postgres_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
@@ -663,75 +632,71 @@ impl AccessPolicy {
 
   }
 
-  fn parse_slashstepql_parameters(slashstepql_parameters: &Vec<(String, SlashstepQLParameterType)>) -> Result<Vec<Box<dyn ToSql + Sync + Send + '_>>, AccessPolicyError> {
+  fn parse_string_slashstepql_parameters<'a>(key: &'a str, value: &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
 
-    let mut parameters: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    if UUID_QUERY_KEYS.contains(&key) {
 
-    for (key, value) in slashstepql_parameters {
+      let uuid = match Uuid::parse_str(value) {
 
-      match value {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\".", value, key)))
 
-        SlashstepQLParameterType::String(string_value) => {
+      };
 
-          if UUID_QUERY_KEYS.contains(&key.as_str()) {
+      return Ok(Box::new(uuid));
 
-            let uuid = Uuid::parse_str(string_value)?;
-            parameters.push(Box::new(uuid));
+    } else {
 
-          } else {
+      match key {
 
-            match key.as_str() {
+        "scoped_resource_type" => {
 
-              "scoped_resource_type" => {
+          let scoped_resource_type = match AccessPolicyResourceType::from_str(value) {
 
-                let scoped_resource_type = AccessPolicyResourceType::from_str(string_value)?;
-                parameters.push(Box::new(scoped_resource_type));
+            Ok(scoped_resource_type) => scoped_resource_type,
+            Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
 
-              },
-              
-              "principal_type" => {
+          };
 
-                let principal_type = AccessPolicyPrincipalType::from_str(string_value)?;
-                parameters.push(Box::new(principal_type));
+          return Ok(Box::new(scoped_resource_type));
 
-              },
+        },
+        
+        "principal_type" => {
 
-              "permission_level" => {
+          let principal_type = match AccessPolicyPrincipalType::from_str(value) {
 
-                let permission_level = AccessPolicyPermissionLevel::from_str(string_value)?;
-                parameters.push(Box::new(permission_level));
+            Ok(principal_type) => principal_type,
+            Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
 
-              },
+          };
 
-              _ => {
+          return Ok(Box::new(principal_type));
 
-                parameters.push(Box::new(string_value));
+        },
 
-              }
+        "permission_level" => {
 
-            }
+          let permission_level = match AccessPolicyPermissionLevel::from_str(value) {
 
-          }
+            Ok(permission_level) => permission_level,
+            Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
+
+          };
           
-        },
-
-        SlashstepQLParameterType::Number(number_value) => {
-
-          parameters.push(Box::new(number_value));
+          return Ok(Box::new(permission_level));
 
         },
 
-        SlashstepQLParameterType::Boolean(boolean_value) => {
+        _ => {
 
-          parameters.push(Box::new(boolean_value));
+          return Ok(Box::new(value));
 
         }
 
       }
 
     }
-
-    return Ok(parameters);
 
   }
 
@@ -748,41 +713,11 @@ impl AccessPolicy {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let where_clause = sanitized_filter.where_clause.and_then(|string| Some(string)).unwrap_or("".to_string());
-    let where_clause = match individual_principal {
-      
-      Some(individual_principal) => {
-        
-        let additional_condition = match individual_principal {
-
-          IndividualPrincipal::User(user_id) => format!("can_principal_get_access_policy('User', {}, NULL, access_policies.*)", quote_literal(&user_id.to_string())),
-          IndividualPrincipal::App(app_id) => format!("can_principal_get_access_policy('App', NULL, {}, access_policies.*)", quote_literal(&app_id.to_string()))
-
-        };
-
-        if where_clause == "" { 
-          
-          additional_condition 
-        
-        } else { 
-          
-          format!("({}) AND {}", where_clause, additional_condition)
-        
-        }
-
-      },
-
-      None => where_clause
-
-    };
-    let where_clause = if where_clause == "" { where_clause } else { format!(" where {}", where_clause) };
-    let limit_clause = sanitized_filter.limit.and_then(|limit| Some(format!(" limit {}", limit))).unwrap_or("".to_string());
-    let offset_clause = sanitized_filter.offset.and_then(|offset| Some(format!(" offset {}", offset))).unwrap_or("".to_string());
-    let query = format!("select * from access_policies{}{}{}", where_clause, limit_clause, offset_clause);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "access_policies", false);
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let parsed_parameters = Self::parse_slashstepql_parameters(&sanitized_filter.parameters)?;
-    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
     let rows = postgres_client.query(&query, &parameters).await?;
     let access_policies = rows.iter().map(AccessPolicy::convert_from_row).collect();
     return Ok(access_policies);
