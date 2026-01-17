@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use axum::{Extension, Json, Router, extract::{Path, State}};
+use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
 use uuid::Uuid;
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
     }, 
     action::{
       Action, 
-      ActionError
+      ActionError, EditableActionProperties
     }, 
     http_transaction::HTTPTransaction, 
     server_log_entry::ServerLogEntry, 
@@ -135,75 +135,72 @@ async fn handle_get_action_request(
 
 }
 
-// #[axum::debug_handler]
-// async fn handle_patch_access_policy_request(
-//   Path(access_policy_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(user): Extension<Option<Arc<User>>>,
-//   body: Result<Json<EditableAccessPolicyProperties>, JsonRejection>
-// ) -> Result<Json<AccessPolicy>, HTTPError> {
+#[axum::debug_handler]
+async fn handle_patch_action_request(
+  Path(action_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(user): Extension<Option<Arc<User>>>,
+  body: Result<Json<EditableActionProperties>, JsonRejection>
+) -> Result<Json<Action>, HTTPError> {
 
-//   let http_transaction = http_transaction.clone();
-//   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let http_transaction = http_transaction.clone();
+  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
 
-//   let _ = ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await;
-//   let updated_access_policy_properties = match body {
+  let _ = ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await;
+  let updated_action_properties = match body {
 
-//     Ok(updated_access_policy_properties) => updated_access_policy_properties,
+    Ok(updated_action_properties) => updated_action_properties,
 
-//     Err(error) => {
+    Err(error) => {
 
-//       let http_error = match error {
+      let http_error = match error {
 
-//         JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
+        JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
 
-//         JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+        JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
 
-//         JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
+        JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
 
-//         JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
+        JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
 
-//         _ => HTTPError::InternalServerError(Some(error.to_string()))
+        _ => HTTPError::InternalServerError(Some(error.to_string()))
 
-//       };
+      };
       
-//       let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
-//       return Err(http_error);
+      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      return Err(http_error);
 
-//     }
+    }
 
-//   };
+  };
 
-//   let access_policy = get_access_policy(&access_policy_id, &http_transaction, &mut postgres_client).await?;
-//   let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &mut postgres_client).await?;
-//   let update_access_policy_action = get_action_from_name("slashstep.accessPolicies.update", &http_transaction, &mut postgres_client).await?;
-//   verify_user_permissions(&user, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  let original_action = get_action_from_id(&action_id, &http_transaction, &mut postgres_client).await?;
+  let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&original_action, &http_transaction, &mut postgres_client).await?;
+  let update_access_policy_action = get_action_from_name("slashstep.actions.update", &http_transaction, &mut postgres_client).await?;
+  verify_user_permissions(&user, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
-//   let access_policy_action = get_action_from_id(&access_policy.action_id, &http_transaction, &mut postgres_client).await?;
-//   verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::Editor, &mut postgres_client).await?;
+  let _ = ServerLogEntry::trace(&format!("Updating action {}...", action_id), Some(&http_transaction.id), &mut postgres_client).await;
+  let updated_action = match original_action.update(&updated_action_properties, &mut postgres_client).await {
 
-//   let _ = ServerLogEntry::trace(&format!("Updating access policy {}...", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await;
-//   let access_policy = match access_policy.update(&updated_access_policy_properties, &mut postgres_client).await {
+    Ok(updated_action) => updated_action,
 
-//     Ok(access_policy) => access_policy,
+    Err(error) => {
 
-//     Err(error) => {
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to update action: {:?}", error)));
+      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      return Err(http_error);
 
-//       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update access policy: {:?}", error)));
-//       let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
-//       return Err(http_error);
+    }
 
-//     }
+  };
 
-//   };
+  let _ = ServerLogEntry::success(&format!("Successfully updated action {}.", action_id), Some(&http_transaction.id), &mut postgres_client).await;
 
-//   let _ = ServerLogEntry::success(&format!("Successfully updated access policy {}.", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await;
+  return Ok(Json(updated_action));
 
-//   return Ok(Json(access_policy));
-
-// }
+}
 
 #[axum::debug_handler]
 async fn handle_delete_action_request(
@@ -245,7 +242,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/actions/{action_id}", axum::routing::get(handle_get_action_request))
-    // .route("/access-policies/{access_policy_id}", axum::routing::patch(handle_patch_access_policy_request))
+    .route("/actions/{action_id}", axum::routing::patch(handle_patch_action_request))
     .route("/actions/{action_id}", axum::routing::delete(handle_delete_action_request))
     .layer(axum::middleware::from_fn_with_state(state, authentication_middleware::authenticate_user));
   return router;
