@@ -221,51 +221,48 @@ async fn handle_get_action_request(
 
 // }
 
-// #[axum::debug_handler]
-// async fn handle_delete_access_policy_request(
-//   Path(access_policy_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(user): Extension<Option<Arc<User>>>
-// ) -> Result<StatusCode, HTTPError> {
+#[axum::debug_handler]
+async fn handle_delete_action_request(
+  Path(action_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(user): Extension<Option<Arc<User>>>
+) -> Result<StatusCode, HTTPError> {
 
-//   let http_transaction = http_transaction.clone();
-//   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-//   let access_policy = get_access_policy(&access_policy_id, &http_transaction, &mut postgres_client).await?;
-//   let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &mut postgres_client).await?;
-//   let delete_access_policy_action = get_action_from_name("slashstep.accessPolicies.delete", &http_transaction, &mut postgres_client).await?;
-//   verify_user_permissions(&user, &delete_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  let http_transaction = http_transaction.clone();
+  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let action = get_action_from_id(&action_id, &http_transaction, &mut postgres_client).await?;
+  let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&action, &http_transaction, &mut postgres_client).await?;
+  let delete_actions_action = get_action_from_name("slashstep.actions.delete", &http_transaction, &mut postgres_client).await?;
+  verify_user_permissions(&user, &delete_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
-//   let access_policy_action = get_action_from_id(&access_policy.action_id, &http_transaction, &mut postgres_client).await?;
-//   verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::Editor, &mut postgres_client).await?;
+  match action.delete(&mut postgres_client).await {
 
-//   match access_policy.delete(&mut postgres_client).await {
+    Ok(_) => {},
 
-//     Ok(_) => {},
+    Err(error) => {
 
-//     Err(error) => {
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete action: {:?}", error)));
+      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      return Err(http_error);
 
-//       let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete access policy: {:?}", error)));
-//       let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
-//       return Err(http_error);
+    }
 
-//     }
+  }
 
-//   }
+  let _ = ServerLogEntry::success(&format!("Successfully deleted action {}.", action_id), Some(&http_transaction.id), &mut postgres_client).await;
 
-//   let _ = ServerLogEntry::success(&format!("Successfully deleted access policy {}.", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await;
+  return Ok(StatusCode::NO_CONTENT);
 
-//   return Ok(StatusCode::NO_CONTENT);
-
-// }
+}
 
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/actions/{action_id}", axum::routing::get(handle_get_action_request))
     // .route("/access-policies/{access_policy_id}", axum::routing::patch(handle_patch_access_policy_request))
-    // .route("/access-policies/{access_policy_id}", axum::routing::delete(handle_delete_access_policy_request))
+    .route("/actions/{action_id}", axum::routing::delete(handle_delete_action_request))
     .layer(axum::middleware::from_fn_with_state(state, authentication_middleware::authenticate_user));
   return router;
 

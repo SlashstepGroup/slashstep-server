@@ -84,127 +84,131 @@ async fn verify_returned_action_by_id() -> Result<(), SlashstepServerError> {
   
 }
 
-// /// Verifies that the router can return a 400 if the access policy ID is not a UUID.
-// #[tokio::test]
-// async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+/// Verifies that the router can return a 400 if the action ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_getting_action_by_id() -> Result<(), SlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   test_environment.initialize_required_tables().await?;
-//   let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-//   let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  test_environment.initialize_required_tables().await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
 
-//   let response = test_server.get("/access-policies/not-a-uuid")
-//     .await;
+  let response = test_server.get("/actions/not-a-uuid")
+    .await;
   
-//   assert_eq!(response.status_code(), 400);
-//   return Ok(());
+  assert_eq!(response.status_code(), 400);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 401 status code if the user needs authentication.
-// #[tokio::test]
-// async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_getting_action_by_id() -> Result<(), SlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   test_environment.initialize_required_tables().await?;
-//   let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-//   let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  test_environment.initialize_required_tables().await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
   
-//   let access_policy = test_environment.create_random_access_policy().await?;
+  let action = test_environment.create_random_action().await?;
 
-//   let response = test_server.get(&format!("/access-policies/{}", access_policy.id))
-//     .await;
+  let response = test_server.get(&format!("/actions/{}", action.id))
+    .await;
   
-//   assert_eq!(response.status_code(), 401);
-//   return Ok(());
+  assert_eq!(response.status_code(), 401);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 403 status code if the user does not have permission to view the access policy.
-// #[tokio::test]
-// #[timeout(20000)]
-// async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+/// Verifies that the router can return a 403 status code if the user does not have permission to view the action.
+#[tokio::test]
+#[timeout(20000)]
+async fn verify_permission_when_getting_action_by_id() -> Result<(), SlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   test_environment.initialize_required_tables().await?;
-//   let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-//   let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  test_environment.initialize_required_tables().await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
 
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  // Create the user, the session, and the action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let action = test_environment.create_random_action().await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/actions/{}", action.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let access_policy = test_environment.create_random_access_policy().await?;
+  // Verify the response.
+  assert_eq!(response.status_code(), 403);
+  return Ok(());
 
-//   let response = test_server.get(&format!("/access-policies/{}", access_policy.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+}
+
+/// Verifies that the router can return a 404 status code if the requested action doesn't exist
+#[tokio::test]
+#[timeout(20000)]
+async fn verify_not_found_when_getting_action_by_id() -> Result<(), SlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
   
-//   assert_eq!(response.status_code(), 403);
-//   return Ok(());
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-// }
-
-// /// Verifies that the router can return a 404 status code if the requested access policy doesn't exist
-// #[tokio::test]
-// #[timeout(20000)]
-// async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
-
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
-
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/access-policies/{}", uuid::Uuid::now_v7()))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Verify the response.
+  assert_eq!(response.status_code(), 404);
+  return Ok(());
 
-//   let response = test_server.get(&format!("/access-policies/{}", uuid::Uuid::now_v7()))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
-  
-//   assert_eq!(response.status_code(), 404);
-//   return Ok(());
-
-// }
+}
 
 // /// Verifies that the router can return a 204 status code if the access policy is successfully deleted.
 // #[tokio::test]
