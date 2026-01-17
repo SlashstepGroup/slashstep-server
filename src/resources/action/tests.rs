@@ -12,10 +12,7 @@ use crate::{
       InitialAccessPolicyProperties
     }, 
     action::{
-      Action, 
-      ActionParentResourceType, 
-      DEFAULT_ACTION_LIST_LIMIT,
-      InitialActionProperties
+      Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, EditableActionProperties, InitialActionProperties
     }
   }, 
   tests::TestEnvironment
@@ -262,7 +259,32 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
 }
 
-#[test]
-fn update_action() {
+#[tokio::test]
+async fn update_action() -> Result<(), SlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  test_environment.initialize_required_tables().await?;
+
+  // Create the action and update it.
+  let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  let original_action = test_environment.create_random_action().await?;
+  let new_name = Uuid::now_v7().to_string();
+  let new_display_name = Uuid::now_v7().to_string();
+  let new_description = Uuid::now_v7().to_string();
+  let updated_action = original_action.update(&EditableActionProperties {
+    name: Some(new_name.clone()),
+    display_name: Some(new_display_name.clone()),
+    description: Some(new_description.clone())
+  }, &mut postgres_client).await?;
+
+  // Verify the new action.
+  assert_eq!(original_action.id, updated_action.id);
+  assert_eq!(new_name, updated_action.name);
+  assert_eq!(new_display_name, updated_action.display_name);
+  assert_eq!(new_description, updated_action.description);
+  assert_eq!(original_action.app_id, updated_action.app_id);
+  assert_eq!(original_action.parent_resource_type, updated_action.parent_resource_type);
+
+  return Ok(());
 
 }

@@ -30,7 +30,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "app_id"
 ];
 
-#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize)]
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
 #[postgres(name = "action_parent_resource_type")]
 pub enum ActionParentResourceType {
   Instance,
