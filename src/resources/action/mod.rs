@@ -79,6 +79,21 @@ pub struct InitialActionProperties {
 
 }
 
+/// A repreentation of editable action properties.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EditableActionProperties {
+
+  /// The action's name.
+  pub name: Option<String>,
+
+  /// The action's display name.
+  pub display_name: Option<String>,
+
+  /// The action's description.
+  pub description: Option<String>
+
+}
+
 #[derive(Debug, Error)]
 pub enum ActionError {
   #[error("An action with the name \"{0}\" already exists.")]
@@ -95,6 +110,19 @@ pub enum ActionError {
 }
 
 impl Action {
+
+  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: &Option<T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
+
+    if let Some(parameter_value) = parameter_value.clone() {
+
+      query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
+      parameter_boxes.push(Box::new(parameter_value));
+
+    }
+    
+    return (parameter_boxes, query);
+
+  }
 
   fn convert_from_row(row: &postgres::Row) -> Self {
 
@@ -274,6 +302,28 @@ impl Action {
     }
 
     return Ok(Box::new(value));
+
+  }
+
+  /// Updates this action and returns a new instance of the action.
+  pub async fn update(&self, properties: &EditableActionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ActionError> {
+
+    let query = String::from("UPDATE actions SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+
+    postgres_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", &properties.name);
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "display_name", &properties.display_name);
+    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "description", &properties.description);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = postgres_client.query_one(&query, &parameters).await?;
+    postgres_client.query("COMMIT;", &[]).await?;
+
+    let access_policy = Action::convert_from_row(&row);
+    return Ok(access_policy);
 
   }
 
