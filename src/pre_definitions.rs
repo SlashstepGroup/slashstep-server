@@ -1,4 +1,4 @@
-use crate::resources::{action::{Action, ActionError, InitialActionProperties}, role::{InitialRoleProperties, Role, RoleError}};
+use crate::resources::{action::{Action, ActionError, ActionParentResourceType, InitialActionProperties}, role::{InitialRoleProperties, Role, RoleError}};
 use colored::Colorize;
 
 pub async fn initialize_pre_defined_actions(postgres_client: &mut deadpool_postgres::Client) -> Result<Vec<Action>, ActionError> {
@@ -10,38 +10,51 @@ pub async fn initialize_pre_defined_actions(postgres_client: &mut deadpool_postg
       name: "slashstep.accessPolicies.get".to_string(),
       display_name: "Get access policies".to_string(),
       description: "Get a specific access policy on a particular scope.".to_string(),
-      app_id: None
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     },
     InitialActionProperties {
       name: "slashstep.accessPolicies.list".to_string(),
       display_name: "List access policies".to_string(),
       description: "List all access policies on a particular scope.".to_string(),
-      app_id: None
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     },
     InitialActionProperties {
       name: "slashstep.accessPolicies.create".to_string(),
       display_name: "Create access policies".to_string(),
       description: "Create new access policy on a particular scope.".to_string(),
-      app_id: None
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     },
     InitialActionProperties {
       name: "slashstep.accessPolicies.update".to_string(),
       display_name: "Update access policies".to_string(),
       description: "Update access policies on a particular scope.".to_string(),
-      app_id: None
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     },
     InitialActionProperties {
       name: "slashstep.accessPolicies.delete".to_string(),
       display_name: "Delete access policies".to_string(),
       description: "Delete access policies on a particular scope.".to_string(),
-      app_id: None
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     },
     InitialActionProperties {
       name: "slashstep.actions.get".to_string(),
       display_name: "Get actions".to_string(),
       description: "Get specific access policies on a particular scope.".to_string(),
-      app_id: None
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     },
+    InitialActionProperties {
+      name: "slashstep.actions.list".to_string(),
+      display_name: "List actions".to_string(),
+      description: "List all actions on a particular scope.".to_string(),
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
+    }
   ];
 
   let mut actions: Vec<Action> = Vec::new();

@@ -9,6 +9,31 @@ DO $$
       );
     END IF;
 
+    if not exists (SELECT 1 FROM pg_type WHERE typname = 'resource_type') THEN
+      CREATE TYPE resource_type AS ENUM (
+        'AccessPolicy',
+        'Action',
+        'ActionLogEntry',
+        'App',
+        'AppAuthorization',
+        'AppAuthorizationCredential',
+        'AppCredential',
+        'Group',
+        'GroupMembership',
+        'HTTPTransaction',
+        'Instance',
+        'Item',
+        'Milestone',
+        'Project',
+        'Role',
+        'RoleMembership',
+        'ServerLogEntry',
+        'Session',
+        'User',
+        'Workspace'
+      );
+    END IF;
+
     if not exists (SELECT 1 FROM pg_type WHERE typname = 'access_policy_resource_type') THEN
       CREATE TYPE access_policy_resource_type AS ENUM (
         'Action',

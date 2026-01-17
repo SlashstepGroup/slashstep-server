@@ -10,10 +10,32 @@
  */
 
 use postgres::error::SqlState;
-use postgres_types::ToSql;
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
+use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+
+pub const DEFAULT_ACTION_LIST_LIMIT: i64 = 1000;
+pub const DEFAULT_MAXIMUM_ACTION_LIST_LIMIT: i64 = 1000;
+pub const ALLOWED_QUERY_KEYS: &[&str] = &[
+  "id",
+  "name",
+  "display_name",
+  "description",
+  "app_id"
+];
+pub const UUID_QUERY_KEYS: &[&str] = &[
+  "id",
+  "app_id"
+];
+
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize)]
+#[postgres(name = "action_parent_resource_type")]
+pub enum ActionParentResourceType {
+  Instance,
+  App
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Action {
@@ -31,7 +53,10 @@ pub struct Action {
   pub description: String,
 
   /// The action's app ID, if applicable. Actions without an app ID are global actions.
-  pub app_id: Option<Uuid>
+  pub app_id: Option<Uuid>,
+
+  /// The action's parent resource type.
+  pub parent_resource_type: ActionParentResourceType
 
 }
 
@@ -47,7 +72,10 @@ pub struct InitialActionProperties {
   pub description: String,
 
   /// The action's app ID, if applicable. Actions without an app ID are global actions.
-  pub app_id: Option<Uuid>
+  pub app_id: Option<Uuid>,
+
+  /// The action's parent resource type.
+  pub parent_resource_type: ActionParentResourceType
 
 }
 
@@ -60,20 +88,47 @@ pub enum ActionError {
   NotFoundError(String),
 
   #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
+  PostgresError(#[from] postgres::Error),
+
+  #[error(transparent)]
+  SlashstepQLError(#[from] SlashstepQLError)
 }
 
 impl Action {
 
-  pub fn from_row(row: &postgres::Row) -> Self {
+  fn convert_from_row(row: &postgres::Row) -> Self {
 
     return Action {
       id: row.get("id"),
       name: row.get("name"),
       display_name: row.get("display_name"),
       description: row.get("description"),
-      app_id: row.get("app_id")
+      app_id: row.get("app_id"),
+      parent_resource_type: row.get("parent_resource_type")
     };
+
+  }
+
+  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ActionError> {
+
+    // Prepare the query.
+    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+      filter: query.to_string(),
+      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
+      default_limit: None,
+      maximum_limit: None,
+      should_ignore_limit: true,
+      should_ignore_offset: true
+    };
+    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "Action", "actions", "slashstep.actions.get", true);
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+
+    // Execute the query and return the count.
+    let rows = postgres_client.query_one(&query, &parameters).await?;
+    let count = rows.get(0);
+    return Ok(count);
 
   }
 
@@ -86,7 +141,8 @@ impl Action {
       &initial_properties.name,
       &initial_properties.display_name,
       &initial_properties.description,
-      &initial_properties.app_id
+      &initial_properties.app_id,
+      &initial_properties.parent_resource_type
     ];
     let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
@@ -107,9 +163,17 @@ impl Action {
     })?;
 
     // Return the action.
-    let action = Action::from_row(&row);
+    let action = Action::convert_from_row(&row);
 
     return Ok(action);
+
+  }
+
+  pub async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionError> {
+
+    let query = include_str!("../../queries/actions/delete-action-row.sql");
+    postgres_client.execute(query, &[&self.id]).await?;
+    return Ok(());
 
   }
 
@@ -130,7 +194,7 @@ impl Action {
 
     };
 
-    let action = Action::from_row(&row);
+    let action = Action::convert_from_row(&row);
 
     return Ok(action);
 
@@ -153,7 +217,7 @@ impl Action {
 
     };
 
-    let action = Action::from_row(&row);
+    let action = Action::convert_from_row(&row);
 
     return Ok(action);
 
@@ -172,11 +236,44 @@ impl Action {
 
   }
 
-  pub async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionError> {
+  /// Returns a list of actions based on a query.
+  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ActionError> {
 
-    let query = include_str!("../../queries/actions/delete-action-row.sql");
-    postgres_client.execute(query, &[&self.id]).await?;
-    return Ok(());
+    // Prepare the query.
+    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+      filter: query.to_string(),
+      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
+      default_limit: Some(DEFAULT_ACTION_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      maximum_limit: Some(DEFAULT_MAXIMUM_ACTION_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      should_ignore_limit: false,
+      should_ignore_offset: false
+    };
+    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "Action", "actions", "slashstep.actions.get", false);
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+
+    // Execute the query.
+    let rows = postgres_client.query(&query, &parameters).await?;
+    let actions = rows.iter().map(Action::convert_from_row).collect();
+    return Ok(actions);
+
+  }
+
+  fn parse_string_slashstepql_parameters<'a>(key: &'a str, value: &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
+
+    if UUID_QUERY_KEYS.contains(&key) {
+
+      let uuid = match Uuid::parse_str(value) {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\".", value, key)))
+      };
+
+      return Ok(Box::new(uuid));
+
+    }
+
+    return Ok(Box::new(value));
 
   }
 

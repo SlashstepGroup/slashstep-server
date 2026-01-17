@@ -1,8 +1,10 @@
 use std::fmt;
-use pg_escape::quote_identifier;
+use pg_escape::{quote_identifier, quote_literal};
+use postgres_types::ToSql;
 use regex::Regex;
 use thiserror::Error;
 use std::error::Error;
+use crate::resources::access_policy::IndividualPrincipal;
 
 /// An error that occurs when a resource does not exist.
 #[derive(Debug)]
@@ -45,7 +47,8 @@ pub enum SlashstepQLError {
   RegexError(regex::Error),
   ParseIntError(std::num::ParseIntError),
   InvalidOffsetError(String),
-  SlashstepQLInvalidLimitError(SlashstepQLInvalidLimitError)
+  SlashstepQLInvalidLimitError(SlashstepQLInvalidLimitError),
+  StringParserError(String)
 }
 
 impl fmt::Display for SlashstepQLError {
@@ -76,6 +79,9 @@ pub struct SlashstepQLSanitizeFunctionOptions {
   pub should_ignore_limit: bool,
   pub should_ignore_offset: bool
 }
+
+pub type SlashstepQLParsedParameter<'a> = Box<dyn ToSql + Sync + Send + 'a>;
+pub type SlashstepQLParsedParameters<'a> = Vec<SlashstepQLParsedParameter<'a>>;
 
 impl SlashstepQLFilterSanitizer {
 
@@ -251,5 +257,90 @@ impl SlashstepQLFilterSanitizer {
     });
 
   }
+
+  pub fn build_query_from_sanitized_filter(
+    sanitized_filter: &SlashstepQLSanitizedFilter, 
+    individual_principal: Option<&IndividualPrincipal>,
+    resource_type: &str,
+    table_name: &str,
+    get_resource_action_name: &str,
+    should_count: bool
+  ) -> String {
+
+    let where_clause = sanitized_filter.where_clause.clone().unwrap_or("".to_string());
+    let where_clause = match individual_principal {
+      
+      Some(individual_principal) => {
+        
+        let additional_condition = match individual_principal {
+
+          IndividualPrincipal::User(user_id) => format!("can_principal_get_resource('User', {}, {}, {}.id, {})", quote_literal(&user_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name)),
+
+          IndividualPrincipal::App(app_id) => format!("can_principal_get_resource('App', {}, {}, {}.id, {})", quote_literal(&app_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name))
+
+        };
+
+        if where_clause == "" { 
+          
+          additional_condition 
+        
+        } else { 
+          
+          format!("({}) AND {}", where_clause, additional_condition)
+        
+        }
+
+      },
+
+      None => where_clause
+
+    };
+    let where_clause = if where_clause == "" { where_clause } else { format!(" where {}", where_clause) };
+    let limit_clause = sanitized_filter.limit.and_then(|limit| Some(format!(" limit {}", limit))).unwrap_or("".to_string());
+    let offset_clause = sanitized_filter.offset.and_then(|offset| Some(format!(" offset {}", offset))).unwrap_or("".to_string());
+    let query = format!("select {} from {}{}{}{}", if should_count { "count(*)" } else { "*" }, table_name, where_clause, limit_clause, offset_clause);
+
+    return query;
+
+  }
+
+  
+}
+
+pub fn parse_parameters<'a>(
+  slashstepql_parameters: &'a Vec<(String, SlashstepQLParameterType)>, 
+  string_parser: impl Fn(&'a str, &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError>
+) -> Result<SlashstepQLParsedParameters<'a>, SlashstepQLError> {
+
+  let mut parsed_parameters: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+
+  for (key, value) in slashstepql_parameters {
+
+    match value {
+
+      SlashstepQLParameterType::String(string_value) => {
+        
+        let parsed_value = string_parser(key, string_value)?;
+        parsed_parameters.push(parsed_value);
+
+      },
+
+      SlashstepQLParameterType::Number(number_value) => {
+
+        parsed_parameters.push(Box::new(number_value));
+
+      },
+
+      SlashstepQLParameterType::Boolean(boolean_value) => {
+
+        parsed_parameters.push(Box::new(boolean_value));
+
+      }
+
+    }
+
+  }
+
+  return Ok(parsed_parameters);
 
 }
