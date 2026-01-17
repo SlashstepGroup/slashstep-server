@@ -187,6 +187,31 @@ impl FromStr for AccessPolicyPermissionLevel {
 
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize)]
+#[postgres(name = "resource_type")]
+pub enum ResourceType {
+  AccessPolicy,
+  Action,
+  ActionLogEntry,
+  App,
+  AppAuthorization,
+  AppAuthorizationCredential,
+  AppCredential,
+  Group,
+  GroupMembership,
+  HTTPTransaction,
+  Instance,
+  Item,
+  Project,
+  Role,
+  RoleMembership,
+  ServerLogEntry,
+  Session,
+  User,
+  Milestone,
+  Workspace
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize, Default)]
 #[postgres(name = "access_policy_resource_type")]
 pub enum AccessPolicyResourceType {
@@ -489,7 +514,7 @@ impl AccessPolicy {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "access_policies", true);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "AccessPolicy", "access_policies", "slashstep.accessPolicies.get", true);
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
@@ -626,8 +651,12 @@ impl AccessPolicy {
     let get_prinicipal_access_policies_function = include_str!("../../queries/access_policies/create_function_get_principal_access_policies.sql");
     postgres_client.execute(get_prinicipal_access_policies_function, &[]).await?;
 
-    let can_principal_get_access_policy_function = include_str!("../../queries/access_policies/create_function_can_principal_get_access_policy.sql");
+    let can_principal_get_access_policy_function = include_str!("../../queries/access_policies/create_function_can_principal_get_resource.sql");
     postgres_client.execute(can_principal_get_access_policy_function, &[]).await?;
+
+    let get_initial_resource_id_from_access_policy_function = include_str!("../../queries/access_policies/create_function_get_initial_resource_id_from_access_policy.sql");
+    postgres_client.execute(get_initial_resource_id_from_access_policy_function, &[]).await?;
+
     return Ok(());
 
   }
@@ -713,7 +742,7 @@ impl AccessPolicy {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "access_policies", false);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "AccessPolicy", "access_policies", "slashstep.accessPolicies.get", false);
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 

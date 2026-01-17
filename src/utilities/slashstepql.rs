@@ -258,7 +258,14 @@ impl SlashstepQLFilterSanitizer {
 
   }
 
-  pub fn build_query_from_sanitized_filter(sanitized_filter: &SlashstepQLSanitizedFilter, individual_principal: Option<&IndividualPrincipal>, table_name: &str, should_count: bool) -> String {
+  pub fn build_query_from_sanitized_filter(
+    sanitized_filter: &SlashstepQLSanitizedFilter, 
+    individual_principal: Option<&IndividualPrincipal>,
+    resource_type: &str,
+    table_name: &str,
+    get_resource_action_name: &str,
+    should_count: bool
+  ) -> String {
 
     let where_clause = sanitized_filter.where_clause.clone().unwrap_or("".to_string());
     let where_clause = match individual_principal {
@@ -267,8 +274,9 @@ impl SlashstepQLFilterSanitizer {
         
         let additional_condition = match individual_principal {
 
-          IndividualPrincipal::User(user_id) => format!("can_principal_get_access_policy('User', {}, NULL, {}.*)", quote_literal(&user_id.to_string()), table_name),
-          IndividualPrincipal::App(app_id) => format!("can_principal_get_access_policy('App', NULL, {}, {}.*)", quote_literal(&app_id.to_string()), table_name)
+          IndividualPrincipal::User(user_id) => format!("can_principal_get_resource('User', {}, {}, {}.id, {})", quote_literal(&user_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name)),
+
+          IndividualPrincipal::App(app_id) => format!("can_principal_get_resource('App', {}, {}, {}.id, {})", quote_literal(&app_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name))
 
         };
 

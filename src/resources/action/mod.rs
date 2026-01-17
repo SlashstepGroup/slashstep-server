@@ -10,7 +10,7 @@
  */
 
 use postgres::error::SqlState;
-use postgres_types::ToSql;
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
@@ -30,6 +30,13 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "app_id"
 ];
 
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize)]
+#[postgres(name = "action_parent_resource_type")]
+pub enum ActionParentResourceType {
+  Instance,
+  App
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Action {
 
@@ -46,7 +53,10 @@ pub struct Action {
   pub description: String,
 
   /// The action's app ID, if applicable. Actions without an app ID are global actions.
-  pub app_id: Option<Uuid>
+  pub app_id: Option<Uuid>,
+
+  /// The action's parent resource type.
+  pub parent_resource_type: ActionParentResourceType
 
 }
 
@@ -62,7 +72,10 @@ pub struct InitialActionProperties {
   pub description: String,
 
   /// The action's app ID, if applicable. Actions without an app ID are global actions.
-  pub app_id: Option<Uuid>
+  pub app_id: Option<Uuid>,
+
+  /// The action's parent resource type.
+  pub parent_resource_type: ActionParentResourceType
 
 }
 
@@ -90,7 +103,8 @@ impl Action {
       name: row.get("name"),
       display_name: row.get("display_name"),
       description: row.get("description"),
-      app_id: row.get("app_id")
+      app_id: row.get("app_id"),
+      parent_resource_type: row.get("parent_resource_type")
     };
 
   }
@@ -107,7 +121,7 @@ impl Action {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "actions", true);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "Action", "actions", "slashstep.actions.get", true);
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
@@ -127,7 +141,8 @@ impl Action {
       &initial_properties.name,
       &initial_properties.display_name,
       &initial_properties.description,
-      &initial_properties.app_id
+      &initial_properties.app_id,
+      &initial_properties.parent_resource_type
     ];
     let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
@@ -234,7 +249,7 @@ impl Action {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "actions", false);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "Action", "actions", "slashstep.actions.get", false);
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
