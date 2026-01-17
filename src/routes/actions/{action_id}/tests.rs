@@ -210,58 +210,61 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), SlashstepSer
 
 }
 
-// /// Verifies that the router can return a 204 status code if the access policy is successfully deleted.
-// #[tokio::test]
-// async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+/// Verifies that the router can return a 204 status code if the action is successfully deleted.
+#[tokio::test]
+async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), SlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   test_environment.initialize_required_tables().await?;
-//   let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-//   let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
-
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  test_environment.initialize_required_tables().await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let delete_access_policies_action = Action::get_by_name("slashstep.accessPolicies.delete", &mut postgres_client).await?;
-//   let access_policy_properties = InitialAccessPolicyProperties {
-//     action_id: delete_access_policies_action.id,
-//     permission_level: AccessPolicyPermissionLevel::Editor,
-//     is_inheritance_enabled: true,
-//     principal_type: AccessPolicyPrincipalType::User,
-//     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Instance,
-//     ..Default::default()
-//   };
-//   let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   let response = test_server.delete(&format!("/access-policies/{}", access_policy.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Grant access to the "slashstep.actions.delete" action to the user.
+  let delete_actions_action = Action::get_by_name("slashstep.actions.delete", &mut postgres_client).await?;
+  AccessPolicy::create(&InitialAccessPolicyProperties {
+    action_id: delete_actions_action.id,
+    permission_level: AccessPolicyPermissionLevel::User,
+    is_inheritance_enabled: true,
+    principal_type: AccessPolicyPrincipalType::User,
+    principal_user_id: Some(user.id),
+    scoped_resource_type: AccessPolicyResourceType::Instance,
+    ..Default::default()
+  }, &mut postgres_client).await?;
+
+  // Set up the server and send the request.
+  let action = test_environment.create_random_action().await?;
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.delete(&format!("/actions/{}", action.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   assert_eq!(response.status_code(), 204);
+  assert_eq!(response.status_code(), 204);
 
-//   match AccessPolicy::get_by_id(&access_policy.id, &mut postgres_client).await.expect_err("Expected an access policy not found error.") {
+  match AccessPolicy::get_by_id(&action.id, &mut postgres_client).await.expect_err("Expected an access policy not found error.") {
 
-//     AccessPolicyError::NotFoundError(_) => {},
+    AccessPolicyError::NotFoundError(_) => {},
 
-//     error => return Err(SlashstepServerError::AccessPolicyError(error))
+    error => return Err(SlashstepServerError::AccessPolicyError(error))
 
-//   }
+  }
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 400 status code if the access policy ID is not a UUID.
 // #[tokio::test]
