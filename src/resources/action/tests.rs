@@ -43,8 +43,23 @@ fn create_action() {
 
 }
 
-#[test]
-fn delete_action() {
+#[tokio::test]
+async fn delete_action() -> Result<(), SlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  test_environment.initialize_required_tables().await?;
+
+  // Create the access policy.
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  let created_action = test_environment.create_random_action().await?;
+
+  created_action.delete(&mut postgres_client).await?;
+
+  // Ensure that the access policy is no longer in the database.
+  let retrieved_action_result = Action::get_by_id(&created_action.id, &mut postgres_client).await;
+  assert!(retrieved_action_result.is_err());
+
+  return Ok(());
 
 }
 

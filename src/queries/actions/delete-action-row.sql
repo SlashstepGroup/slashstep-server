@@ -1,1 +1,1 @@
-delete from actions where id = $1;
+DELETE FROM actions WHERE id = $1;
