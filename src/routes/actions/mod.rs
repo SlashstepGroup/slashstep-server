@@ -8,7 +8,7 @@ use crate::{AppState, HTTPError, middleware::authentication_middleware, resource
 mod action_id;
 
 #[derive(Debug, Deserialize)]
-pub struct AccessPolicyListQueryParameters {
+pub struct ActionListQueryParameters {
   query: Option<String>
 }
 
@@ -19,8 +19,8 @@ pub struct ListActionResponseBody {
 }
 
 #[axum::debug_handler]
-async fn handle_list_access_policies_request(
-  Query(query_parameters): Query<AccessPolicyListQueryParameters>,
+async fn handle_list_actions_request(
+  Query(query_parameters): Query<ActionListQueryParameters>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(user): Extension<Option<Arc<User>>>
@@ -35,7 +35,7 @@ async fn handle_list_access_policies_request(
   let query = query_parameters.query.unwrap_or("".to_string());
   let actions = match Action::list(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
 
-    Ok(access_policies) => access_policies,
+    Ok(actions) => actions,
 
     Err(error) => {
 
@@ -49,11 +49,11 @@ async fn handle_list_access_policies_request(
 
           SlashstepQLError::InvalidQueryError(()) => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid."))),
 
-          _ => HTTPError::InternalServerError(Some(format!("Failed to list access policies: {:?}", error)))
+          _ => HTTPError::InternalServerError(Some(format!("Failed to list actions: {:?}", error)))
 
         },
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to list access policies: {:?}", error)))
+        _ => HTTPError::InternalServerError(Some(format!("Failed to list actions: {:?}", error)))
 
       };
 
@@ -65,13 +65,13 @@ async fn handle_list_access_policies_request(
   };
 
   let _ = ServerLogEntry::trace(&format!("Counting actions..."), Some(&http_transaction.id), &mut postgres_client).await;
-  let access_policy_count = match Action::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
+  let action_count = match Action::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
 
-    Ok(access_policy_count) => access_policy_count,
+    Ok(action_count) => action_count,
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count access policies: {:?}", error)));
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count actions: {:?}", error)));
       let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
       return Err(http_error);
 
@@ -80,10 +80,10 @@ async fn handle_list_access_policies_request(
   };
 
   let action_list_length = actions.len();
-  let _ = ServerLogEntry::success(&format!("Successfully returned {} access {}.", action_list_length, if action_list_length == 1 { "policy" } else { "policies" }), Some(&http_transaction.id), &mut postgres_client).await;
+  let _ = ServerLogEntry::success(&format!("Successfully returned {} {}.", action_list_length, if action_list_length == 1 { "action" } else { "actions" }), Some(&http_transaction.id), &mut postgres_client).await;
   let response_body = ListActionResponseBody {
     actions,
-    total_count: access_policy_count
+    total_count: action_count
   };
 
   return Ok(ErasedJson::pretty(&response_body));
@@ -93,8 +93,12 @@ async fn handle_list_access_policies_request(
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
+    .route("/actions", axum::routing::get(handle_list_actions_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .merge(action_id::get_router(state.clone()));
   return router;
 
 }
+
+#[cfg(test)]
+mod tests;

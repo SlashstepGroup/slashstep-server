@@ -48,6 +48,13 @@ pub async fn initialize_pre_defined_actions(postgres_client: &mut deadpool_postg
       app_id: None,
       parent_resource_type: ActionParentResourceType::Instance
     },
+    InitialActionProperties {
+      name: "slashstep.actions.list".to_string(),
+      display_name: "List actions".to_string(),
+      description: "List all actions on a particular scope.".to_string(),
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
+    }
   ];
 
   let mut actions: Vec<Action> = Vec::new();

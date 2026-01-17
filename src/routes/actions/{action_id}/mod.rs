@@ -23,7 +23,7 @@ async fn get_resource_hierarchy(action: &Action, http_transaction: &HTTPTransact
 
             Ok(_) => HTTPError::GoneError(Some(format!("The {} resource has been deleted because it was orphaned.", scoped_resource_type))),
 
-            Err(error) => HTTPError::InternalServerError(Some(format!("Failed to delete orphaned access policy: {:?}", error)))
+            Err(error) => HTTPError::InternalServerError(Some(format!("Failed to delete orphaned action: {:?}", error)))
 
           };
           
@@ -102,7 +102,7 @@ async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPTrans
 
     Err(_) => {
 
-      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the access policy ID.".to_string()));
+      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the action ID.".to_string()));
       let _ = ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await;
       return Err(http_error);
 
