@@ -296,7 +296,7 @@ impl FromStr for AccessPolicyResourceType {
 
 }
 
-#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize, Default, Clone, Copy)]
 #[postgres(name = "principal_type")]
 pub enum AccessPolicyPrincipalType {
 
@@ -357,7 +357,7 @@ pub enum Principal {
 
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Deserialize, Default)]
 pub struct InitialAccessPolicyProperties {
 
   pub action_id: Uuid,
