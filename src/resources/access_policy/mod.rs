@@ -45,7 +45,9 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_project_id", 
   "scoped_role_id", 
   "scoped_user_id", 
-  "scoped_workspace_id"
+  "scoped_workspace_id",
+  "permission_level",
+  "is_inheritance_enabled"
 ];
 
 pub const UUID_QUERY_KEYS: &[&str] = &[
