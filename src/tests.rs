@@ -9,7 +9,7 @@ use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
 
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, import_env_file, initialize_required_tables, resources::{access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, import_env_file, initialize_required_tables, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}};
 
 pub struct TestEnvironment {
 
@@ -99,6 +99,23 @@ impl TestEnvironment {
     initialize_required_tables(&mut postgres_client).await?;
 
     return Ok(());
+
+  }
+
+  pub async fn create_access_policy(&self, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy> {
+
+    let mut postgres_client = self.postgres_pool.get().await?;
+    let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
+      action_id: action_id.clone(),
+      permission_level: permission_level.clone(),
+      is_inheritance_enabled: true,
+      principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
+      principal_user_id: Some(user_id.clone()),
+      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Instance,
+      ..Default::default()
+    }, &mut postgres_client).await?;
+
+    return Ok(access_policy);
 
   }
 

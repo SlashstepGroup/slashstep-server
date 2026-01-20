@@ -1,7 +1,7 @@
 use std::fmt;
 use pg_escape::{quote_identifier, quote_literal};
 use postgres_types::ToSql;
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 use thiserror::Error;
 use std::error::Error;
 use crate::resources::access_policy::IndividualPrincipal;
@@ -98,8 +98,11 @@ impl SlashstepQLFilterSanitizer {
       // Remove unnecessary whitespace.
       raw_filter = raw_filter.trim().to_string();
 
+
       const SEARCH_REGEX_PATTERN: &str = r#"^((?<openParenthesis>\()|(?<closedParenthesis>\))|(?<and>and)|(?<or>or)|(?<not>not)|(?<assignment>(?<key>\w+) *(?<operator>is|~|~\*|!~|!~\*|=|>|<|>=|<=) *(("(?<stringDoubleQuotes>[^"\\]*(?:\\.[^"\\]*)*)")|(('(?<stringSingleQuotes>[^'\\]*(?:\\.[^'\\]*)*)'))|(?<number>(\d+\.?\d*|(\.\d+)))|(?<boolean>(true|false))|(?<null>null)))|(limit ((?<limit>\d+)))|(offset ((?<offset>\d+))))"#;
-      let search_regex = Regex::new(SEARCH_REGEX_PATTERN)?;
+      let search_regex = RegexBuilder::new(SEARCH_REGEX_PATTERN)
+        .case_insensitive(true)
+        .build()?;
       let regex_captures = search_regex.captures(&raw_filter);
 
       if let Some(regex_captures) = regex_captures {

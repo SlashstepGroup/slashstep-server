@@ -1,8 +1,10 @@
 use std::sync::Arc;
-use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
+use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
+use axum_extra::response::ErasedJson;
+use pg_escape::quote_literal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, InitialAccessPolicyProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_id, get_action_from_name, get_resource_hierarchy_for_action, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, InitialAccessPolicyProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{AccessPolicyListQueryParameters, list_access_policies}, route_handler_utilities::{get_action_from_id, get_action_from_name, get_resource_hierarchy_for_action, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}}};
 
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct InitialAccessPolicyPropertiesForAction {
@@ -14,6 +16,29 @@ pub struct InitialAccessPolicyPropertiesForAction {
   principal_group_id: Option<Uuid>,
   principal_role_id: Option<Uuid>,
   principal_app_id: Option<Uuid>
+}
+
+#[axum::debug_handler]
+async fn handle_get_request(
+  Path(action_id): Path<String>,
+  Query(query_parameters): Query<AccessPolicyListQueryParameters>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(user): Extension<Option<Arc<User>>>
+) -> Result<ErasedJson, HTTPError> {
+
+  let query = format!(
+    "scoped_resource_type = 'Action' AND scoped_action_id = {}{}", 
+    quote_literal(&action_id.to_string()), 
+    query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
+  );
+  
+  let query_parameters = AccessPolicyListQueryParameters {
+    query: Some(query)
+  };
+
+  return list_access_policies(Query(query_parameters), State(state), Extension(http_transaction), Extension(user)).await;
+
 }
 
 #[axum::debug_handler]
@@ -105,6 +130,7 @@ async fn handle_post_request(
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
+    .route("/actions/{action_id}/access-policies", axum::routing::get(handle_get_request))
     .route("/actions/{action_id}/access-policies", axum::routing::post(handle_post_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user));
   return router;
