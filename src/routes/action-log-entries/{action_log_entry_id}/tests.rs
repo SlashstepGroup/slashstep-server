@@ -155,42 +155,42 @@ async fn verify_authentication_when_getting_action_log_entry_by_id() -> Result<(
 
 }
 
-// /// Verifies that the router can return a 403 status code if the user does not have permission to view the action.
-// #[tokio::test]
-// #[timeout(20000)]
-// async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 403 status code if the user does not have permission to view the action log entry.
+#[tokio::test]
+#[timeout(20000)]
+async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   initialize_required_tables(&mut postgres_client).await?;
-//   initialize_pre_defined_actions(&mut postgres_client).await?;
-//   initialize_pre_defined_roles(&mut postgres_client).await?;
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
 
-//   // Create the user, the session, and the action.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let action = test_environment.create_random_action().await?;
+  // Create the user, the session, and the action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let action_log_entry = test_environment.create_random_action_log_entry().await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.get(&format!("/actions/{}", action.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/action-log-entries/{}", action_log_entry.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), 403);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), 403);
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 404 status code if the requested action doesn't exist
 // #[tokio::test]
