@@ -13,35 +13,37 @@
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyError, AccessPolicyPermissionLevel, ResourceHierarchy}, action_log_entry::ActionLogEntry, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::{self, ResourceHierarchyError}, route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::AccessPolicyPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryError}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_resource_hierarchy_for_action_log_entry, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}};
 
 async fn get_action_log_entry_from_id(action_log_entry_id: &str, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<ActionLogEntry, HTTPError> {
 
-  let access_policy_id = match Uuid::parse_str(&access_policy_id) {
+  let action_log_entry_id = match Uuid::parse_str(&action_log_entry_id) {
 
-    Ok(access_policy_id) => access_policy_id,
+    Ok(action_log_entry_id) => action_log_entry_id,
 
     Err(_) => {
 
-      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the access policy ID.".to_string()));
-      let _ = ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await;
+      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the action log entry ID.".to_string()));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  let _ = ServerLogEntry::trace(&format!("Getting access policy {}...", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await;
+  let _ = ServerLogEntry::trace(&format!("Getting action log entry {}...", action_log_entry_id), Some(&http_transaction.id), &mut postgres_client).await;
   
-  let access_policy = match AccessPolicy::get_by_id(&access_policy_id, &mut postgres_client).await {
+  let action_log_entry = match ActionLogEntry::get_by_id(&action_log_entry_id, &mut postgres_client).await {
 
-    Ok(access_policy) => access_policy,
+    Ok(action_log_entry) => action_log_entry,
 
     Err(error) => {
 
       let http_error = match error {
-        AccessPolicyError::NotFoundError(_) => HTTPError::NotFoundError(Some(error.to_string())),
-        AccessPolicyError::PostgresError(error) => {
+
+        ActionLogEntryError::NotFoundError(_) => HTTPError::NotFoundError(Some(error.to_string())),
+
+        ActionLogEntryError::PostgresError(error) => {
 
           match error.as_db_error() {
 
@@ -51,9 +53,10 @@ async fn get_action_log_entry_from_id(action_log_entry_id: &str, http_transactio
           }
 
         }
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
+
       };
-      let _ = ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await;
+
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
 
       return Err(http_error);
 
@@ -61,7 +64,7 @@ async fn get_action_log_entry_from_id(action_log_entry_id: &str, http_transactio
 
   };
 
-  return Ok(access_policy);
+  return Ok(action_log_entry);
 
 }
 
@@ -77,11 +80,11 @@ async fn handle_get_action_log_entry_request(
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
   let action_log_entry = get_action_log_entry_from_id(&action_log_entry_id, &http_transaction, &mut postgres_client).await?;
   let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&action_log_entry, &http_transaction, &mut postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy_for_action_log_entry(&action_log_entry, &http_transaction, &mut postgres_client).await?;
   let action = get_action_from_name("slashstep.actionLogEntries.get", &http_transaction, &mut postgres_client).await?;
   verify_user_permissions(&user, &action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
   
-  ServerLogEntry::success(&format!("Successfully returned action log entry {}.", action_log_entry_id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::success(&format!("Successfully returned action log entry {}.", action_log_entry_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
   return Ok(Json(action_log_entry));
 

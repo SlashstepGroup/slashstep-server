@@ -5,7 +5,6 @@ pub mod utilities;
 pub mod middleware;
 mod routes;
 mod pre_definitions;
-
 #[cfg(test)]
 mod tests;
 
@@ -20,6 +19,7 @@ use serde::Serialize;
 use tokio::net::TcpListener;
 use colored::Colorize;
 use uuid::Uuid;
+use thiserror::Error;
 
 use crate::{pre_definitions::{initialize_pre_defined_actions, initialize_pre_defined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyError}, action::{Action, ActionError}, action_log_entry::{ActionLogEntry, ActionLogEntryError}, app::{App, AppError}, app_authorization::{AppAuthorization, AppAuthorizationError}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential, AppCredentialError}, group::{Group, GroupError}, group_membership::{GroupMembership, GroupMembershipError}, http_transaction::{HTTPTransaction, HTTPTransactionError}, item::{Item, ItemError}, milestone::{Milestone, MilestoneError}, project::{Project, ProjectError}, role::{Role, RoleError}, role_memberships::{RoleMembership, RoleMembershipError}, server_log_entry::{ServerLogEntry, ServerLogEntryError}, session::{Session, SessionError}, user::{User, UserError}, workspace::{Workspace, WorkspaceError}}};
 
@@ -78,8 +78,8 @@ fn get_app_port_string() -> String {
 
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
+#[derive(Debug, Error)]
+pub enum SlashstepServerError {
   #[error("Please set a value for the environment variable \"{0}\".")]
   EnvironmentVariableNotSet(String),
 
@@ -163,7 +163,7 @@ pub enum Error {
 
 }
 
-pub async fn initialize_required_tables(postgres_client: &mut deadpool_postgres::Client) -> Result<(), Error> {
+pub async fn initialize_required_tables(postgres_client: &mut deadpool_postgres::Client) -> Result<(), SlashstepServerError> {
 
   // Because the access_policies table depends on other tables, we need to initialize them in a specific order.
   HTTPTransaction::initialize_http_transactions_table(postgres_client).await?;
@@ -284,18 +284,18 @@ pub fn handle_pool_error(error: deadpool_postgres::PoolError) -> Response<Body> 
 
 }
 
-fn get_environment_variable(variable_name: &str) -> Result<String, Error> {
+fn get_environment_variable(variable_name: &str) -> Result<String, SlashstepServerError> {
 
   let variable_value = match std::env::var(variable_name) {
     Ok(variable_value) => variable_value,
-    Err(_) => return Err(Error::EnvironmentVariableNotSet(variable_name.to_string()))
+    Err(_) => return Err(SlashstepServerError::EnvironmentVariableNotSet(variable_name.to_string()))
   };
 
   return Ok(variable_value);
 
 }
 
-async fn create_database_pool() -> Result<deadpool_postgres::Pool, Error> {
+async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServerError> {
 
   let host = get_environment_variable("POSTGRESQL_HOST")?;
   let username = get_environment_variable("POSTGRESQL_USERNAME")?;
@@ -342,7 +342,7 @@ pub fn import_env_file() {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<(), SlashstepServerError> {
 
   println!("Slashstep Server v{}", env!("CARGO_PKG_VERSION"));
 
