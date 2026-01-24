@@ -41,34 +41,22 @@ pub struct SlashstepQLFilterSanitizer;
 
 #[derive(Debug, Error)]
 pub enum SlashstepQLError {
+  #[error("Invalid filter syntax: {0}")]
   InvalidFilterSyntaxError(String),
+  #[error("Invalid query.")]
   InvalidQueryError(()),
+  #[error("Invalid field: {0}")]
   InvalidFieldError(String),
-  RegexError(regex::Error),
-  ParseIntError(std::num::ParseIntError),
+  #[error("Invalid regex: {0}")]
+  RegexError(#[from] regex::Error),
+  #[error("Invalid integer: {0}")]
+  ParseIntError(#[from] std::num::ParseIntError),
+  #[error("Invalid offset: {0}")]
   InvalidOffsetError(String),
+  #[error("Invalid limit: {0}")]
   SlashstepQLInvalidLimitError(SlashstepQLInvalidLimitError),
-  StringParserError(String)
-}
-
-impl fmt::Display for SlashstepQLError {
-
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{}", self)
-  }
-  
-}
-
-impl From<std::num::ParseIntError> for SlashstepQLError {
-  fn from(error: std::num::ParseIntError) -> Self {
-    SlashstepQLError::ParseIntError(error)
-  }
-}
-
-impl From<regex::Error> for SlashstepQLError {
-  fn from(error: regex::Error) -> Self {
-    SlashstepQLError::RegexError(error)
-  }
+  #[error("String parser error: {0}")]
+  StringParserError(String),
 }
 
 pub struct SlashstepQLSanitizeFunctionOptions {
@@ -98,7 +86,6 @@ impl SlashstepQLFilterSanitizer {
       // Remove unnecessary whitespace.
       raw_filter = raw_filter.trim().to_string();
 
-
       const SEARCH_REGEX_PATTERN: &str = r#"^((?<openParenthesis>\()|(?<closedParenthesis>\))|(?<and>and)|(?<or>or)|(?<not>not)|(?<assignment>(?<key>\w+) *(?<operator>is|~|~\*|!~|!~\*|=|>|<|>=|<=) *(("(?<stringDoubleQuotes>[^"\\]*(?:\\.[^"\\]*)*)")|(('(?<stringSingleQuotes>[^'\\]*(?:\\.[^'\\]*)*)'))|(?<number>(\d+\.?\d*|(\.\d+)))|(?<boolean>(true|false))|(?<null>null)))|(limit ((?<limit>\d+)))|(offset ((?<offset>\d+))))"#;
       let search_regex = RegexBuilder::new(SEARCH_REGEX_PATTERN)
         .case_insensitive(true)
@@ -117,15 +104,15 @@ impl SlashstepQLFilterSanitizer {
 
         } else if regex_captures.name("and").is_some() {
 
-          where_clause.push_str(" and ");
+          where_clause.push_str(" AND ");
 
         } else if regex_captures.name("or").is_some() {
 
-          where_clause.push_str(" or ");
+          where_clause.push_str(" OR ");
 
         } else if regex_captures.name("not").is_some() {
 
-          where_clause.push_str(" not ");
+          where_clause.push_str(" NOT ");
 
         } else if regex_captures.name("assignment").is_some() {
 
@@ -171,9 +158,6 @@ impl SlashstepQLFilterSanitizer {
               }
               
             }
-
-          } else {
-
 
           }
 

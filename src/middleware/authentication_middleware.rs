@@ -14,7 +14,7 @@ async fn get_jwt_public_key(http_transaction_id: &Uuid, postgres_client: &mut de
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("{:?}", error)));
-      let _ = http_error.print_and_save(Some(http_transaction_id), postgres_client).await;
+      http_error.print_and_save(Some(http_transaction_id), postgres_client).await.ok();
       return Err(http_error.into_response());
 
     }
@@ -32,7 +32,7 @@ async fn get_decoding_key(http_transaction_id: &Uuid, postgres_client: &mut dead
     Err(error) => {
       
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to decode JWT public key: {:?}", error)));
-      let _ = http_error.print_and_save(Some(&http_transaction_id), postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction_id), postgres_client).await.ok();
       return Err(http_error.into_response());
 
     }
@@ -54,7 +54,7 @@ async fn get_decoded_claims(http_transaction_id: &Uuid, postgres_client: &mut de
 
         jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(claims) => {
          
-          let _ = ServerLogEntry::warning(&format!("Missing required claim \"{}\" in session token.", claims), Some(&http_transaction_id), postgres_client).await;
+          ServerLogEntry::warning(&format!("Missing required claim \"{}\" in session token.", claims), Some(&http_transaction_id), postgres_client).await.ok();
           HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string()))
           
         },
@@ -63,7 +63,7 @@ async fn get_decoded_claims(http_transaction_id: &Uuid, postgres_client: &mut de
 
       };
 
-      let _ = http_error.print_and_save(Some(&http_transaction_id), postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction_id), postgres_client).await.ok();
       return Err(http_error.into_response());
 
     }
@@ -87,7 +87,7 @@ async fn get_user_by_id(http_transaction_id: &Uuid, postgres_client: &mut deadpo
         
       };
 
-      let _ = http_error.print_and_save(Some(&http_transaction_id), postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction_id), postgres_client).await.ok();
 
       return Err(http_error.into_response());
 
@@ -116,7 +116,7 @@ async fn get_session_by_id(http_transaction_id: &Uuid, postgres_client: &mut dea
         _ => HTTPError::InternalServerError(Some(error.to_string()))
       };
 
-      let _ = ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), postgres_client).await;
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), postgres_client).await.ok();
 
       return Err(http_error.into_response());
 
@@ -142,7 +142,7 @@ pub async fn authenticate_user(
   let Some(session_token) = cookie_jar.get("sessionToken") else {
 
     // Use an anonymous user.
-    let _ = ServerLogEntry::trace("No user token found in request. Checking for existing anonymous user...", Some(&http_transaction.id), &mut postgres_client).await;
+    ServerLogEntry::trace("No user token found in request. Checking for existing anonymous user...", Some(&http_transaction.id), &mut postgres_client).await.ok();
 
     let ip_user = match User::get_by_ip_address(&http_transaction.ip_address, &mut postgres_client).await {
     
@@ -154,7 +154,7 @@ pub async fn authenticate_user(
     
           UserError::NotFoundError(_, _) => {
     
-            let _ = ServerLogEntry::trace("No existing anonymous user found. Creating a new one...", Some(&http_transaction.id), &mut postgres_client).await;
+            ServerLogEntry::trace("No existing anonymous user found. Creating a new one...", Some(&http_transaction.id), &mut postgres_client).await.ok();
             let anonymous_user = match User::create(&InitialUserProperties {
               username: None,
               display_name: None,
@@ -168,7 +168,7 @@ pub async fn authenticate_user(
               Err(error) => {
 
                 let http_error = HTTPError::InternalServerError(Some(format!("Failed to create anonymous user: {:?}", error)));
-                let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+                http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
                 return Err(http_error.into_response());
 
               }
@@ -182,7 +182,7 @@ pub async fn authenticate_user(
           _ => {
     
             let http_error = HTTPError::InternalServerError(Some(format!("Failed to get anonymous user: {:?}", error)));
-            let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+            http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
             return Err(http_error.into_response());
     
           }
@@ -193,7 +193,7 @@ pub async fn authenticate_user(
     
     };
     
-    let _ = ServerLogEntry::trace("Getting anonymous-users role...", Some(&http_transaction.id), &mut postgres_client).await;
+    ServerLogEntry::trace("Getting anonymous-users role...", Some(&http_transaction.id), &mut postgres_client).await.ok();
     let anonymous_users_role = match Role::get_by_name("anonymous-users", &mut postgres_client).await {
 
       Ok(anonymous_users_role) => anonymous_users_role,
@@ -201,13 +201,13 @@ pub async fn authenticate_user(
       Err(error) => {
 
         let http_error = HTTPError::InternalServerError(Some(format!("Failed to get anonymous-users role: {:?}", error)));
-        let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+        http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
         return Err(http_error.into_response());
 
       }
 
     };
-    let _ = ServerLogEntry::trace(&format!("Checking if user {} has the anonymous-users role...", ip_user.id), Some(&http_transaction.id), &mut postgres_client).await;
+    ServerLogEntry::trace(&format!("Checking if user {} has the anonymous-users role...", ip_user.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
     let role_memberships = match RoleMembership::list(&format!("role_id = \"{}\" and principal_type = \"User\" and principal_user_id = \"{}\"", anonymous_users_role.id, ip_user.id), &mut postgres_client).await {
 
       Ok(role_memberships) => role_memberships,
@@ -215,7 +215,7 @@ pub async fn authenticate_user(
       Err(error) => {
 
         let http_error = HTTPError::InternalServerError(Some(format!("Failed to get role memberships: {:?}", error)));
-        let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+        http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
         return Err(http_error.into_response());
 
       }
@@ -224,22 +224,22 @@ pub async fn authenticate_user(
 
     if role_memberships.len() == 0 {
 
-      let _ = ServerLogEntry::trace("User does not have the anonymous-users role. Creating a new role membership...", Some(&http_transaction.id), &mut postgres_client).await;
-      let _ = RoleMembership::create(&InitialRoleMembershipProperties {
+      ServerLogEntry::trace("User does not have the anonymous-users role. Creating a new role membership...", Some(&http_transaction.id), &mut postgres_client).await.ok();
+      RoleMembership::create(&InitialRoleMembershipProperties {
         role_id: &anonymous_users_role.id,
         principal_type: &crate::resources::role_memberships::RoleMembershipPrincipalType::User,
         principal_user_id: Some(&ip_user.id),
         principal_app_id: None,
         principal_group_id: None
-      }, &mut postgres_client).await;
+      }, &mut postgres_client).await.ok();
     
     }
     
-    let _ = ServerLogEntry::trace(&format!("Adding user {} to request extensions...", ip_user.id), Some(&http_transaction.id), &mut postgres_client).await;
+    ServerLogEntry::trace(&format!("Adding user {} to request extensions...", ip_user.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
     request.extensions_mut().insert(Some(ip_user.clone()));
 
-    let _ = ServerLogEntry::info(&format!("Authenticated as anonymous user {}.", ip_user.id), Some(&http_transaction.id), &mut postgres_client).await;
+    ServerLogEntry::info(&format!("Authenticated as anonymous user {}.", ip_user.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
     return Ok(next.run(request).await);
 
@@ -248,7 +248,7 @@ pub async fn authenticate_user(
   if !session_token.value().starts_with("Bearer ") {
 
     let http_error = HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string()));
-    let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+    http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
     return Err(http_error.into_response());
 
   }
@@ -256,7 +256,7 @@ pub async fn authenticate_user(
   let session_token = session_token.value().to_string().replace("Bearer ", "");
 
   // Make sure the user token is valid.
-  let _ = ServerLogEntry::trace("Decoding session token...", Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace("Decoding session token...", Some(&http_transaction.id), &mut postgres_client).await.ok();
 
   let jwt_public_key = get_jwt_public_key(&http_transaction.id, &mut postgres_client).await?;
   let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
@@ -270,7 +270,7 @@ pub async fn authenticate_user(
     Err(_) => {
 
       let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the user ID.".to_string()));
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error.into_response());
 
     }
@@ -282,21 +282,21 @@ pub async fn authenticate_user(
     Err(_) => {
 
       let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the user ID.".to_string()));
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error.into_response());
 
     }
     
   };
-  let _ = ServerLogEntry::trace("Getting session...", Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace("Getting session...", Some(&http_transaction.id), &mut postgres_client).await.ok();
   let session = get_session_by_id(&http_transaction.id, &mut postgres_client, &session_id).await?;
-  let _ = ServerLogEntry::trace("Getting user from session...", Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace("Getting user from session...", Some(&http_transaction.id), &mut postgres_client).await.ok();
   let user = get_user_by_id(&http_transaction.id, &mut postgres_client, &user_id).await?;
-  let _ = ServerLogEntry::trace("Adding user and session to request extensions...", Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace("Adding user and session to request extensions...", Some(&http_transaction.id), &mut postgres_client).await.ok();
   request.extensions_mut().insert(Some(Arc::new(user.clone())));
   request.extensions_mut().insert(Some(Arc::new(session.clone())));
 
-  let _ = ServerLogEntry::info(&format!("Successfully authenticated as user {}.", user_id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::info(&format!("Successfully authenticated as user {}.", user_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
   let response = next.run(request).await;
 

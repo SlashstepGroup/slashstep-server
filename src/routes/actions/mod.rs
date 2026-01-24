@@ -57,14 +57,14 @@ async fn handle_list_actions_request(
 
       };
 
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  let _ = ServerLogEntry::trace(&format!("Counting actions..."), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace(&format!("Counting actions..."), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let action_count = match Action::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
 
     Ok(action_count) => action_count,
@@ -72,7 +72,7 @@ async fn handle_list_actions_request(
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to count actions: {:?}", error)));
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -80,7 +80,7 @@ async fn handle_list_actions_request(
   };
 
   let action_list_length = actions.len();
-  let _ = ServerLogEntry::success(&format!("Successfully returned {} {}.", action_list_length, if action_list_length == 1 { "action" } else { "actions" }), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::success(&format!("Successfully returned {} {}.", action_list_length, if action_list_length == 1 { "action" } else { "actions" }), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let response_body = ListActionResponseBody {
     actions,
     total_count: action_count

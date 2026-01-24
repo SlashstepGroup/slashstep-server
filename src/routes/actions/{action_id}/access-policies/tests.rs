@@ -5,10 +5,9 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
+use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, pre_definitions::{initialize_pre_defined_actions, initialize_pre_defined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties}, action::Action, session::Session}, routes::actions::action_id::access_policies::InitialAccessPolicyPropertiesForAction, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListAccessPolicyResponseBody};
 
-use crate::{AppState, SlashstepServerError, middleware::http_request_middleware, pre_definitions::{initialize_pre_defined_actions, initialize_pre_defined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties}, action::Action, session::Session}, routes::actions::action_id::access_policies::InitialAccessPolicyPropertiesForAction, tests::TestEnvironment, utilities::reusable_route_handlers::ListAccessPolicyResponseBody};
-
-async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::Client, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, SlashstepServerError> {
+async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::Client, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
   let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: action_id.clone(),
@@ -24,7 +23,7 @@ async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::
 
 }
 
-async fn create_action_access_policy(postgres_client: &mut deadpool_postgres::Client, scoped_action_id: &Uuid, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, SlashstepServerError> {
+async fn create_action_access_policy(postgres_client: &mut deadpool_postgres::Client, scoped_action_id: &Uuid, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
   let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: action_id.clone(),
@@ -42,11 +41,11 @@ async fn create_action_access_policy(postgres_client: &mut deadpool_postgres::Cl
 }
 
 #[tokio::test]
-async fn verify_successful_access_policy_creation() -> Result<(), SlashstepServerError> {
+async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
 
   // Give the user access to the "slashstep.accessPolicies.create" action.
@@ -98,11 +97,11 @@ async fn verify_successful_access_policy_creation() -> Result<(), SlashstepServe
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
-async fn verify_returned_access_policy_list_without_query() -> Result<(), SlashstepServerError> {
+async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   
   // Give the user access to the "slashstep.accessPolicies.get" action.
@@ -156,11 +155,11 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), Slashs
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
-async fn verify_returned_access_policy_list_with_query() -> Result<(), SlashstepServerError> {
+async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   
   // Give the user access to the "slashstep.accessPolicies.get" action.
@@ -218,11 +217,11 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), Slashstep
 
 /// Verifies that the default access policy list limit is enforced.
 #[tokio::test]
-async fn verify_default_access_policy_list_limit() -> Result<(), SlashstepServerError> {
+async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   
   // Give the user access to the "slashstep.accessPolicies.get" action.
@@ -270,11 +269,11 @@ async fn verify_default_access_policy_list_limit() -> Result<(), SlashstepServer
 
 /// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
 #[tokio::test]
-async fn verify_maximum_access_policy_list_limit() -> Result<(), SlashstepServerError> {
+async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   
   // Create the user and the session.
@@ -310,11 +309,11 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), SlashstepServer
 
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
-async fn verify_query_when_listing_access_policies() -> Result<(), SlashstepServerError> {
+async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   
   // Create the user and the session.
@@ -367,11 +366,11 @@ async fn verify_query_when_listing_access_policies() -> Result<(), SlashstepServ
 
 /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
 #[tokio::test]
-async fn verify_authentication_when_listing_access_policies() -> Result<(), SlashstepServerError> {
+async fn verify_authentication_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
 
@@ -399,11 +398,11 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Slas
 
 /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 #[tokio::test]
-async fn verify_permission_when_listing_access_policies() -> Result<(), SlashstepServerError> {
+async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
 

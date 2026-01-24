@@ -704,7 +704,15 @@ impl AccessPolicy {
       should_ignore_limit: false,
       should_ignore_offset: false
     };
-    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+    let sanitized_filter = match SlashstepQLFilterSanitizer::sanitize(&sanitizer_options) {
+      Ok(sanitized_filter) => sanitized_filter,
+      Err(error) => {
+       
+        println!("{:?}", error); 
+        return Err(AccessPolicyError::SlashstepQLError(error))
+
+      }
+    };
     let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "AccessPolicy", "access_policies", "slashstep.accessPolicies.get", false);
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
@@ -804,12 +812,12 @@ impl AccessPolicy {
 
     };
     let mut query_filter = String::new();
-    query_filter.push_str(format!("{} and action_id = {} and (", principal_clause, quote_literal(&action_id.to_string())).as_str());
+    query_filter.push_str(format!("{} AND action_id = {} AND (", principal_clause, quote_literal(&action_id.to_string())).as_str());
     for i in 0..query_clauses.len() {
 
       if i > 0 {
 
-        query_filter.push_str(" or ");
+        query_filter.push_str(" OR ");
 
       }
 
@@ -818,7 +826,7 @@ impl AccessPolicy {
     }
     query_filter.push_str(")");
     
-    let access_policies: Vec<AccessPolicy> = AccessPolicy::list(&query_filter, postgres_client, None).await?;
+    let access_policies = AccessPolicy::list(&query_filter, postgres_client, None).await?;
 
     return Ok(access_policies);
 

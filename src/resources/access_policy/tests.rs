@@ -11,11 +11,10 @@
 
 use std::cmp;
 use crate::{
-  pre_definitions::initialize_pre_defined_actions, resources::{access_policy::{
+  initialize_required_tables, pre_definitions::initialize_pre_defined_actions, resources::{access_policy::{
     AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties, Principal
-  }, action::Action}, tests::TestEnvironment, utilities::resource_hierarchy
+  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::resource_hierarchy
 };
-use anyhow::{anyhow, Result};
 
 fn assert_access_policy_is_equal_to_initial_properties(access_policy: &AccessPolicy, initial_properties: &InitialAccessPolicyProperties) {
 
@@ -64,10 +63,11 @@ fn assert_access_policies_are_equal(access_policy_1: &AccessPolicy, access_polic
 
 /// Verifies that an access_policies table can be initialized.
 #[tokio::test]
-async fn initialize_access_policies_table() -> Result<()> {
+async fn initialize_access_policies_table() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
 
   return Ok(());
 
@@ -75,11 +75,11 @@ async fn initialize_access_policies_table() -> Result<()> {
 
 /// Verifies that an access policy can be created.
 #[tokio::test]
-async fn create_access_policy() -> Result<()> {
+async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
 
   // Create the access policy.
   let action = test_environment.create_random_action().await?;
@@ -104,13 +104,12 @@ async fn create_access_policy() -> Result<()> {
 
 /// Verifies that an access policy can be retrieved by its ID.
 #[tokio::test]
-async fn get_access_policy_by_id() -> Result<()> {
+async fn get_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-
   let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   let created_access_policy = test_environment.create_random_access_policy().await?;
   let retrieved_access_policy = AccessPolicy::get_by_id(&created_access_policy.id, &mut postgres_client).await?;
 
@@ -122,12 +121,11 @@ async fn get_access_policy_by_id() -> Result<()> {
 
 /// Verifies that a list of access policies can be retrieved without a query.
 #[tokio::test]
-async fn list_access_policies_without_query() -> Result<()> {
+async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-  
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i32 = 25;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -157,13 +155,12 @@ async fn list_access_policies_without_query() -> Result<()> {
 
 /// Verifies that a list of access policies can be retrieved without a query.
 #[tokio::test]
-async fn list_access_policies_without_query_and_filter_based_on_requestor_permissions() -> Result<()> {
+async fn list_access_policies_without_query_and_filter_based_on_requestor_permissions() -> Result<(), TestSlashstepServerError> {
 
-  let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-  
   // Get the "slashstep.accessPolicies.get" action one time.
+  let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   let user = test_environment.create_random_user().await?;
   let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &mut postgres_client).await?;
@@ -215,12 +212,11 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
 /// Verifies that a list of access policies can be retrieved with a query.
 #[tokio::test]
-async fn list_access_policies_with_query() -> Result<()> {
+async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i32 = 5;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -244,7 +240,7 @@ async fn list_access_policies_with_query() -> Result<()> {
 
   }
 
-  let principal_user_id = created_access_policies[0].principal_user_id.ok_or_else(|| anyhow!("Principal user ID is not set."))?;
+  let principal_user_id = created_access_policies[0].principal_user_id.expect("Principal user ID is not set.");
   let query = format!("principal_user_id = \"{}\"", principal_user_id);
   let retrieved_access_policies = AccessPolicy::list(&query, &mut postgres_client, None).await?;
 
@@ -265,12 +261,11 @@ async fn list_access_policies_with_query() -> Result<()> {
 
 /// Verifies that the implementation can return up to a maximum number of access policies by default.
 #[tokio::test]
-async fn list_access_policies_with_default_limit() -> Result<()> {
+async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -292,12 +287,11 @@ async fn list_access_policies_with_default_limit() -> Result<()> {
 
 /// Verifies that the implementation can return an accurate count of access policies.
 #[tokio::test]
-async fn count_access_policies() -> Result<()> {
+async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-
   let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -330,13 +324,12 @@ async fn count_access_policies() -> Result<()> {
 
 /// Verifies that the implementation can return a list of access policies in the proper order given a hierarchy.
 #[tokio::test]
-async fn list_access_policies_by_hierarchy() -> Result<()> {
-
-  let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
+async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
+  let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   let action = test_environment.create_random_action().await?;
   let user = test_environment.create_random_user().await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {
@@ -361,13 +354,12 @@ async fn list_access_policies_by_hierarchy() -> Result<()> {
 
 /// Verifies that the implementation can delete an access policy.
 #[tokio::test]
-async fn delete_access_policy() -> Result<()> {
-
-  let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
+async fn delete_access_policy() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
+  let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   let created_access_policy = test_environment.create_random_access_policy().await?;
 
   created_access_policy.delete(&mut postgres_client).await?;
@@ -382,13 +374,12 @@ async fn delete_access_policy() -> Result<()> {
 
 /// Verifies that the implementation can update an access policy.
 #[tokio::test]
-async fn update_access_policy() -> Result<()> {
-
-  let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
+async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
+  let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   let action = test_environment.create_random_action().await?;
   let user = test_environment.create_random_user().await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {

@@ -32,10 +32,10 @@ tower = "0.5.2"
 ntest = "0.9.3"
 axum-extra = { version = "0.12.2", features = ["cookie", "erased-json"] }
 jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
-anyhow = "1.0.100"
 axum-macros = "0.5.0"
 
 [dev-dependencies]
 testcontainers = { version = "0.25.2", features = ["blocking"] }
 testcontainers-modules = { version = "0.13.0", features = ["postgres"] }
 axum-test = "18.3.0"
+anyhow = "1.0.100"

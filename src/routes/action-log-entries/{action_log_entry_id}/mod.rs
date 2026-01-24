@@ -31,7 +31,7 @@ async fn get_action_log_entry_from_id(action_log_entry_id: &str, http_transactio
 
   };
 
-  let _ = ServerLogEntry::trace(&format!("Getting action log entry {}...", action_log_entry_id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace(&format!("Getting action log entry {}...", action_log_entry_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
   
   let action_log_entry = match ActionLogEntry::get_by_id(&action_log_entry_id, &mut postgres_client).await {
 
@@ -52,7 +52,9 @@ async fn get_action_log_entry_from_id(action_log_entry_id: &str, http_transactio
 
           }
 
-        }
+        },
+
+        _ => HTTPError::InternalServerError(Some(error.to_string()))
 
       };
 

@@ -54,7 +54,7 @@ async fn handle_post_request(
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
 
   // Verify the request body.
-  let _ = ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await.ok();
   let access_policy_properties_json = match body {
 
     Ok(access_policy_properties_json) => access_policy_properties_json,
@@ -75,7 +75,7 @@ async fn handle_post_request(
 
       };
       
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -94,7 +94,7 @@ async fn handle_post_request(
   verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::Editor, &mut postgres_client).await?;
 
   // Create the access policy.
-  let _ = ServerLogEntry::trace(&format!("Creating access policy for action {}...", action_id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace(&format!("Creating access policy for action {}...", action_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let access_policy = match AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: access_policy_properties_json.action_id,
     permission_level: access_policy_properties_json.permission_level,
@@ -114,14 +114,14 @@ async fn handle_post_request(
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to create access policy: {:?}", error)));
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error)
 
     }
 
   };
 
-  let _ = ServerLogEntry::success(&format!("Successfully created access policy {}.", access_policy.id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::success(&format!("Successfully created access policy {}.", access_policy.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
   return Ok(Json(access_policy));
 

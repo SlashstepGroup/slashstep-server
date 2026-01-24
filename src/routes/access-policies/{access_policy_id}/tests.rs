@@ -7,8 +7,7 @@ use ntest::timeout;
 use uuid::Uuid;
 use crate::{
   Action, 
-  AppState, 
-  SlashstepServerError, 
+  AppState,
   initialize_required_tables, 
   middleware::http_request_middleware, 
   pre_definitions::{
@@ -26,19 +25,19 @@ use crate::{
     }, 
     session::Session
   }, 
-  tests::TestEnvironment
+  tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested access policy.
 #[tokio::test]
 #[timeout(20000)]
-async fn verify_returned_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
   
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -98,13 +97,13 @@ async fn verify_returned_access_policy_by_id() -> Result<(), SlashstepServerErro
 
 /// Verifies that the router can return a 400 if the access policy ID is not a UUID.
 #[tokio::test]
-async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -125,13 +124,13 @@ async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), SlashstepS
 
 /// Verifies that the router can return a 401 status code if the user needs authentication.
 #[tokio::test]
-async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -155,13 +154,13 @@ async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), 
 /// Verifies that the router can return a 403 status code if the user does not have permission to view the access policy.
 #[tokio::test]
 #[timeout(20000)]
-async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -190,7 +189,7 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Slas
 /// Verifies that the router can return a 404 status code if the requested access policy doesn't exist
 #[tokio::test]
 #[timeout(20000)]
-async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
@@ -220,13 +219,13 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), Slash
 
 /// Verifies that the router can return a 204 status code if the access policy is successfully deleted.
 #[tokio::test]
-async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -263,7 +262,7 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
 
     AccessPolicyError::NotFoundError(_) => {},
 
-    error => return Err(SlashstepServerError::AccessPolicyError(error))
+    error => return Err(TestSlashstepServerError::AccessPolicyError(error))
 
   }
 
@@ -273,13 +272,13 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
 
 /// Verifies that the router can return a 400 status code if the access policy ID is not a UUID.
 #[tokio::test]
-async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -300,13 +299,13 @@ async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), Slashstep
 
 /// Verifies that the router can return a 401 status code if the user needs authentication.
 #[tokio::test]
-async fn verify_authentication_when_deleting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_authentication_when_deleting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -329,13 +328,13 @@ async fn verify_authentication_when_deleting_access_policy_by_id() -> Result<(),
 
 /// Verifies that the router can return a 403 status code if the user does not have permission to delete the access policy.
 #[tokio::test]
-async fn verify_permission_when_deleting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_permission_when_deleting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -363,7 +362,7 @@ async fn verify_permission_when_deleting_access_policy_by_id() -> Result<(), Sla
 
 /// Verifies that the router can return a 404 status code if the access policy does not exist.
 #[tokio::test]
-async fn verify_access_policy_exists_when_deleting_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_access_policy_exists_when_deleting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
@@ -393,13 +392,13 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id() -> Resu
 
 /// Verifies that the router can return a 200 status code if the access policy is successfully patched.
 #[tokio::test]
-async fn verify_successful_patch_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -463,13 +462,13 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), SlashstepSe
 
 /// Verifies that the router can return a 400 status code if the request doesn't have a valid content type.
 #[tokio::test]
-async fn verify_content_type_when_patching_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_content_type_when_patching_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -490,13 +489,13 @@ async fn verify_content_type_when_patching_access_policy_by_id() -> Result<(), S
 
 /// Verifies that the router can return a 400 status code if the request body is not valid JSON.
 #[tokio::test]
-async fn verify_request_body_exists_when_patching_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_request_body_exists_when_patching_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -518,13 +517,13 @@ async fn verify_request_body_exists_when_patching_access_policy_by_id() -> Resul
 
 /// Verifies that the router can return a 400 status code if the request body includes unwanted data.
 #[tokio::test]
-async fn verify_request_body_json_when_patching_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_request_body_json_when_patching_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -551,13 +550,13 @@ async fn verify_request_body_json_when_patching_access_policy_by_id() -> Result<
 
 /// Verifies that the router can return a 400 status code if the access policy ID is not a UUID.
 #[tokio::test]
-async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -583,13 +582,13 @@ async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), Slashstep
 
 /// Verifies that the router can return a 401 status code if the user needs authentication.
 #[tokio::test]
-async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(), SlashstepServerError> {
+async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -628,13 +627,13 @@ async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(),
 
 /// Verifies that the router can return a 403 status code if the user does not have permission to patch the access policy.
 #[tokio::test]
-async fn verify_permission_when_patching_access_policy() -> Result<(), SlashstepServerError> {
+async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -677,13 +676,13 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), Slashstep
 
 /// Verifies that the router can return a 404 status code if the access policy does not exist.
 #[tokio::test]
-async fn verify_access_policy_exists_when_patching_access_policy() -> Result<(), SlashstepServerError> {
+async fn verify_access_policy_exists_when_patching_access_policy() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
-  let _ = initialize_pre_defined_actions(&mut postgres_client).await?;
-  let _ = initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };

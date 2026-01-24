@@ -50,7 +50,7 @@ pub async fn create_http_request(
         }
 
       };
-      let _ = ServerLogEntry::from_http_error(&http_error, None, &mut postgres_client).await;
+      ServerLogEntry::from_http_error(&http_error, None, &mut postgres_client).await.ok();
       return Err(http_error.into_response());
 
     }
@@ -59,7 +59,7 @@ pub async fn create_http_request(
 
   request.extensions_mut().insert(http_request.clone());
   
-  let _ = ServerLogEntry::info(&format!("HTTP request handling started."), Some(&http_request.id), &mut postgres_client).await;
+  ServerLogEntry::info(&format!("HTTP request handling started."), Some(&http_request.id), &mut postgres_client).await.ok();
   let response = next.run(request).await;
   return Ok(response);
 

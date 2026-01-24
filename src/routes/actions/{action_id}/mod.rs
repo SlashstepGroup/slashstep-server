@@ -39,7 +39,7 @@ async fn handle_get_action_request(
   let get_actions_action = get_action_from_name("slashstep.actions.get", &http_transaction, &mut postgres_client).await?;
   verify_user_permissions(&user, &get_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
   
-  let _ = ServerLogEntry::success(&format!("Successfully returned action {}.", action_id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::success(&format!("Successfully returned action {}.", action_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
   return Ok(Json(action));
 
@@ -57,7 +57,7 @@ async fn handle_patch_action_request(
   let http_transaction = http_transaction.clone();
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
 
-  let _ = ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await.ok();
   let updated_action_properties = match body {
 
     Ok(updated_action_properties) => updated_action_properties,
@@ -78,7 +78,7 @@ async fn handle_patch_action_request(
 
       };
       
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -91,7 +91,7 @@ async fn handle_patch_action_request(
   let update_access_policy_action = get_action_from_name("slashstep.actions.update", &http_transaction, &mut postgres_client).await?;
   verify_user_permissions(&user, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
-  let _ = ServerLogEntry::trace(&format!("Updating action {}...", action_id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace(&format!("Updating action {}...", action_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let updated_action = match original_action.update(&updated_action_properties, &mut postgres_client).await {
 
     Ok(updated_action) => updated_action,
@@ -99,14 +99,14 @@ async fn handle_patch_action_request(
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update action: {:?}", error)));
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  let _ = ServerLogEntry::success(&format!("Successfully updated action {}.", action_id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::success(&format!("Successfully updated action {}.", action_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
   return Ok(Json(updated_action));
 
@@ -135,14 +135,14 @@ async fn handle_delete_action_request(
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete action: {:?}", error)));
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   }
 
-  let _ = ServerLogEntry::success(&format!("Successfully deleted action {}.", action_id), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::success(&format!("Successfully deleted action {}.", action_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
   return Ok(StatusCode::NO_CONTENT);
 

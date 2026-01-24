@@ -1,8 +1,6 @@
 use uuid::Uuid;
 use crate::{
-  SlashstepServerError, 
-  pre_definitions::initialize_pre_defined_actions, 
-  resources::{
+  initialize_required_tables, pre_definitions::initialize_pre_defined_actions, resources::{
     access_policy::{ 
       AccessPolicy, 
       AccessPolicyPermissionLevel, 
@@ -14,8 +12,7 @@ use crate::{
     action::{
       Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, EditableActionProperties, InitialActionProperties
     }
-  }, 
-  tests::TestEnvironment
+  }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 fn assert_actions_are_equal(action_1: &Action, action_2: &Action) {
@@ -29,12 +26,11 @@ fn assert_actions_are_equal(action_1: &Action, action_2: &Action) {
 }
 
 #[tokio::test]
-async fn count_actions() -> Result<(), SlashstepServerError> {
+async fn count_actions() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-
   let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACTION_LIST_LIMIT + 1;
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
@@ -58,13 +54,12 @@ fn create_action() {
 }
 
 #[tokio::test]
-async fn delete_action() -> Result<(), SlashstepServerError> {
-
-  let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
+async fn delete_action() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
+  let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   let created_action = test_environment.create_random_action().await?;
 
   created_action.delete(&mut postgres_client).await?;
@@ -78,10 +73,11 @@ async fn delete_action() -> Result<(), SlashstepServerError> {
 }
 
 #[tokio::test]
-async fn initialize_actions_table() -> Result<(), SlashstepServerError> {
+async fn initialize_actions_table() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
 
   return Ok(());
 
@@ -94,12 +90,11 @@ fn get_action_by_id() {
 
 /// Verifies that the implementation can return up to a maximum number of access policies by default.
 #[tokio::test]
-async fn list_actions_with_default_limit() -> Result<(), SlashstepServerError> {
+async fn list_actions_with_default_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACTION_LIST_LIMIT + 1;
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
@@ -119,12 +114,11 @@ async fn list_actions_with_default_limit() -> Result<(), SlashstepServerError> {
 
 /// Verifies that a list of access policies can be retrieved with a query.
 #[tokio::test]
-async fn list_actions_with_query() -> Result<(), SlashstepServerError> {
+async fn list_actions_with_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i32 = 5;
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
@@ -162,12 +156,11 @@ async fn list_actions_with_query() -> Result<(), SlashstepServerError> {
 }
 
 #[tokio::test]
-async fn list_actions_without_query() -> Result<(), SlashstepServerError> {
+async fn list_actions_without_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-  
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i32 = 25;
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
@@ -195,13 +188,12 @@ async fn list_actions_without_query() -> Result<(), SlashstepServerError> {
 
 /// Verifies that a list of access policies can be retrieved without a query.
 #[tokio::test]
-async fn list_access_policies_without_query_and_filter_based_on_requestor_permissions() -> Result<(), SlashstepServerError> {
-
-  let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
+async fn list_access_policies_without_query_and_filter_based_on_requestor_permissions() -> Result<(), TestSlashstepServerError> {
 
   // Make sure there are at least two actions.
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&mut postgres_client).await?;
   const MINIMUM_ACTION_COUNT: i32 = 2;
   let mut current_actions = Action::list("", &mut postgres_client, None).await?;
   if current_actions.len() < MINIMUM_ACTION_COUNT as usize {
@@ -260,13 +252,13 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 }
 
 #[tokio::test]
-async fn update_action() -> Result<(), SlashstepServerError> {
+async fn update_action() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  test_environment.initialize_required_tables().await?;
 
   // Create the action and update it.
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   let original_action = test_environment.create_random_action().await?;
   let new_name = Uuid::now_v7().to_string();
   let new_display_name = Uuid::now_v7().to_string();

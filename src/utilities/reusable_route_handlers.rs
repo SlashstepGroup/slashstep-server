@@ -53,14 +53,14 @@ pub async fn list_access_policies(
 
       };
 
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  let _ = ServerLogEntry::trace(&format!("Counting access policies..."), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::trace(&format!("Counting access policies..."), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let access_policy_count = match AccessPolicy::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
 
     Ok(access_policy_count) => access_policy_count,
@@ -68,14 +68,14 @@ pub async fn list_access_policies(
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to count access policies: {:?}", error)));
-      let _ = http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await;
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  let _ = ServerLogEntry::success(&format!("Successfully {} returned access policies.", access_policies.len()), Some(&http_transaction.id), &mut postgres_client).await;
+  ServerLogEntry::success(&format!("Successfully {} returned access policies.", access_policies.len()), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let response_body = ListAccessPolicyResponseBody {
     access_policies,
     total_count: access_policy_count

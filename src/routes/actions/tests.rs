@@ -5,14 +5,10 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use reqwest::StatusCode;
 use crate::{
-  AppState, 
-  SlashstepServerError, 
-  middleware::http_request_middleware, 
-  pre_definitions::{
+  AppState, initialize_required_tables, middleware::http_request_middleware, pre_definitions::{
     initialize_pre_defined_actions, 
     initialize_pre_defined_roles
-  }, 
-  resources::{
+  }, resources::{
     access_policy::{
       AccessPolicy, 
       AccessPolicyPermissionLevel, 
@@ -26,18 +22,16 @@ use crate::{
       DEFAULT_ACTION_LIST_LIMIT
     }, 
     session::Session
-  }, 
-  routes::actions::ListActionResponseBody, 
-  tests::TestEnvironment
+  }, routes::actions::ListActionResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested action list.
 #[tokio::test]
-async fn verify_returned_action_list_without_query() -> Result<(), SlashstepServerError> {
+async fn verify_returned_action_list_without_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
   
@@ -108,11 +102,11 @@ async fn verify_returned_action_list_without_query() -> Result<(), SlashstepServ
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
-async fn verify_returned_action_list_with_query() -> Result<(), SlashstepServerError> {
+async fn verify_returned_action_list_with_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
   
@@ -182,11 +176,11 @@ async fn verify_returned_action_list_with_query() -> Result<(), SlashstepServerE
 
 /// Verifies that there's a default access policy list limit.
 #[tokio::test]
-async fn verify_default_action_list_limit() -> Result<(), SlashstepServerError> {
+async fn verify_default_action_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
   
@@ -251,11 +245,11 @@ async fn verify_default_action_list_limit() -> Result<(), SlashstepServerError> 
 
 /// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
 #[tokio::test]
-async fn verify_maximum_action_list_limit() -> Result<(), SlashstepServerError> {
+async fn verify_maximum_action_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
   
@@ -309,11 +303,11 @@ async fn verify_maximum_action_list_limit() -> Result<(), SlashstepServerError> 
 
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
-async fn verify_query_when_listing_actions() -> Result<(), SlashstepServerError> {
+async fn verify_query_when_listing_actions() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
   
@@ -386,11 +380,11 @@ async fn verify_query_when_listing_actions() -> Result<(), SlashstepServerError>
 
 /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
 #[tokio::test]
-async fn verify_authentication_when_listing_actions() -> Result<(), SlashstepServerError> {
+async fn verify_authentication_when_listing_actions() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
 
@@ -415,11 +409,11 @@ async fn verify_authentication_when_listing_actions() -> Result<(), SlashstepSer
 
 /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 #[tokio::test]
-async fn verify_permission_when_listing_actions() -> Result<(), SlashstepServerError> {
+async fn verify_permission_when_listing_actions() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
-  test_environment.initialize_required_tables().await?;
+  initialize_required_tables(&mut postgres_client).await?;
   initialize_pre_defined_actions(&mut postgres_client).await?;
   initialize_pre_defined_roles(&mut postgres_client).await?;
 

@@ -1,0 +1,224 @@
+use std::net::SocketAddr;
+use axum::middleware;
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use ntest::timeout;
+use crate::{
+  Action, 
+  AppState,
+  initialize_required_tables, 
+  middleware::http_request_middleware, 
+  pre_definitions::{
+    initialize_pre_defined_actions
+  }, 
+  resources::{
+    access_policy::{
+      AccessPolicy, 
+      AccessPolicyPermissionLevel, 
+      AccessPolicyPrincipalType, 
+      AccessPolicyResourceType, 
+      InitialAccessPolicyProperties
+    }, action_log_entry::ActionLogEntry, session::Session
+  }, 
+  tests::{TestEnvironment, TestSlashstepServerError}
+};
+
+/// Verifies that the router can return a 200 status code and the requested action.
+#[tokio::test]
+#[timeout(20000)]
+async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
+  
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_action_log_entries_action = Action::get_by_name("slashstep.actionLogEntries.get", &mut postgres_client).await?;
+  AccessPolicy::create(&InitialAccessPolicyProperties {
+    action_id: get_action_log_entries_action.id,
+    permission_level: AccessPolicyPermissionLevel::User,
+    is_inheritance_enabled: true,
+    principal_type: AccessPolicyPrincipalType::User,
+    principal_user_id: Some(user.id),
+    scoped_resource_type: AccessPolicyResourceType::Instance,
+    ..Default::default()
+  }, &mut postgres_client).await?;
+  
+  let action_log_entry = test_environment.create_random_action_log_entry().await?;
+
+  let response = test_server.get(&format!("/action-log-entries/{}", action_log_entry.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), 200);
+  let response_action_log_entry: ActionLogEntry = response.json();
+  assert_eq!(response_action_log_entry.id, action_log_entry.id);
+  assert_eq!(response_action_log_entry.action_id, action_log_entry.action_id);
+  assert_eq!(response_action_log_entry.http_transaction_id, action_log_entry.http_transaction_id);
+  assert_eq!(response_action_log_entry.actor_type, action_log_entry.actor_type);
+  assert_eq!(response_action_log_entry.actor_user_id, action_log_entry.actor_user_id);
+  assert_eq!(response_action_log_entry.actor_app_id, action_log_entry.actor_app_id);
+  assert_eq!(response_action_log_entry.target_resource_type, action_log_entry.target_resource_type);
+  assert_eq!(response_action_log_entry.target_action_id, action_log_entry.target_action_id);
+  assert_eq!(response_action_log_entry.target_action_log_entry_id, action_log_entry.target_action_log_entry_id);
+  assert_eq!(response_action_log_entry.target_app_id, action_log_entry.target_app_id);
+  assert_eq!(response_action_log_entry.target_app_authorization_id, action_log_entry.target_app_authorization_id);
+  assert_eq!(response_action_log_entry.target_app_authorization_credential_id, action_log_entry.target_app_authorization_credential_id);
+  assert_eq!(response_action_log_entry.target_app_credential_id, action_log_entry.target_app_credential_id);
+  assert_eq!(response_action_log_entry.target_group_id, action_log_entry.target_group_id);
+  assert_eq!(response_action_log_entry.target_group_membership_id, action_log_entry.target_group_membership_id);
+  assert_eq!(response_action_log_entry.target_http_transaction_id, action_log_entry.target_http_transaction_id);
+  assert_eq!(response_action_log_entry.target_item_id, action_log_entry.target_item_id);
+  assert_eq!(response_action_log_entry.target_milestone_id, action_log_entry.target_milestone_id);
+  assert_eq!(response_action_log_entry.target_project_id, action_log_entry.target_project_id);
+  assert_eq!(response_action_log_entry.target_role_id, action_log_entry.target_role_id);
+  assert_eq!(response_action_log_entry.target_role_membership_id, action_log_entry.target_role_membership_id);
+  assert_eq!(response_action_log_entry.target_server_log_entry_id, action_log_entry.target_server_log_entry_id);
+  assert_eq!(response_action_log_entry.target_session_id, action_log_entry.target_session_id);
+  assert_eq!(response_action_log_entry.target_user_id, action_log_entry.target_user_id);
+  assert_eq!(response_action_log_entry.target_workspace_id, action_log_entry.target_workspace_id);
+  assert_eq!(response_action_log_entry.reason, action_log_entry.reason);
+
+  return Ok(());
+
+}
+
+// /// Verifies that the router can return a 400 if the action ID is not a UUID.
+// #[tokio::test]
+// async fn verify_uuid_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
+
+//   let test_environment = TestEnvironment::new().await?;
+//   let mut postgres_client = test_environment.postgres_pool.get().await?;
+//   initialize_required_tables(&mut postgres_client).await?;
+//   initialize_pre_defined_actions(&mut postgres_client).await?;
+//   initialize_pre_defined_roles(&mut postgres_client).await?;
+//   let state = AppState {
+//     database_pool: test_environment.postgres_pool.clone(),
+//   };
+
+//   let router = super::get_router(state.clone())
+//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+//     .with_state(state)
+//     .into_make_service_with_connect_info::<SocketAddr>();
+//   let test_server = TestServer::new(router)?;
+
+//   let response = test_server.get("/actions/not-a-uuid")
+//     .await;
+  
+//   assert_eq!(response.status_code(), 400);
+//   return Ok(());
+
+// }
+
+// /// Verifies that the router can return a 401 status code if the user needs authentication.
+// #[tokio::test]
+// async fn verify_authentication_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
+
+//   let test_environment = TestEnvironment::new().await?;
+//   let mut postgres_client = test_environment.postgres_pool.get().await?;
+//   initialize_required_tables(&mut postgres_client).await?;
+//   initialize_pre_defined_actions(&mut postgres_client).await?;
+//   initialize_pre_defined_roles(&mut postgres_client).await?;
+//   let state = AppState {
+//     database_pool: test_environment.postgres_pool.clone(),
+//   };
+
+//   let router = super::get_router(state.clone())
+//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+//     .with_state(state)
+//     .into_make_service_with_connect_info::<SocketAddr>();
+//   let test_server = TestServer::new(router)?;
+  
+//   let action = test_environment.create_random_action().await?;
+
+//   let response = test_server.get(&format!("/actions/{}", action.id))
+//     .await;
+  
+//   assert_eq!(response.status_code(), 401);
+//   return Ok(());
+
+// }
+
+// /// Verifies that the router can return a 403 status code if the user does not have permission to view the action.
+// #[tokio::test]
+// #[timeout(20000)]
+// async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
+
+//   let test_environment = TestEnvironment::new().await?;
+//   let mut postgres_client = test_environment.postgres_pool.get().await?;
+//   initialize_required_tables(&mut postgres_client).await?;
+//   initialize_pre_defined_actions(&mut postgres_client).await?;
+//   initialize_pre_defined_roles(&mut postgres_client).await?;
+
+//   // Create the user, the session, and the action.
+//   let user = test_environment.create_random_user().await?;
+//   let session = test_environment.create_session(&user.id).await?;
+//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+//   let action = test_environment.create_random_action().await?;
+
+//   // Set up the server and send the request.
+//   let state = AppState {
+//     database_pool: test_environment.postgres_pool.clone(),
+//   };
+//   let router = super::get_router(state.clone())
+//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+//     .with_state(state)
+//     .into_make_service_with_connect_info::<SocketAddr>();
+//   let test_server = TestServer::new(router)?;
+//   let response = test_server.get(&format!("/actions/{}", action.id))
+//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+//     .await;
+  
+//   // Verify the response.
+//   assert_eq!(response.status_code(), 403);
+//   return Ok(());
+
+// }
+
+// /// Verifies that the router can return a 404 status code if the requested action doesn't exist
+// #[tokio::test]
+// #[timeout(20000)]
+// async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
+
+//   let test_environment = TestEnvironment::new().await?;
+//   initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
+  
+//   // Create the user and the session.
+//   let user = test_environment.create_random_user().await?;
+//   let session = test_environment.create_session(&user.id).await?;
+//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+
+//   // Set up the server and send the request.
+//   let state = AppState {
+//     database_pool: test_environment.postgres_pool.clone(),
+//   };
+//   let router = super::get_router(state.clone())
+//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+//     .with_state(state)
+//     .into_make_service_with_connect_info::<SocketAddr>();
+//   let test_server = TestServer::new(router)?;
+//   let response = test_server.get(&format!("/actions/{}", uuid::Uuid::now_v7()))
+//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+//     .await;
+  
+//   // Verify the response.
+//   assert_eq!(response.status_code(), 404);
+//   return Ok(());
+
+// }
