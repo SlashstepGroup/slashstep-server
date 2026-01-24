@@ -125,34 +125,35 @@ async fn verify_uuid_when_getting_action_log_entry_by_id() -> Result<(), TestSla
 
 }
 
-// /// Verifies that the router can return a 401 status code if the user needs authentication.
-// #[tokio::test]
-// async fn verify_authentication_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_getting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   initialize_required_tables(&mut postgres_client).await?;
-//   initialize_pre_defined_actions(&mut postgres_client).await?;
-//   initialize_pre_defined_roles(&mut postgres_client).await?;
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
   
-//   let action = test_environment.create_random_action().await?;
+  let action_log_entry = test_environment.create_random_action_log_entry().await?;
 
-//   let response = test_server.get(&format!("/actions/{}", action.id))
-//     .await;
+  let response = test_server.get(&format!("/action-log-entries/{}", action_log_entry.id))
+    .await;
   
-//   assert_eq!(response.status_code(), 401);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), 401);
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 403 status code if the user does not have permission to view the action.
 // #[tokio::test]
