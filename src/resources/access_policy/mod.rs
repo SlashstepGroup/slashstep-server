@@ -910,6 +910,5 @@ impl AccessPolicy {
 
 }
 
-/// To reduce line count, tests are in a separate module.
 #[cfg(test)]
 mod tests;

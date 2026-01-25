@@ -97,7 +97,7 @@ pub enum TestSlashstepServerError {
   SlashstepServerError(#[from] SlashstepServerError),
 
   #[error(transparent)]
-  AnyhowError(#[from] anyhow::Error)
+  AnyhowError(#[from] anyhow::Error),
 
 }
 

@@ -21,8 +21,7 @@ use crate::{
       AccessPolicyPrincipalType, 
       AccessPolicyResourceType, 
       InitialAccessPolicyProperties
-    }, 
-    session::Session
+    }, action::ActionError, session::Session
   }, 
   tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -252,11 +251,11 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   
   assert_eq!(response.status_code(), 204);
 
-  match AccessPolicy::get_by_id(&action.id, &mut postgres_client).await.expect_err("Expected an action not found error.") {
+  match Action::get_by_id(&action.id, &mut postgres_client).await.expect_err("Expected an action not found error.") {
 
-    AccessPolicyError::NotFoundError(_) => {},
+    ActionError::NotFoundError(_) => {},
 
-    error => return Err(TestSlashstepServerError::AccessPolicyError(error))
+    error => return Err(TestSlashstepServerError::ActionError(error))
 
   }
 

@@ -221,6 +221,7 @@ pub struct InitialActionLogEntryProperties {
 
 impl ActionLogEntry {
 
+  /// Gets an action log entry by its ID.
   pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ActionLogEntryError> {
 
     let query = include_str!("../../queries/action_log_entries/get_action_log_entry_row_by_id.sql");
@@ -238,60 +239,9 @@ impl ActionLogEntry {
 
     };
 
-    let action_log_entry = ActionLogEntry::from_row(&row);
+    let action_log_entry = Self::convert_from_row(&row);
 
     return Ok(action_log_entry);
-
-  }
-
-  fn from_row(row: &postgres::Row) -> Self {
-
-    return ActionLogEntry {
-      id: row.get("id"),
-      action_id: row.get("action_id"),
-      http_transaction_id: row.get("http_transaction_id"),
-      actor_type: row.get("actor_type"),
-      actor_user_id: row.get("actor_user_id"),
-      actor_app_id: row.get("actor_app_id"),
-      target_resource_type: row.get("target_resource_type"),
-      target_access_policy_id: row.get("target_access_policy_id"),
-      target_action_id: row.get("target_action_id"),
-      target_action_log_entry_id: row.get("target_action_log_entry_id"),
-      target_app_id: row.get("target_app_id"),
-      target_app_authorization_id: row.get("target_app_authorization_id"),
-      target_app_authorization_credential_id: row.get("target_app_authorization_credential_id"),
-      target_app_credential_id: row.get("target_app_credential_id"),
-      target_group_id: row.get("target_group_id"),
-      target_group_membership_id: row.get("target_group_membership_id"),
-      target_http_transaction_id: row.get("target_http_transaction_id"),
-      target_item_id: row.get("target_item_id"),
-      target_milestone_id: row.get("target_milestone_id"),
-      target_project_id: row.get("target_project_id"),
-      target_role_id: row.get("target_role_id"),
-      target_role_membership_id: row.get("target_role_membership_id"),
-      target_server_log_entry_id: row.get("target_server_log_entry_id"),
-      target_session_id: row.get("target_session_id"),
-      target_user_id: row.get("target_user_id"),
-      target_workspace_id: row.get("target_workspace_id"),
-      reason: row.get("reason")
-    };
-
-  }
-
-  /// Initializes the action_log_entries table.
-  pub async fn initialize_action_log_entries_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionLogEntryError> {
-
-    let query = include_str!("../../queries/action_log_entries/initialize_action_log_entries_table.sql");
-    postgres_client.execute(query, &[]).await?;
-    return Ok(());
-
-  }
-
-  pub async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionLogEntryError> {
-
-    let query = include_str!("../../queries/action_log_entries/delete_action_log_entry_row.sql");
-    postgres_client.execute(query, &[&self.id]).await?;
-    return Ok(());
 
   }
 
@@ -345,10 +295,66 @@ impl ActionLogEntry {
     
     })?;
 
-    let action_log_entry = ActionLogEntry::from_row(&row);
+    let action_log_entry = ActionLogEntry::convert_from_row(&row);
 
     return Ok(action_log_entry);
 
   }
 
+  /// Deletes this action log entry.
+  pub async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionLogEntryError> {
+
+    let query = include_str!("../../queries/action_log_entries/delete_action_log_entry_row.sql");
+    postgres_client.execute(query, &[&self.id]).await?;
+    return Ok(());
+
+  }
+  
+  /// Converts a row into an action log entry.
+  fn convert_from_row(row: &postgres::Row) -> Self {
+
+    return ActionLogEntry {
+      id: row.get("id"),
+      action_id: row.get("action_id"),
+      http_transaction_id: row.get("http_transaction_id"),
+      actor_type: row.get("actor_type"),
+      actor_user_id: row.get("actor_user_id"),
+      actor_app_id: row.get("actor_app_id"),
+      target_resource_type: row.get("target_resource_type"),
+      target_access_policy_id: row.get("target_access_policy_id"),
+      target_action_id: row.get("target_action_id"),
+      target_action_log_entry_id: row.get("target_action_log_entry_id"),
+      target_app_id: row.get("target_app_id"),
+      target_app_authorization_id: row.get("target_app_authorization_id"),
+      target_app_authorization_credential_id: row.get("target_app_authorization_credential_id"),
+      target_app_credential_id: row.get("target_app_credential_id"),
+      target_group_id: row.get("target_group_id"),
+      target_group_membership_id: row.get("target_group_membership_id"),
+      target_http_transaction_id: row.get("target_http_transaction_id"),
+      target_item_id: row.get("target_item_id"),
+      target_milestone_id: row.get("target_milestone_id"),
+      target_project_id: row.get("target_project_id"),
+      target_role_id: row.get("target_role_id"),
+      target_role_membership_id: row.get("target_role_membership_id"),
+      target_server_log_entry_id: row.get("target_server_log_entry_id"),
+      target_session_id: row.get("target_session_id"),
+      target_user_id: row.get("target_user_id"),
+      target_workspace_id: row.get("target_workspace_id"),
+      reason: row.get("reason")
+    };
+
+  }
+
+  /// Initializes the action_log_entries table.
+  pub async fn initialize_action_log_entries_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionLogEntryError> {
+
+    let query = include_str!("../../queries/action_log_entries/initialize_action_log_entries_table.sql");
+    postgres_client.execute(query, &[]).await?;
+    return Ok(());
+
+  }
+
 }
+
+#[cfg(test)]
+mod tests;
