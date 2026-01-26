@@ -63,7 +63,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
   // Set up the server and send the request.
   let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
     action_id: dummy_action_log_entry.action_id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: AccessPolicyPermissionLevel::Editor,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

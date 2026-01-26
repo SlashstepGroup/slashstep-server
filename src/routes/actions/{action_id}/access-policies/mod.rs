@@ -77,7 +77,8 @@ async fn handle_create_access_policy_request(
 
   // Make sure the user has at least editor access to the access policy's action.
   let access_policy_action = get_action_from_id(&access_policy_properties_json.action_id.to_string(), &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::Editor, &mut postgres_client).await?;
+  let minimum_permission_level = if access_policy_properties_json.permission_level > AccessPolicyPermissionLevel::Editor { access_policy_properties_json.permission_level } else { AccessPolicyPermissionLevel::Editor };
+  verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &mut postgres_client).await?;
 
   // Create the access policy.
   ServerLogEntry::trace(&format!("Creating access policy for action {}...", action_id), Some(&http_transaction.id), &mut postgres_client).await.ok();

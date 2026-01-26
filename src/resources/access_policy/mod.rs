@@ -385,9 +385,9 @@ pub struct InitialAccessPolicyProperties {
 #[serde(deny_unknown_fields)]
 pub struct EditableAccessPolicyProperties {
 
-  permission_level: Option<AccessPolicyPermissionLevel>,
+  pub permission_level: Option<AccessPolicyPermissionLevel>,
 
-  is_inheritance_enabled: Option<bool>,
+  pub is_inheritance_enabled: Option<bool>,
 
 }
 
