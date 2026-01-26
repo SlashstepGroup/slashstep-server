@@ -82,6 +82,13 @@ pub async fn initialize_pre_defined_actions(postgres_client: &mut deadpool_postg
       description: "Delete action log entries on a particular scope. This can be a dangerous action to grant permissions for, as it can affect auditing.".to_string(),
       app_id: None,
       parent_resource_type: ActionParentResourceType::Instance
+    },
+    InitialActionProperties {
+      name: "slashstep.actionLogEntries.list".to_string(),
+      display_name: "List action log entries".to_string(),
+      description: "List all action log entries on a particular scope.".to_string(),
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     }
   ];
 

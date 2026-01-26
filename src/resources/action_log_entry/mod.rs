@@ -3,9 +3,70 @@ use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
+use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+
+pub const DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT: i64 = 1000;
+pub const DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT: i64 = 1000;
+pub const ALLOWED_QUERY_KEYS: &[&str] = &[
+  "id",
+  "action_id",
+  "http_transaction_id",
+  "actor_type",
+  "actor_user_id",
+  "actor_app_id",
+  "target_resource_type",
+  "target_access_policy_id",
+  "target_action_id",
+  "target_action_log_entry_id",
+  "target_app_id",
+  "target_app_authorization_id",
+  "target_app_authorization_credential_id",
+  "target_app_credential_id",
+  "target_group_id",
+  "target_group_membership_id",
+  "target_http_transaction_id",
+  "target_item_id",
+  "target_milestone_id",
+  "target_project_id",
+  "target_role_id",
+  "target_role_membership_id",
+  "target_server_log_entry_id",
+  "target_session_id",
+  "target_user_id",
+  "target_workspace_id",
+  "reason"
+];
+pub const UUID_QUERY_KEYS: &[&str] = &[
+  "id",
+  "action_id",
+  "http_transaction_id",
+  "actor_user_id",
+  "actor_app_id",
+  "target_resource_type",
+  "target_access_policy_id",
+  "target_action_id",
+  "target_action_log_entry_id",
+  "target_app_id",
+  "target_app_authorization_id",
+  "target_app_authorization_credential_id",
+  "target_app_credential_id",
+  "target_group_id",
+  "target_group_membership_id",
+  "target_http_transaction_id",
+  "target_item_id",
+  "target_milestone_id",
+  "target_project_id",
+  "target_role_id",
+  "target_role_membership_id",
+  "target_server_log_entry_id",
+  "target_session_id",
+  "target_user_id",
+  "target_workspace_id"
+];
 
 #[derive(Debug, Error)]
 pub enum ActionLogEntryError {
+
   #[error("An action log entry with the ID \"{0}\" does not exist.")]
   NotFoundError(String),
 
@@ -13,7 +74,11 @@ pub enum ActionLogEntryError {
   ConflictError(Uuid),
 
   #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
+  PostgresError(#[from] postgres::Error),
+
+  #[error(transparent)]
+  SlashstepQLError(#[from] SlashstepQLError)
+
 }
 
 #[derive(Debug, Clone, FromSql, ToSql, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -245,6 +310,65 @@ impl ActionLogEntry {
 
   }
 
+  /// Converts a row into an action log entry.
+  fn convert_from_row(row: &postgres::Row) -> Self {
+
+    return ActionLogEntry {
+      id: row.get("id"),
+      action_id: row.get("action_id"),
+      http_transaction_id: row.get("http_transaction_id"),
+      actor_type: row.get("actor_type"),
+      actor_user_id: row.get("actor_user_id"),
+      actor_app_id: row.get("actor_app_id"),
+      target_resource_type: row.get("target_resource_type"),
+      target_access_policy_id: row.get("target_access_policy_id"),
+      target_action_id: row.get("target_action_id"),
+      target_action_log_entry_id: row.get("target_action_log_entry_id"),
+      target_app_id: row.get("target_app_id"),
+      target_app_authorization_id: row.get("target_app_authorization_id"),
+      target_app_authorization_credential_id: row.get("target_app_authorization_credential_id"),
+      target_app_credential_id: row.get("target_app_credential_id"),
+      target_group_id: row.get("target_group_id"),
+      target_group_membership_id: row.get("target_group_membership_id"),
+      target_http_transaction_id: row.get("target_http_transaction_id"),
+      target_item_id: row.get("target_item_id"),
+      target_milestone_id: row.get("target_milestone_id"),
+      target_project_id: row.get("target_project_id"),
+      target_role_id: row.get("target_role_id"),
+      target_role_membership_id: row.get("target_role_membership_id"),
+      target_server_log_entry_id: row.get("target_server_log_entry_id"),
+      target_session_id: row.get("target_session_id"),
+      target_user_id: row.get("target_user_id"),
+      target_workspace_id: row.get("target_workspace_id"),
+      reason: row.get("reason")
+    };
+
+  }
+
+  /// Counts the number of action log entries based on a query.
+  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ActionLogEntryError> {
+
+    // Prepare the query.
+    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+      filter: query.to_string(),
+      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
+      default_limit: None,
+      maximum_limit: None,
+      should_ignore_limit: true,
+      should_ignore_offset: true
+    };
+    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "ActionLogEntry", "action_log_entries", "slashstep.actionLogEntries.get", true);
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+
+    // Execute the query and return the count.
+    let rows = postgres_client.query_one(&query, &parameters).await?;
+    let count = rows.get(0);
+    return Ok(count);
+
+  }
+
   /// Creates a new action log entry.
   pub async fn create(initial_properties: &InitialActionLogEntryProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ActionLogEntryError> {
 
@@ -310,47 +434,54 @@ impl ActionLogEntry {
 
   }
   
-  /// Converts a row into an action log entry.
-  fn convert_from_row(row: &postgres::Row) -> Self {
-
-    return ActionLogEntry {
-      id: row.get("id"),
-      action_id: row.get("action_id"),
-      http_transaction_id: row.get("http_transaction_id"),
-      actor_type: row.get("actor_type"),
-      actor_user_id: row.get("actor_user_id"),
-      actor_app_id: row.get("actor_app_id"),
-      target_resource_type: row.get("target_resource_type"),
-      target_access_policy_id: row.get("target_access_policy_id"),
-      target_action_id: row.get("target_action_id"),
-      target_action_log_entry_id: row.get("target_action_log_entry_id"),
-      target_app_id: row.get("target_app_id"),
-      target_app_authorization_id: row.get("target_app_authorization_id"),
-      target_app_authorization_credential_id: row.get("target_app_authorization_credential_id"),
-      target_app_credential_id: row.get("target_app_credential_id"),
-      target_group_id: row.get("target_group_id"),
-      target_group_membership_id: row.get("target_group_membership_id"),
-      target_http_transaction_id: row.get("target_http_transaction_id"),
-      target_item_id: row.get("target_item_id"),
-      target_milestone_id: row.get("target_milestone_id"),
-      target_project_id: row.get("target_project_id"),
-      target_role_id: row.get("target_role_id"),
-      target_role_membership_id: row.get("target_role_membership_id"),
-      target_server_log_entry_id: row.get("target_server_log_entry_id"),
-      target_session_id: row.get("target_session_id"),
-      target_user_id: row.get("target_user_id"),
-      target_workspace_id: row.get("target_workspace_id"),
-      reason: row.get("reason")
-    };
-
-  }
-
   /// Initializes the action_log_entries table.
   pub async fn initialize_action_log_entries_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ActionLogEntryError> {
 
     let query = include_str!("../../queries/action_log_entries/initialize_action_log_entries_table.sql");
     postgres_client.execute(query, &[]).await?;
     return Ok(());
+
+  }
+
+  /// Returns a list of action log entries based on a query.
+  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ActionLogEntryError> {
+
+    // Prepare the query.
+    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+      filter: query.to_string(),
+      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
+      default_limit: Some(DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      maximum_limit: Some(DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      should_ignore_limit: false,
+      should_ignore_offset: false
+    };
+    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "ActionLogEntry", "action_log_entries", "slashstep.actionLogEntries.get", false);
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+
+    // Execute the query.
+    let rows = postgres_client.query(&query, &parameters).await?;
+    let actions = rows.iter().map(ActionLogEntry::convert_from_row).collect();
+    return Ok(actions);
+
+  }
+
+  /// Parses a string into a parameter for a slashstepql query.
+  fn parse_string_slashstepql_parameters<'a>(key: &'a str, value: &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
+
+    if UUID_QUERY_KEYS.contains(&key) {
+
+      let uuid = match Uuid::parse_str(value) {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\".", value, key)))
+      };
+
+      return Ok(Box::new(uuid));
+
+    }
+
+    return Ok(Box::new(value));
 
   }
 
