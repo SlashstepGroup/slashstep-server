@@ -710,7 +710,6 @@ impl AccessPolicy {
       Ok(sanitized_filter) => sanitized_filter,
       Err(error) => {
        
-        println!("{:?}", error); 
         return Err(AccessPolicyError::SlashstepQLError(error))
 
       }
