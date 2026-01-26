@@ -111,17 +111,71 @@ DO $$
         or (principal_type = 'App' and principal_user_id is null and principal_group_id is null and principal_role_id is null and principal_app_id is not null)
       ),
 
-      constraint one_scoped_resource_type check (
-        (scoped_resource_type = 'Instance' and scoped_workspace_id is null and scoped_project_id is null and scoped_item_id is null and scoped_action_id is null and scoped_user_id is null and scoped_role_id is null and scoped_group_id is null and scoped_app_id is null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'Workspace' and scoped_workspace_id is not null and scoped_project_id is null and scoped_item_id is null and scoped_action_id is null and scoped_user_id is null and scoped_role_id is null and scoped_group_id is null and scoped_app_id is null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'Project' and scoped_workspace_id is null and scoped_project_id is not null and scoped_item_id is null and scoped_action_id is null and scoped_user_id is null and scoped_role_id is null and scoped_group_id is null and scoped_app_id is null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'Item' and scoped_workspace_id is null and scoped_project_id is null and scoped_item_id is not null and scoped_action_id is null and scoped_user_id is null and scoped_role_id is null and scoped_group_id is null and scoped_app_id is null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'Action' and scoped_workspace_id is null and scoped_project_id is null and scoped_item_id is null and scoped_action_id is not null and scoped_user_id is null and scoped_role_id is null and scoped_group_id is null and scoped_app_id is null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'User' and scoped_workspace_id is null and scoped_project_id is null and scoped_item_id is null and scoped_action_id is null and scoped_user_id is not null and scoped_role_id is null and scoped_group_id is null and scoped_app_id is null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'Role' and scoped_workspace_id is null and scoped_project_id is null and scoped_item_id is null and scoped_action_id is null and scoped_user_id is null and scoped_role_id is not null and scoped_group_id is null and scoped_app_id is null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'Group' and scoped_workspace_id is null and scoped_project_id is null and scoped_item_id is null and scoped_action_id is null and scoped_user_id is null and scoped_role_id is null and scoped_group_id is not null and scoped_app_id is null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'App' and scoped_workspace_id is null and scoped_project_id is null and scoped_item_id is null and scoped_action_id is null and scoped_user_id is null and scoped_role_id is null and scoped_group_id is null and scoped_app_id is not null and scoped_milestone_id is null)
-        or (scoped_resource_type = 'Milestone' and scoped_workspace_id is null and scoped_project_id is null and scoped_item_id is null and scoped_action_id is null and scoped_user_id is null and scoped_role_id is null and scoped_group_id is null and scoped_app_id is null and scoped_milestone_id is not null)
+      -- Verifies that there is only one scoped resource ID provided at most.
+      CONSTRAINT scoped_resource_id_limit CHECK (
+        (
+          scoped_resource_type = 'Instance'
+          AND scoped_action_id IS NULL
+          AND scoped_action_log_entry_id IS NULL
+          AND scoped_app_id IS NULL
+          AND scoped_app_authorization_id IS NULL
+          AND scoped_app_authorization_credential_id IS NULL
+          AND scoped_app_credential_id IS NULL
+          AND scoped_group_id IS NULL
+          AND scoped_group_membership_id IS NULL
+          AND scoped_http_transaction_id IS NULL
+          AND scoped_item_id IS NULL
+          AND scoped_milestone_id IS NULL
+          AND scoped_project_id IS NULL
+          AND scoped_role_id IS NULL
+          AND scoped_role_membership_id IS NULL
+          AND scoped_server_log_entry_id IS NULL
+          AND scoped_session_id IS NULL
+          AND scoped_user_id IS NULL
+          AND scoped_workspace_id IS NULL
+        ) OR (
+          (scoped_action_id IS NOT NULL)::INTEGER +
+          (scoped_action_log_entry_id IS NOT NULL)::INTEGER +
+          (scoped_app_id IS NOT NULL)::INTEGER +
+          (scoped_app_authorization_id IS NOT NULL)::INTEGER +
+          (scoped_app_authorization_credential_id IS NOT NULL)::INTEGER +
+          (scoped_app_credential_id IS NOT NULL)::INTEGER +
+          (scoped_group_id IS NOT NULL)::INTEGER +
+          (scoped_group_membership_id IS NOT NULL)::INTEGER +
+          (scoped_http_transaction_id IS NOT NULL)::INTEGER +
+          (scoped_item_id IS NOT NULL)::INTEGER +
+          (scoped_milestone_id IS NOT NULL)::INTEGER +
+          (scoped_project_id IS NOT NULL)::INTEGER +
+          (scoped_role_id IS NOT NULL)::INTEGER +
+          (scoped_role_membership_id IS NOT NULL)::INTEGER +
+          (scoped_server_log_entry_id IS NOT NULL)::INTEGER +
+          (scoped_session_id IS NOT NULL)::INTEGER +
+          (scoped_user_id IS NOT NULL)::INTEGER +
+          (scoped_workspace_id IS NOT NULL)::INTEGER = 1
+        )
+      ),
+
+      -- Verifies that the scoped resource ID matches the scoped resource type.
+      CONSTRAINT scoped_resource_id_match CHECK (
+        scoped_resource_type = 'Instance'
+        OR (scoped_resource_type = 'Action' AND scoped_action_id IS NOT NULL)
+        OR (scoped_resource_type = 'ActionLogEntry' AND scoped_action_log_entry_id IS NOT NULL)
+        OR (scoped_resource_type = 'App' AND scoped_app_id IS NOT NULL)
+        OR (scoped_resource_type = 'AppAuthorization' AND scoped_app_authorization_id IS NOT NULL)
+        OR (scoped_resource_type = 'AppAuthorizationCredential' AND scoped_app_authorization_credential_id IS NOT NULL)
+        OR (scoped_resource_type = 'AppCredential' AND scoped_app_credential_id IS NOT NULL)
+        OR (scoped_resource_type = 'Group' AND scoped_group_id IS NOT NULL)
+        OR (scoped_resource_type = 'GroupMembership' AND scoped_group_membership_id IS NOT NULL)
+        OR (scoped_resource_type = 'HTTPTransaction' AND scoped_http_transaction_id IS NOT NULL)
+        OR (scoped_resource_type = 'Item' AND scoped_item_id IS NOT NULL)
+        OR (scoped_resource_type = 'Milestone' AND scoped_milestone_id IS NOT NULL)
+        OR (scoped_resource_type = 'Project' AND scoped_project_id IS NOT NULL)
+        OR (scoped_resource_type = 'Role' AND scoped_role_id IS NOT NULL)
+        OR (scoped_resource_type = 'RoleMembership' AND scoped_role_membership_id IS NOT NULL)
+        OR (scoped_resource_type = 'ServerLogEntry' AND scoped_server_log_entry_id IS NOT NULL)
+        OR (scoped_resource_type = 'Session' AND scoped_session_id IS NOT NULL)
+        OR (scoped_resource_type = 'User' AND scoped_user_id IS NOT NULL)
+        OR (scoped_resource_type = 'Workspace' AND scoped_workspace_id IS NOT NULL)
       )
     );
   END
