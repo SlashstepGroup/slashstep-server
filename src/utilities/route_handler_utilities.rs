@@ -173,7 +173,7 @@ pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransac
 pub async fn get_resource_hierarchy_for_app(app: &App, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<ResourceHierarchy, HTTPError> {
 
   ServerLogEntry::trace(&format!("Getting resource hierarchy for app {}...", app.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&AccessPolicyResourceType::Action, &Some(app.id), &mut postgres_client).await {
+  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&AccessPolicyResourceType::App, &Some(app.id), &mut postgres_client).await {
 
     Ok(resource_hierarchy) => resource_hierarchy,
 
