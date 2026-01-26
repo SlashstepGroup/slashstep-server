@@ -2,21 +2,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{AccessPolicyListQueryParameters, list_access_policies}, route_handler_utilities::{get_action_from_id, get_action_from_name, get_resource_hierarchy_for_action, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}}};
-
-#[derive(Debug, Deserialize, Serialize, Default)]
-pub struct InitialAccessPolicyPropertiesForAction {
-  action_id: Uuid,
-  permission_level: AccessPolicyPermissionLevel,
-  is_inheritance_enabled: bool,
-  principal_type: AccessPolicyPrincipalType,
-  principal_user_id: Option<Uuid>,
-  principal_group_id: Option<Uuid>,
-  principal_role_id: Option<Uuid>,
-  principal_app_id: Option<Uuid>
-}
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{AccessPolicyListQueryParameters, list_access_policies}, route_handler_utilities::{get_action_from_id, get_action_from_name, get_resource_hierarchy_for_action, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}}};
 
 #[axum::debug_handler]
 async fn handle_list_access_policies_request(
@@ -47,7 +33,7 @@ async fn handle_create_access_policy_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(user): Extension<Option<Arc<User>>>,
-  body: Result<Json<InitialAccessPolicyPropertiesForAction>, JsonRejection>
+  body: Result<Json<InitialAccessPolicyPropertiesForPredefinedScope>, JsonRejection>
 ) -> Result<Json<AccessPolicy>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
@@ -91,7 +77,8 @@ async fn handle_create_access_policy_request(
 
   // Make sure the user has at least editor access to the access policy's action.
   let access_policy_action = get_action_from_id(&access_policy_properties_json.action_id.to_string(), &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::Editor, &mut postgres_client).await?;
+  let minimum_permission_level = if access_policy_properties_json.permission_level > AccessPolicyPermissionLevel::Editor { access_policy_properties_json.permission_level } else { AccessPolicyPermissionLevel::Editor };
+  verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &mut postgres_client).await?;
 
   // Create the access policy.
   ServerLogEntry::trace(&format!("Creating access policy for action {}...", action_id), Some(&http_transaction.id), &mut postgres_client).await.ok();

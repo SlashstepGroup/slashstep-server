@@ -385,9 +385,9 @@ pub struct InitialAccessPolicyProperties {
 #[serde(deny_unknown_fields)]
 pub struct EditableAccessPolicyProperties {
 
-  permission_level: Option<AccessPolicyPermissionLevel>,
+  pub permission_level: Option<AccessPolicyPermissionLevel>,
 
-  is_inheritance_enabled: Option<bool>,
+  pub is_inheritance_enabled: Option<bool>,
 
 }
 
@@ -397,6 +397,18 @@ pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 pub enum IndividualPrincipal {
   User(Uuid),
   App(Uuid)
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct InitialAccessPolicyPropertiesForPredefinedScope {
+  pub action_id: Uuid,
+  pub permission_level: AccessPolicyPermissionLevel,
+  pub is_inheritance_enabled: bool,
+  pub principal_type: AccessPolicyPrincipalType,
+  pub principal_user_id: Option<Uuid>,
+  pub principal_group_id: Option<Uuid>,
+  pub principal_role_id: Option<Uuid>,
+  pub principal_app_id: Option<Uuid>
 }
 
 /// A piece of information that defines the level of access and inheritance for a principal to perform an action.

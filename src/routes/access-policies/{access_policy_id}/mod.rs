@@ -192,7 +192,14 @@ async fn handle_patch_access_policy_request(
   verify_user_permissions(&user, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   let access_policy_action = get_action_from_id(&access_policy.action_id, &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::Editor, &mut postgres_client).await?;
+  let minimum_permission_level = match updated_access_policy_properties.permission_level {
+
+    Some(permission_level) => if permission_level > AccessPolicyPermissionLevel::Editor { permission_level } else { AccessPolicyPermissionLevel::Editor },
+
+    None => AccessPolicyPermissionLevel::Editor
+
+  };
+  verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &mut postgres_client).await?;
 
   ServerLogEntry::trace(&format!("Updating access policy {}...", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let access_policy = match access_policy.update(&updated_access_policy_properties, &mut postgres_client).await {

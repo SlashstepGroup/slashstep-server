@@ -5,7 +5,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, pre_definitions::{initialize_pre_defined_actions, initialize_pre_defined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties}, action::Action, session::Session}, routes::actions::action_id::access_policies::InitialAccessPolicyPropertiesForAction, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListAccessPolicyResponseBody};
+use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, pre_definitions::{initialize_pre_defined_actions, initialize_pre_defined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListAccessPolicyResponseBody};
 
 async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::Client, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
@@ -61,7 +61,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
   create_instance_access_policy(&mut postgres_client, &user.id, &dummy_action.id, &AccessPolicyPermissionLevel::Editor).await?;
 
   // Set up the server and send the request.
-  let initial_access_policy_properties = InitialAccessPolicyPropertiesForAction {
+  let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
     action_id: dummy_action.id,
     permission_level: AccessPolicyPermissionLevel::User,
     is_inheritance_enabled: true,
