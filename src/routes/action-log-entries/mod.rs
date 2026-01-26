@@ -6,6 +6,7 @@ use crate::{AppState, HTTPError, middleware::authentication_middleware, resource
 
 #[path = "./{action_log_entry_id}/mod.rs"]
 mod action_log_entry_id;
+#[cfg(test)]
 mod tests;
 
 #[derive(Debug, Deserialize)]
@@ -65,14 +66,14 @@ async fn handle_list_action_log_entries_request(
 
   };
 
-  ServerLogEntry::trace(&format!("Counting actions..."), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace(&format!("Counting action log entries..."), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let action_log_entry_count = match ActionLogEntry::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
 
     Ok(action_log_entry_count) => action_log_entry_count,
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count actions: {:?}", error)));
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count action log entries: {:?}", error)));
       http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
       return Err(http_error);
 
@@ -89,7 +90,7 @@ async fn handle_list_action_log_entries_request(
     ..Default::default()
   }, &mut postgres_client).await.ok();
   let action_list_length = action_log_entries.len();
-  ServerLogEntry::success(&format!("Successfully returned {} {}.", action_list_length, if action_list_length == 1 { "action" } else { "actions" }), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully returned {} action log {}.", action_list_length, if action_list_length == 1 { "entry" } else { "entries" }), Some(&http_transaction.id), &mut postgres_client).await.ok();
   
   let response_body = ListActionLogEntryResponseBody {
     action_log_entries,
