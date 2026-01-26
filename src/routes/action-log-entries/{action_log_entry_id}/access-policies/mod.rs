@@ -33,7 +33,7 @@ async fn handle_list_access_policies_request(
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
-    .route("/actions/{action_id}/access-policies", axum::routing::get(handle_list_access_policies_request))
+    .route("/action-log-entries/{action_log_entry_id}/access-policies", axum::routing::get(handle_list_access_policies_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user));
   return router;
 

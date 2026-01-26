@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
+pub mod access_policies;
 
 #[axum::debug_handler]
 async fn handle_get_action_request(
