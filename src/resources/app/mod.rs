@@ -5,6 +5,9 @@ use thiserror::Error;
 use uuid::Uuid;
 use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
+#[cfg(test)]
+mod tests;
+
 pub const DEFAULT_APP_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_APP_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
