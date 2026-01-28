@@ -383,34 +383,34 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
 
 }
 
-// /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
-// #[tokio::test]
-// async fn verify_authentication_when_listing_actions() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
+#[tokio::test]
+async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   initialize_required_tables(&mut postgres_client).await?;
-//   initialize_pre_defined_actions(&mut postgres_client).await?;
-//   initialize_pre_defined_roles(&mut postgres_client).await?;
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.get(&format!("/apps"))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps"))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 // #[tokio::test]
