@@ -228,7 +228,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 needs_inheritance := TRUE;
 
                 SELECT
-                    workspace_id
+                    parent_workspace_id
                 INTO
                     selected_resource_parent_id
                 FROM
@@ -245,7 +245,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 END IF;
 
                 SELECT
-                    user_id
+                    parent_user_id
                 INTO
                     selected_resource_parent_id
                 FROM
@@ -680,7 +680,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 ELSIF selected_resource_parent_type = 'Workspace' THEN
 
                     SELECT
-                        workspace_id
+                        parent_workspace_id
                     INTO
                         selected_resource_parent_id
                     FROM
@@ -737,7 +737,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 needs_inheritance := TRUE;
 
                 SELECT
-                    workspace_id
+                    parent_workspace_id
                 INTO
                     selected_resource_parent_id
                 FROM
@@ -804,7 +804,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 ELSIF selected_resource_parent_type = 'Workspace' THEN
 
                     SELECT
-                        workspace_id
+                        parent_workspace_id
                     INTO
                         selected_resource_parent_id
                     FROM

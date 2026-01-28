@@ -22,7 +22,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "parent_workspace_id",
   "parent_user_id"
 ];
-pub const RESOURCE_NAME: &str = "app";
+pub const RESOURCE_NAME: &str = "App";
 pub const DATABASE_TABLE_NAME: &str = "apps";
 pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.apps.get";
 
