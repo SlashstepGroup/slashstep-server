@@ -1,9 +1,8 @@
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use postgres::error::SqlState;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryError, ActionLogEntryTargetResourceType, DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}, slashstepql::SlashstepQLError}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryError, ActionLogEntryTargetResourceType, DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_user_permissions}}};
 
 #[path = "./{action_log_entry_id}/mod.rs"]
 mod action_log_entry_id;
@@ -44,31 +43,9 @@ async fn handle_list_action_log_entries_request(
 
       let http_error = match error {
 
-        ActionLogEntryError::SlashstepQLError(error) => match error {
+        ActionLogEntryError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT, "action log entries"),
 
-          SlashstepQLError::SlashstepQLInvalidLimitError(error) => HTTPError::UnprocessableEntity(Some(format!("The provided limit must be zero or a positive integer of {} or less. You provided {}.", DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT, error.limit_string))), // TODO: Make this configurable through resource policies.
-
-          SlashstepQLError::InvalidFieldError(field) => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid. The field \"{}\" is not allowed.", field))),
-
-          SlashstepQLError::InvalidQueryError(()) => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid."))),
-
-          _ => HTTPError::InternalServerError(Some(format!("Failed to list action log entries: {:?}", error)))
-
-        },
-
-        ActionLogEntryError::PostgresError(error) => match error.as_db_error() {
-
-          Some(db_error) => match db_error.code() {
-
-            &SqlState::UNDEFINED_FUNCTION => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid."))),
-
-            _ => HTTPError::InternalServerError(Some(format!("Failed to list action log entries: {:?}", error)))
-
-          },
-
-          None => HTTPError::InternalServerError(Some(format!("Failed to list action log entries: {:?}", error)))
-
-        },
+        ActionLogEntryError::PostgresError(error) => match_db_error(&error, "action log entries"),
 
         _ => HTTPError::InternalServerError(Some(format!("Failed to list action log entries: {:?}", error)))
 
