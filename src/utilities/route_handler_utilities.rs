@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{HTTPError, resources::{access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, Principal, ResourceHierarchy}, action::{Action, ActionError}, action_log_entry::ActionLogEntry, app::{App, AppError}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, Principal, ResourceHierarchy}, action::Action, action_log_entry::ActionLogEntry, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use colored::Colorize;
 use postgres::error::SqlState;
 use uuid::Uuid;
@@ -114,7 +114,7 @@ pub async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPT
 
       let http_error = match error {
         
-        ActionError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
+        ResourceError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
 
         error => HTTPError::InternalServerError(Some(format!("Failed to get action {}: {:?}", action_id, error)))
 
@@ -155,7 +155,7 @@ pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransac
 
       let http_error = match error {
         
-        AppError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
+        ResourceError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
 
         error => HTTPError::InternalServerError(Some(format!("Failed to get app {}: {:?}", app_id, error)))
 

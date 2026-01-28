@@ -12,13 +12,13 @@ use crate::{
     initialize_pre_defined_actions, initialize_pre_defined_roles
   }, 
   resources::{
-    access_policy::{
+    ResourceError, access_policy::{
       AccessPolicy, 
       AccessPolicyPermissionLevel, 
       AccessPolicyPrincipalType, 
       AccessPolicyResourceType, 
       InitialAccessPolicyProperties
-    }, action_log_entry::{ActionLogEntry, ActionLogEntryError}, session::Session
+    }, action_log_entry::ActionLogEntry, session::Session
   }, 
   tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -267,9 +267,9 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
 
   match ActionLogEntry::get_by_id(&action_log_entry.id, &mut postgres_client).await.expect_err("Expected an action log entry not found error.") {
 
-    ActionLogEntryError::NotFoundError(_) => {},
+    ResourceError::NotFoundError(_) => {},
 
-    error => return Err(TestSlashstepServerError::ActionLogEntryError(error))
+    error => return Err(TestSlashstepServerError::ResourceError(error))
 
   }
 

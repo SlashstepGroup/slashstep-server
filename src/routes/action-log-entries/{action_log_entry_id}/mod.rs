@@ -14,7 +14,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::AccessPolicyPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryError, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_resource_hierarchy_for_action_log_entry, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{ResourceError, access_policy::AccessPolicyPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_resource_hierarchy_for_action_log_entry, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}};
 
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
@@ -45,9 +45,9 @@ async fn get_action_log_entry_from_id(action_log_entry_id: &str, http_transactio
 
       let http_error = match error {
 
-        ActionLogEntryError::NotFoundError(_) => HTTPError::NotFoundError(Some(error.to_string())),
+        ResourceError::NotFoundError(_) => HTTPError::NotFoundError(Some(error.to_string())),
 
-        ActionLogEntryError::PostgresError(error) => {
+        ResourceError::PostgresError(error) => {
 
           match error.as_db_error() {
 

@@ -1,4 +1,4 @@
-use crate::{initialize_required_tables, resources::action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryError, InitialActionLogEntryProperties}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{initialize_required_tables, resources::{ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 fn assert_action_log_entry_is_equal_to_initial_properties(action_log_entry: &ActionLogEntry, initial_properties: &InitialActionLogEntryProperties) {
 
@@ -74,9 +74,9 @@ async fn verify_action_log_entry_deletion_by_id() -> Result<(), TestSlashstepSer
 
     Err(error) => match error {
 
-      ActionLogEntryError::NotFoundError(_) => {},
+      ResourceError::NotFoundError(_) => {},
 
-      error => return Err(TestSlashstepServerError::ActionLogEntryError(error))
+      error => return Err(TestSlashstepServerError::ResourceError(error))
 
     }
 

@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{access_policy::{AccessPolicy, AccessPolicyError, AccessPolicyPermissionLevel, Principal, ResourceHierarchy}, user::UserError};
+use crate::resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, Principal, ResourceHierarchy}, user::UserError};
 
 #[derive(Debug, Error)]
 pub enum PrincipalPermissionVerifierError {
@@ -18,7 +18,7 @@ pub enum PrincipalPermissionVerifierError {
   UserError(#[from] UserError),
 
   #[error(transparent)]
-  AccessPolicyError(#[from] AccessPolicyError)
+  ResourceError(#[from] ResourceError)
 }
 
 pub struct PrincipalPermissionVerifier;

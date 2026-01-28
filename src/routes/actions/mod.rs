@@ -2,7 +2,7 @@ use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal}, action::{Action, ActionError, DEFAULT_MAXIMUM_ACTION_LIST_LIMIT}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_user_permissions}}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal}, action::{Action, DEFAULT_MAXIMUM_ACTION_LIST_LIMIT}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_user_permissions}}};
 
 #[path = "./{action_id}/mod.rs"]
 pub mod action_id;
@@ -41,9 +41,9 @@ async fn handle_list_actions_request(
 
       let http_error = match error {
 
-        ActionError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_ACTION_LIST_LIMIT, "actions"),
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_ACTION_LIST_LIMIT, "actions"),
 
-        ActionError::PostgresError(error) => match_db_error(&error, "actions"),
+        ResourceError::PostgresError(error) => match_db_error(&error, "actions"),
 
         _ => HTTPError::InternalServerError(Some(format!("Failed to list actions: {:?}", error)))
 

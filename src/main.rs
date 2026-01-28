@@ -26,79 +26,49 @@ use crate::{
     initialize_pre_defined_roles
   }, 
   resources::{
-    access_policy::{
-      AccessPolicy, 
-      AccessPolicyError
-    }, 
-    action::{
-      Action, 
-      ActionError
-    }, 
-    action_log_entry::{
-      ActionLogEntry, 
-      ActionLogEntryError
-    }, 
-    app::{
-      App, 
-      AppError
-    }, 
-    app_authorization::{
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::{
       AppAuthorization, 
       AppAuthorizationError
-    }, 
-    app_authorization_credential::{
+    }, app_authorization_credential::{
       AppAuthorizationCredential, 
       AppAuthorizationCredentialError
-    }, 
-    app_credential::{
+    }, app_credential::{
       AppCredential, 
       AppCredentialError
-    }, 
-    group::{
+    }, group::{
       Group, 
       GroupError
-    }, 
-    group_membership::{
+    }, group_membership::{
       GroupMembership, 
       GroupMembershipError
-    }, 
-    http_transaction::{
+    }, http_transaction::{
       HTTPTransaction, 
       HTTPTransactionError
-    }, 
-    item::{
+    }, item::{
       Item, 
       ItemError
-    }, 
-    milestone::{
+    }, milestone::{
       Milestone, 
       MilestoneError
-    }, 
-    project::{
+    }, project::{
       Project, 
       ProjectError
-    }, 
-    role::{
+    }, role::{
       Role, 
       RoleError
-    }, 
-    role_memberships::{
+    }, role_memberships::{
       RoleMembership, 
       RoleMembershipError
-    }, 
-    server_log_entry::{
+    }, server_log_entry::{
       ServerLogEntry, 
       ServerLogEntryError
-    }, 
-    session::{
+    }, session::{
       Session, 
       SessionError
-    }, 
-    user::{
+    }, user::{
       User, 
       UserError
-    }, 
-    workspace::{
+    }, workspace::{
       Workspace, 
       WorkspaceError
     }
@@ -182,7 +152,7 @@ pub enum SlashstepServerError {
   GroupMembershipError(#[from] GroupMembershipError),
 
   #[error(transparent)]
-  AppError(#[from] AppError),
+  ResourceError(#[from] ResourceError),
 
   #[error(transparent)]
   WorkspaceError(#[from] WorkspaceError),
@@ -195,12 +165,6 @@ pub enum SlashstepServerError {
 
   #[error(transparent)]
   ItemError(#[from] ItemError),
-
-  #[error(transparent)]
-  ActionError(#[from] ActionError),
-
-  #[error(transparent)]
-  ActionLogEntryError(#[from] ActionLogEntryError),
 
   #[error(transparent)]
   AppAuthorizationError(#[from] AppAuthorizationError),
@@ -216,9 +180,6 @@ pub enum SlashstepServerError {
 
   #[error(transparent)]
   MilestoneError(#[from] MilestoneError),
-
-  #[error(transparent)]
-  AccessPolicyError(#[from] AccessPolicyError),
 
   #[error(transparent)]
   RoleMembershipError(#[from] RoleMembershipError),

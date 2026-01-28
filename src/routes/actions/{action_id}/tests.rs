@@ -14,13 +14,13 @@ use crate::{
     initialize_pre_defined_roles
   }, 
   resources::{
-    access_policy::{
+    ResourceError, access_policy::{
       AccessPolicy,
       AccessPolicyPermissionLevel, 
       AccessPolicyPrincipalType, 
       AccessPolicyResourceType, 
       InitialAccessPolicyProperties
-    }, action::ActionError, session::Session
+    }, session::Session
   }, 
   tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -252,9 +252,9 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
 
   match Action::get_by_id(&action.id, &mut postgres_client).await.expect_err("Expected an action not found error.") {
 
-    ActionError::NotFoundError(_) => {},
+    ResourceError::NotFoundError(_) => {},
 
-    error => return Err(TestSlashstepServerError::ActionError(error))
+    error => return Err(TestSlashstepServerError::ResourceError(error))
 
   }
 

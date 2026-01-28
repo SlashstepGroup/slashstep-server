@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppError, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_user_permissions}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_user_permissions}};
 
 #[path = "./{app_id}/mod.rs"]
 mod app_id;
@@ -47,9 +47,9 @@ async fn handle_list_apps_request(
 
       let http_error = match error {
 
-        AppError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_APP_LIST_LIMIT, "apps"),
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_APP_LIST_LIMIT, "apps"),
 
-        AppError::PostgresError(error) => match_db_error(&error, "apps"),
+        ResourceError::PostgresError(error) => match_db_error(&error, "apps"),
 
         _ => HTTPError::InternalServerError(Some(format!("Failed to list apps: {:?}", error)))
 
