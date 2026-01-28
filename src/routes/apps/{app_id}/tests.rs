@@ -265,32 +265,32 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
 }
 
-// /// Verifies that the router can return a 400 status code if the action ID is not a UUID.
-// #[tokio::test]
-// async fn verify_uuid_when_deleting_action_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   initialize_required_tables(&mut postgres_client).await?;
-//   initialize_pre_defined_actions(&mut postgres_client).await?;
-//   initialize_pre_defined_roles(&mut postgres_client).await?;
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_pre_defined_roles(&mut postgres_client).await?;
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
 
-//   let response = test_server.delete("/apps/not-a-uuid")
-//     .await;
+  let response = test_server.delete("/apps/not-a-uuid")
+    .await;
   
-//   assert_eq!(response.status_code(), 400);
-//   return Ok(());
+  assert_eq!(response.status_code(), 400);
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 401 status code if the user needs authentication.
 // #[tokio::test]
