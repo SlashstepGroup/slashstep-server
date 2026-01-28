@@ -1,6 +1,6 @@
 use uuid::Uuid;
 use crate::{
-  initialize_required_tables, predefinitions::initialize_pre_defined_actions, resources::{
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
     DeletableResource,
     access_policy::{ 
       AccessPolicy, 
@@ -210,7 +210,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
   }
 
   // Get the "slashstep.actions.get" action one time.
-  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
   let user = test_environment.create_random_user().await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &mut postgres_client).await?;
 

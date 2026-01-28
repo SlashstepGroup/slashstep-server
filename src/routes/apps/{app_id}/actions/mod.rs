@@ -2,6 +2,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
+use reqwest::StatusCode;
 use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::{Action, ActionParentResourceType, InitialActionProperties, InitialActionPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{AccessPolicyListQueryParameters, list_access_policies}, route_handler_utilities::{get_action_from_id, get_action_from_name, get_app_from_id, get_resource_hierarchy, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}}};
 
 // #[axum::debug_handler]
@@ -34,7 +35,7 @@ async fn handle_create_action_request(
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(user): Extension<Option<Arc<User>>>,
   body: Result<Json<InitialActionPropertiesForPredefinedScope>, JsonRejection>
-) -> Result<Json<Action>, HTTPError> {
+) -> Result<(StatusCode, Json<Action>), HTTPError> {
 
   let http_transaction = http_transaction.clone();
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
@@ -108,7 +109,7 @@ async fn handle_create_action_request(
   }, &mut postgres_client).await.ok();
   ServerLogEntry::success(&format!("Successfully created action {}.", created_action.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
-  return Ok(Json(created_action));
+  return Ok((StatusCode::CREATED, Json(created_action)));
 
 }
 

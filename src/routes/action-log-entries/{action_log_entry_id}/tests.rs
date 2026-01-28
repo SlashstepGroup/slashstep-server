@@ -9,7 +9,7 @@ use crate::{
   initialize_required_tables, 
   middleware::http_request_middleware, 
   predefinitions::{
-    initialize_pre_defined_actions, initialize_pre_defined_roles
+    initialize_predefined_actions, initialize_predefined_roles
   }, 
   resources::{
     ResourceError, access_policy::{
@@ -31,8 +31,8 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -105,8 +105,8 @@ async fn verify_uuid_when_getting_action_log_entry_by_id() -> Result<(), TestSla
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -132,8 +132,8 @@ async fn verify_authentication_when_getting_action_log_entry_by_id() -> Result<(
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -163,8 +163,8 @@ async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), T
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
 
   // Create the user, the session, and the action.
   let user = test_environment.create_random_user().await?;
@@ -200,8 +200,8 @@ async fn verify_not_found_when_getting_action_log_entry_by_id() -> Result<(), Te
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -228,8 +228,8 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -284,8 +284,8 @@ async fn verify_uuid_when_deleting_action_log_entry_by_id() -> Result<(), TestSl
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -311,8 +311,8 @@ async fn verify_authentication_when_deleting_action_log_entry_by_id() -> Result<
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   
   // Create a dummy action log entry.
   let action_log_entry = test_environment.create_random_action_log_entry().await?;
@@ -342,8 +342,8 @@ async fn verify_permission_when_deleting_action_log_entry_by_id() -> Result<(), 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -380,8 +380,8 @@ async fn verify_action_log_entry_exists_when_deleting_action_log_entry_by_id() -
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
 
   // Set up the server and send the request.
   let state = AppState {

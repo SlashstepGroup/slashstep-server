@@ -22,8 +22,8 @@ use uuid::Uuid;
 use thiserror::Error;
 use crate::{
   predefinitions::{
-    initialize_pre_defined_actions, 
-    initialize_pre_defined_roles
+    initialize_predefined_actions, 
+    initialize_predefined_roles
   }, 
   resources::{
     ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::{
@@ -395,8 +395,8 @@ async fn main() -> Result<(), SlashstepServerError> {
 
   let mut postgres_client = state.database_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   drop(postgres_client); // Drop the client to release the connection back to the pool. For some reason, this doesn't happen automatically.
 
   let app_port = get_app_port_string();

@@ -28,7 +28,7 @@ pub enum RoleParentResourceType {
 pub struct Role {
   pub id: Uuid,
   pub name: String,
-  pub is_pre_defined: bool,
+  pub is_predefined: bool,
   pub display_name: String,
   pub description: Option<String>,
   pub parent_resource_type: RoleParentResourceType,
@@ -55,7 +55,7 @@ impl Role {
     return Role {
       id: row.get("id"),
       name: row.get("name"),
-      is_pre_defined: row.get("is_pre_defined"),
+      is_predefined: row.get("is_predefined"),
       display_name: row.get("display_name"),
       description: row.get("description"),
       parent_resource_type: row.get("parent_resource_type"),

@@ -19,7 +19,7 @@ BEGIN
     parent_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     parent_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     parent_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-    is_pre_defined boolean not null default false,
+    is_predefined boolean not null default false,
 
     /* Constraints */
     CONSTRAINT one_parent_type CHECK (

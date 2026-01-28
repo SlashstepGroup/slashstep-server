@@ -11,8 +11,8 @@ use crate::{
   initialize_required_tables, 
   middleware::http_request_middleware, 
   predefinitions::{
-    initialize_pre_defined_actions, 
-    initialize_pre_defined_roles
+    initialize_predefined_actions, 
+    initialize_predefined_roles
   }, 
   resources::{
     ResourceError, access_policy::{
@@ -34,8 +34,8 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -100,8 +100,8 @@ async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), TestSlashs
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -127,8 +127,8 @@ async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), 
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -157,8 +157,8 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -222,8 +222,8 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -275,8 +275,8 @@ async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), TestSlash
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -302,8 +302,8 @@ async fn verify_authentication_when_deleting_access_policy_by_id() -> Result<(),
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -331,8 +331,8 @@ async fn verify_permission_when_deleting_access_policy_by_id() -> Result<(), Tes
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -395,8 +395,8 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -465,8 +465,8 @@ async fn verify_content_type_when_patching_access_policy_by_id() -> Result<(), T
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -492,8 +492,8 @@ async fn verify_request_body_exists_when_patching_access_policy_by_id() -> Resul
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -520,8 +520,8 @@ async fn verify_request_body_json_when_patching_access_policy_by_id() -> Result<
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -553,8 +553,8 @@ async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), TestSlash
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -585,8 +585,8 @@ async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(),
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -630,8 +630,8 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -679,8 +679,8 @@ async fn verify_access_policy_exists_when_patching_access_policy() -> Result<(),
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };

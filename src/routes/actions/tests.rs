@@ -6,8 +6,8 @@ use axum_test::TestServer;
 use reqwest::StatusCode;
 use crate::{
   AppState, initialize_required_tables, middleware::http_request_middleware, predefinitions::{
-    initialize_pre_defined_actions, 
-    initialize_pre_defined_roles
+    initialize_predefined_actions, 
+    initialize_predefined_roles
   }, resources::{
     access_policy::{
       AccessPolicy, 
@@ -32,8 +32,8 @@ async fn verify_returned_action_list_without_query() -> Result<(), TestSlashstep
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -107,8 +107,8 @@ async fn verify_returned_action_list_with_query() -> Result<(), TestSlashstepSer
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -181,8 +181,8 @@ async fn verify_default_action_list_limit() -> Result<(), TestSlashstepServerErr
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -250,8 +250,8 @@ async fn verify_maximum_action_list_limit() -> Result<(), TestSlashstepServerErr
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -308,8 +308,8 @@ async fn verify_query_when_listing_actions() -> Result<(), TestSlashstepServerEr
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -385,8 +385,8 @@ async fn verify_authentication_when_listing_actions() -> Result<(), TestSlashste
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -414,8 +414,8 @@ async fn verify_permission_when_listing_actions() -> Result<(), TestSlashstepSer
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  initialize_pre_defined_actions(&mut postgres_client).await?;
-  initialize_pre_defined_roles(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
 
   // Create a user and a session.
   let user = test_environment.create_random_user().await?;
