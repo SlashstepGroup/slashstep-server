@@ -114,6 +114,43 @@ async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSla
 }
 
 /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
+#[tokio::test]
+async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+  
+  // Create a dummy app.
+  let dummy_app = test_environment.create_random_app().await?;
+
+  // Set up the server and send the request.
+  let initial_action_properties = InitialActionPropertiesForPredefinedScope {
+    name: Uuid::now_v7().to_string(),
+    display_name: Uuid::now_v7().to_string(),
+    description: Uuid::now_v7().to_string()
+  };
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post(&format!("/apps/{}/actions", dummy_app.id))
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!(initial_action_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), 401);
+  return Ok(());
+
+}
+
 // /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 // #[tokio::test]
 // async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
