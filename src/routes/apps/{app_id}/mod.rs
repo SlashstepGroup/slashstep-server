@@ -55,7 +55,7 @@ async fn handle_delete_app_request(
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::Action, &target_app.id, &http_transaction, &mut postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let delete_actions_action = get_action_from_name("slashstep.apps.delete", &http_transaction, &mut postgres_client).await?;
   verify_user_permissions(&user, &delete_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
