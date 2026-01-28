@@ -184,7 +184,7 @@ impl App {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(id.to_string()))
+        None => return Err(ResourceError::NotFoundError(format!("An app with the ID \"{}\" does not exist.", id)))
 
       },
 
