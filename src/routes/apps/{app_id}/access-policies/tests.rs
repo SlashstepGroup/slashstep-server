@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use axum::middleware;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
+use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
@@ -229,37 +230,44 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
 
 }
 
-// /// Verifies that the router can return a 404 status code if the requested resource doesn't exist.
-// #[tokio::test]
-// #[timeout(20000)]
-// async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 404 status code if the requested resource doesn't exist.
+#[tokio::test]
+#[timeout(20000)]
+async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
-//   initialize_predefined_actions(&mut test_environment.postgres_pool.get().await?).await?;
-//   initialize_predefined_roles(&mut test_environment.postgres_pool.get().await?).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
+  initialize_predefined_actions(&mut test_environment.postgres_pool.get().await?).await?;
+  initialize_predefined_roles(&mut test_environment.postgres_pool.get().await?).await?;
 
-//   let initial_action_properties = InitialActionPropertiesForPredefinedScope {
-//     name: Uuid::now_v7().to_string(),
-//     display_name: Uuid::now_v7().to_string(),
-//     description: Uuid::now_v7().to_string()
-//   };
+  // Create dummy resources.
+  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_action = test_environment.create_random_action().await?;
+  let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
+    action_id: dummy_action.id,
+    permission_level: AccessPolicyPermissionLevel::User,
+    is_inheritance_enabled: true,
+    principal_type: AccessPolicyPrincipalType::App,
+    principal_app_id: Some(dummy_app.id),
+    ..Default::default()
+  };
 
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
 
-//   let response = test_server.post(&format!("/apps/{}/actions", uuid::Uuid::now_v7()))
-//     .add_header("Content-Type", "application/json")
-//     .json(&serde_json::json!(initial_action_properties))
-//     .await;
+  let response = test_server.post(&format!("/apps/{}/access-policies", uuid::Uuid::now_v7()))
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!(initial_access_policy_properties))
+    .await;
   
-//   assert_eq!(response.status_code(), 404);
-//   return Ok(());
+  assert_eq!(response.status_code(), 404);
+  return Ok(());
 
-// }
+}
