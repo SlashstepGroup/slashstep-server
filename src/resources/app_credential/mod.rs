@@ -1,10 +1,10 @@
 use std::net::IpAddr;
-
 use chrono::{DateTime, Utc};
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
+
 
 #[derive(Debug, Error)]
 pub enum AppCredentialError {

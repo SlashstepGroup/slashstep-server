@@ -5,9 +5,11 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use chrono::{DateTime, Duration, Utc};
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePrivateKey, EncodePublicKey, spki::der::pem::LineEnding}};
+use ntest::timeout;
+use reqwest::StatusCode;
 use uuid::Uuid;
 
-use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, predefinitions::initialize_predefined_actions, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, InitialAccessPolicyProperties}, action::Action, app_credential::{AppCredential, InitialAppCredentialPropertiesForPredefinedScope}, session::Session}, routes::apps::app_id::app_credentials::CreateAppCredentialResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, InitialAccessPolicyProperties}, action::Action, app_credential::{AppCredential, InitialAppCredentialPropertiesForPredefinedScope}, session::Session}, routes::apps::app_id::app_credentials::CreateAppCredentialResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
 
 async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::Client, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
@@ -72,4 +74,155 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
 
   return Ok(());
   
+}
+
+/// Verifies that the server returns a 400 status code when the request body is not valid JSON.
+#[tokio::test]
+async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+  
+  // Create a dummy app.
+  let dummy_app = test_environment.create_random_app().await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post(&format!("/apps/{}/app-credentials", dummy_app.id))
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!({
+      "description": Uuid::now_v7().to_string(),
+      "expiration_date": "forever"
+    }))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), 400);
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
+#[tokio::test]
+async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+  
+  // Create a dummy app.
+  let dummy_app = test_environment.create_random_app().await?;
+
+  // Set up the server and send the request.
+  let initial_app_credential_properties = InitialAppCredentialPropertiesForPredefinedScope {
+    description: Some(Uuid::now_v7().to_string()),
+    expiration_date: Some(Utc::now() + Duration::days(30)),
+  };
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post(&format!("/apps/{}/app-credentials", dummy_app.id))
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!(initial_app_credential_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), 401);
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
+#[tokio::test]
+async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  
+  // Create a dummy app.
+  let dummy_app = test_environment.create_random_app().await?;
+
+  // Set up the server and send the request.
+  let initial_app_credential_properties = InitialAppCredentialPropertiesForPredefinedScope {
+    description: Some(Uuid::now_v7().to_string()),
+    expiration_date: Some(Utc::now() + Duration::days(30)),
+  };
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post(&format!("/apps/{}/app-credentials", dummy_app.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!(initial_app_credential_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+  return Ok(());
+
+}
+
+/// Verifies that the router can return a 404 status code if the requested resource doesn't exist.
+#[tokio::test]
+#[timeout(20000)]
+async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
+  initialize_predefined_actions(&mut test_environment.postgres_pool.get().await?).await?;
+  initialize_predefined_roles(&mut test_environment.postgres_pool.get().await?).await?;
+
+  let initial_app_credential_properties = InitialAppCredentialPropertiesForPredefinedScope {
+    description: Some(Uuid::now_v7().to_string()),
+    expiration_date: Some(Utc::now() + Duration::days(30)),
+  };
+
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+
+  let response = test_server.post(&format!("/apps/{}/app-credentials", uuid::Uuid::now_v7()))
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!(initial_app_credential_properties))
+    .await;
+  
+  assert_eq!(response.status_code(), 404);
+  return Ok(());
+
 }
