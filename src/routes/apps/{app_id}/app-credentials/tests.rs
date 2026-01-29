@@ -378,34 +378,34 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
 
 }
 
-// /// Verifies that the server returns a 404 status code when the parent resource is not found.
-// #[tokio::test]
-// async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the server returns a 404 status code when the parent resource is not found.
+#[tokio::test]
+async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   let mut postgres_client = test_environment.postgres_pool.get().await?;
-//   initialize_required_tables(&mut postgres_client).await?;
-//   initialize_predefined_actions(&mut postgres_client).await?;
-//   initialize_predefined_roles(&mut postgres_client).await?;
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.postgres_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.get(&format!("/apps/{}/app-credentials", &Uuid::now_v7()))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps/{}/app-credentials", &Uuid::now_v7()))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
