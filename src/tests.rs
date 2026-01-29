@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::AppAuthorizationError, app_authorization_credential::AppAuthorizationCredentialError, app_credential::AppCredentialError, group::GroupError, group_membership::GroupMembershipError, http_transaction::HTTPTransactionError, item::ItemError, milestone::MilestoneError, project::ProjectError, role::RoleError, role_memberships::RoleMembershipError, server_log_entry::ServerLogEntryError, session::{InitialSessionProperties, Session, SessionError}, user::{InitialUserProperties, User, UserError}, workspace::WorkspaceError}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::AppAuthorizationError, app_authorization_credential::AppAuthorizationCredentialError, group::GroupError, group_membership::GroupMembershipError, http_transaction::HTTPTransactionError, item::ItemError, milestone::MilestoneError, project::ProjectError, role::RoleError, role_memberships::RoleMembershipError, server_log_entry::ServerLogEntryError, session::{InitialSessionProperties, Session, SessionError}, user::{InitialUserProperties, User, UserError}, workspace::WorkspaceError}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -50,9 +50,6 @@ pub enum TestSlashstepServerError {
 
   #[error(transparent)]
   AppAuthorizationCredentialError(#[from] AppAuthorizationCredentialError),
-
-  #[error(transparent)]
-  AppCredentialError(#[from] AppCredentialError),
 
   #[error(transparent)]
   MilestoneError(#[from] MilestoneError),

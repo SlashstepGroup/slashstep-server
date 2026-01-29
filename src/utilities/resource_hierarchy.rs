@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, action_log_entry::ActionLogEntry, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationError, AppAuthorizationParentResourceType}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential, AppCredentialError}, group::GroupError, group_membership::{GroupMembership, GroupMembershipError}, http_transaction::HTTPTransactionError, item::{Item, ItemError}, milestone::{Milestone, MilestoneError, MilestoneParentResourceType}, project::{Project, ProjectError}, role::{Role, RoleError, RoleParentResourceType}, role_memberships::{RoleMembership, RoleMembershipError}, server_log_entry::ServerLogEntryError, session::{Session, SessionError}, user::UserError, workspace::WorkspaceError};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, action_log_entry::ActionLogEntry, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationError, AppAuthorizationParentResourceType}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential}, group::GroupError, group_membership::{GroupMembership, GroupMembershipError}, http_transaction::HTTPTransactionError, item::{Item, ItemError}, milestone::{Milestone, MilestoneError, MilestoneParentResourceType}, project::{Project, ProjectError}, role::{Role, RoleError, RoleParentResourceType}, role_memberships::{RoleMembership, RoleMembershipError}, server_log_entry::ServerLogEntryError, session::{Session, SessionError}, user::UserError, workspace::WorkspaceError};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -21,9 +21,6 @@ pub enum ResourceHierarchyError {
 
   #[error(transparent)]
   AppAuthorizationCredentialError(AppAuthorizationCredentialError),
-
-  #[error(transparent)]
-  AppCredentialError(AppCredentialError),
 
   #[error(transparent)]
   GroupError(GroupError),
@@ -311,9 +308,9 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
           Err(error) => match error {
 
-            AppCredentialError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::AppCredential, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::AppCredential, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::AppCredentialError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
