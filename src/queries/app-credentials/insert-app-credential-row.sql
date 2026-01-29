@@ -1,1 +1,13 @@
-insert into app_credentials (app_id, expiration_date, creation_ip) values ($1, $2, $3) returning *;
+INSERT INTO app_credentials (
+  app_id,
+  description,
+  expiration_date,
+  creation_ip_address,
+  public_key
+) VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5
+) RETURNING *;

@@ -15,6 +15,8 @@ use crate::{
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
 mod actions;
+#[path = "./app-credentials/mod.rs"]
+mod app_credentials;
 #[cfg(test)]
 mod tests;
 
@@ -178,7 +180,8 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/apps/{action_id}", axum::routing::patch(handle_patch_app_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .merge(actions::get_router(state.clone()))
-    .merge(access_policies::get_router(state.clone()));
+    .merge(access_policies::get_router(state.clone()))
+    .merge(app_credentials::get_router(state.clone()));
   return router;
 
 }
