@@ -1,12 +1,13 @@
 use std::{sync::Arc};
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
+use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePrivateKey, EncodePublicKey, spki::der::pem::LineEnding}};
 use local_ip_address::local_ip;
 use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::AppAuthorizationError, app_authorization_credential::AppAuthorizationCredentialError, app_credential::AppCredentialError, group::GroupError, group_membership::GroupMembershipError, http_transaction::HTTPTransactionError, item::ItemError, milestone::MilestoneError, project::ProjectError, role::RoleError, role_memberships::RoleMembershipError, server_log_entry::ServerLogEntryError, session::{InitialSessionProperties, Session, SessionError}, user::{InitialUserProperties, User, UserError}, workspace::WorkspaceError}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::AppAuthorizationError, app_authorization_credential::AppAuthorizationCredentialError, app_credential::{AppCredential, InitialAppCredentialProperties}, group::GroupError, group_membership::GroupMembershipError, http_transaction::HTTPTransactionError, item::ItemError, milestone::MilestoneError, project::ProjectError, role::RoleError, role_memberships::RoleMembershipError, server_log_entry::ServerLogEntryError, session::{InitialSessionProperties, Session, SessionError}, user::{InitialUserProperties, User, UserError}, workspace::WorkspaceError}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -52,9 +53,6 @@ pub enum TestSlashstepServerError {
   AppAuthorizationCredentialError(#[from] AppAuthorizationCredentialError),
 
   #[error(transparent)]
-  AppCredentialError(#[from] AppCredentialError),
-
-  #[error(transparent)]
   MilestoneError(#[from] MilestoneError),
 
   #[error(transparent)]
@@ -83,6 +81,12 @@ pub enum TestSlashstepServerError {
 
   #[error(transparent)]
   TestcontainersError(#[from] testcontainers::TestcontainersError),
+
+  #[error(transparent)]
+  PKCS8Error(#[from] ed25519_dalek::pkcs8::Error),
+
+  #[error(transparent)]
+  SPKIError(#[from] ed25519_dalek::pkcs8::spki::Error),
 
   #[error(transparent)]
   SlashstepServerError(#[from] SlashstepServerError),
@@ -173,6 +177,32 @@ impl TestEnvironment {
     let action = Action::create(&action_properties, &mut postgres_client).await?;
 
     return Ok(action);
+
+  }
+
+  pub async fn create_random_app_credential(&self, app_id: &Option<Uuid>) -> Result<AppCredential, TestSlashstepServerError> {
+
+    // Create a random app.
+    let app_id = app_id.unwrap_or(self.create_random_app().await?.id);
+
+    // Create a public key.
+    let mut os_rng = OsRng;
+    let signing_key = SigningKey::generate(&mut os_rng);
+    let public_key = signing_key.verifying_key().to_public_key_pem(LineEnding::LF)?;
+    let local_ip = local_ip()?;
+    let app_credential_properties = InitialAppCredentialProperties {
+      app_id: app_id,
+      description: Some(Uuid::now_v7().to_string()),
+      expiration_date: Some(Utc::now() + Duration::days(30)),
+      creation_ip_address: local_ip,
+      public_key: public_key.clone()
+    };
+
+    let mut postgres_client = self.postgres_pool.get().await?;
+
+    let app_credential = AppCredential::create(&app_credential_properties, &mut postgres_client).await?;
+
+    return Ok(app_credential);
 
   }
 

@@ -33,8 +33,7 @@ use crate::{
       AppAuthorizationCredential, 
       AppAuthorizationCredentialError
     }, app_credential::{
-      AppCredential, 
-      AppCredentialError
+      AppCredential
     }, group::{
       Group, 
       GroupError
@@ -174,9 +173,6 @@ pub enum SlashstepServerError {
 
   #[error(transparent)]
   AppAuthorizationCredentialError(#[from] AppAuthorizationCredentialError),
-
-  #[error(transparent)]
-  AppCredentialError(#[from] AppCredentialError),
 
   #[error(transparent)]
   MilestoneError(#[from] MilestoneError),

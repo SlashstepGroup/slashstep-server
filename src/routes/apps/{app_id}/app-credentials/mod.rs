@@ -1,14 +1,26 @@
 use std::{net::IpAddr, sync::Arc};
-use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
+use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
+use axum_extra::response::ErasedJson;
 use chrono::{DateTime, Utc};
 use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePrivateKey, EncodePublicKey, spki::der::pem::LineEnding}};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app_credential::{AppCredential, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_app_from_id, get_resource_hierarchy, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}};
+use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app_credential::{AppCredential, DEFAULT_MAXIMUM_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{route_handler_utilities::{get_action_from_name, get_app_from_id, get_resource_hierarchy, get_user_from_option_user, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_user_permissions}}};
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Debug, Deserialize)]
+pub struct ListAppCredentialsQueryParameters {
+  pub query: Option<String>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListAppCredentialsResponseBody {
+  pub app_credentials: Vec<AppCredential>,
+  pub total_count: i64
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateAppCredentialResponseBody {
@@ -19,6 +31,84 @@ pub struct CreateAppCredentialResponseBody {
   pub creation_ip_address: IpAddr,
   pub public_key: String,
   pub private_key: String
+}
+
+#[axum::debug_handler]
+pub async fn handle_list_app_credentials_request(
+  Path(app_id): Path<String>,
+  Query(query_parameters): Query<ListAppCredentialsQueryParameters>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(user): Extension<Option<Arc<User>>>
+) -> Result<ErasedJson, HTTPError> {
+
+  let http_transaction = http_transaction.clone();
+  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
+  let list_app_credentials_action = get_action_from_name("slashstep.appCredentials.list", &http_transaction, &mut postgres_client).await?;
+  let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
+  verify_user_permissions(&user, &list_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  let query = query_parameters.query.unwrap_or("".to_string());
+  let app_credentials = match AppCredential::list(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
+
+    Ok(app_credentials) => app_credentials,
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_APP_CREDENTIAL_LIST_LIMIT, "app credentials"),
+
+        ResourceError::PostgresError(error) => match_db_error(&error, "app credentials"),
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to list app credentials: {:?}", error)))
+
+      };
+
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  ServerLogEntry::trace(&format!("Counting app credentials..."), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  let app_credential_count = match AppCredential::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
+
+    Ok(app_credential_count) => app_credential_count,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count app credentials: {:?}", error)));
+      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  // TODO: Use the calling function's resource type and ID instead of referencing the instance.
+  // This'll make the log more useful.
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: list_app_credentials_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    reason: None, // TODO: Support reasons.
+    actor_type: ActionLogEntryActorType::User,
+    actor_user_id: Some(user.id),
+    actor_app_id: None,
+    target_resource_type: ActionLogEntryTargetResourceType::App,
+    target_app_id: Some(target_app.id),
+    ..Default::default()
+  }, &mut postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully {} returned app credentials.", app_credentials.len()), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  let response_body = ListAppCredentialsResponseBody {
+    app_credentials,
+    total_count: app_credential_count
+  };
+
+  return Ok(ErasedJson::pretty(&response_body));
+
 }
 
 #[axum::debug_handler]
@@ -151,7 +241,7 @@ async fn handle_create_app_credential_request(
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
-    // .route("/actions/{action_id}/access-policies", axum::routing::get(handle_list_access_policies_request))
+    .route("/apps/{app_id}/app-credentials", axum::routing::get(handle_list_app_credentials_request))
     .route("/apps/{app_id}/app-credentials", axum::routing::post(handle_create_app_credential_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user));
   return router;

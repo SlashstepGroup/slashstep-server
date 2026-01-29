@@ -4,12 +4,12 @@ use axum::middleware;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use chrono::{DateTime, Duration, Utc};
-use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePrivateKey, EncodePublicKey, spki::der::pem::LineEnding}};
 use ntest::timeout;
+use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
 
-use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, InitialAccessPolicyProperties}, action::Action, app_credential::{AppCredential, InitialAppCredentialPropertiesForPredefinedScope}, session::Session}, routes::apps::app_id::app_credentials::CreateAppCredentialResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties}, action::Action, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope}, session::Session}, routes::apps::app_id::app_credentials::{CreateAppCredentialResponseBody, ListAppCredentialsResponseBody}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::Client, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
@@ -24,6 +24,386 @@ async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::
   }, postgres_client).await?;
 
   return Ok(access_policy);
+
+}
+
+/// Verifies that the router can return a 200 status code and the requested list.
+#[tokio::test]
+async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  
+  // Give the user access to the "slashstep.appCredentials.get" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Give the user access to the "slashstep.appCredentials.list" action.
+  let list_app_credentials_action = Action::get_by_name("slashstep.appCredentials.list", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &list_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Create dummy resources.
+  let dummy_app_credential = test_environment.create_random_app_credential(&None).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps/{}/app-credentials", &dummy_app_credential.app_id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), 200);
+
+  let response_body: ListAppCredentialsResponseBody = response.json();
+  assert_eq!(response_body.total_count, 1);
+  assert_eq!(response_body.app_credentials.len(), 1);
+
+  let query = format!("app_id = {}", quote_literal(&dummy_app_credential.app_id.to_string()));
+  let actual_app_credential_count = AppCredential::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_body.total_count, actual_app_credential_count);
+
+  let actual_app_credentials = AppCredential::list(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_body.app_credentials.len(), actual_app_credentials.len());
+  assert_eq!(response_body.app_credentials[0].id, actual_app_credentials[0].id);
+  assert_eq!(response_body.app_credentials[0].id, dummy_app_credential.id);
+
+  return Ok(());
+
+}
+
+/// Verifies that the router can return a 200 status code and the requested list.
+#[tokio::test]
+async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  
+  // Give the user access to the "slashstep.appCredentials.get" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Give the user access to the "slashstep.appCredentials.list" action.
+  let list_app_credentials_action = Action::get_by_name("slashstep.appCredentials.list", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &list_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Create dummy resources.
+  let dummy_app_credential = test_environment.create_random_app_credential(&None).await?;
+
+  // Set up the server and send the request.
+  let additional_query = format!("id = {}", quote_literal(&dummy_app_credential.id.to_string()));
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps/{}/app-credentials", &dummy_app_credential.app_id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
+    .add_query_param("query", &additional_query)
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), 200);
+
+  let response_body: ListAppCredentialsResponseBody = response.json();
+  assert_eq!(response_body.total_count, 1);
+  assert_eq!(response_body.app_credentials.len(), 1);
+
+  let query = format!("app_id = {} AND {}", quote_literal(&dummy_app_credential.app_id.to_string()), &additional_query);
+  let actual_app_credential_count = AppCredential::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_body.total_count, actual_app_credential_count);
+
+  let actual_app_credentials = AppCredential::list(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_body.app_credentials.len(), actual_app_credentials.len());
+  assert_eq!(response_body.app_credentials[0].id, actual_app_credentials[0].id);
+  assert_eq!(response_body.app_credentials[0].id, dummy_app_credential.id);
+
+  return Ok(());
+
+}
+
+/// Verifies that there's a default list limit.
+#[tokio::test]
+async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+  
+  // Grant access to the "slashstep.appCredentials.get" action to the user.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Grant access to the "slashstep.appCredentials.list" action to the user.
+  let list_app_credentials_action = Action::get_by_name("slashstep.appCredentials.list", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &list_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Create dummy resources.
+  let dummy_app = test_environment.create_random_app().await?;
+  let app_credential_count = AppCredential::count(format!("app_id = {}", quote_literal(&dummy_app.id.to_string())).as_str(), &mut postgres_client, None).await?;
+  for _ in 0..(DEFAULT_APP_CREDENTIAL_LIST_LIMIT - app_credential_count + 1) {
+
+    test_environment.create_random_app_credential(&Some(dummy_app.id)).await?;
+
+  }
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::OK);
+
+  let response_body: ListAppCredentialsResponseBody = response.json();
+  assert_eq!(response_body.app_credentials.len(), DEFAULT_APP_CREDENTIAL_LIST_LIMIT as usize);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
+#[tokio::test]
+async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+  
+  // Grant access to the "slashstep.appCredentials.get" action to the user.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Grant access to the "slashstep.appCredentials.list" action to the user.
+  let list_app_credentials_action = Action::get_by_name("slashstep.appCredentials.list", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &list_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Create dummy resources.
+  let dummy_app = test_environment.create_random_app().await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+    .add_query_param("query", format!("limit {}", DEFAULT_APP_CREDENTIAL_LIST_LIMIT + 1))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
+  
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 400 status code when the query is invalid.
+#[tokio::test]
+async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+  
+  // Grant access to the "slashstep.appCredentials.get" action to the user.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Grant access to the "slashstep.appCredentials.list" action to the user.
+  let list_app_credentials_action = Action::get_by_name("slashstep.appCredentials.list", &mut postgres_client).await?;
+  create_instance_access_policy(&mut postgres_client, &user.id, &list_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+
+  // Create dummy resources.
+  let dummy_app = test_environment.create_random_app().await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+
+  let requests = vec![
+    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+      .add_query_param("query", format!("app_id = {}", get_app_credentials_action.id)),
+    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+      .add_query_param("query", format!("SELECT * FROM app_credentials")),
+    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+      .add_query_param("query", format!("1 = 1")),
+    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+      .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
+    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+      .add_query_param("query", format!("SELECT * FROM app_credentials WHERE id = {}", get_app_credentials_action.id))
+  ];
+  
+  for request in requests {
+
+    let response = request
+      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  }
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
+#[tokio::test]
+async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+
+  // Create dummy resources.
+  let dummy_app = test_environment.create_random_app().await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
+#[tokio::test]
+async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+
+  // Create a user and a session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+
+  // Create dummy resources.
+  let dummy_app = test_environment.create_random_app().await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+    .add_query_param("query", format!("LIMIT {}", DEFAULT_APP_CREDENTIAL_LIST_LIMIT + 1))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 404 status code when the parent resource is not found.
+#[tokio::test]
+async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  let mut postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&mut postgres_client).await?;
+  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_predefined_roles(&mut postgres_client).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.postgres_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/apps/{}/app-credentials", &Uuid::now_v7()))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+
+  return Ok(());
 
 }
 

@@ -131,6 +131,20 @@ pub async fn initialize_predefined_actions(postgres_client: &mut deadpool_postgr
       description: "Create new app credentials on a particular scope.".to_string(),
       parent_app_id: None,
       parent_resource_type: ActionParentResourceType::Instance
+    },
+    InitialActionProperties {
+      name: "slashstep.appCredentials.get".to_string(),
+      display_name: "Get app credentials".to_string(),
+      description: "Get an app credential on a particular scope.".to_string(),
+      parent_app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
+    },
+    InitialActionProperties {
+      name: "slashstep.appCredentials.list".to_string(),
+      display_name: "List app credentials".to_string(),
+      description: "List all app credentials on a particular scope.".to_string(),
+      parent_app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     }
   ];
 
