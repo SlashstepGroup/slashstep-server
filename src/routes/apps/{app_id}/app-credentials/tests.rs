@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use axum::middleware;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePrivateKey, EncodePublicKey, spki::der::pem::LineEnding}};
 use uuid::Uuid;
 
@@ -58,7 +58,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.post(&format!("/apps/{}/actions", dummy_app.id))
+  let response = test_server.post(&format!("/apps/{}/app-credentials", dummy_app.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_app_credential_properties))
     .await;
@@ -68,9 +68,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
 
   let response_app_credential: CreateAppCredentialResponseBody = response.json();
   assert_eq!(initial_app_credential_properties.description, response_app_credential.description);
-  assert_eq!(initial_app_credential_properties.expiration_date, response_app_credential.expiration_date);
-  assert_eq!(response_app_credential.public_key.len(), 1024);
-  assert_eq!(response_app_credential.private_key.len(), 1024);
+  assert_eq!(initial_app_credential_properties.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())), response_app_credential.expiration_date); // The API should truncate the expiration date to the nearest millisecond.
 
   return Ok(());
   

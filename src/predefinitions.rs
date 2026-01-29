@@ -124,6 +124,13 @@ pub async fn initialize_predefined_actions(postgres_client: &mut deadpool_postgr
       description: "Create new actions on a particular scope.".to_string(),
       app_id: None,
       parent_resource_type: ActionParentResourceType::Instance
+    },
+    InitialActionProperties {
+      name: "slashstep.appCredentials.create".to_string(),
+      display_name: "Create app credentials".to_string(),
+      description: "Create new app credentials on a particular scope.".to_string(),
+      app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     }
   ];
 

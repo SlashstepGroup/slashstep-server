@@ -99,8 +99,10 @@ impl AppCredential {
     let query = include_str!("../../queries/app-credentials/insert-app-credential-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.app_id,
+      &initial_properties.description,
       &initial_properties.expiration_date,
-      &initial_properties.creation_ip_address
+      &initial_properties.creation_ip_address,
+      &initial_properties.public_key
     ];
     let row = postgres_client.query_one(query, parameters).await.map_err(|error| {
 
