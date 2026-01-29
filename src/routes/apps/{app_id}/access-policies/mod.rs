@@ -2,7 +2,11 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
+use reqwest::StatusCode;
 use crate::{AppState, HTTPError, middleware::authentication_middleware, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{AccessPolicyListQueryParameters, list_access_policies}, route_handler_utilities::{get_action_from_id, get_action_from_name, get_app_from_id, get_resource_hierarchy, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}}};
+
+#[cfg(test)]
+mod tests;
 
 // #[axum::debug_handler]
 // async fn handle_list_access_policies_request(
@@ -34,7 +38,7 @@ async fn handle_create_access_policy_request(
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(user): Extension<Option<Arc<User>>>,
   body: Result<Json<InitialAccessPolicyPropertiesForPredefinedScope>, JsonRejection>
-) -> Result<Json<AccessPolicy>, HTTPError> {
+) -> Result<(StatusCode, Json<AccessPolicy>), HTTPError> {
 
   let http_transaction = http_transaction.clone();
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
@@ -119,7 +123,7 @@ async fn handle_create_access_policy_request(
   }, &mut postgres_client).await.ok();
   ServerLogEntry::success(&format!("Successfully created access policy {}.", access_policy.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
 
-  return Ok(Json(access_policy));
+  return Ok((StatusCode::CREATED, Json(access_policy)));
 
 }
 
@@ -132,6 +136,3 @@ pub fn get_router(state: AppState) -> Router<AppState> {
   return router;
 
 }
-
-#[cfg(test)]
-mod tests;
