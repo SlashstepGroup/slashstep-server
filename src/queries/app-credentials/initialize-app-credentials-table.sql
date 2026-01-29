@@ -1,8 +1,8 @@
-create table if not exists app_credentials (
-  id UUID default uuidv7() primary key,
-  app_id UUID not null references apps(id) on delete cascade,
+CREATE TABLE IF NOT EXISTS app_credentials (
+  id UUID DEFAULT uuidv7() PRIMARY KEY,
+  app_id UUID NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
   description TEXT,
-  expiration_date TIMESTAMPTZ not null,
-  creation_ip_address INET not null,
-  public_key TEXT not null
+  expiration_date TIMESTAMPTZ NOT NULL,
+  creation_ip_address INET NOT NULL,
+  public_key TEXT NOT NULL UNIQUE
 );
