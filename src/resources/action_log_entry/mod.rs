@@ -277,7 +277,7 @@ impl ActionLogEntry {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(id.to_string()))
+        None => return Err(ResourceError::NotFoundError(format!("Action log entry with ID \"{}\" not found.", id)))
 
       },
 

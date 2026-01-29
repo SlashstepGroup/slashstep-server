@@ -284,6 +284,9 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &mut postgres_client).await?;
   create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
+  // Create dummy resources.
+  let dummy_action_log_entry = test_environment.create_random_action_log_entry().await?;
+
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
@@ -293,7 +296,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &get_access_policies_action.id))
+  let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &dummy_action_log_entry.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
