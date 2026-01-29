@@ -60,7 +60,7 @@ async fn verify_successful_resource_creation() -> Result<(), TestSlashstepServer
   
   // Give the user editor access to a dummy action.
   let dummy_app = test_environment.create_random_app().await?;
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
   create_instance_access_policy(&mut postgres_client, &user.id, &dummy_action.id, &AccessPolicyPermissionLevel::Editor).await?;
 
   // Set up the server and send the request.
@@ -151,7 +151,7 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
   
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
 
   // Set up the server and send the request.
   let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
@@ -199,7 +199,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
   
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
 
   // Set up the server and send the request.
   let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
@@ -242,7 +242,7 @@ async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepSe
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
   let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
     action_id: dummy_action.id,
     permission_level: AccessPolicyPermissionLevel::User,

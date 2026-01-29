@@ -82,7 +82,7 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&mut postgres_client).await?;
 
   // Create the access policy.
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
   let user = test_environment.create_random_user().await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,
@@ -172,7 +172,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
   let denied_access_policy_count = remaining_action_count / 2;
   while remaining_action_count > 0 {
 
-    let dummy_action = test_environment.create_random_action().await?;
+    let dummy_action = test_environment.create_random_action(&None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: get_access_policies_action.id,
       permission_level: if remaining_action_count > denied_access_policy_count { AccessPolicyPermissionLevel::None } else { AccessPolicyPermissionLevel::User },
@@ -222,7 +222,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
   while remaining_action_count > 0 {
 
-    let action = test_environment.create_random_action().await?;
+    let action = test_environment.create_random_action(&None).await?;
     let user = test_environment.create_random_user().await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
@@ -297,7 +297,7 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
   while remaining_action_count > 0 {
 
-    let action = test_environment.create_random_action().await?;
+    let action = test_environment.create_random_action(&None).await?;
     let user = test_environment.create_random_user().await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
@@ -330,7 +330,7 @@ async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerEr
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
   initialize_required_tables(&mut postgres_client).await?;
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
   let user = test_environment.create_random_user().await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,
@@ -380,7 +380,7 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?; 
   initialize_required_tables(&mut postgres_client).await?;
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
   let user = test_environment.create_random_user().await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,

@@ -22,11 +22,11 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "name",
   "display_name",
   "description",
-  "app_id"
+  "parent_app_id"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "app_id"
+  "parent_app_id"
 ];
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
@@ -67,7 +67,7 @@ pub struct Action {
   pub description: String,
 
   /// The action's app ID, if applicable. Actions without an app ID are global actions.
-  pub app_id: Option<Uuid>,
+  pub parent_app_id: Option<Uuid>,
 
   /// The action's parent resource type.
   pub parent_resource_type: ActionParentResourceType
@@ -87,7 +87,7 @@ pub struct InitialActionProperties {
   pub description: String,
 
   /// The action's app ID, if applicable. Actions without an app ID are global actions.
-  pub app_id: Option<Uuid>,
+  pub parent_app_id: Option<Uuid>,
 
   /// The action's parent resource type.
   pub parent_resource_type: ActionParentResourceType
@@ -131,7 +131,7 @@ impl Action {
       name: row.get("name"),
       display_name: row.get("display_name"),
       description: row.get("description"),
-      app_id: row.get("app_id"),
+      parent_app_id: row.get("parent_app_id"),
       parent_resource_type: row.get("parent_resource_type")
     };
 
@@ -169,7 +169,7 @@ impl Action {
       &initial_properties.name,
       &initial_properties.display_name,
       &initial_properties.description,
-      &initial_properties.app_id,
+      &initial_properties.parent_app_id,
       &initial_properties.parent_resource_type
     ];
     let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {

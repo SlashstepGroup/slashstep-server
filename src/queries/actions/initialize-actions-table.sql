@@ -13,7 +13,7 @@ DO $$
             name TEXT NOT NULL,
             display_name TEXT NOT NULL,
             description TEXT NOT NULL,
-            app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
+            parent_app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
             parent_resource_type action_parent_resource_type NOT NULL
         );
 

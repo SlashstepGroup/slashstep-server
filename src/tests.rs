@@ -158,14 +158,14 @@ impl TestEnvironment {
 
   }
   
-  pub async fn create_random_action(&self) -> Result<Action, TestSlashstepServerError> {
+  pub async fn create_random_action(&self, parent_app_id: &Option<Uuid>) -> Result<Action, TestSlashstepServerError> {
 
     let action_properties = InitialActionProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
       description: Uuid::now_v7().to_string(),
-      app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      parent_app_id: parent_app_id.clone(),
+      parent_resource_type: if parent_app_id.is_some() { ActionParentResourceType::App } else { ActionParentResourceType::Instance }
     };
 
     let mut postgres_client = self.postgres_pool.get().await?;
@@ -178,7 +178,7 @@ impl TestEnvironment {
 
   pub async fn create_random_action_log_entry(&self) -> Result<ActionLogEntry, TestSlashstepServerError> {
 
-    let action = self.create_random_action().await?;
+    let action = self.create_random_action(&None).await?;
     let user = self.create_random_user().await?;
 
     let mut postgres_client = self.postgres_pool.get().await?;
@@ -233,7 +233,7 @@ impl TestEnvironment {
 
   pub async fn create_random_access_policy(&self) -> Result<AccessPolicy, TestSlashstepServerError> {
 
-    let action = self.create_random_action().await?;
+    let action = self.create_random_action(&None).await?;
     let user = self.create_random_user().await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,

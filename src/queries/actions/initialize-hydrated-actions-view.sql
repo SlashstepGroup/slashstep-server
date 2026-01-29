@@ -5,4 +5,4 @@ create or replace view hydrated_actions as
   from
     actions
   left join
-    apps on apps.id = actions.app_id;
+    apps on apps.id = actions.parent_app_id;

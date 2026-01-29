@@ -22,7 +22,7 @@ fn assert_actions_are_equal(action_1: &Action, action_2: &Action) {
   assert_eq!(action_1.name, action_2.name);
   assert_eq!(action_1.display_name, action_2.display_name);
   assert_eq!(action_1.description, action_2.description);
-  assert_eq!(action_1.app_id, action_2.app_id);
+  assert_eq!(action_1.parent_app_id, action_2.parent_app_id);
 
 }
 
@@ -36,7 +36,7 @@ async fn count_actions() -> Result<(), TestSlashstepServerError> {
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
 
-    let action = test_environment.create_random_action().await?;
+    let action = test_environment.create_random_action(&None).await?;
     created_actions.push(action);
 
   }
@@ -61,7 +61,7 @@ async fn delete_action() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  let created_action = test_environment.create_random_action().await?;
+  let created_action = test_environment.create_random_action(&None).await?;
 
   created_action.delete(&mut postgres_client).await?;
 
@@ -100,7 +100,7 @@ async fn list_actions_with_default_limit() -> Result<(), TestSlashstepServerErro
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
 
-    let action = test_environment.create_random_action().await?;
+    let action = test_environment.create_random_action(&None).await?;
     created_actions.push(action);
 
   }
@@ -124,7 +124,7 @@ async fn list_actions_with_query() -> Result<(), TestSlashstepServerError> {
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
 
-    let action = test_environment.create_random_action().await?;
+    let action = test_environment.create_random_action(&None).await?;
     created_actions.push(action);
 
   }
@@ -133,7 +133,7 @@ async fn list_actions_with_query() -> Result<(), TestSlashstepServerError> {
     name: Uuid::now_v7().to_string(),
     display_name: created_actions[0].display_name.clone(),
     description: Uuid::now_v7().to_string(),
-    app_id: None,
+    parent_app_id: None,
     parent_resource_type: ActionParentResourceType::Instance
   }, &mut postgres_client).await?;
   created_actions.push(action_with_same_display_name);
@@ -166,7 +166,7 @@ async fn list_actions_without_query() -> Result<(), TestSlashstepServerError> {
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
 
-    let action = test_environment.create_random_action().await?;
+    let action = test_environment.create_random_action(&None).await?;
     created_actions.push(action);
 
   }
@@ -202,7 +202,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_actions.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let action = test_environment.create_random_action().await?;
+      let action = test_environment.create_random_action(&None).await?;
       current_actions.push(action);
 
     }
@@ -260,7 +260,7 @@ async fn update_action() -> Result<(), TestSlashstepServerError> {
   // Create the action and update it.
   let mut postgres_client = test_environment.postgres_pool.get().await?;
   initialize_required_tables(&mut postgres_client).await?;
-  let original_action = test_environment.create_random_action().await?;
+  let original_action = test_environment.create_random_action(&None).await?;
   let new_name = Uuid::now_v7().to_string();
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Uuid::now_v7().to_string();
@@ -275,7 +275,7 @@ async fn update_action() -> Result<(), TestSlashstepServerError> {
   assert_eq!(new_name, updated_action.name);
   assert_eq!(new_display_name, updated_action.display_name);
   assert_eq!(new_description, updated_action.description);
-  assert_eq!(original_action.app_id, updated_action.app_id);
+  assert_eq!(original_action.parent_app_id, updated_action.parent_app_id);
   assert_eq!(original_action.parent_resource_type, updated_action.parent_resource_type);
 
   return Ok(());

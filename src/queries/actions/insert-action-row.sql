@@ -2,7 +2,7 @@ insert into actions (
   name, 
   display_name, 
   description, 
-  app_id,
+  parent_app_id,
   parent_resource_type
 ) values (
   $1, 

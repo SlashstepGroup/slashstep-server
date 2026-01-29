@@ -238,7 +238,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let dummy_action_log_entry = test_environment.create_random_action_log_entry().await?;
   for _ in 0..(DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1) {
 
-    let random_action = test_environment.create_random_action().await?;
+    let random_action = test_environment.create_random_action(&None).await?;
     let random_user = test_environment.create_random_user().await?;
     create_action_log_entry_access_policy(&mut postgres_client, &dummy_action_log_entry.id, &random_user.id, &random_action.id, &AccessPolicyPermissionLevel::User).await?;
 
