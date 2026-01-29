@@ -98,7 +98,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         };
 
-        if let Some(app_id) = action.app_id {
+        if let Some(app_id) = action.parent_app_id {
 
           selected_resource_type = AccessPolicyResourceType::App;
           selected_resource_id = Some(app_id);

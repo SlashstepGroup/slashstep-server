@@ -61,7 +61,7 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
   };
   AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
   
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
 
   let response = test_server.get(&format!("/actions/{}", action.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -71,7 +71,7 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
 
   let response_action: Action = response.json();
   assert_eq!(response_action.id, action.id);
-  assert_eq!(response_action.app_id, action.app_id);
+  assert_eq!(response_action.parent_app_id, action.parent_app_id);
   assert_eq!(response_action.name, action.name);
   assert_eq!(response_action.display_name, action.display_name);
   assert_eq!(response_action.description, action.description);
@@ -126,7 +126,7 @@ async fn verify_authentication_when_getting_action_by_id() -> Result<(), TestSla
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
 
   let response = test_server.get(&format!("/actions/{}", action.id))
     .await;
@@ -152,7 +152,7 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -235,7 +235,7 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   }, &mut postgres_client).await?;
 
   // Set up the server and send the request.
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -300,7 +300,7 @@ async fn verify_authentication_when_deleting_action_by_id() -> Result<(), TestSl
   initialize_predefined_roles(&mut postgres_client).await?;
   
   // Create a dummy action.
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -337,7 +337,7 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
   // Create a dummy action.
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -417,7 +417,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   }, &mut postgres_client).await?;
 
   // Set up the server and send the request.
-  let original_action = test_environment.create_random_action().await?;
+  let original_action = test_environment.create_random_action(&None).await?;
   let new_name = format!("slashstep.{}.{}", Uuid::now_v7().to_string(), Uuid::now_v7().to_string());
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Uuid::now_v7().to_string();
@@ -447,7 +447,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   assert_eq!(new_name, updated_action.name);
   assert_eq!(new_display_name, updated_action.display_name);
   assert_eq!(new_description, updated_action.description);
-  assert_eq!(original_action.app_id, updated_action.app_id);
+  assert_eq!(original_action.parent_app_id, updated_action.parent_app_id);
   assert_eq!(original_action.parent_resource_type, updated_action.parent_resource_type);
 
   return Ok(());
@@ -585,7 +585,7 @@ async fn verify_authentication_when_patching_action_by_id() -> Result<(), TestSl
   initialize_predefined_roles(&mut postgres_client).await?;
   
   // Set up the server and send the request.
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };
@@ -623,7 +623,7 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Set up the server and send the request.
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
   let state = AppState {
     database_pool: test_environment.postgres_pool.clone(),
   };

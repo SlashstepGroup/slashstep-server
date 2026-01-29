@@ -57,7 +57,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
   create_instance_access_policy(&mut postgres_client, &user.id, &create_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
   
   // Give the user editor access to a dummy action.
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
   create_instance_access_policy(&mut postgres_client, &user.id, &dummy_action.id, &AccessPolicyPermissionLevel::Editor).await?;
 
   // Set up the server and send the request.
@@ -117,7 +117,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create a dummy action.
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
   let shown_access_policy = create_action_access_policy(&mut postgres_client, &dummy_action.id, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Set up the server and send the request.
@@ -175,7 +175,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
   create_action_access_policy(&mut postgres_client, &dummy_action.id, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   let shown_access_policy = create_action_access_policy(&mut postgres_client, &dummy_action.id, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::Editor).await?;
@@ -237,10 +237,10 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy access policies.
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
   for _ in 0..(DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1) {
 
-    let random_action = test_environment.create_random_action().await?;
+    let random_action = test_environment.create_random_action(&None).await?;
     let random_user = test_environment.create_random_user().await?;
     create_action_access_policy(&mut postgres_client, &dummy_action.id, &random_user.id, &random_action.id, &AccessPolicyPermissionLevel::User).await?;
 
@@ -375,7 +375,7 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
   initialize_predefined_roles(&mut postgres_client).await?;
 
   // Create a dummy action.
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -413,7 +413,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Create a dummy action.
-  let dummy_action = test_environment.create_random_action().await?;
+  let dummy_action = test_environment.create_random_action(&None).await?;
 
   // Set up the server and send the request.
   let state = AppState {

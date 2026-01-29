@@ -38,7 +38,7 @@ async fn verify_action_log_entry_creation() -> Result<(), TestSlashstepServerErr
   initialize_required_tables(&mut postgres_client).await?;
 
   // Create the access policy.
-  let action = test_environment.create_random_action().await?;
+  let action = test_environment.create_random_action(&None).await?;
   let user = test_environment.create_random_user().await?;
   let action_log_entry_properties = InitialActionLogEntryProperties {
     action_id: action.id,

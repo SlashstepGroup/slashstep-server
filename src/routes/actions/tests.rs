@@ -22,7 +22,7 @@ use crate::{
       DEFAULT_ACTION_LIST_LIMIT
     }, 
     session::Session
-  }, routes::actions::ListActionResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
+  }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListActionsResponseBody
 };
 
 /// Verifies that the router can return a 200 status code and the requested action list.
@@ -79,7 +79,7 @@ async fn verify_returned_action_list_without_query() -> Result<(), TestSlashstep
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_json: ListActionResponseBody = response.json();
+  let response_json: ListActionsResponseBody = response.json();
   assert!(response_json.total_count > 0);
   assert!(response_json.actions.len() > 0);
 
@@ -156,7 +156,7 @@ async fn verify_returned_action_list_with_query() -> Result<(), TestSlashstepSer
   
   assert_eq!(response.status_code(), 200);
 
-  let response_json: ListActionResponseBody = response.json();
+  let response_json: ListActionsResponseBody = response.json();
   let actual_action_count = Action::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_json.total_count, actual_action_count);
 
@@ -216,7 +216,7 @@ async fn verify_default_action_list_limit() -> Result<(), TestSlashstepServerErr
   let action_count = Action::count("", &mut postgres_client, None).await?;
   for _ in 0..(DEFAULT_ACTION_LIST_LIMIT - action_count + 1) {
 
-    test_environment.create_random_action().await?;
+    test_environment.create_random_action(&None).await?;
 
   }
 
@@ -236,7 +236,7 @@ async fn verify_default_action_list_limit() -> Result<(), TestSlashstepServerErr
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListActionResponseBody = response.json();
+  let response_body: ListActionsResponseBody = response.json();
   assert_eq!(response_body.actions.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
   return Ok(());
