@@ -180,10 +180,10 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_app_credential(&self) -> Result<AppCredential, TestSlashstepServerError> {
+  pub async fn create_random_app_credential(&self, app_id: &Option<Uuid>) -> Result<AppCredential, TestSlashstepServerError> {
 
     // Create a random app.
-    let app = self.create_random_app().await?;
+    let app_id = app_id.unwrap_or(self.create_random_app().await?.id);
 
     // Create a public key.
     let mut os_rng = OsRng;
@@ -191,7 +191,7 @@ impl TestEnvironment {
     let public_key = signing_key.verifying_key().to_public_key_pem(LineEnding::LF)?;
     let local_ip = local_ip()?;
     let app_credential_properties = InitialAppCredentialProperties {
-      app_id: app.id,
+      app_id: app_id,
       description: Some(Uuid::now_v7().to_string()),
       expiration_date: Some(Utc::now() + Duration::days(30)),
       creation_ip_address: local_ip,
