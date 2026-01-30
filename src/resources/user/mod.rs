@@ -73,7 +73,7 @@ pub struct InitialUserProperties {
 impl User {
 
   /// Creates a new user.
-  pub async fn create(initial_properties: &InitialUserProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, UserError> {
+  pub async fn create(initial_properties: &InitialUserProperties, postgres_client: &deadpool_postgres::Client) -> Result<Self, UserError> {
 
     // Insert the access policy into the database.
     let query = include_str!("../../queries/users/insert-user-row.sql");
@@ -138,7 +138,7 @@ impl User {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<User, UserError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<User, UserError> {
 
     let query = include_str!("../../queries/users/get-user-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -173,7 +173,7 @@ impl User {
 
   }
 
-  pub async fn get_by_ip_address(ip_address: &IpAddr, postgres_client: &mut deadpool_postgres::Client) -> Result<User, UserError> {
+  pub async fn get_by_ip_address(ip_address: &IpAddr, postgres_client: &deadpool_postgres::Client) -> Result<User, UserError> {
 
     let query = include_str!("../../queries/users/get-user-row-by-ip-address.sql");
     let row = match postgres_client.query_opt(query, &[&ip_address]).await {
@@ -209,7 +209,7 @@ impl User {
   }
 
   /// Initializes the users table.
-  pub async fn initialize_users_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), UserError> {
+  pub async fn initialize_users_table(postgres_client: &deadpool_postgres::Client) -> Result<(), UserError> {
 
     let query = include_str!("../../queries/users/initialize-users-table.sql");
     postgres_client.execute(query, &[]).await?;

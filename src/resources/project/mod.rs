@@ -40,7 +40,7 @@ pub struct Project {
 impl Project {
 
   /// Initializes the projects table.
-  pub async fn initialize_projects_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ProjectError> {
+  pub async fn initialize_projects_table(postgres_client: &deadpool_postgres::Client) -> Result<(), ProjectError> {
 
     let query = include_str!("../../queries/projects/initialize-projects-table.sql");
     postgres_client.execute(query, &[]).await?;
@@ -62,7 +62,7 @@ impl Project {
 
   }
 
-  pub async fn create(initial_properties: &InitialProjectProperties<'_>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ProjectError> {
+  pub async fn create(initial_properties: &InitialProjectProperties<'_>, postgres_client: &deadpool_postgres::Client) -> Result<Self, ProjectError> {
 
     let query = include_str!("../../queries/projects/insert-project-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -93,7 +93,7 @@ impl Project {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ProjectError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, ProjectError> {
 
     let query = include_str!("../../queries/projects/get-project-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {

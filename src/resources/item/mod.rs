@@ -46,7 +46,7 @@ impl Item {
 
   }
 
-  pub async fn create(initial_properties: &InitialItemProperties<'_>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ItemError> {
+  pub async fn create(initial_properties: &InitialItemProperties<'_>, postgres_client: &deadpool_postgres::Client) -> Result<Self, ItemError> {
 
     let query = include_str!("../../queries/items/insert-item-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -76,7 +76,7 @@ impl Item {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ItemError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, ItemError> {
 
     let query = include_str!("../../queries/items/get-item-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -100,7 +100,7 @@ impl Item {
   }
   
   /// Initializes the items table.
-  pub async fn initialize_items_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ItemError> {
+  pub async fn initialize_items_table(postgres_client: &deadpool_postgres::Client) -> Result<(), ItemError> {
 
     let query = include_str!("../../queries/items/initialize-items-table.sql");
     postgres_client.execute(query, &[]).await?;

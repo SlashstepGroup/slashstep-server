@@ -13,17 +13,17 @@ pub fn map_postgres_error_to_http_error(error: deadpool_postgres::PoolError) -> 
 
 }
 
-pub async fn get_action_from_name(action_name: &str, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<Action, HTTPError> {
+pub async fn get_action_from_name(action_name: &str, http_transaction: &HTTPTransaction, postgres_client: &deadpool_postgres::Client) -> Result<Action, HTTPError> {
 
-  ServerLogEntry::trace(&format!("Getting action \"{}\"...", action_name), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let action = match Action::get_by_name(&action_name, &mut postgres_client).await {
+  ServerLogEntry::trace(&format!("Getting action \"{}\"...", action_name), Some(&http_transaction.id), &postgres_client).await.ok();
+  let action = match Action::get_by_name(&action_name, &postgres_client).await {
 
     Ok(action) => action,
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to get action \"{}\": {:?}", action_name, error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -39,16 +39,16 @@ pub enum AuthenticatedPrincipal {
   App(Arc<App>)
 }
 
-pub async fn verify_principal_permissions(authenticated_principal: &AuthenticatedPrincipal, action: &Action, resource_hierarchy: &ResourceHierarchy, http_transaction: &HTTPTransaction, minimum_permission_level: &AccessPolicyPermissionLevel, mut postgres_client: &mut deadpool_postgres::Client) -> Result<(), HTTPError> {
+pub async fn verify_principal_permissions(authenticated_principal: &AuthenticatedPrincipal, action: &Action, resource_hierarchy: &ResourceHierarchy, http_transaction: &HTTPTransaction, minimum_permission_level: &AccessPolicyPermissionLevel, postgres_client: &deadpool_postgres::Client) -> Result<(), HTTPError> {
 
-  ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &postgres_client).await.ok();
 
   let principal = match authenticated_principal {
     AuthenticatedPrincipal::User(user) => Principal::User(user.id),
     AuthenticatedPrincipal::App(app) => Principal::App(app.id)
   };
 
-  match PrincipalPermissionVerifier::verify_permissions(&principal, &action.id, &resource_hierarchy, &minimum_permission_level, &mut postgres_client).await {
+  match PrincipalPermissionVerifier::verify_permissions(&principal, &action.id, &resource_hierarchy, &minimum_permission_level, &postgres_client).await {
 
     Ok(_) => {},
 
@@ -69,7 +69,7 @@ pub async fn verify_principal_permissions(authenticated_principal: &Authenticate
         _ => HTTPError::InternalServerError(Some(error.to_string()))
 
       };
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -80,7 +80,7 @@ pub async fn verify_principal_permissions(authenticated_principal: &Authenticate
 
 }
 
-pub async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<Action, HTTPError> {
+pub async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPTransaction, postgres_client: &deadpool_postgres::Client) -> Result<Action, HTTPError> {
 
   let action_id = match Uuid::parse_str(&action_id_string) {
 
@@ -89,7 +89,7 @@ pub async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPT
     Err(_) => {
 
       let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the action ID.".to_string()));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -110,7 +110,7 @@ pub async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPT
         error => HTTPError::InternalServerError(Some(format!("Failed to get action {}: {:?}", action_id, error)))
 
       };
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -121,7 +121,7 @@ pub async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPT
 
 }
 
-pub async fn get_app_credential_from_id(app_credential_id: &str, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<AppCredential, HTTPError> {
+pub async fn get_app_credential_from_id(app_credential_id: &str, http_transaction: &HTTPTransaction, postgres_client: &deadpool_postgres::Client) -> Result<AppCredential, HTTPError> {
 
   let app_credential_id = match Uuid::parse_str(&app_credential_id) {
 
@@ -130,7 +130,7 @@ pub async fn get_app_credential_from_id(app_credential_id: &str, http_transactio
     Err(_) => {
 
       let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the app ID.".to_string()));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -151,7 +151,7 @@ pub async fn get_app_credential_from_id(app_credential_id: &str, http_transactio
         error => HTTPError::InternalServerError(Some(format!("Failed to get app credential {}: {:?}", app_credential_id, error)))
 
       };
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -162,7 +162,7 @@ pub async fn get_app_credential_from_id(app_credential_id: &str, http_transactio
 
 }
 
-pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<App, HTTPError> {
+pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransaction, postgres_client: &deadpool_postgres::Client) -> Result<App, HTTPError> {
 
   let app_id = match Uuid::parse_str(&app_id_string) {
 
@@ -171,7 +171,7 @@ pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransac
     Err(_) => {
 
       let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the app ID.".to_string()));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -192,7 +192,7 @@ pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransac
         error => HTTPError::InternalServerError(Some(format!("Failed to get app {}: {:?}", app_id, error)))
 
       };
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -203,11 +203,11 @@ pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransac
 
 }
 
-pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T, resource_type: &AccessPolicyResourceType, resource_id: &Uuid, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<ResourceHierarchy, HTTPError> {
+pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T, resource_type: &AccessPolicyResourceType, resource_id: &Uuid, http_transaction: &HTTPTransaction, postgres_client: &deadpool_postgres::Client) -> Result<ResourceHierarchy, HTTPError> {
 
   let resource_type_string = resource_type.to_string().to_lowercase();
-  ServerLogEntry::trace(&format!("Getting resource hierarchy for {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&resource_type, &Some(*resource_id), &mut postgres_client).await {
+  ServerLogEntry::trace(&format!("Getting resource hierarchy for {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &postgres_client).await.ok();
+  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&resource_type, &Some(*resource_id), &postgres_client).await {
 
     Ok(resource_hierarchy) => resource_hierarchy,
 
@@ -217,9 +217,9 @@ pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T
 
         ResourceHierarchyError::ScopedResourceIDMissingError(scoped_resource_type) => {
 
-          ServerLogEntry::trace(&format!("Deleting orphaned {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+          ServerLogEntry::trace(&format!("Deleting orphaned {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &postgres_client).await.ok();
 
-          let http_error = match deletable_resource.delete(&mut postgres_client).await {
+          let http_error = match deletable_resource.delete(&postgres_client).await {
 
             Ok(_) => HTTPError::GoneError(Some(format!("The {} resource has been deleted because it was orphaned.", scoped_resource_type))),
 
@@ -227,7 +227,7 @@ pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T
 
           };
           
-          http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+          http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
           return Err(http_error);
 
         },
@@ -236,7 +236,7 @@ pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T
 
       };
       
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }

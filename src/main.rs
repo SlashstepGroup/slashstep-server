@@ -8,7 +8,7 @@ mod predefinitions;
 #[cfg(test)]
 mod tests;
 
-use std::{fmt, sync::Arc};
+use std::{fmt};
 use axum::{body::Body, response::{IntoResponse, Response}};
 use axum_extra::response::ErasedJson;
 use deadpool_postgres::{Pool, tokio_postgres};
@@ -203,7 +203,7 @@ pub enum SlashstepServerError {
 
 }
 
-pub async fn initialize_required_tables(postgres_client: &mut deadpool_postgres::Client) -> Result<(), SlashstepServerError> {
+pub async fn initialize_required_tables(postgres_client: &deadpool_postgres::Client) -> Result<(), SlashstepServerError> {
 
   // Because the access_policies table depends on other tables, we need to initialize them in a specific order.
   HTTPTransaction::initialize_http_transactions_table(postgres_client).await?;
@@ -299,7 +299,7 @@ impl IntoResponse for HTTPError {
 
 impl HTTPError {
 
-  pub async fn print_and_save(&self, http_request_id: Option<&Uuid>, postgres_client: &mut deadpool_postgres::Client) -> Result<Result<ServerLogEntry, ServerLogEntryError>, ()> {
+  pub async fn print_and_save(&self, http_request_id: Option<&Uuid>, postgres_client: &deadpool_postgres::Client) -> Result<Result<ServerLogEntry, ServerLogEntryError>, ()> {
 
     let server_log_entry = ServerLogEntry::from_http_error(self, http_request_id, postgres_client).await;
     return Ok(server_log_entry);
@@ -310,7 +310,7 @@ impl HTTPError {
 
 #[derive(Debug, Clone)]
 pub struct AppState {
-  pub database_pool: Arc<deadpool_postgres::Pool>,
+  pub database_pool: deadpool_postgres::Pool,
 }
 
 pub fn handle_pool_error(error: deadpool_postgres::PoolError) -> Response<Body> {
@@ -386,13 +386,13 @@ async fn main() -> Result<(), SlashstepServerError> {
   import_env_file();
   let pool = create_database_pool().await?;
   let state = AppState {
-    database_pool: Arc::new(pool),
+    database_pool: pool,
   };
 
-  let mut postgres_client = state.database_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  let postgres_client = state.database_pool.get().await?;
+  initialize_required_tables(&postgres_client).await?;
+  initialize_predefined_actions(&postgres_client).await?;
+  initialize_predefined_roles(&postgres_client).await?;
   drop(postgres_client); // Drop the client to release the connection back to the pool. For some reason, this doesn't happen automatically.
 
   let app_port = get_app_port_string();

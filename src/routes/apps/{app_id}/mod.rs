@@ -43,12 +43,12 @@ async fn handle_get_app_request(
 ) -> Result<Json<App>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-  let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
-  let get_apps_action = get_action_from_name("slashstep.apps.get", &http_transaction, &mut postgres_client).await?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let target_app = get_app_from_id(&app_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &postgres_client).await?;
+  let get_apps_action = get_action_from_name("slashstep.apps.get", &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &get_apps_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &get_apps_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
   
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: get_apps_action.id,
@@ -59,8 +59,8 @@ async fn handle_get_app_request(
     target_resource_type: ActionLogEntryTargetResourceType::App,
     target_app_id: Some(target_app.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
-  ServerLogEntry::success(&format!("Successfully returned authenticated_app {}.", target_app.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully returned authenticated_app {}.", target_app.id), Some(&http_transaction.id), &postgres_client).await.ok();
 
   return Ok(Json(target_app));
 
@@ -79,21 +79,21 @@ async fn handle_delete_app_request(
 ) -> Result<StatusCode, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-  let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
-  let delete_actions_action = get_action_from_name("slashstep.apps.delete", &http_transaction, &mut postgres_client).await?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let target_app = get_app_from_id(&app_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &postgres_client).await?;
+  let delete_actions_action = get_action_from_name("slashstep.apps.delete", &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &delete_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &delete_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
 
-  match target_app.delete(&mut postgres_client).await {
+  match target_app.delete(&postgres_client).await {
 
     Ok(_) => {},
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete authenticated_app: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -109,8 +109,8 @@ async fn handle_delete_app_request(
     target_resource_type: ActionLogEntryTargetResourceType::App,
     target_app_id: Some(target_app.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
-  ServerLogEntry::success(&format!("Successfully deleted authenticated_app {}.", target_app.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully deleted authenticated_app {}.", target_app.id), Some(&http_transaction.id), &postgres_client).await.ok();
 
   return Ok(StatusCode::NO_CONTENT);
 
@@ -130,9 +130,9 @@ async fn handle_patch_app_request(
 ) -> Result<Json<App>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
 
-  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &postgres_client).await.ok();
   let updated_app_properties = match body {
 
     Ok(updated_app_properties) => updated_app_properties,
@@ -153,28 +153,28 @@ async fn handle_patch_app_request(
 
       };
       
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  let original_target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&original_target_app, &AccessPolicyResourceType::App, &original_target_app.id, &http_transaction, &mut postgres_client).await?;
-  let update_access_policy_action = get_action_from_name("slashstep.apps.update", &http_transaction, &mut postgres_client).await?;
+  let original_target_app = get_app_from_id(&app_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&original_target_app, &AccessPolicyResourceType::App, &original_target_app.id, &http_transaction, &postgres_client).await?;
+  let update_access_policy_action = get_action_from_name("slashstep.apps.update", &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
 
-  ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_app.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let updated_target_action = match original_target_app.update(&updated_app_properties, &mut postgres_client).await {
+  ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_app.id), Some(&http_transaction.id), &postgres_client).await.ok();
+  let updated_target_action = match original_target_app.update(&updated_app_properties, &postgres_client).await {
 
     Ok(updated_target_action) => updated_target_action,
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update authenticated_app: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -190,8 +190,8 @@ async fn handle_patch_app_request(
     target_resource_type: ActionLogEntryTargetResourceType::Action,
     target_action_id: Some(updated_target_action.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
-  ServerLogEntry::success(&format!("Successfully updated action {}.", updated_target_action.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully updated action {}.", updated_target_action.id), Some(&http_transaction.id), &postgres_client).await.ok();
 
   return Ok(Json(updated_target_action));
 

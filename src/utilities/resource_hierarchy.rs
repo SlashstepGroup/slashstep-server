@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, action_log_entry::ActionLogEntry, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationError, AppAuthorizationParentResourceType}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential}, group::GroupError, group_membership::{GroupMembership, GroupMembershipError}, http_transaction::HTTPTransactionError, item::{Item, ItemError}, milestone::{Milestone, MilestoneError, MilestoneParentResourceType}, project::{Project, ProjectError}, role::{Role, RoleError, RoleParentResourceType}, role_memberships::{RoleMembership, RoleMembershipError}, server_log_entry::ServerLogEntryError, session::{Session, SessionError}, user::UserError, workspace::WorkspaceError};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationError, AppAuthorizationParentResourceType}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential}, group::GroupError, group_membership::{GroupMembership, GroupMembershipError}, http_transaction::HTTPTransactionError, item::{Item, ItemError}, milestone::{Milestone, MilestoneError, MilestoneParentResourceType}, project::{Project, ProjectError}, role::{Role, RoleError, RoleParentResourceType}, role_memberships::{RoleMembership, RoleMembershipError}, server_log_entry::ServerLogEntryError, session::{Session, SessionError}, user::UserError, workspace::WorkspaceError};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -60,7 +60,7 @@ pub enum ResourceHierarchyError {
 
 }
 
-pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scoped_resource_id: &Option<Uuid>, postgres_client: &mut deadpool_postgres::Client) -> Result<ResourceHierarchy, ResourceHierarchyError> {
+pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scoped_resource_id: &Option<Uuid>, postgres_client: &deadpool_postgres::Client) -> Result<ResourceHierarchy, ResourceHierarchyError> {
 
   let mut hierarchy: ResourceHierarchy = vec![];
   let mut selected_resource_type: AccessPolicyResourceType = scoped_resource_type.clone();
@@ -109,7 +109,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // ActionLogEntry -> Action
+      // ActionLogEntry -> Instance
       AccessPolicyResourceType::ActionLogEntry => {
 
         let Some(scoped_action_log_entry_id) = selected_resource_id else {
@@ -120,16 +120,8 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::ActionLogEntry, Some(scoped_action_log_entry_id)));
 
-        let action_log_entry = match ActionLogEntry::get_by_id(&scoped_action_log_entry_id, postgres_client).await {
-
-          Ok(action_log_entry) => action_log_entry,
-
-          Err(error) => return Err(ResourceHierarchyError::ResourceError(error))
-
-        };
-
-        selected_resource_type = AccessPolicyResourceType::Action;
-        selected_resource_id = Some(action_log_entry.action_id);
+        selected_resource_type = AccessPolicyResourceType::Instance;
+        selected_resource_id = None;
 
       },
 

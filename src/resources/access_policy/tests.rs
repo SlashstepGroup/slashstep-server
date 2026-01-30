@@ -66,8 +66,8 @@ fn assert_access_policies_are_equal(access_policy_1: &AccessPolicy, access_polic
 async fn initialize_access_policies_table() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&postgres_client).await?;
 
   return Ok(());
 
@@ -78,8 +78,8 @@ async fn initialize_access_policies_table() -> Result<(), TestSlashstepServerErr
 async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&postgres_client).await?;
 
   // Create the access policy.
   let action = test_environment.create_random_action(&None).await?;
@@ -93,7 +93,7 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
     scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
   };
-  let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
+  let access_policy = AccessPolicy::create(&access_policy_properties, &postgres_client).await?;
 
   // Ensure that all the properties were set correctly.
   assert_access_policy_is_equal_to_initial_properties(&access_policy, &access_policy_properties);
@@ -108,10 +108,10 @@ async fn get_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&postgres_client).await?;
   let created_access_policy = test_environment.create_random_access_policy().await?;
-  let retrieved_access_policy = AccessPolicy::get_by_id(&created_access_policy.id, &mut postgres_client).await?;
+  let retrieved_access_policy = AccessPolicy::get_by_id(&created_access_policy.id, &postgres_client).await?;
 
   assert_access_policies_are_equal(&created_access_policy, &retrieved_access_policy);
 
@@ -124,8 +124,8 @@ async fn get_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i32 = 25;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -137,7 +137,7 @@ async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerE
 
   }
 
-  let retrieved_access_policies = AccessPolicy::list("", &mut postgres_client, None).await?;
+  let retrieved_access_policies = AccessPolicy::list("", &postgres_client, None).await?;
 
   assert_eq!(created_access_policies.len(), retrieved_access_policies.len());
   for i in 0..created_access_policies.len() {
@@ -159,11 +159,11 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
   // Get the "slashstep.accessPolicies.get" action one time.
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&postgres_client).await?;
+  initialize_predefined_actions(&postgres_client).await?;
   let user = test_environment.create_random_user().await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &mut postgres_client).await?;
+  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &postgres_client).await?;
 
   // Create dummy access policies.
   const MAXIMUM_ACTION_COUNT: i32 = 25;
@@ -183,7 +183,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
       ..Default::default()
     };
 
-    let access_policy = Box::new(AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?);
+    let access_policy = Box::new(AccessPolicy::create(&access_policy_properties, &postgres_client).await?);
     if access_policy.permission_level == AccessPolicyPermissionLevel::User {
 
       created_access_policies.push(access_policy.clone());
@@ -194,7 +194,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
   }
 
   let individual_principal = IndividualPrincipal::User(user.id);
-  let retrieved_access_policies = AccessPolicy::list("", &mut postgres_client, Some(&individual_principal)).await?;
+  let retrieved_access_policies = AccessPolicy::list("", &postgres_client, Some(&individual_principal)).await?;
 
   assert_eq!(created_access_policies.len(), retrieved_access_policies.len());
   for i in 0..created_access_policies.len() {
@@ -215,8 +215,8 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i32 = 5;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -233,7 +233,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
       scoped_resource_type: AccessPolicyResourceType::Instance,
       ..Default::default()
     };
-    let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
+    let access_policy = AccessPolicy::create(&access_policy_properties, &postgres_client).await?;
     created_access_policies.push(access_policy);
     remaining_action_count -= 1;
 
@@ -242,7 +242,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
 
   let principal_user_id = created_access_policies[0].principal_user_id.expect("Principal user ID is not set.");
   let query = format!("principal_user_id = \"{}\"", principal_user_id);
-  let retrieved_access_policies = AccessPolicy::list(&query, &mut postgres_client, None).await?;
+  let retrieved_access_policies = AccessPolicy::list(&query, &postgres_client, None).await?;
 
   let created_access_policies_with_specific_user: Vec<&AccessPolicy> = created_access_policies.iter().filter(|access_policy| access_policy.principal_user_id == Some(principal_user_id)).collect();
   assert_eq!(created_access_policies_with_specific_user.len(), retrieved_access_policies.len());
@@ -264,8 +264,8 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
 async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -277,7 +277,7 @@ async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepSe
 
   }
 
-  let retrieved_access_policies = AccessPolicy::list("", &mut postgres_client, None).await?;
+  let retrieved_access_policies = AccessPolicy::list("", &postgres_client, None).await?;
 
   assert_eq!(retrieved_access_policies.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
 
@@ -290,8 +290,8 @@ async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepSe
 async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&postgres_client).await?;
   const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -308,13 +308,13 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
       scoped_resource_type: AccessPolicyResourceType::Instance,
       ..Default::default()
     };
-    let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
+    let access_policy = AccessPolicy::create(&access_policy_properties, &postgres_client).await?;
     created_access_policies.push(access_policy);
     remaining_action_count -= 1;
 
   }
 
-  let retrieved_access_policy_count = AccessPolicy::count("", &mut postgres_client, None).await?;
+  let retrieved_access_policy_count = AccessPolicy::count("", &postgres_client, None).await?;
 
   assert_eq!(retrieved_access_policy_count, MAXIMUM_ACTION_COUNT);
 
@@ -328,8 +328,8 @@ async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerEr
 
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&postgres_client).await?;
   let action = test_environment.create_random_action(&None).await?;
   let user = test_environment.create_random_user().await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {
@@ -341,10 +341,10 @@ async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerEr
     scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
   };
-  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &mut postgres_client).await?;
-  let access_policy_hierarchy = resource_hierarchy::get_hierarchy(&instance_access_policy.scoped_resource_type, &instance_access_policy.get_scoped_resource_id(), &mut postgres_client).await?;
+  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &postgres_client).await?;
+  let access_policy_hierarchy = resource_hierarchy::get_hierarchy(&instance_access_policy.scoped_resource_type, &instance_access_policy.get_scoped_resource_id(), &postgres_client).await?;
 
-  let retrieved_access_policies = AccessPolicy::list_by_hierarchy(&Principal::User(user.id), &action.id, &access_policy_hierarchy, &mut postgres_client).await?;
+  let retrieved_access_policies = AccessPolicy::list_by_hierarchy(&Principal::User(user.id), &action.id, &access_policy_hierarchy, &postgres_client).await?;
 
   assert_eq!(retrieved_access_policies.len(), access_policy_hierarchy.len());
   
@@ -358,14 +358,14 @@ async fn delete_access_policy() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?;
+  initialize_required_tables(&postgres_client).await?;
   let created_access_policy = test_environment.create_random_access_policy().await?;
 
-  created_access_policy.delete(&mut postgres_client).await?;
+  created_access_policy.delete(&postgres_client).await?;
 
   // Ensure that the access policy is no longer in the database.
-  let retrieved_access_policy_result = AccessPolicy::get_by_id(&created_access_policy.id, &mut postgres_client).await;
+  let retrieved_access_policy_result = AccessPolicy::get_by_id(&created_access_policy.id, &postgres_client).await;
   assert!(retrieved_access_policy_result.is_err());
 
   return Ok(());
@@ -378,8 +378,8 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?; 
-  initialize_required_tables(&mut postgres_client).await?;
+  let postgres_client = test_environment.postgres_pool.get().await?; 
+  initialize_required_tables(&postgres_client).await?;
   let action = test_environment.create_random_action(&None).await?;
   let user = test_environment.create_random_user().await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {
@@ -391,12 +391,12 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
     scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
   };
-  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &mut postgres_client).await?;
+  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &postgres_client).await?;
   let updated_access_policy_properties = EditableAccessPolicyProperties {
     permission_level: Some(AccessPolicyPermissionLevel::Editor),
     is_inheritance_enabled: Some(false)
   };
-  let updated_access_policy = instance_access_policy.update(&updated_access_policy_properties, &mut postgres_client).await?;
+  let updated_access_policy = instance_access_policy.update(&updated_access_policy_properties, &postgres_client).await?;
 
   assert_eq!(updated_access_policy.permission_level, AccessPolicyPermissionLevel::Editor);
   assert_eq!(updated_access_policy.is_inheritance_enabled, false);

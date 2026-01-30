@@ -45,16 +45,16 @@ async fn handle_list_action_log_entries_request(
 
   // Make sure the principal has access to list resources.
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-  let list_action_log_entries_action = get_action_from_name("slashstep.actionLogEntries.list", &http_transaction, &mut postgres_client).await?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let list_action_log_entries_action = get_action_from_name("slashstep.actionLogEntries.list", &http_transaction, &postgres_client).await?;
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Instance, None)];
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &list_action_log_entries_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &list_action_log_entries_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
 
   // Get the list of resources.
   let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
   let query = query_parameters.query.unwrap_or("".to_string());
-  let action_log_entries = match ActionLogEntry::list(&query, &mut postgres_client, Some(&individual_principal)).await {
+  let action_log_entries = match ActionLogEntry::list(&query, &postgres_client, Some(&individual_principal)).await {
 
     Ok(actions) => actions,
 
@@ -70,22 +70,22 @@ async fn handle_list_action_log_entries_request(
 
       };
 
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  ServerLogEntry::trace(&format!("Counting action log entries..."), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let action_log_entry_count = match ActionLogEntry::count(&query, &mut postgres_client, Some(&individual_principal)).await {
+  ServerLogEntry::trace(&format!("Counting action log entries..."), Some(&http_transaction.id), &postgres_client).await.ok();
+  let action_log_entry_count = match ActionLogEntry::count(&query, &postgres_client, Some(&individual_principal)).await {
 
     Ok(action_log_entry_count) => action_log_entry_count,
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to count action log entries: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -100,9 +100,9 @@ async fn handle_list_action_log_entries_request(
     actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::Instance,
     ..Default::default()
-  }, &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
   let action_list_length = action_log_entries.len();
-  ServerLogEntry::success(&format!("Successfully returned {} action log {}.", action_list_length, if action_list_length == 1 { "entry" } else { "entries" }), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully returned {} action log {}.", action_list_length, if action_list_length == 1 { "entry" } else { "entries" }), Some(&http_transaction.id), &postgres_client).await.ok();
   
   let response_body = ListActionLogEntryResponseBody {
     action_log_entries,

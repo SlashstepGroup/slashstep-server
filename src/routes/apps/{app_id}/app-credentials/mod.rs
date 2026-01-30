@@ -58,16 +58,16 @@ pub async fn handle_list_app_credentials_request(
 ) -> Result<ErasedJson, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-  let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
-  let list_app_credentials_action = get_action_from_name("slashstep.appCredentials.list", &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let target_app = get_app_from_id(&app_id, &http_transaction, &postgres_client).await?;
+  let list_app_credentials_action = get_action_from_name("slashstep.appCredentials.list", &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &list_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &list_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
   
   let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
   let query = query_parameters.query.unwrap_or("".to_string());
-  let app_credentials = match AppCredential::list(&query, &mut postgres_client, Some(&individual_principal)).await {
+  let app_credentials = match AppCredential::list(&query, &postgres_client, Some(&individual_principal)).await {
 
     Ok(app_credentials) => app_credentials,
 
@@ -83,22 +83,22 @@ pub async fn handle_list_app_credentials_request(
 
       };
 
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  ServerLogEntry::trace(&format!("Counting authenticated_app credentials..."), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let app_credential_count = match AppCredential::count(&query, &mut postgres_client, Some(&individual_principal)).await {
+  ServerLogEntry::trace(&format!("Counting authenticated_app credentials..."), Some(&http_transaction.id), &postgres_client).await.ok();
+  let app_credential_count = match AppCredential::count(&query, &postgres_client, Some(&individual_principal)).await {
 
     Ok(app_credential_count) => app_credential_count,
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to count authenticated_app credentials: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -117,8 +117,8 @@ pub async fn handle_list_app_credentials_request(
     target_resource_type: ActionLogEntryTargetResourceType::App,
     target_app_id: Some(target_app.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
-  ServerLogEntry::success(&format!("Successfully {} returned authenticated_app credentials.", app_credentials.len()), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully {} returned authenticated_app credentials.", app_credentials.len()), Some(&http_transaction.id), &postgres_client).await.ok();
   let response_body = ListAppCredentialsResponseBody {
     app_credentials,
     total_count: app_credential_count
@@ -142,10 +142,10 @@ async fn handle_create_app_credential_request(
 ) -> Result<(StatusCode, Json<CreateAppCredentialResponseBody>), HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
 
   // Verify the request body.
-  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &postgres_client).await.ok();
   let app_credential_properties_json = match body {
 
     Ok(app_credential_properties_json) => app_credential_properties_json,
@@ -166,7 +166,7 @@ async fn handle_create_app_credential_request(
 
       };
       
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -174,11 +174,11 @@ async fn handle_create_app_credential_request(
   };
 
   // Make sure the authenticated_user can create access policies for the target action.
-  let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
-  let create_app_credentials_action = get_action_from_name("slashstep.appCredentials.create", &http_transaction, &mut postgres_client).await?;
+  let target_app = get_app_from_id(&app_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &postgres_client).await?;
+  let create_app_credentials_action = get_action_from_name("slashstep.appCredentials.create", &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &create_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &create_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
 
   // Create the key pair.
   let mut os_rng = OsRng;
@@ -190,7 +190,7 @@ async fn handle_create_app_credential_request(
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to create authenticated_app credential: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -205,7 +205,7 @@ async fn handle_create_app_credential_request(
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to create authenticated_app credential: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -213,7 +213,7 @@ async fn handle_create_app_credential_request(
   };
 
   // Create the authenticated_app credential.
-  ServerLogEntry::trace(&format!("Creating authenticated_app credential for authenticated_app {}...", target_app.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace(&format!("Creating authenticated_app credential for authenticated_app {}...", target_app.id), Some(&http_transaction.id), &postgres_client).await.ok();
 
   let created_app_credential = match AppCredential::create(&InitialAppCredentialProperties {
     app_id: target_app.id,
@@ -221,14 +221,14 @@ async fn handle_create_app_credential_request(
     expiration_date: app_credential_properties_json.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())),
     creation_ip_address: http_transaction.ip_address.clone(),
     public_key: public_key.clone()
-  }, &mut postgres_client).await {
+  }, &postgres_client).await {
 
     Ok(created_app_credential) => created_app_credential,
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to create authenticated_app credential: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error)
 
     }
@@ -253,8 +253,8 @@ async fn handle_create_app_credential_request(
     target_resource_type: ActionLogEntryTargetResourceType::AppCredential,
     target_app_credential_id: Some(created_app_credential.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
-  ServerLogEntry::success(&format!("Successfully created authenticated_app credential {}.", created_app_credential.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully created authenticated_app credential {}.", created_app_credential.id), Some(&http_transaction.id), &postgres_client).await.ok();
 
   return Ok((StatusCode::CREATED, Json(create_app_credential_response_body)));
 

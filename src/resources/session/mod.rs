@@ -81,7 +81,7 @@ impl Session {
   }
 
   /// Initializes the sessions table.
-  pub async fn initialize_sessions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), SessionError> {
+  pub async fn initialize_sessions_table(postgres_client: &deadpool_postgres::Client) -> Result<(), SessionError> {
 
     let query = include_str!("../../queries/sessions/initialize-sessions-table.sql");
     postgres_client.execute(query, &[]).await?;
@@ -93,7 +93,7 @@ impl Session {
 
   }
 
-  pub async fn create<'a>(properties: &InitialSessionProperties<'a>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, SessionError> {
+  pub async fn create<'a>(properties: &InitialSessionProperties<'a>, postgres_client: &deadpool_postgres::Client) -> Result<Self, SessionError> {
 
     let query = include_str!("../../queries/sessions/insert-session-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -114,7 +114,7 @@ impl Session {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Session, SessionError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Session, SessionError> {
 
     let query = include_str!("../../queries/sessions/get-session-row-by-id.sql");
     let row = match postgres_client.query_one(query, &[&id]).await {

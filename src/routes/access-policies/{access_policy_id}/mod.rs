@@ -15,10 +15,10 @@ use reqwest::StatusCode;
 use uuid::Uuid;
 use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, EditableAccessPolicyProperties, ResourceHierarchy}, action::Action, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::{self, ResourceHierarchyError}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_name, get_authenticated_principal, map_postgres_error_to_http_error, verify_principal_permissions}}};
 
-async fn get_resource_hierarchy(access_policy: &AccessPolicy, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<ResourceHierarchy, HTTPError> {
+async fn get_resource_hierarchy(access_policy: &AccessPolicy, http_transaction: &HTTPTransaction, postgres_client: &deadpool_postgres::Client) -> Result<ResourceHierarchy, HTTPError> {
 
-  ServerLogEntry::trace(&format!("Getting resource hierarchy for access policy {}...", access_policy.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&access_policy.scoped_resource_type, &access_policy.get_scoped_resource_id(), &mut postgres_client).await {
+  ServerLogEntry::trace(&format!("Getting resource hierarchy for access policy {}...", access_policy.id), Some(&http_transaction.id), &postgres_client).await.ok();
+  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&access_policy.scoped_resource_type, &access_policy.get_scoped_resource_id(), &postgres_client).await {
 
     Ok(resource_hierarchy) => resource_hierarchy,
 
@@ -27,8 +27,8 @@ async fn get_resource_hierarchy(access_policy: &AccessPolicy, http_transaction: 
       let http_error = match error {
         ResourceHierarchyError::ScopedResourceIDMissingError(scoped_resource_type) => {
 
-          ServerLogEntry::trace(&format!("Deleting orphaned access policy {}...", access_policy.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
-          let http_error = match access_policy.delete(&mut postgres_client).await {
+          ServerLogEntry::trace(&format!("Deleting orphaned access policy {}...", access_policy.id), Some(&http_transaction.id), &postgres_client).await.ok();
+          let http_error = match access_policy.delete(&postgres_client).await {
 
             Ok(_) => HTTPError::GoneError(Some(format!("The {} resource has been deleted because it was orphaned.", scoped_resource_type))),
 
@@ -36,13 +36,13 @@ async fn get_resource_hierarchy(access_policy: &AccessPolicy, http_transaction: 
 
           };
           
-          http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+          http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
           return Err(http_error);
 
         },
         _ => HTTPError::InternalServerError(Some(error.to_string()))
       };
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -53,7 +53,7 @@ async fn get_resource_hierarchy(access_policy: &AccessPolicy, http_transaction: 
 
 }
 
-async fn get_access_policy(access_policy_id: &str, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<AccessPolicy, HTTPError> {
+async fn get_access_policy(access_policy_id: &str, http_transaction: &HTTPTransaction, postgres_client: &deadpool_postgres::Client) -> Result<AccessPolicy, HTTPError> {
 
   let access_policy_id = match Uuid::parse_str(&access_policy_id) {
 
@@ -62,16 +62,16 @@ async fn get_access_policy(access_policy_id: &str, http_transaction: &HTTPTransa
     Err(_) => {
 
       let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the access policy ID.".to_string()));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  ServerLogEntry::trace(&format!("Getting access policy {}...", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace(&format!("Getting access policy {}...", access_policy_id), Some(&http_transaction.id), &postgres_client).await.ok();
   
-  let access_policy = match AccessPolicy::get_by_id(&access_policy_id, &mut postgres_client).await {
+  let access_policy = match AccessPolicy::get_by_id(&access_policy_id, &postgres_client).await {
 
     Ok(access_policy) => access_policy,
 
@@ -91,7 +91,7 @@ async fn get_access_policy(access_policy_id: &str, http_transaction: &HTTPTransa
         }
         _ => HTTPError::InternalServerError(Some(error.to_string()))
       };
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &postgres_client).await.ok();
 
       return Err(http_error);
 
@@ -103,7 +103,7 @@ async fn get_access_policy(access_policy_id: &str, http_transaction: &HTTPTransa
 
 }
 
-async fn get_action_from_id(action_id: &Uuid, http_transaction: &HTTPTransaction, mut postgres_client: &mut deadpool_postgres::Client) -> Result<Action, HTTPError> {
+async fn get_action_from_id(action_id: &Uuid, http_transaction: &HTTPTransaction, postgres_client: &deadpool_postgres::Client) -> Result<Action, HTTPError> {
 
   ServerLogEntry::trace(&format!("Getting action {}", action_id), Some(&http_transaction.id), postgres_client).await.ok();
   let action = match Action::get_by_id(action_id, postgres_client).await {
@@ -113,7 +113,7 @@ async fn get_action_from_id(action_id: &Uuid, http_transaction: &HTTPTransaction
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to get action {}: {:?}", action_id, error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -137,14 +137,14 @@ async fn handle_get_access_policy_request(
 ) -> Result<Json<AccessPolicy>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &mut postgres_client).await?;
-  let action = get_action_from_name("slashstep.accessPolicies.get", &http_transaction, &mut postgres_client).await?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &postgres_client).await?;
+  let action = get_action_from_name("slashstep.accessPolicies.get", &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
   
-  ServerLogEntry::success(&format!("Successfully returned access policy {}.", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully returned access policy {}.", access_policy_id), Some(&http_transaction.id), &postgres_client).await.ok();
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: action.id,
     http_transaction_id: Some(http_transaction.id),
@@ -154,7 +154,7 @@ async fn handle_get_access_policy_request(
     target_resource_type: ActionLogEntryTargetResourceType::AccessPolicy,
     target_access_policy_id: Some(access_policy.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
 
   return Ok(Json(access_policy));
 
@@ -174,9 +174,9 @@ async fn handle_patch_access_policy_request(
 ) -> Result<Json<AccessPolicy>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
 
-  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &postgres_client).await.ok();
   let updated_access_policy_properties = match body {
 
     Ok(updated_access_policy_properties) => updated_access_policy_properties,
@@ -197,20 +197,20 @@ async fn handle_patch_access_policy_request(
 
       };
       
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
 
   };
 
-  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &mut postgres_client).await?;
-  let update_access_policy_action = get_action_from_name("slashstep.accessPolicies.update", &http_transaction, &mut postgres_client).await?;
+  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &postgres_client).await?;
+  let update_access_policy_action = get_action_from_name("slashstep.accessPolicies.update", &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
 
-  let access_policy_action = get_action_from_id(&access_policy.action_id, &http_transaction, &mut postgres_client).await?;
+  let access_policy_action = get_action_from_id(&access_policy.action_id, &http_transaction, &postgres_client).await?;
   let minimum_permission_level = match updated_access_policy_properties.permission_level {
 
     Some(permission_level) => if permission_level > AccessPolicyPermissionLevel::Editor { permission_level } else { AccessPolicyPermissionLevel::Editor },
@@ -218,17 +218,17 @@ async fn handle_patch_access_policy_request(
     None => AccessPolicyPermissionLevel::Editor
 
   };
-  verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &postgres_client).await?;
 
-  ServerLogEntry::trace(&format!("Updating access policy {}...", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let access_policy = match access_policy.update(&updated_access_policy_properties, &mut postgres_client).await {
+  ServerLogEntry::trace(&format!("Updating access policy {}...", access_policy_id), Some(&http_transaction.id), &postgres_client).await.ok();
+  let access_policy = match access_policy.update(&updated_access_policy_properties, &postgres_client).await {
 
     Ok(access_policy) => access_policy,
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update access policy: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -244,9 +244,9 @@ async fn handle_patch_access_policy_request(
     target_resource_type: ActionLogEntryTargetResourceType::AccessPolicy,
     target_access_policy_id: Some(access_policy.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
 
-  ServerLogEntry::success(&format!("Successfully updated access policy {}.", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully updated access policy {}.", access_policy_id), Some(&http_transaction.id), &postgres_client).await.ok();
 
   return Ok(Json(access_policy));
 
@@ -265,24 +265,24 @@ async fn handle_delete_access_policy_request(
 ) -> Result<StatusCode, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &mut postgres_client).await?;
-  let delete_access_policy_action = get_action_from_name("slashstep.accessPolicies.delete", &http_transaction, &mut postgres_client).await?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &postgres_client).await?;
+  let delete_access_policy_action = get_action_from_name("slashstep.accessPolicies.delete", &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &delete_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &delete_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
 
-  let access_policy_action = get_action_from_id(&access_policy.action_id, &http_transaction, &mut postgres_client).await?;
-  verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::Editor, &mut postgres_client).await?;
+  let access_policy_action = get_action_from_id(&access_policy.action_id, &http_transaction, &postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::Editor, &postgres_client).await?;
 
-  match access_policy.delete(&mut postgres_client).await {
+  match access_policy.delete(&postgres_client).await {
 
     Ok(_) => {},
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete access policy: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -298,8 +298,8 @@ async fn handle_delete_access_policy_request(
     target_resource_type: ActionLogEntryTargetResourceType::AccessPolicy,
     target_access_policy_id: Some(access_policy.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
-  ServerLogEntry::success(&format!("Successfully deleted access policy {}.", access_policy_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully deleted access policy {}.", access_policy_id), Some(&http_transaction.id), &postgres_client).await.ok();
 
   return Ok(StatusCode::NO_CONTENT);
 

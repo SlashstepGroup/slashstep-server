@@ -1,7 +1,7 @@
 use crate::resources::{ResourceError, action::{Action, ActionParentResourceType, InitialActionProperties}, role::{InitialRoleProperties, Role, RoleError}};
 use colored::Colorize;
 
-pub async fn initialize_predefined_actions(postgres_client: &mut deadpool_postgres::Client) -> Result<Vec<Action>, ResourceError> {
+pub async fn initialize_predefined_actions(postgres_client: &deadpool_postgres::Client) -> Result<Vec<Action>, ResourceError> {
 
   println!("{}", "Initializing predefined actions...".dimmed());
 
@@ -205,7 +205,7 @@ pub async fn initialize_predefined_actions(postgres_client: &mut deadpool_postgr
 
 }
 
-pub async fn initialize_predefined_roles(postgres_client: &mut deadpool_postgres::Client) -> Result<Vec<Role>, RoleError> {
+pub async fn initialize_predefined_roles(postgres_client: &deadpool_postgres::Client) -> Result<Vec<Role>, RoleError> {
 
   println!("{}", "Initializing predefined roles...".dimmed());
 

@@ -93,7 +93,7 @@ pub struct InitialRoleMembershipProperties<'a> {
 
 impl RoleMembership {
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, RoleMembershipError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, RoleMembershipError> {
 
     let query = include_str!("../../queries/role-memberships/get-role-membership-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -129,7 +129,7 @@ impl RoleMembership {
 
   }
 
-  pub async fn initialize_role_memberships_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), RoleMembershipError> {
+  pub async fn initialize_role_memberships_table(postgres_client: &deadpool_postgres::Client) -> Result<(), RoleMembershipError> {
 
     let query = include_str!("../../queries/role-memberships/initialize-role-memberships-table.sql");
     postgres_client.execute(query, &[]).await?;
@@ -199,7 +199,7 @@ impl RoleMembership {
 
   }
 
-  pub async fn list(filter: &str, postgres_client: &mut deadpool_postgres::Client) -> Result<Vec<Self>, RoleMembershipError> {
+  pub async fn list(filter: &str, postgres_client: &deadpool_postgres::Client) -> Result<Vec<Self>, RoleMembershipError> {
                             
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -225,7 +225,7 @@ impl RoleMembership {
 
   }
 
-  pub async fn create<'a>(initial_properties: &InitialRoleMembershipProperties<'a>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, RoleMembershipError> {
+  pub async fn create<'a>(initial_properties: &InitialRoleMembershipProperties<'a>, postgres_client: &deadpool_postgres::Client) -> Result<Self, RoleMembershipError> {
 
     let query = include_str!("../../queries/role-memberships/insert-role-membership-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[

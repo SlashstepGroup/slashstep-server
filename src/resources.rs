@@ -47,5 +47,5 @@ pub enum ResourceError {
 }
 
 pub trait DeletableResource {
-  fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> impl Future<Output = Result<(), ResourceError>>;
+  fn delete(&self, postgres_client: &deadpool_postgres::Client) -> impl Future<Output = Result<(), ResourceError>>;
 }

@@ -66,7 +66,7 @@ impl Role {
 
   }
 
-  pub async fn create(initial_properties: &InitialRoleProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, RoleError> {
+  pub async fn create(initial_properties: &InitialRoleProperties, postgres_client: &deadpool_postgres::Client) -> Result<Self, RoleError> {
 
     let query = include_str!("../../queries/roles/insert-role-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -99,7 +99,7 @@ impl Role {
 
   }
 
-  pub async fn get_by_name(name: &str, postgres_client: &mut deadpool_postgres::Client) -> Result<Role, RoleError> {
+  pub async fn get_by_name(name: &str, postgres_client: &deadpool_postgres::Client) -> Result<Role, RoleError> {
 
     let query = include_str!("../../queries/roles/get-role-row-by-name.sql");
     let row = match postgres_client.query_opt(query, &[&name]).await {
@@ -122,7 +122,7 @@ impl Role {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Role, RoleError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Role, RoleError> {
 
     let query = include_str!("../../queries/roles/get-role-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -146,7 +146,7 @@ impl Role {
   }
 
   /// Initializes the roles table.
-  pub async fn initialize_roles_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), RoleError> {
+  pub async fn initialize_roles_table(postgres_client: &deadpool_postgres::Client) -> Result<(), RoleError> {
 
     let query = include_str!("../../queries/roles/initialize-roles-table.sql");
     postgres_client.execute(query, &[]).await?;

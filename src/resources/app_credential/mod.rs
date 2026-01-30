@@ -81,7 +81,7 @@ pub struct InitialAppCredentialPropertiesForPredefinedScope {
 impl AppCredential {
 
   /// Initializes the app_credentials table.
-  pub async fn initialize_app_credentials_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  pub async fn initialize_app_credentials_table(postgres_client: &deadpool_postgres::Client) -> Result<(), ResourceError> {
 
     let query = include_str!("../../queries/app-credentials/initialize-app-credentials-table.sql");
     postgres_client.execute(query, &[]).await?;
@@ -103,7 +103,7 @@ impl AppCredential {
   }
 
   /// Counts the number of app credentials based on a query.
-  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, postgres_client: &deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -126,7 +126,7 @@ impl AppCredential {
 
   }
 
-  pub async fn create(initial_properties: &InitialAppCredentialProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialAppCredentialProperties, postgres_client: &deadpool_postgres::Client) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/app-credentials/insert-app-credential-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -149,7 +149,7 @@ impl AppCredential {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/app-credentials/get-app-credential-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -173,7 +173,7 @@ impl AppCredential {
   }
 
   /// Returns a list of app credentials based on a query.
-  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, postgres_client: &deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {

@@ -268,7 +268,7 @@ pub struct InitialActionLogEntryProperties {
 impl ActionLogEntry {
 
   /// Gets an action log entry by its ID.
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/action_log_entries/get_action_log_entry_row_by_id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -327,7 +327,7 @@ impl ActionLogEntry {
   }
 
   /// Counts the number of action log entries based on a query.
-  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, postgres_client: &deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -351,7 +351,7 @@ impl ActionLogEntry {
   }
 
   /// Creates a new action log entry.
-  pub async fn create(initial_properties: &InitialActionLogEntryProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialActionLogEntryProperties, postgres_client: &deadpool_postgres::Client) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/action_log_entries/insert_action_log_entry_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -391,7 +391,7 @@ impl ActionLogEntry {
   }
   
   /// Initializes the action_log_entries table.
-  pub async fn initialize_action_log_entries_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  pub async fn initialize_action_log_entries_table(postgres_client: &deadpool_postgres::Client) -> Result<(), ResourceError> {
 
     let query = include_str!("../../queries/action_log_entries/initialize_action_log_entries_table.sql");
     postgres_client.execute(query, &[]).await?;
@@ -400,7 +400,7 @@ impl ActionLogEntry {
   }
 
   /// Returns a list of action log entries based on a query.
-  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, postgres_client: &deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -446,7 +446,7 @@ impl ActionLogEntry {
 impl DeletableResource for ActionLogEntry {
 
   /// Deletes this action log entry.
-  async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  async fn delete(&self, postgres_client: &deadpool_postgres::Client) -> Result<(), ResourceError> {
 
     let query = include_str!("../../queries/action_log_entries/delete_action_log_entry_row.sql");
     postgres_client.execute(query, &[&self.id]).await?;

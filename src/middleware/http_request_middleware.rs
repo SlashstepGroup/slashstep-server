@@ -20,7 +20,7 @@ pub async fn create_http_request(
   let headers_json_string: serde_json::Value = format!("{:?}", safe_headers).into();
 
   // Create the HTTP request and add it to the request extension.
-  let mut postgres_client = state.database_pool.get().await.map_err(handle_pool_error)?;
+  let postgres_client = state.database_pool.get().await.map_err(handle_pool_error)?;
 
   let http_transaction = match HTTPTransaction::create(&InitialHTTPTransactionProperties {
     method,
@@ -29,7 +29,7 @@ pub async fn create_http_request(
     headers: headers_json_string.to_string(),
     status_code: None,
     expiration_date: Some(Utc::now() + Duration::days(30))
-  }, &mut postgres_client).await {
+  }, &postgres_client).await {
 
     Ok(http_request) => Arc::new(http_request),
 
@@ -50,7 +50,7 @@ pub async fn create_http_request(
         }
 
       };
-      ServerLogEntry::from_http_error(&http_error, None, &mut postgres_client).await.ok();
+      ServerLogEntry::from_http_error(&http_error, None, &postgres_client).await.ok();
       return Err(http_error.into_response());
 
     }
@@ -59,7 +59,7 @@ pub async fn create_http_request(
 
   request.extensions_mut().insert(http_transaction.clone());
   
-  ServerLogEntry::info(&format!("HTTP request handling started."), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::info(&format!("HTTP request handling started."), Some(&http_transaction.id), &postgres_client).await.ok();
   let response = next.run(request).await;
   return Ok(response);
 

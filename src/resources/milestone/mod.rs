@@ -72,7 +72,7 @@ pub struct InitialMilestoneProperties {
 impl Milestone {
 
   /// Initializes the milestones table.
-  pub async fn initialize_milestones_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), MilestoneError> {
+  pub async fn initialize_milestones_table(postgres_client: &deadpool_postgres::Client) -> Result<(), MilestoneError> {
 
     let query = include_str!("../../queries/milestones/initialize-milestones-table.sql");
     postgres_client.execute(query, &[]).await?;
@@ -94,7 +94,7 @@ impl Milestone {
 
   }
 
-  pub async fn create(initial_properties: &InitialMilestoneProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, MilestoneError> {
+  pub async fn create(initial_properties: &InitialMilestoneProperties, postgres_client: &deadpool_postgres::Client) -> Result<Self, MilestoneError> {
 
     let query = include_str!("../../queries/milestones/insert-milestone-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -126,7 +126,7 @@ impl Milestone {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, MilestoneError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, MilestoneError> {
 
     let query = include_str!("../../queries/milestones/get-milestone-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {

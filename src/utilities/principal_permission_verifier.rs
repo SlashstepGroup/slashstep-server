@@ -25,7 +25,7 @@ pub struct PrincipalPermissionVerifier;
 
 impl PrincipalPermissionVerifier {
 
-  pub async fn verify_permissions(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, minimum_permission_level: &AccessPolicyPermissionLevel, postgres_client: &mut deadpool_postgres::Client) -> Result<(), PrincipalPermissionVerifierError> {
+  pub async fn verify_permissions(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, minimum_permission_level: &AccessPolicyPermissionLevel, postgres_client: &deadpool_postgres::Client) -> Result<(), PrincipalPermissionVerifierError> {
 
     let relevant_access_policies = AccessPolicy::list_by_hierarchy(principal, action_id, resource_hierarchy, postgres_client).await?;
     let deepest_access_policy = match relevant_access_policies.first() {

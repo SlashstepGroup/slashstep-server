@@ -1,4 +1,3 @@
-use std::{sync::Arc};
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
 use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePublicKey, spki::der::pem::LineEnding}};
@@ -98,7 +97,7 @@ pub enum TestSlashstepServerError {
 
 pub struct TestEnvironment {
 
-  pub postgres_pool: Arc<deadpool_postgres::Pool>,
+  pub postgres_pool: deadpool_postgres::Pool,
 
   // This is required to prevent the compiler from complaining about unused fields.
   // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
@@ -133,7 +132,7 @@ impl TestEnvironment {
     let postgres_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT as usize).build()?;
 
     let environment = TestEnvironment {
-      postgres_pool: Arc::new(postgres_pool),
+      postgres_pool: postgres_pool,
       postgres_container: postgres_container
     };
 
@@ -154,9 +153,9 @@ impl TestEnvironment {
       parent_user_id: None
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
+    let postgres_client = self.postgres_pool.get().await?;
 
-    let app = App::create(&app_properties, &mut postgres_client).await?;
+    let app = App::create(&app_properties, &postgres_client).await?;
 
     return Ok(app);
 
@@ -172,9 +171,9 @@ impl TestEnvironment {
       parent_resource_type: if parent_app_id.is_some() { ActionParentResourceType::App } else { ActionParentResourceType::Instance }
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
+    let postgres_client = self.postgres_pool.get().await?;
 
-    let action = Action::create(&action_properties, &mut postgres_client).await?;
+    let action = Action::create(&action_properties, &postgres_client).await?;
 
     return Ok(action);
 
@@ -198,9 +197,9 @@ impl TestEnvironment {
       public_key: public_key.clone()
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
+    let postgres_client = self.postgres_pool.get().await?;
 
-    let app_credential = AppCredential::create(&app_credential_properties, &mut postgres_client).await?;
+    let app_credential = AppCredential::create(&app_credential_properties, &postgres_client).await?;
 
     return Ok(app_credential);
 
@@ -211,7 +210,7 @@ impl TestEnvironment {
     let action = self.create_random_action(&None).await?;
     let user = self.create_random_user().await?;
 
-    let mut postgres_client = self.postgres_pool.get().await?;
+    let postgres_client = self.postgres_pool.get().await?;
 
     let action_log_entry_properties = InitialActionLogEntryProperties {
       action_id: action.id,
@@ -219,7 +218,7 @@ impl TestEnvironment {
       ..Default::default()
     };
 
-    let action_log_entry = ActionLogEntry::create(&action_log_entry_properties, &mut postgres_client).await?;
+    let action_log_entry = ActionLogEntry::create(&action_log_entry_properties, &postgres_client).await?;
 
     return Ok(action_log_entry);
 
@@ -235,9 +234,9 @@ impl TestEnvironment {
       ip_address: None
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
+    let postgres_client = self.postgres_pool.get().await?;
 
-    let user = User::create(&user_properties, &mut postgres_client).await?;
+    let user = User::create(&user_properties, &postgres_client).await?;
 
     return Ok(user);
 
@@ -253,9 +252,9 @@ impl TestEnvironment {
       creation_ip_address: &local_ip
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
+    let postgres_client = self.postgres_pool.get().await?;
 
-    let session = Session::create(&session_properties, &mut postgres_client).await?;
+    let session = Session::create(&session_properties, &postgres_client).await?;
 
     return Ok(session);
 
@@ -275,9 +274,9 @@ impl TestEnvironment {
       ..Default::default()
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
+    let postgres_client = self.postgres_pool.get().await?;
 
-    let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
+    let access_policy = AccessPolicy::create(&access_policy_properties, &postgres_client).await?;
 
     return Ok(access_policy);
 

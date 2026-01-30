@@ -60,7 +60,7 @@ pub enum HTTPTransactionError {
 
 impl HTTPTransaction {
 
-  pub async fn create(properties: &InitialHTTPTransactionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, HTTPTransactionError> {
+  pub async fn create(properties: &InitialHTTPTransactionProperties, postgres_client: &deadpool_postgres::Client) -> Result<Self, HTTPTransactionError> {
 
     let query = include_str!("../../queries/http-transactions/insert-http-transaction-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -87,7 +87,7 @@ impl HTTPTransaction {
 
   }
 
-  pub async fn initialize_http_transactions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), HTTPTransactionError> {
+  pub async fn initialize_http_transactions_table(postgres_client: &deadpool_postgres::Client) -> Result<(), HTTPTransactionError> {
 
     let query = include_str!("../../queries/http-transactions/create-http-transactions-table.sql");
     postgres_client.execute(query, &[]).await?;

@@ -40,7 +40,7 @@ pub struct AppAuthorization {
 
 impl AppAuthorization {
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, AppAuthorizationError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, AppAuthorizationError> {
 
     let query = include_str!("../../queries/app-authorizations/get-app-authorization-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -76,7 +76,7 @@ impl AppAuthorization {
   }
 
   /// Initializes the app_authorizations table.
-  pub async fn initialize_app_authorizations_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), AppAuthorizationError> {
+  pub async fn initialize_app_authorizations_table(postgres_client: &deadpool_postgres::Client) -> Result<(), AppAuthorizationError> {
 
     let query = include_str!("../../queries/app-authorizations/initialize-app-authorizations-table.sql");
     postgres_client.execute(query, &[]).await?;

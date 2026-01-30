@@ -91,7 +91,7 @@ impl App {
   }
 
   /// Initializes the apps table.
-  pub async fn initialize_apps_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  pub async fn initialize_apps_table(postgres_client: &deadpool_postgres::Client) -> Result<(), ResourceError> {
 
     let query = include_str!("../../queries/apps/initialize-apps-table.sql");
     postgres_client.execute(query, &[]).await?;
@@ -116,7 +116,7 @@ impl App {
   }
 
   /// Counts the number of apps based on a query.
-  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, postgres_client: &deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -140,7 +140,7 @@ impl App {
   }
 
   /// Creates a new app.
-  pub async fn create(initial_properties: &InitialAppProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialAppProperties, postgres_client: &deadpool_postgres::Client) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/apps/insert-app-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -175,7 +175,7 @@ impl App {
   }
 
   /// Gets an app by its ID.
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/apps/get-app-row-by-id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -199,7 +199,7 @@ impl App {
   }
 
   /// Returns a list of apps based on a query.
-  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, postgres_client: &deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -241,7 +241,7 @@ impl App {
   }
 
   /// Updates this app and returns a new instance of the app.
-  pub async fn update(&self, properties: &EditableAppProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn update(&self, properties: &EditableAppProperties, postgres_client: &deadpool_postgres::Client) -> Result<Self, ResourceError> {
 
     let query = String::from("UPDATE apps SET ");
     let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
@@ -268,7 +268,7 @@ impl App {
 impl DeletableResource for App {
 
   /// Deletes this app.
-  async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  async fn delete(&self, postgres_client: &deadpool_postgres::Client) -> Result<(), ResourceError> {
 
     let query = include_str!("../../queries/apps/delete-app-row-by-id.sql");
     postgres_client.execute(query, &[&self.id]).await?;

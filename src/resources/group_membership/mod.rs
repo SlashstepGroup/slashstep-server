@@ -47,7 +47,7 @@ pub struct GroupMembership {
 
 impl GroupMembership {
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, GroupMembershipError> {
+  pub async fn get_by_id(id: &Uuid, postgres_client: &deadpool_postgres::Client) -> Result<Self, GroupMembershipError> {
 
     let query = include_str!("../../queries/group_memberships/get_group_membership_row_by_id.sql");
     let row = match postgres_client.query_opt(query, &[&id]).await {
@@ -85,7 +85,7 @@ impl GroupMembership {
   }
 
   /// Initializes the app_authorizations table.
-  pub async fn initialize_app_authorizations_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), GroupMembershipError> {
+  pub async fn initialize_app_authorizations_table(postgres_client: &deadpool_postgres::Client) -> Result<(), GroupMembershipError> {
 
     let query = include_str!("../../queries/group_memberships/initialize_group_memberships_table.sql");
     postgres_client.execute(query, &[]).await?;

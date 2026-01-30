@@ -29,9 +29,9 @@ async fn handle_list_access_policies_request(
 ) -> Result<ErasedJson, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
-  let action = get_action_from_id(&action_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&action, &AccessPolicyResourceType::Action, &action.id, &http_transaction, &mut postgres_client).await?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let action = get_action_from_id(&action_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&action, &AccessPolicyResourceType::Action, &action.id, &http_transaction, &postgres_client).await?;
 
   let query = format!(
     "scoped_resource_type = 'Action' AND scoped_action_id = {}{}", 
@@ -61,10 +61,10 @@ async fn handle_create_access_policy_request(
 ) -> Result<Json<AccessPolicy>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
+  let postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
 
   // Verify the request body.
-  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &postgres_client).await.ok();
   let access_policy_properties_json = match body {
 
     Ok(access_policy_properties_json) => access_policy_properties_json,
@@ -85,7 +85,7 @@ async fn handle_create_access_policy_request(
 
       };
       
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error);
 
     }
@@ -93,19 +93,19 @@ async fn handle_create_access_policy_request(
   };
 
   // Make sure the user can create access policies for the target action.
-  let target_action = get_action_from_id(&action_id, &http_transaction, &mut postgres_client).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_action, &AccessPolicyResourceType::Action, &target_action.id, &http_transaction, &mut postgres_client).await?;
-  let create_access_policies_action = get_action_from_name("slashstep.accessPolicies.create", &http_transaction, &mut postgres_client).await?;
+  let target_action = get_action_from_id(&action_id, &http_transaction, &postgres_client).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_action, &AccessPolicyResourceType::Action, &target_action.id, &http_transaction, &postgres_client).await?;
+  let create_access_policies_action = get_action_from_name("slashstep.accessPolicies.create", &http_transaction, &postgres_client).await?;
   let authenticated_principal = get_authenticated_principal(&user, &app)?;
-  verify_principal_permissions(&authenticated_principal, &create_access_policies_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &create_access_policies_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &postgres_client).await?;
 
   // Make sure the user has at least editor access to the access policy's action.
-  let access_policy_action = get_action_from_id(&access_policy_properties_json.action_id.to_string(), &http_transaction, &mut postgres_client).await?;
+  let access_policy_action = get_action_from_id(&access_policy_properties_json.action_id.to_string(), &http_transaction, &postgres_client).await?;
   let minimum_permission_level = if access_policy_properties_json.permission_level > AccessPolicyPermissionLevel::Editor { access_policy_properties_json.permission_level } else { AccessPolicyPermissionLevel::Editor };
-  verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &postgres_client).await?;
 
   // Create the access policy.
-  ServerLogEntry::trace(&format!("Creating access policy for action {}...", action_id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  ServerLogEntry::trace(&format!("Creating access policy for action {}...", action_id), Some(&http_transaction.id), &postgres_client).await.ok();
   let access_policy = match AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: access_policy_properties_json.action_id,
     permission_level: access_policy_properties_json.permission_level,
@@ -118,14 +118,14 @@ async fn handle_create_access_policy_request(
     scoped_resource_type: AccessPolicyResourceType::Action,
     scoped_action_id: Some(target_action.id),
     ..Default::default()
-  }, &mut postgres_client).await {
+  }, &postgres_client).await {
 
     Ok(access_policy) => access_policy,
 
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to create access policy: {:?}", error)));
-      http_error.print_and_save(Some(&http_transaction.id), &mut postgres_client).await.ok();
+      http_error.print_and_save(Some(&http_transaction.id), &postgres_client).await.ok();
       return Err(http_error)
 
     }
@@ -141,8 +141,8 @@ async fn handle_create_access_policy_request(
     target_resource_type: ActionLogEntryTargetResourceType::AccessPolicy,
     target_access_policy_id: Some(access_policy.id),
     ..Default::default()
-  }, &mut postgres_client).await.ok();
-  ServerLogEntry::success(&format!("Successfully created access policy {}.", access_policy.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
+  }, &postgres_client).await.ok();
+  ServerLogEntry::success(&format!("Successfully created access policy {}.", access_policy.id), Some(&http_transaction.id), &postgres_client).await.ok();
 
   return Ok(Json(access_policy));
 
