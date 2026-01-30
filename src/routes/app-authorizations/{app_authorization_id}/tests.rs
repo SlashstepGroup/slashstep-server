@@ -268,7 +268,7 @@ async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), Test
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
-  // Create a dummy action.
+  // Create dummy resources.
   let app_authorization = test_environment.create_random_app_authorization(&None).await?;
 
   // Set up the server and send the request.
@@ -288,41 +288,41 @@ async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), Test
 
 }
 
-// /// Verifies that the router can return a 403 status code if the user does not have permission to delete the action.
-// #[tokio::test]
-// async fn verify_permission_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
+#[tokio::test]
+async fn verify_permission_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
-//   // Create a dummy action.
-//   let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+  // Create dummy resources.
+  let app_authorization = test_environment.create_random_app_authorization(&None).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-authorizations/{}", app_authorization.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.delete(&format!("/app-authorizations/{}", app_authorization.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), 403);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), 403);
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 404 status code if the action does not exist.
 // #[tokio::test]
