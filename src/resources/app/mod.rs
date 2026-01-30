@@ -144,7 +144,7 @@ impl App {
   /// Creates a new app.
   pub async fn create(initial_properties: &InitialAppProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
-    let query = include_str!("../../queries/apps/insert_app_row.sql");
+    let query = include_str!("../../queries/apps/insert_app_row_by_id.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.name,
       &initial_properties.display_name,

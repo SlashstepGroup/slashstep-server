@@ -1,4 +1,4 @@
-use crate::resources::{ResourceError, action::{Action, ActionParentResourceType, InitialActionProperties}, role::{InitialRoleProperties, Role}};
+use crate::resources::{ResourceError, action::{Action, InitialActionProperties}, role::{InitialRoleProperties, Role}};
 use colored::Colorize;
 
 pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Pool) -> Result<Vec<Action>, ResourceError> {
@@ -10,148 +10,133 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       name: "slashstep.accessPolicies.get".to_string(),
       display_name: "Get access policies".to_string(),
       description: "Get a specific access policy on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.accessPolicies.list".to_string(),
       display_name: "List access policies".to_string(),
       description: "List all access policies on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.accessPolicies.create".to_string(),
       display_name: "Create access policies".to_string(),
       description: "Create new access policy on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.accessPolicies.update".to_string(),
       display_name: "Update access policies".to_string(),
       description: "Update access policies on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.accessPolicies.delete".to_string(),
       display_name: "Delete access policies".to_string(),
       description: "Delete access policies on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.actions.get".to_string(),
       display_name: "Get actions".to_string(),
       description: "Get specific access policies on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.actions.list".to_string(),
       display_name: "List actions".to_string(),
       description: "List all actions on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.actions.delete".to_string(),
       display_name: "Delete actions".to_string(),
       description: "Delete actions on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance 
+      ..Default::default() 
     },
     InitialActionProperties {
       name: "slashstep.actions.update".to_string(),
       display_name: "Update actions".to_string(),
       description: "Update actions on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.actionLogEntries.get".to_string(),
       display_name: "Get action log entries".to_string(),
       description: "Get a specific action log entry on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.actionLogEntries.delete".to_string(),
       display_name: "Delete action log entries".to_string(),
       description: "Delete action log entries on a particular scope. This can be a dangerous action to grant permissions for, as it can affect auditing.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.actionLogEntries.list".to_string(),
       display_name: "List action log entries".to_string(),
       description: "List all action log entries on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.apps.get".to_string(),
       display_name: "Get apps".to_string(),
       description: "Get an app on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.apps.list".to_string(),
       display_name: "List apps".to_string(),
       description: "List all apps on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.apps.update".to_string(),
       display_name: "Update apps".to_string(),
       description: "Update apps on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.apps.delete".to_string(),
       display_name: "Delete apps".to_string(),
       description: "Delete apps on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.actions.create".to_string(),
       display_name: "Create actions".to_string(),
       description: "Create new actions on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.appCredentials.create".to_string(),
       display_name: "Create app credentials".to_string(),
       description: "Create new app credentials on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.appCredentials.get".to_string(),
       display_name: "Get app credentials".to_string(),
       description: "Get an app credential on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.appCredentials.list".to_string(),
       display_name: "List app credentials".to_string(),
       description: "List all app credentials on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
     },
     InitialActionProperties {
       name: "slashstep.appAuthorizations.get".to_string(),
       display_name: "Get an app authorization".to_string(),
       description: "Get an app authorization on a particular scope.".to_string(),
-      parent_app_id: None,
-      parent_resource_type: ActionParentResourceType::Instance
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.appAuthorizations.list".to_string(),
+      display_name: "List app authorizations".to_string(),
+      description: "List all app authorizations on a particular scope.".to_string(),
+      ..Default::default()
     }
   ];
 
