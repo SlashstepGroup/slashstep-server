@@ -75,30 +75,30 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   
 }
 
-// /// Verifies that the router can return a 400 if the action ID is not a UUID.
-// #[tokio::test]
-// async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 if the resource ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
 
-//   let response = test_server.get("/app-authorizations/not-a-uuid")
-//     .await;
+  let response = test_server.get("/app-authorizations/not-a-uuid")
+    .await;
   
-//   assert_eq!(response.status_code(), 400);
-//   return Ok(());
+  assert_eq!(response.status_code(), 400);
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 401 status code if the user needs authentication.
 // #[tokio::test]
