@@ -111,8 +111,6 @@ impl TestEnvironment {
       parent_user_id: None
     };
 
-    let database_pool = self.database_pool.get().await?;
-
     let app = App::create(&app_properties, &self.database_pool).await?;
 
     return Ok(app);
@@ -128,8 +126,6 @@ impl TestEnvironment {
       parent_app_id: parent_app_id.clone(),
       parent_resource_type: if parent_app_id.is_some() { ActionParentResourceType::App } else { ActionParentResourceType::Instance }
     };
-
-    let database_pool = self.database_pool.get().await?;
 
     let action = Action::create(&action_properties, &self.database_pool).await?;
 
@@ -155,8 +151,6 @@ impl TestEnvironment {
       public_key: public_key.clone()
     };
 
-    let database_pool = self.database_pool.get().await?;
-
     let app_credential = AppCredential::create(&app_credential_properties, &self.database_pool).await?;
 
     return Ok(app_credential);
@@ -167,8 +161,6 @@ impl TestEnvironment {
 
     let action = self.create_random_action(&None).await?;
     let user = self.create_random_user().await?;
-
-    let database_pool = self.database_pool.get().await?;
 
     let action_log_entry_properties = InitialActionLogEntryProperties {
       action_id: action.id,
@@ -192,8 +184,6 @@ impl TestEnvironment {
       ip_address: None
     };
 
-    let database_pool = self.database_pool.get().await?;
-
     let user = User::create(&user_properties, &self.database_pool).await?;
 
     return Ok(user);
@@ -209,8 +199,6 @@ impl TestEnvironment {
       expiration_date: &(Utc::now() + Duration::days(30)),
       creation_ip_address: &local_ip
     };
-
-    let database_pool = self.database_pool.get().await?;
 
     let session = Session::create(&session_properties, &self.database_pool).await?;
 
@@ -231,8 +219,6 @@ impl TestEnvironment {
       scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Instance,
       ..Default::default()
     };
-
-    let database_pool = self.database_pool.get().await?;
 
     let access_policy = AccessPolicy::create(&access_policy_properties, &self.database_pool).await?;
 
