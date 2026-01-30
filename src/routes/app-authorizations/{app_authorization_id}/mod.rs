@@ -79,7 +79,7 @@ async fn handle_delete_app_authorization_request(
 
   let http_transaction = http_transaction.clone();
   let target_app_authorization = get_app_authorization_from_id(&app_authorization_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app_authorization, &AccessPolicyResourceType::Action, &target_app_authorization.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app_authorization, &AccessPolicyResourceType::AppAuthorization, &target_app_authorization.id, &http_transaction, &state.database_pool).await?;
   let delete_app_authorizations_action = get_action_from_name("slashstep.appAuthorizations.delete", &http_transaction, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(&authenticating_user, &authenticating_app)?;
   verify_principal_permissions(&authenticated_principal, &delete_app_authorizations_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &state.database_pool).await?;

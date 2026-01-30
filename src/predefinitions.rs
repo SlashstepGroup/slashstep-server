@@ -137,6 +137,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       display_name: "List app authorizations".to_string(),
       description: "List all app authorizations on a particular scope.".to_string(),
       ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.appAuthorizations.delete".to_string(),
+      display_name: "Delete app authorizations".to_string(),
+      description: "Delete app authorizations on a particular scope.".to_string(),
+      ..Default::default()
     }
   ];
 
