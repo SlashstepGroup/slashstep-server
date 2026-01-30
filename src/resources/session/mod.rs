@@ -5,25 +5,7 @@ use postgres::error::SqlState;
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum SessionError {
-  #[error("A session with the ID \"{0}\" does not exist.")]
-  NotFoundError(Uuid),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error),
-
-  #[error(transparent)]
-  VarError(#[from] std::env::VarError),
-
-  #[error(transparent)]
-  IOError(#[from] std::io::Error),
-
-  #[error(transparent)]
-  JSONWebTokenError(#[from] jsonwebtoken::errors::Error)
-}
+use crate::resources::ResourceError;
 
 #[derive(Debug, Clone)]
 pub struct Session {
@@ -62,7 +44,7 @@ pub struct InitialSessionProperties<'a> {
 
 impl Session {
 
-  pub async fn get_json_web_token_public_key() -> Result<String, SessionError> {
+  pub async fn get_json_web_token_public_key() -> Result<String, ResourceError> {
 
     let jwt_public_key_path = std::env::var("JWT_PUBLIC_KEY_PATH")?;
     let jwt_public_key = std::fs::read_to_string(&jwt_public_key_path)?;
@@ -71,7 +53,7 @@ impl Session {
 
   }
 
-  pub async fn get_json_web_token_private_key() -> Result<String, SessionError> {
+  pub async fn get_json_web_token_private_key() -> Result<String, ResourceError> {
 
     let jwt_private_key_path = std::env::var("JWT_PRIVATE_KEY_PATH")?;
     let jwt_private_key = std::fs::read_to_string(&jwt_private_key_path)?;
@@ -81,19 +63,20 @@ impl Session {
   }
 
   /// Initializes the sessions table.
-  pub async fn initialize_sessions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), SessionError> {
+  pub async fn initialize_sessions_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/sessions/initialize-sessions-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
 
     let query = include_str!("../../queries/sessions/initialize-hydrated-sessions-view.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
 
     return Ok(());
 
   }
 
-  pub async fn create<'a>(properties: &InitialSessionProperties<'a>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, SessionError> {
+  pub async fn create<'a>(properties: &InitialSessionProperties<'a>, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/sessions/insert-session-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -101,7 +84,8 @@ impl Session {
       &properties.expiration_date,
       &properties.creation_ip_address
     ];
-    let row = postgres_client.query_one(query, parameters).await?;
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await?;
 
     let session = Session {
       id: row.get("id"),
@@ -114,10 +98,11 @@ impl Session {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Session, SessionError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Session, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/sessions/get-session-row-by-id.sql");
-    let row = match postgres_client.query_one(query, &[&id]).await {
+    let row = match database_client.query_one(query, &[&id]).await {
 
       Ok(row) => row,
 
@@ -125,13 +110,13 @@ impl Session {
 
         Some(db_error) => match db_error.code() {
 
-          &SqlState::NO_DATA_FOUND => return Err(SessionError::NotFoundError(id.clone())),
+          &SqlState::NO_DATA_FOUND => return Err(ResourceError::NotFoundError(format!("A session with the ID \"{}\" does not exist.", id))),
 
-          _ => return Err(SessionError::PostgresError(error))
+          _ => return Err(ResourceError::PostgresError(error))
 
         },
 
-        None => return Err(SessionError::PostgresError(error))
+        None => return Err(ResourceError::PostgresError(error))
 
       }
 
@@ -148,7 +133,7 @@ impl Session {
 
   }
 
-  pub async fn generate_json_web_token(&self, private_key: &str) -> Result<String, SessionError> {
+  pub async fn generate_json_web_token(&self, private_key: &str) -> Result<String, ResourceError> {
 
     let claims = SessionTokenClaims {
       sub: self.user_id.to_string(),

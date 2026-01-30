@@ -8,7 +8,7 @@ mod predefinitions;
 #[cfg(test)]
 mod tests;
 
-use std::{fmt, sync::Arc};
+use std::{fmt};
 use axum::{body::Body, response::{IntoResponse, Response}};
 use axum_extra::response::ErasedJson;
 use deadpool_postgres::{Pool, tokio_postgres};
@@ -27,49 +27,35 @@ use crate::{
   }, 
   resources::{
     ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::{
-      AppAuthorization, 
-      AppAuthorizationError
+      AppAuthorization
     }, app_authorization_credential::{
-      AppAuthorizationCredential, 
-      AppAuthorizationCredentialError
+      AppAuthorizationCredential
     }, app_credential::{
       AppCredential
     }, group::{
-      Group, 
-      GroupError
+      Group
     }, group_membership::{
-      GroupMembership, 
-      GroupMembershipError
+      GroupMembership
     }, http_transaction::{
-      HTTPTransaction, 
-      HTTPTransactionError
+      HTTPTransaction
     }, item::{
-      Item, 
-      ItemError
+      Item
     }, milestone::{
-      Milestone, 
-      MilestoneError
+      Milestone
     }, project::{
-      Project, 
-      ProjectError
+      Project
     }, role::{
-      Role, 
-      RoleError
+      Role
     }, role_memberships::{
-      RoleMembership, 
-      RoleMembershipError
+      RoleMembership
     }, server_log_entry::{
-      ServerLogEntry, 
-      ServerLogEntryError
+      ServerLogEntry
     }, session::{
-      Session, 
-      SessionError
+      Session
     }, user::{
-      User, 
-      UserError
+      User
     }, workspace::{
-      Workspace, 
-      WorkspaceError
+      Workspace
     }
   },
   utilities::resource_hierarchy::ResourceHierarchyError
@@ -136,49 +122,7 @@ pub enum SlashstepServerError {
   EnvironmentVariableNotSet(String),
 
   #[error(transparent)]
-  HTTPTransactionError(#[from] HTTPTransactionError),
-
-  #[error(transparent)]
-  UserError(#[from] UserError),
-
-  #[error(transparent)]
-  SessionError(#[from] SessionError),
-
-  #[error(transparent)]
-  GroupError(#[from] GroupError),
-
-  #[error(transparent)]
-  GroupMembershipError(#[from] GroupMembershipError),
-
-  #[error(transparent)]
   ResourceError(#[from] ResourceError),
-
-  #[error(transparent)]
-  WorkspaceError(#[from] WorkspaceError),
-
-  #[error(transparent)]
-  ProjectError(#[from] ProjectError),
-
-  #[error(transparent)]
-  RoleError(#[from] RoleError),
-
-  #[error(transparent)]
-  ItemError(#[from] ItemError),
-
-  #[error(transparent)]
-  AppAuthorizationError(#[from] AppAuthorizationError),
-
-  #[error(transparent)]
-  ServerLogEntryError(#[from] ServerLogEntryError),
-
-  #[error(transparent)]
-  AppAuthorizationCredentialError(#[from] AppAuthorizationCredentialError),
-
-  #[error(transparent)]
-  MilestoneError(#[from] MilestoneError),
-
-  #[error(transparent)]
-  RoleMembershipError(#[from] RoleMembershipError),
 
   #[error(transparent)]
   PostgresError(#[from] postgres::Error),
@@ -203,28 +147,28 @@ pub enum SlashstepServerError {
 
 }
 
-pub async fn initialize_required_tables(postgres_client: &mut deadpool_postgres::Client) -> Result<(), SlashstepServerError> {
+pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool) -> Result<(), SlashstepServerError> {
 
   // Because the access_policies table depends on other tables, we need to initialize them in a specific order.
-  HTTPTransaction::initialize_http_transactions_table(postgres_client).await?;
-  ServerLogEntry::initialize_server_log_entries_table(postgres_client).await?;
-  User::initialize_users_table(postgres_client).await?;
-  Session::initialize_sessions_table(postgres_client).await?;
-  Group::initialize_groups_table(postgres_client).await?;
-  App::initialize_apps_table(postgres_client).await?;
-  GroupMembership::initialize_app_authorizations_table(postgres_client).await?;
-  Workspace::initialize_workspaces_table(postgres_client).await?;
-  Project::initialize_projects_table(postgres_client).await?;
-  Role::initialize_roles_table(postgres_client).await?;
-  RoleMembership::initialize_role_memberships_table(postgres_client).await?;
-  Item::initialize_items_table(postgres_client).await?;
-  Action::initialize_actions_table(postgres_client).await?;
-  AppCredential::initialize_app_credentials_table(postgres_client).await?;
-  AppAuthorization::initialize_app_authorizations_table(postgres_client).await?;
-  AppAuthorizationCredential::initialize_app_authorization_credentials_table(postgres_client).await?;
-  Milestone::initialize_milestones_table(postgres_client).await?;
-  ActionLogEntry::initialize_action_log_entries_table(postgres_client).await?;
-  AccessPolicy::initialize_access_policies_table(postgres_client).await?;
+  HTTPTransaction::initialize_http_transactions_table(database_pool).await?;
+  ServerLogEntry::initialize_server_log_entries_table(database_pool).await?;
+  User::initialize_users_table(database_pool).await?;
+  Session::initialize_sessions_table(database_pool).await?;
+  Group::initialize_groups_table(database_pool).await?;
+  App::initialize_apps_table(database_pool).await?;
+  GroupMembership::initialize_app_authorizations_table(database_pool).await?;
+  Workspace::initialize_workspaces_table(database_pool).await?;
+  Project::initialize_projects_table(database_pool).await?;
+  Role::initialize_roles_table(database_pool).await?;
+  RoleMembership::initialize_role_memberships_table(database_pool).await?;
+  Item::initialize_items_table(database_pool).await?;
+  Action::initialize_actions_table(database_pool).await?;
+  AppCredential::initialize_app_credentials_table(database_pool).await?;
+  AppAuthorization::initialize_app_authorizations_table(database_pool).await?;
+  AppAuthorizationCredential::initialize_app_authorization_credentials_table(database_pool).await?;
+  Milestone::initialize_milestones_table(database_pool).await?;
+  ActionLogEntry::initialize_action_log_entries_table(database_pool).await?;
+  AccessPolicy::initialize_access_policies_table(database_pool).await?;
   
   return Ok(());
 
@@ -299,9 +243,9 @@ impl IntoResponse for HTTPError {
 
 impl HTTPError {
 
-  pub async fn print_and_save(&self, http_request_id: Option<&Uuid>, postgres_client: &mut deadpool_postgres::Client) -> Result<Result<ServerLogEntry, ServerLogEntryError>, ()> {
+  pub async fn print_and_save(&self, http_request_id: Option<&Uuid>, database_pool: &deadpool_postgres::Pool) -> Result<Result<ServerLogEntry, ResourceError>, ()> {
 
-    let server_log_entry = ServerLogEntry::from_http_error(self, http_request_id, postgres_client).await;
+    let server_log_entry = ServerLogEntry::from_http_error(self, http_request_id, database_pool).await;
     return Ok(server_log_entry);
 
   }
@@ -310,7 +254,7 @@ impl HTTPError {
 
 #[derive(Debug, Clone)]
 pub struct AppState {
-  pub database_pool: Arc<deadpool_postgres::Pool>,
+  pub database_pool: deadpool_postgres::Pool,
 }
 
 pub fn handle_pool_error(error: deadpool_postgres::PoolError) -> Response<Body> {
@@ -386,14 +330,12 @@ async fn main() -> Result<(), SlashstepServerError> {
   import_env_file();
   let pool = create_database_pool().await?;
   let state = AppState {
-    database_pool: Arc::new(pool),
+    database_pool: pool,
   };
 
-  let mut postgres_client = state.database_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
-  drop(postgres_client); // Drop the client to release the connection back to the pool. For some reason, this doesn't happen automatically.
+  initialize_required_tables(&state.database_pool).await?;
+  initialize_predefined_actions(&state.database_pool).await?;
+  initialize_predefined_roles(&state.database_pool).await?;
 
   let app_port = get_app_port_string();
   let router = routes::get_router(state.clone()).with_state(state);

@@ -1,11 +1,8 @@
 use std::str::FromStr;
-
 use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
-use thiserror::Error;
 use uuid::Uuid;
-
-use crate::utilities::slashstepql::{SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParameterType, SlashstepQLSanitizeFunctionOptions};
+use crate::{resources::ResourceError, utilities::slashstepql::{SlashstepQLFilterSanitizer, SlashstepQLParameterType, SlashstepQLSanitizeFunctionOptions}};
 
 static ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
@@ -36,7 +33,7 @@ pub enum RoleMembershipPrincipalType {
 
 impl FromStr for RoleMembershipPrincipalType {
 
-  type Err = RoleMembershipError;
+  type Err = ResourceError;
 
   fn from_str(string: &str) -> Result<Self, Self::Err> {
 
@@ -44,32 +41,11 @@ impl FromStr for RoleMembershipPrincipalType {
       "User" => Ok(RoleMembershipPrincipalType::User),
       "Group" => Ok(RoleMembershipPrincipalType::Group),
       "App" => Ok(RoleMembershipPrincipalType::App),
-      _ => Err(RoleMembershipError::InvalidPrincipalType(string.to_string()))
+      _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
     }
 
   }
 
-}
-
-#[derive(Debug, Error)]
-pub enum RoleMembershipError {
-  #[error("A role membership with the ID \"{0}\" already exists.")]
-  ConflictError(Uuid),
-
-  #[error("Couldn't find a role membership with the ID \"{0}\".")]
-  NotFoundError(Uuid),
-
-  #[error("Invalid principal type: {0}")]
-  InvalidPrincipalType(String),
-
-  #[error(transparent)]
-  UUIDError(#[from] uuid::Error),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error),
-
-  #[error(transparent)]
-  SlashstepQLError(#[from] SlashstepQLError)
 }
 
 #[derive(Debug, Clone)]
@@ -93,20 +69,21 @@ pub struct InitialRoleMembershipProperties<'a> {
 
 impl RoleMembership {
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, RoleMembershipError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/role-memberships/get-role-membership-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let database_client = database_pool.get().await?;
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(RoleMembershipError::NotFoundError(id.clone()))
+        None => return Err(ResourceError::NotFoundError(format!("A role membership with the ID \"{}\" does not exist.", id)))
 
       },
 
-      Err(error) => return Err(RoleMembershipError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 
@@ -129,18 +106,19 @@ impl RoleMembership {
 
   }
 
-  pub async fn initialize_role_memberships_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), RoleMembershipError> {
+  pub async fn initialize_role_memberships_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/role-memberships/initialize-role-memberships-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
 
     let query = include_str!("../../queries/role-memberships/initialize-hydrated-role-memberships-view.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }
 
-  fn parse_slashstepql_parameters(slashstepql_parameters: &Vec<(String, SlashstepQLParameterType)>) -> Result<Vec<Box<dyn ToSql + Sync + Send + '_>>, RoleMembershipError> {
+  fn parse_slashstepql_parameters(slashstepql_parameters: &Vec<(String, SlashstepQLParameterType)>) -> Result<Vec<Box<dyn ToSql + Sync + Send + '_>>, ResourceError> {
 
     // https://users.rust-lang.org/t/axum-tokio-postgres-error-on-using-vec/114024/4
     let mut parameters: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
@@ -199,7 +177,7 @@ impl RoleMembership {
 
   }
 
-  pub async fn list(filter: &str, postgres_client: &mut deadpool_postgres::Client) -> Result<Vec<Self>, RoleMembershipError> {
+  pub async fn list(filter: &str, database_pool: &deadpool_postgres::Pool) -> Result<Vec<Self>, ResourceError> {
                             
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -219,13 +197,14 @@ impl RoleMembership {
     // Execute the query.
     let parsed_parameters = Self::parse_slashstepql_parameters(&sanitized_filter.parameters)?; // This is causing an error in \{access_policy_id}\mod.rs
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-    let rows = postgres_client.query(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query(&query, &parameters).await?;
     let role_memberships: Vec<RoleMembership> = rows.iter().map(RoleMembership::convert_from_row).collect();
     return Ok(role_memberships);
 
   }
 
-  pub async fn create<'a>(initial_properties: &InitialRoleMembershipProperties<'a>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, RoleMembershipError> {
+  pub async fn create<'a>(initial_properties: &InitialRoleMembershipProperties<'a>, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/role-memberships/insert-role-membership-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -235,17 +214,18 @@ impl RoleMembership {
       &initial_properties.principal_group_id,
       &initial_properties.principal_app_id
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => match db_error.code() {
 
-        &SqlState::UNIQUE_VIOLATION => RoleMembershipError::ConflictError(initial_properties.role_id.clone()),
+        &SqlState::UNIQUE_VIOLATION => ResourceError::ConflictError(format!("A role membership with the role ID \"{}\" already exists.", initial_properties.role_id)),
         
-        _ => RoleMembershipError::PostgresError(error)
+        _ => ResourceError::PostgresError(error)
 
       },
 
-      None => RoleMembershipError::PostgresError(error)
+      None => ResourceError::PostgresError(error)
 
     })?;
 

@@ -439,7 +439,7 @@ impl AccessPolicy {
 
   /* Static methods */
   /// Counts the number of access policies based on a query.
-  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -456,14 +456,15 @@ impl AccessPolicy {
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query and return the count.
-    let rows = postgres_client.query_one(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
 
   }
 
   /// Creates a new access policy.
-  pub async fn create(initial_properties: &InitialAccessPolicyProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialAccessPolicyProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     // Insert the access policy into the database.
     let query = include_str!("../../queries/access_policies/insert-access-policy-row.sql");
@@ -495,7 +496,8 @@ impl AccessPolicy {
       &initial_properties.scoped_user_id,
       &initial_properties.scoped_workspace_id
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => {
 
@@ -520,11 +522,12 @@ impl AccessPolicy {
   }
 
   /// Gets an access policy by its ID.
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/access_policies/get-access-policy-row-by-id.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[&id];
-    let row = match postgres_client.query_opt(query, parameters).await {
+    let database_client = database_pool.get().await?;
+    let row = match database_client.query_opt(query, parameters).await {
 
       Ok(row) => match row {
 
@@ -580,19 +583,20 @@ impl AccessPolicy {
   }
 
   /// Initializes the access policies table.
-  pub async fn initialize_access_policies_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  pub async fn initialize_access_policies_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let table_query = include_str!("../../queries/access_policies/initialize_access_policies_table.sql");
-    postgres_client.execute(table_query, &[]).await?;
+    database_client.execute(table_query, &[]).await?;
 
     let get_prinicipal_access_policies_function = include_str!("../../queries/access_policies/create_function_get_principal_access_policies.sql");
-    postgres_client.execute(get_prinicipal_access_policies_function, &[]).await?;
+    database_client.execute(get_prinicipal_access_policies_function, &[]).await?;
 
     let can_principal_get_access_policy_function = include_str!("../../queries/access_policies/create_function_can_principal_get_resource.sql");
-    postgres_client.execute(can_principal_get_access_policy_function, &[]).await?;
+    database_client.execute(can_principal_get_access_policy_function, &[]).await?;
 
     let get_initial_resource_id_from_access_policy_function = include_str!("../../queries/access_policies/create_function_get_initial_resource_id_from_access_policy.sql");
-    postgres_client.execute(get_initial_resource_id_from_access_policy_function, &[]).await?;
+    database_client.execute(get_initial_resource_id_from_access_policy_function, &[]).await?;
 
     return Ok(());
 
@@ -667,7 +671,7 @@ impl AccessPolicy {
   }
 
   /// Returns a list of access policies based on a query.
-  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
                             
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -691,14 +695,15 @@ impl AccessPolicy {
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let rows = postgres_client.query(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query(&query, &parameters).await?;
     let access_policies = rows.iter().map(AccessPolicy::convert_from_row).collect();
     return Ok(access_policies);
 
   }
 
   /// Returns a list of access policies based on a hierarchy.
-  pub async fn list_by_hierarchy(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, postgres_client: &mut deadpool_postgres::Client) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list_by_hierarchy(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, database_pool: &deadpool_postgres::Pool) -> Result<Vec<Self>, ResourceError> {
 
     let mut query_clauses: Vec<String> = Vec::new();
 
@@ -799,7 +804,7 @@ impl AccessPolicy {
     }
     query_filter.push_str(")");
     
-    let access_policies = AccessPolicy::list(&query_filter, postgres_client, None).await?;
+    let access_policies = AccessPolicy::list(&query_filter, database_pool, None).await?;
 
     return Ok(access_policies);
 
@@ -819,20 +824,21 @@ impl AccessPolicy {
   }
 
   /// Updates this access policy and returns a new instance of the access policy.
-  pub async fn update(&self, properties: &EditableAccessPolicyProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn update(&self, properties: &EditableAccessPolicyProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = String::from("update access_policies set ");
     let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
 
-    postgres_client.query("begin;", &[]).await?;
+    database_client.query("begin;", &[]).await?;
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "permission_level", &properties.permission_level);
     let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "is_inheritance_enabled", &properties.is_inheritance_enabled);
 
     query.push_str(format!(" where id = ${} returning *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));
     let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-    let row = postgres_client.query_one(&query, &parameters).await?;
-    postgres_client.query("commit;", &[]).await?;
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("commit;", &[]).await?;
 
     let access_policy = AccessPolicy::convert_from_row(&row);
     return Ok(access_policy);
@@ -874,10 +880,11 @@ impl AccessPolicy {
 impl DeletableResource for AccessPolicy {
 
   /// Deletes this access policy.
-  async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/access_policies/delete-access-policy-row.sql");
-    postgres_client.execute(query, &[&self.id]).await?;
+    database_client.execute(query, &[&self.id]).await?;
     return Ok(());
 
   }

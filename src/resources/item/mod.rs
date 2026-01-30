@@ -1,20 +1,9 @@
 use postgres::error::SqlState;
 use postgres_types::ToSql;
 use serde::Serialize;
-use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Debug, Error)]
-pub enum ItemError {
-  #[error("A item with the summary \"{0}\" already exists.")]
-  ConflictError(String),
-
-  #[error("A item with the ID \"{0}\" does not exist.")]
-  NotFoundError(String),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
-}
+use crate::resources::ResourceError;
 
 pub struct InitialItemProperties<'a> {
   pub summary: &'a str,
@@ -46,7 +35,7 @@ impl Item {
 
   }
 
-  pub async fn create(initial_properties: &InitialItemProperties<'_>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ItemError> {
+  pub async fn create(initial_properties: &InitialItemProperties<'_>, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/items/insert-item-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -55,17 +44,18 @@ impl Item {
       &initial_properties.project_id,
       &initial_properties.number
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => match db_error.code() {
 
-        &SqlState::UNIQUE_VIOLATION => ItemError::ConflictError(initial_properties.summary.to_string()),
+        &SqlState::UNIQUE_VIOLATION => ResourceError::ConflictError(initial_properties.summary.to_string()),
         
-        _ => ItemError::PostgresError(error)
+        _ => ResourceError::PostgresError(error)
 
       },
 
-      None => ItemError::PostgresError(error)
+      None => ResourceError::PostgresError(error)
 
     })?;
 
@@ -76,20 +66,21 @@ impl Item {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ItemError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/items/get-item-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(ItemError::NotFoundError(id.to_string()))
+        None => return Err(ResourceError::NotFoundError(id.to_string()))
 
       },
 
-      Err(error) => return Err(ItemError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 
@@ -100,10 +91,11 @@ impl Item {
   }
   
   /// Initializes the items table.
-  pub async fn initialize_items_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ItemError> {
+  pub async fn initialize_items_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/items/initialize-items-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }

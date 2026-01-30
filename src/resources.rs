@@ -1,5 +1,4 @@
 use thiserror::Error;
-
 use crate::utilities::slashstepql::SlashstepQLError;
 
 pub mod access_policy;
@@ -43,9 +42,21 @@ pub enum ResourceError {
   SlashstepQLError(#[from] SlashstepQLError),
 
   #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
+  PostgresError(#[from] postgres::Error),
+
+  #[error(transparent)]
+  DeadpoolPoolError(#[from] deadpool_postgres::PoolError),
+
+  #[error(transparent)]
+  VarError(#[from] std::env::VarError),
+
+  #[error(transparent)]
+  IOError(#[from] std::io::Error),
+
+  #[error(transparent)]
+  JSONWebTokenError(#[from] jsonwebtoken::errors::Error)
 }
 
 pub trait DeletableResource {
-  fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> impl Future<Output = Result<(), ResourceError>>;
+  fn delete(&self, database_pool: &deadpool_postgres::Pool) -> impl Future<Output = Result<(), ResourceError>>;
 }

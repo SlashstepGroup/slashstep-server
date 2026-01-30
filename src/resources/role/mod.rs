@@ -1,19 +1,8 @@
 use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
-use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Debug, Error)]
-pub enum RoleError {
-  #[error("A role with the name \"{0}\" already exists.")]
-  ConflictError(String),
-
-  #[error("Couldn't find a role with the name \"{0}\".")]
-  NotFoundError(String),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
-}
+use crate::resources::ResourceError;
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone)]
 #[postgres(name = "role_parent_resource_type")]
@@ -66,7 +55,7 @@ impl Role {
 
   }
 
-  pub async fn create(initial_properties: &InitialRoleProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, RoleError> {
+  pub async fn create(initial_properties: &InitialRoleProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/roles/insert-role-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -78,17 +67,18 @@ impl Role {
       &initial_properties.parent_project_id,
       &initial_properties.parent_group_id
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => match db_error.code() {
 
-        &SqlState::UNIQUE_VIOLATION => RoleError::ConflictError(initial_properties.name.clone()),
+        &SqlState::UNIQUE_VIOLATION => ResourceError::ConflictError(initial_properties.name.clone()),
         
-        _ => RoleError::PostgresError(error)
+        _ => ResourceError::PostgresError(error)
 
       },
 
-      None => RoleError::PostgresError(error)
+      None => ResourceError::PostgresError(error)
 
     })?;
 
@@ -99,20 +89,21 @@ impl Role {
 
   }
 
-  pub async fn get_by_name(name: &str, postgres_client: &mut deadpool_postgres::Client) -> Result<Role, RoleError> {
+  pub async fn get_by_name(name: &str, database_pool: &deadpool_postgres::Pool) -> Result<Role, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/roles/get-role-row-by-name.sql");
-    let row = match postgres_client.query_opt(query, &[&name]).await {
+    let row = match database_client.query_opt(query, &[&name]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(RoleError::NotFoundError(name.to_string()))
+        None => return Err(ResourceError::NotFoundError(name.to_string()))
 
       },
 
-      Err(error) => return Err(RoleError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 
@@ -122,20 +113,21 @@ impl Role {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Role, RoleError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Role, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/roles/get-role-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(RoleError::NotFoundError(id.to_string()))
+        None => return Err(ResourceError::NotFoundError(id.to_string()))
 
       },
 
-      Err(error) => return Err(RoleError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 
@@ -146,13 +138,14 @@ impl Role {
   }
 
   /// Initializes the roles table.
-  pub async fn initialize_roles_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), RoleError> {
+  pub async fn initialize_roles_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/roles/initialize-roles-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
 
     let query = include_str!("../../queries/roles/initialize-hydrated-roles-view.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }

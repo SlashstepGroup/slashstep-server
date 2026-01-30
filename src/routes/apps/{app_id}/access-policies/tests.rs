@@ -1,14 +1,24 @@
+/**
+ * 
+ * Any test cases for /apps/{app_id}/access-policies should be handled here.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
+
 use std::net::SocketAddr;
-use axum::middleware;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, initialize_required_tables, middleware::http_request_middleware, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListAccessPolicyResponseBody};
+use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListAccessPolicyResponseBody};
 
-async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::Client, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
+async fn create_instance_access_policy(database_pool: &deadpool_postgres::Pool, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
   let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: action_id.clone(),
@@ -18,13 +28,13 @@ async fn create_instance_access_policy(postgres_client: &mut deadpool_postgres::
     principal_user_id: Some(user_id.clone()),
     scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Instance,
     ..Default::default()
-  }, postgres_client).await?;
+  }, database_pool).await?;
 
   return Ok(access_policy);
 
 }
 
-async fn create_app_access_policy(postgres_client: &mut deadpool_postgres::Client, scoped_app_id: &Uuid, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
+async fn create_app_access_policy(database_pool: &deadpool_postgres::Pool, scoped_app_id: &Uuid, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
   let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: action_id.clone(),
@@ -35,7 +45,7 @@ async fn create_app_access_policy(postgres_client: &mut deadpool_postgres::Clien
     scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::App,
     scoped_app_id: Some(scoped_app_id.clone()),
     ..Default::default()
-  }, postgres_client).await?;
+  }, database_pool).await?;
 
   return Ok(access_policy);
 
@@ -46,32 +56,30 @@ async fn create_app_access_policy(postgres_client: &mut deadpool_postgres::Clien
 async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   
   // Give the user access to the "slashstep.accessPolicies.get" action.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Give the user access to the "slashstep.accessPolicies.list" action.
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create a dummy action.
   let dummy_app = test_environment.create_random_app().await?;
-  let shown_access_policy = create_app_access_policy(&mut postgres_client, &dummy_app.id, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let shown_access_policy = create_app_access_policy(&test_environment.database_pool, &dummy_app.id, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -87,10 +95,10 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   assert_eq!(response_access_policies.access_policies.len(), 1);
 
   let query = format!("scoped_resource_type = 'App' AND scoped_app_id = {}", quote_literal(&dummy_app.id.to_string()));
-  let actual_access_policy_count = AccessPolicy::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
-  let actual_access_policies = AccessPolicy::list(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_access_policies.access_policies.len(), actual_access_policies.len());
   assert_eq!(response_access_policies.access_policies[0].id, actual_access_policies[0].id);
   assert_eq!(response_access_policies.access_policies[0].id, shown_access_policy.id);
@@ -104,35 +112,33 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
 async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   
   // Give the user access to the "slashstep.accessPolicies.get" action.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Give the user access to the "slashstep.accessPolicies.list" action.
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
   let dummy_app = test_environment.create_random_app().await?;
-  create_app_access_policy(&mut postgres_client, &dummy_app.id, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  create_app_access_policy(&test_environment.database_pool, &dummy_app.id, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-  let shown_access_policy = create_app_access_policy(&mut postgres_client, &dummy_app.id, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::Editor).await?;
+  let shown_access_policy = create_app_access_policy(&test_environment.database_pool, &dummy_app.id, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::Editor).await?;
 
   // Set up the server and send the request.
   let additional_query = format!("permission_level = 'Editor'");
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -149,10 +155,10 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   assert_eq!(response_access_policies.access_policies.len(), 1);
 
   let query = format!("scoped_resource_type = 'App' AND scoped_app_id = {} and permission_level = 'Editor'", quote_literal(&dummy_app.id.to_string()));
-  let actual_access_policy_count = AccessPolicy::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
-  let actual_access_policies = AccessPolicy::list(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_access_policies.access_policies.len(), actual_access_policies.len());
   assert_eq!(response_access_policies.access_policies[0].id, actual_access_policies[0].id);
   assert_eq!(response_access_policies.access_policies[0].id, shown_access_policy.id);
@@ -166,21 +172,20 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
 async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   
   // Give the user access to the "slashstep.accessPolicies.get" action.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Give the user access to the "slashstep.accessPolicies.list" action.
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy access policies.
   let dummy_app = test_environment.create_random_app().await?;
@@ -188,15 +193,14 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 
     let random_action = test_environment.create_random_action(&None).await?;
     let random_user = test_environment.create_random_user().await?;
-    create_app_access_policy(&mut postgres_client, &dummy_app.id, &random_user.id, &random_action.id, &AccessPolicyPermissionLevel::User).await?;
+    create_app_access_policy(&test_environment.database_pool, &dummy_app.id, &random_user.id, &random_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   }
 
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -218,29 +222,27 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -261,30 +263,28 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
 async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &get_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &list_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -321,20 +321,18 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
 async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
   // Create a dummy action.
   let dummy_app = test_environment.create_random_app().await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -353,10 +351,9 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
 async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -369,10 +366,9 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -391,17 +387,15 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
 async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -420,22 +414,21 @@ async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(),
 async fn verify_successful_resource_creation() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Give the user access to the "slashstep.accessPolicies.create" action.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let create_access_policies_action = Action::get_by_name("slashstep.accessPolicies.create", &mut postgres_client).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &create_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let create_access_policies_action = Action::get_by_name("slashstep.accessPolicies.create", &test_environment.database_pool).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &create_access_policies_action.id, &AccessPolicyPermissionLevel::User).await?;
   
   // Give the user editor access to a dummy action.
   let dummy_app = test_environment.create_random_app().await?;
   let dummy_action = test_environment.create_random_action(&None).await?;
-  create_instance_access_policy(&mut postgres_client, &user.id, &dummy_action.id, &AccessPolicyPermissionLevel::Editor).await?;
+  create_instance_access_policy(&test_environment.database_pool, &user.id, &dummy_action.id, &AccessPolicyPermissionLevel::Editor).await?;
 
   // Set up the server and send the request.
   let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
@@ -447,10 +440,9 @@ async fn verify_successful_resource_creation() -> Result<(), TestSlashstepServer
     ..Default::default()
   };
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -479,20 +471,18 @@ async fn verify_successful_resource_creation() -> Result<(), TestSlashstepServer
 async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Create a dummy app.
   let dummy_app = test_environment.create_random_app().await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -518,10 +508,9 @@ async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSla
 async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
@@ -537,10 +526,9 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
     ..Default::default()
   };
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -560,10 +548,9 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
 async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -585,10 +572,9 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
     ..Default::default()
   };
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -610,9 +596,9 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
 async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&mut test_environment.postgres_pool.get().await?).await?;
-  initialize_predefined_actions(&mut test_environment.postgres_pool.get().await?).await?;
-  initialize_predefined_roles(&mut test_environment.postgres_pool.get().await?).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
@@ -628,10 +614,9 @@ async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepSe
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;

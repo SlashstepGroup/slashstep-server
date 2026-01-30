@@ -1,19 +1,8 @@
 use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
-use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Debug, Error)]
-pub enum MilestoneError {
-  #[error("Couldn't find a milestone with the ID \"{0}\".")]
-  NotFoundError(Uuid),
-
-  #[error("A milestone with the name \"{0}\" already exists.")]
-  ConflictError(String),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
-}
+use crate::resources::ResourceError;
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone)]
 #[postgres(name = "milestone_parent_resource_type")]
@@ -72,10 +61,11 @@ pub struct InitialMilestoneProperties {
 impl Milestone {
 
   /// Initializes the milestones table.
-  pub async fn initialize_milestones_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), MilestoneError> {
+  pub async fn initialize_milestones_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/milestones/initialize-milestones-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }
@@ -94,7 +84,7 @@ impl Milestone {
 
   }
 
-  pub async fn create(initial_properties: &InitialMilestoneProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, MilestoneError> {
+  pub async fn create(initial_properties: &InitialMilestoneProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/milestones/insert-milestone-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -105,17 +95,18 @@ impl Milestone {
       &initial_properties.parent_workspace_id,
       &initial_properties.parent_project_id
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => match db_error.code() {
 
-        &SqlState::UNIQUE_VIOLATION => MilestoneError::ConflictError(initial_properties.name.clone()),
+        &SqlState::UNIQUE_VIOLATION => ResourceError::ConflictError(initial_properties.name.clone()),
         
-        _ => MilestoneError::PostgresError(error)
+        _ => ResourceError::PostgresError(error)
 
       },
 
-      None => MilestoneError::PostgresError(error)
+      None => ResourceError::PostgresError(error)
 
     })?;
 
@@ -126,20 +117,21 @@ impl Milestone {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, MilestoneError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/milestones/get-milestone-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(MilestoneError::NotFoundError(id.clone()))
+        None => return Err(ResourceError::NotFoundError(format!("A milestone with the ID \"{}\" does not exist.", id)))
 
       },
 
-      Err(error) => return Err(MilestoneError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 

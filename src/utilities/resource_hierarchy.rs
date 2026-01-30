@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, action_log_entry::ActionLogEntry, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationError, AppAuthorizationParentResourceType}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialError}, app_credential::{AppCredential}, group::GroupError, group_membership::{GroupMembership, GroupMembershipError}, http_transaction::HTTPTransactionError, item::{Item, ItemError}, milestone::{Milestone, MilestoneError, MilestoneParentResourceType}, project::{Project, ProjectError}, role::{Role, RoleError, RoleParentResourceType}, role_memberships::{RoleMembership, RoleMembershipError}, server_log_entry::ServerLogEntryError, session::{Session, SessionError}, user::UserError, workspace::WorkspaceError};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationParentResourceType}, app_authorization_credential::{AppAuthorizationCredential}, app_credential::{AppCredential}, group_membership::{GroupMembership}, item::{Item}, milestone::{Milestone, MilestoneParentResourceType}, project::{Project}, role::{Role, RoleParentResourceType}, role_memberships::{RoleMembership}, session::{Session}};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -14,53 +14,11 @@ pub enum ResourceHierarchyError {
   OrphanedResourceError(AccessPolicyResourceType, ResourceHierarchy),
 
   #[error(transparent)]
-  ResourceError(#[from] ResourceError),
-
-  #[error(transparent)]
-  AppAuthorizationError(AppAuthorizationError),
-
-  #[error(transparent)]
-  AppAuthorizationCredentialError(AppAuthorizationCredentialError),
-
-  #[error(transparent)]
-  GroupError(GroupError),
-
-  #[error(transparent)]
-  GroupMembershipError(GroupMembershipError),
-
-  #[error(transparent)]
-  HTTPTransactionError(HTTPTransactionError),
-
-  #[error(transparent)]
-  ItemError(ItemError),
-
-  #[error(transparent)]
-  MilestoneError(MilestoneError),
-
-  #[error(transparent)]
-  ProjectError(ProjectError),
-
-  #[error(transparent)]
-  RoleError(RoleError),
-
-  #[error(transparent)]
-  RoleMembershipError(RoleMembershipError),
-
-  #[error(transparent)]
-  ServerLogEntryError(ServerLogEntryError),
-
-  #[error(transparent)]
-  SessionError(SessionError),
-
-  #[error(transparent)]
-  UserError(UserError),
-
-  #[error(transparent)]
-  WorkspaceError(WorkspaceError)
+  ResourceError(#[from] ResourceError)
 
 }
 
-pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scoped_resource_id: &Option<Uuid>, postgres_client: &mut deadpool_postgres::Client) -> Result<ResourceHierarchy, ResourceHierarchyError> {
+pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scoped_resource_id: &Option<Uuid>, database_pool: &deadpool_postgres::Pool) -> Result<ResourceHierarchy, ResourceHierarchyError> {
 
   let mut hierarchy: ResourceHierarchy = vec![];
   let mut selected_resource_type: AccessPolicyResourceType = scoped_resource_type.clone();
@@ -81,7 +39,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::Action, Some(action_id)));
 
-        let action = match Action::get_by_id(&action_id, postgres_client).await {
+        let action = match Action::get_by_id(&action_id, database_pool).await {
 
           Ok(action) => action,
 
@@ -109,7 +67,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // ActionLogEntry -> Action
+      // ActionLogEntry -> Instance
       AccessPolicyResourceType::ActionLogEntry => {
 
         let Some(scoped_action_log_entry_id) = selected_resource_id else {
@@ -120,16 +78,8 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::ActionLogEntry, Some(scoped_action_log_entry_id)));
 
-        let action_log_entry = match ActionLogEntry::get_by_id(&scoped_action_log_entry_id, postgres_client).await {
-
-          Ok(action_log_entry) => action_log_entry,
-
-          Err(error) => return Err(ResourceHierarchyError::ResourceError(error))
-
-        };
-
-        selected_resource_type = AccessPolicyResourceType::Action;
-        selected_resource_id = Some(action_log_entry.action_id);
+        selected_resource_type = AccessPolicyResourceType::Instance;
+        selected_resource_id = None;
 
       },
 
@@ -144,7 +94,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::App, Some(app_id)));
 
-        let app = match App::get_by_id(&app_id, postgres_client).await {
+        let app = match App::get_by_id(&app_id, database_pool).await {
 
           Ok(app) => app,
 
@@ -208,15 +158,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::AppAuthorization, Some(app_authorization_id)));
 
-        let app_authorization = match AppAuthorization::get_by_id(&app_authorization_id, postgres_client).await {
+        let app_authorization = match AppAuthorization::get_by_id(&app_authorization_id, database_pool).await {
 
           Ok(app_authorization) => app_authorization,
 
           Err(error) => match error {
 
-            AppAuthorizationError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::AppAuthorization, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::AppAuthorization, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::AppAuthorizationError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
@@ -272,15 +222,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::AppAuthorizationCredential, Some(app_authorization_credential_id)));
 
-        let app_authorization_credential = match AppAuthorizationCredential::get_by_id(&app_authorization_credential_id, postgres_client).await {
+        let app_authorization_credential = match AppAuthorizationCredential::get_by_id(&app_authorization_credential_id, database_pool).await {
 
           Ok(app_authorization_credential) => app_authorization_credential,
 
           Err(error) => match error {
 
-            AppAuthorizationCredentialError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::AppAuthorizationCredential, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::AppAuthorizationCredential, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::AppAuthorizationCredentialError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
@@ -302,7 +252,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::AppCredential, Some(app_credential_id)));
 
-        let app_credential = match AppCredential::get_by_id(&app_credential_id, postgres_client).await {
+        let app_credential = match AppCredential::get_by_id(&app_credential_id, database_pool).await {
 
           Ok(app_credential) => app_credential,
 
@@ -348,15 +298,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::GroupMembership, Some(group_membership_id)));
 
-        let group_membership = match GroupMembership::get_by_id(&group_membership_id, postgres_client).await {
+        let group_membership = match GroupMembership::get_by_id(&group_membership_id, database_pool).await {
 
           Ok(group_membership) => group_membership,
 
           Err(error) => match error {
 
-            GroupMembershipError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::GroupMembership, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::GroupMembership, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::GroupMembershipError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
@@ -397,15 +347,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::Item, Some(scoped_item_id)));
 
-        let item = match Item::get_by_id(&scoped_item_id, postgres_client).await {
+        let item = match Item::get_by_id(&scoped_item_id, database_pool).await {
 
           Ok(item) => item,
 
           Err(error) => match error {
 
-            ItemError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Item, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Item, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::ItemError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
@@ -427,15 +377,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::Milestone, Some(milestone_id)));
 
-        let milestone = match Milestone::get_by_id(&milestone_id, postgres_client).await {
+        let milestone = match Milestone::get_by_id(&milestone_id, database_pool).await {
 
           Ok(milestone) => milestone,
 
           Err(error) => match error {
 
-            MilestoneError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Milestone, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Milestone, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::MilestoneError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
@@ -484,15 +434,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::Project, Some(scoped_project_id)));
 
-        let project = match Project::get_by_id(&scoped_project_id, postgres_client).await {
+        let project = match Project::get_by_id(&scoped_project_id, database_pool).await {
 
           Ok(project) => project,
           
           Err(error) => match error {
 
-            ProjectError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Project, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Project, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::ProjectError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
@@ -514,15 +464,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::Role, Some(scoped_role_id)));
 
-        let role = match Role::get_by_id(&scoped_role_id, postgres_client).await {
+        let role = match Role::get_by_id(&scoped_role_id, database_pool).await {
 
           Ok(role) => role,
 
           Err(error) => match error {
 
-            RoleError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Role, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Role, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::RoleError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
@@ -591,15 +541,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::RoleMembership, Some(role_membership_id)));
 
-        let role_membership = match RoleMembership::get_by_id(&role_membership_id, postgres_client).await {
+        let role_membership = match RoleMembership::get_by_id(&role_membership_id, database_pool).await {
 
           Ok(role_membership) => role_membership,
 
           Err(error) => match error {
 
-            RoleMembershipError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::RoleMembership, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::RoleMembership, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::RoleMembershipError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 
@@ -637,15 +587,15 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::Session, Some(scoped_session_id)));
 
-        let session = match Session::get_by_id(&scoped_session_id, postgres_client).await {
+        let session = match Session::get_by_id(&scoped_session_id, database_pool).await {
 
           Ok(role_membership) => role_membership,
 
           Err(error) => match error {
 
-            SessionError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Session, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Session, hierarchy)),
 
-            _ => return Err(ResourceHierarchyError::SessionError(error))
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
 
           }
 

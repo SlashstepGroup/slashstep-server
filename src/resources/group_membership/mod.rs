@@ -1,6 +1,6 @@
-use thiserror::Error;
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
+use crate::resources::ResourceError;
 
 #[derive(Debug, Clone, ToSql, FromSql)]
 #[postgres(name = "group_membership_principal_type")]
@@ -8,15 +8,6 @@ pub enum GroupMembershipPrincipalType {
   App,
   Group,
   User
-}
-
-#[derive(Debug, Error)]
-pub enum GroupMembershipError {
-  #[error("A group membership with the ID \"{0}\" does not exist.")]
-  NotFoundError(String),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
 }
 
 #[derive(Debug, Clone)]
@@ -47,20 +38,21 @@ pub struct GroupMembership {
 
 impl GroupMembership {
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, GroupMembershipError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/group_memberships/get_group_membership_row_by_id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(GroupMembershipError::NotFoundError(id.to_string()))
+        None => return Err(ResourceError::NotFoundError(id.to_string()))
 
       },
 
-      Err(error) => return Err(GroupMembershipError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 
@@ -85,10 +77,11 @@ impl GroupMembership {
   }
 
   /// Initializes the app_authorizations table.
-  pub async fn initialize_app_authorizations_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), GroupMembershipError> {
+  pub async fn initialize_app_authorizations_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/group_memberships/initialize_group_memberships_table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }

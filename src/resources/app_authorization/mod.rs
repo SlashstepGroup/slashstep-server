@@ -1,6 +1,6 @@
-use thiserror::Error;
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
+use crate::resources::ResourceError;
 
 #[derive(Debug, Clone, ToSql, FromSql)]
 #[postgres(name = "app_authorization_parent_resource_type")]
@@ -8,15 +8,6 @@ pub enum AppAuthorizationParentResourceType {
   Instance,
   Workspace,
   User
-}
-
-#[derive(Debug, Error)]
-pub enum AppAuthorizationError {
-  #[error("An app authorization with the ID \"{0}\" does not exist.")]
-  NotFoundError(String),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
 }
 
 pub struct AppAuthorization {
@@ -40,20 +31,21 @@ pub struct AppAuthorization {
 
 impl AppAuthorization {
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, AppAuthorizationError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/app-authorizations/get-app-authorization-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(AppAuthorizationError::NotFoundError(id.to_string()))
+        None => return Err(ResourceError::NotFoundError(id.to_string()))
 
       },
 
-      Err(error) => return Err(AppAuthorizationError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 
@@ -76,10 +68,11 @@ impl AppAuthorization {
   }
 
   /// Initializes the app_authorizations table.
-  pub async fn initialize_app_authorizations_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), AppAuthorizationError> {
+  pub async fn initialize_app_authorizations_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/app-authorizations/initialize-app-authorizations-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }

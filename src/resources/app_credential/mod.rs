@@ -25,7 +25,7 @@ pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.appCredentials.get";
 
 /// A credential that can be used to generate JSON web tokens (JWT) for apps so that they can authenticate with Slashstep Server.
 /// To protect the app, Slashstep Server only stores the app credential's metadata and public key. App admins are responsible for managing the private key. 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppCredential {
 
   /// The app credential's ID.
@@ -81,10 +81,11 @@ pub struct InitialAppCredentialPropertiesForPredefinedScope {
 impl AppCredential {
 
   /// Initializes the app_credentials table.
-  pub async fn initialize_app_credentials_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  pub async fn initialize_app_credentials_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/app-credentials/initialize-app-credentials-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }
@@ -103,7 +104,7 @@ impl AppCredential {
   }
 
   /// Counts the number of app credentials based on a query.
-  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -120,13 +121,14 @@ impl AppCredential {
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query and return the count.
-    let rows = postgres_client.query_one(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
 
   }
 
-  pub async fn create(initial_properties: &InitialAppCredentialProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialAppCredentialProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/app-credentials/insert-app-credential-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -136,7 +138,8 @@ impl AppCredential {
       &initial_properties.creation_ip_address,
       &initial_properties.public_key
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| {
 
       return ResourceError::PostgresError(error)
     
@@ -149,10 +152,11 @@ impl AppCredential {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/app-credentials/get-app-credential-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
@@ -173,7 +177,7 @@ impl AppCredential {
   }
 
   /// Returns a list of app credentials based on a query.
-  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -190,7 +194,8 @@ impl AppCredential {
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let rows = postgres_client.query(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
 

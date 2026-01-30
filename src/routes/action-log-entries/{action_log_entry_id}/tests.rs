@@ -1,13 +1,22 @@
+/**
+ * 
+ * Any test cases for /action-log-entries/{action_log_entry_id} should be handled here.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
+
 use std::net::SocketAddr;
-use axum::middleware;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use crate::{
   Action, 
   AppState,
-  initialize_required_tables, 
-  middleware::http_request_middleware, 
+  initialize_required_tables,
   predefinitions::{
     initialize_predefined_actions, initialize_predefined_roles
   }, 
@@ -29,16 +38,14 @@ use crate::{
 async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
   
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
 
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -47,7 +54,7 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_action_log_entries_action = Action::get_by_name("slashstep.actionLogEntries.get", &mut postgres_client).await?;
+  let get_action_log_entries_action = Action::get_by_name("slashstep.actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
     permission_level: AccessPolicyPermissionLevel::User,
@@ -56,7 +63,7 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
     principal_user_id: Some(user.id),
     scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
-  }, &mut postgres_client).await?;
+  }, &test_environment.database_pool).await?;
   
   let action_log_entry = test_environment.create_random_action_log_entry().await?;
 
@@ -103,16 +110,14 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
 async fn verify_uuid_when_getting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
 
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -130,16 +135,14 @@ async fn verify_uuid_when_getting_action_log_entry_by_id() -> Result<(), TestSla
 async fn verify_authentication_when_getting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
 
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -161,10 +164,9 @@ async fn verify_authentication_when_getting_action_log_entry_by_id() -> Result<(
 async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
   // Create the user, the session, and the action.
   let user = test_environment.create_random_user().await?;
@@ -175,10 +177,9 @@ async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), T
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -198,17 +199,15 @@ async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), T
 async fn verify_not_found_when_getting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -226,10 +225,9 @@ async fn verify_not_found_when_getting_action_log_entry_by_id() -> Result<(), Te
 async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -238,7 +236,7 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Grant access to the "slashstep.actions.delete" action to the user.
-  let delete_action_log_entries_action = Action::get_by_name("slashstep.actionLogEntries.delete", &mut postgres_client).await?;
+  let delete_action_log_entries_action = Action::get_by_name("slashstep.actionLogEntries.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_action_log_entries_action.id,
     permission_level: AccessPolicyPermissionLevel::User,
@@ -247,15 +245,14 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
     principal_user_id: Some(user.id),
     scoped_resource_type: AccessPolicyResourceType::Instance,
     ..Default::default()
-  }, &mut postgres_client).await?;
+  }, &test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let action_log_entry = test_environment.create_random_action_log_entry().await?;
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -265,7 +262,7 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
   
   assert_eq!(response.status_code(), 204);
 
-  match ActionLogEntry::get_by_id(&action_log_entry.id, &mut postgres_client).await.expect_err("Expected an action log entry not found error.") {
+  match ActionLogEntry::get_by_id(&action_log_entry.id, &test_environment.database_pool).await.expect_err("Expected an action log entry not found error.") {
 
     ResourceError::NotFoundError(_) => {},
 
@@ -282,16 +279,14 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
 async fn verify_uuid_when_deleting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
 
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -309,20 +304,18 @@ async fn verify_uuid_when_deleting_action_log_entry_by_id() -> Result<(), TestSl
 async fn verify_authentication_when_deleting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Create a dummy action log entry.
   let action_log_entry = test_environment.create_random_action_log_entry().await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -340,10 +333,9 @@ async fn verify_authentication_when_deleting_action_log_entry_by_id() -> Result<
 async fn verify_permission_when_deleting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -356,10 +348,9 @@ async fn verify_permission_when_deleting_action_log_entry_by_id() -> Result<(), 
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
@@ -378,17 +369,15 @@ async fn verify_permission_when_deleting_action_log_entry_by_id() -> Result<(), 
 async fn verify_action_log_entry_exists_when_deleting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
-  initialize_predefined_actions(&mut postgres_client).await?;
-  initialize_predefined_roles(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
-    database_pool: test_environment.postgres_pool.clone(),
+    database_pool: test_environment.database_pool.clone(),
   };
   let router = super::get_router(state.clone())
-    .layer(middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;

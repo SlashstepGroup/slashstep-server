@@ -1,7 +1,7 @@
-use crate::resources::{ResourceError, action::{Action, ActionParentResourceType, InitialActionProperties}, role::{InitialRoleProperties, Role, RoleError}};
+use crate::resources::{ResourceError, action::{Action, ActionParentResourceType, InitialActionProperties}, role::{InitialRoleProperties, Role}};
 use colored::Colorize;
 
-pub async fn initialize_predefined_actions(postgres_client: &mut deadpool_postgres::Client) -> Result<Vec<Action>, ResourceError> {
+pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Pool) -> Result<Vec<Action>, ResourceError> {
 
   println!("{}", "Initializing predefined actions...".dimmed());
 
@@ -172,7 +172,7 @@ pub async fn initialize_predefined_actions(postgres_client: &mut deadpool_postgr
     }
 
     // Create the action, but if it already exists, add it to the list of actions.
-    let action = match Action::create(&predefined_action, postgres_client).await {
+    let action = match Action::create(&predefined_action, database_pool).await {
 
       Ok(action) => action,
 
@@ -182,7 +182,7 @@ pub async fn initialize_predefined_actions(postgres_client: &mut deadpool_postgr
 
           ResourceError::ConflictError(_) => {
 
-            let action = Action::get_by_name(&predefined_action.name, postgres_client).await?;
+            let action = Action::get_by_name(&predefined_action.name, database_pool).await?;
 
             action
 
@@ -205,7 +205,7 @@ pub async fn initialize_predefined_actions(postgres_client: &mut deadpool_postgr
 
 }
 
-pub async fn initialize_predefined_roles(postgres_client: &mut deadpool_postgres::Client) -> Result<Vec<Role>, RoleError> {
+pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool) -> Result<Vec<Role>, ResourceError> {
 
   println!("{}", "Initializing predefined roles...".dimmed());
 
@@ -245,7 +245,7 @@ pub async fn initialize_predefined_roles(postgres_client: &mut deadpool_postgres
     }
 
     // Create the role, but if it already exists, add it to the list of roles.
-    let role = Role::create(&predefined_role, postgres_client).await?;
+    let role = Role::create(&predefined_role, database_pool).await?;
     roles.push(role);
 
   }

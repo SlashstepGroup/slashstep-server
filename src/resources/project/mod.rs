@@ -2,20 +2,9 @@ use chrono::{DateTime, Utc};
 use postgres::error::SqlState;
 use postgres_types::ToSql;
 use serde::Serialize;
-use thiserror::Error;
 use uuid::Uuid;
 
-#[derive(Debug, Error)]
-pub enum ProjectError {
-  #[error("A project with the ID \"{0}\" does not exist.")]
-  NotFoundError(String),
-
-  #[error("A project with the name \"{0}\" already exists.")]
-  ConflictError(String),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
-}
+use crate::resources::ResourceError;
 
 pub struct InitialProjectProperties<'a> {
   pub name: &'a str,
@@ -40,10 +29,11 @@ pub struct Project {
 impl Project {
 
   /// Initializes the projects table.
-  pub async fn initialize_projects_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ProjectError> {
+  pub async fn initialize_projects_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/projects/initialize-projects-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }
@@ -62,7 +52,7 @@ impl Project {
 
   }
 
-  pub async fn create(initial_properties: &InitialProjectProperties<'_>, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ProjectError> {
+  pub async fn create(initial_properties: &InitialProjectProperties<'_>, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/projects/insert-project-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -72,17 +62,18 @@ impl Project {
       &initial_properties.start_date,
       &initial_properties.end_date
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => match db_error.code() {
 
-        &SqlState::UNIQUE_VIOLATION => ProjectError::ConflictError(initial_properties.name.to_string()),
+        &SqlState::UNIQUE_VIOLATION => ResourceError::ConflictError(initial_properties.name.to_string()),
         
-        _ => ProjectError::PostgresError(error)
+        _ => ResourceError::PostgresError(error)
 
       },
 
-      None => ProjectError::PostgresError(error)
+      None => ResourceError::PostgresError(error)
 
     })?;
 
@@ -93,20 +84,21 @@ impl Project {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ProjectError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/projects/get-project-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(ProjectError::NotFoundError(id.to_string()))
+        None => return Err(ResourceError::NotFoundError(id.to_string()))
 
       },
 
-      Err(error) => return Err(ProjectError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 

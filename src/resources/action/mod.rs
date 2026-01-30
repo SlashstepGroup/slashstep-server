@@ -137,7 +137,7 @@ impl Action {
 
   }
 
-  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -154,14 +154,15 @@ impl Action {
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query and return the count.
-    let rows = postgres_client.query_one(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
 
   }
 
   /// Creates a new action.
-  pub async fn create(initial_properties: &InitialActionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialActionProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     // Insert the access policy into the database.
     let query = include_str!("../../queries/actions/insert-action-row.sql");
@@ -172,7 +173,8 @@ impl Action {
       &initial_properties.parent_app_id,
       &initial_properties.parent_resource_type
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => {
 
@@ -197,10 +199,11 @@ impl Action {
 
   }
 
-  pub async fn get_by_name(name: &str, postgres_client: &mut deadpool_postgres::Client) -> Result<Action, ResourceError> {
+  pub async fn get_by_name(name: &str, database_pool: &deadpool_postgres::Pool) -> Result<Action, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/actions/get-action-row-by-name.sql");
-    let row = match postgres_client.query_opt(query, &[&name]).await {
+    let row = match database_client.query_opt(query, &[&name]).await {
 
       Ok(row) => match row {
 
@@ -220,10 +223,11 @@ impl Action {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/actions/get-action-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let database_client = database_pool.get().await?;
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
@@ -244,20 +248,21 @@ impl Action {
   }
 
   /// Initializes the actions table.
-  pub async fn initialize_actions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  pub async fn initialize_actions_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let table_initialization_query = include_str!("../../queries/actions/initialize-actions-table.sql");
-    postgres_client.execute(table_initialization_query, &[]).await?;
+    database_client.execute(table_initialization_query, &[]).await?;
 
     let view_initialization_query = include_str!("../../queries/actions/initialize-hydrated-actions-view.sql");
-    postgres_client.execute(view_initialization_query, &[]).await?;
+    database_client.execute(view_initialization_query, &[]).await?;
 
     return Ok(());
 
   }
 
   /// Returns a list of actions based on a query.
-  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -274,7 +279,8 @@ impl Action {
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let rows = postgres_client.query(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Action::convert_from_row).collect();
     return Ok(actions);
 
@@ -298,12 +304,13 @@ impl Action {
   }
 
   /// Updates this action and returns a new instance of the action.
-  pub async fn update(&self, properties: &EditableActionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn update(&self, properties: &EditableActionProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = String::from("UPDATE actions SET ");
     let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
 
-    postgres_client.query("BEGIN;", &[]).await?;
+    database_client.query("BEGIN;", &[]).await?;
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", &properties.name);
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "display_name", &properties.display_name);
     let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "description", &properties.description);
@@ -311,8 +318,8 @@ impl Action {
     query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));
     let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-    let row = postgres_client.query_one(&query, &parameters).await?;
-    postgres_client.query("COMMIT;", &[]).await?;
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
 
     let access_policy = Action::convert_from_row(&row);
     return Ok(access_policy);
@@ -324,10 +331,11 @@ impl Action {
 impl DeletableResource for Action {
 
   /// Deletes this action.
-  async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/actions/delete-action-row.sql");
-    postgres_client.execute(query, &[&self.id]).await?;
+    database_client.execute(query, &[&self.id]).await?;
     return Ok(());
 
   }

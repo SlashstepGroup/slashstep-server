@@ -1,8 +1,9 @@
 use std::net::IpAddr;
 use postgres_types::ToSql;
-use thiserror::Error;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+
+use crate::resources::ResourceError;
 
 #[derive(Debug, Clone)]
 pub struct HTTPTransaction {
@@ -52,15 +53,9 @@ pub struct InitialHTTPTransactionProperties {
 
 }
 
-#[derive(Debug, Error)]
-pub enum HTTPTransactionError {
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
-}
-
 impl HTTPTransaction {
 
-  pub async fn create(properties: &InitialHTTPTransactionProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, HTTPTransactionError> {
+  pub async fn create(properties: &InitialHTTPTransactionProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/http-transactions/insert-http-transaction-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -71,7 +66,8 @@ impl HTTPTransaction {
       &properties.status_code,
       &properties.expiration_date
     ];
-    let row = postgres_client.query_one(query, parameters).await?;
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await?;
 
     let http_request = HTTPTransaction {
       id: row.get("id"),
@@ -87,10 +83,11 @@ impl HTTPTransaction {
 
   }
 
-  pub async fn initialize_http_transactions_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), HTTPTransactionError> {
+  pub async fn initialize_http_transactions_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/http-transactions/create-http-transactions-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }

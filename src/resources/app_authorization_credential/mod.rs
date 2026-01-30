@@ -1,14 +1,5 @@
-use thiserror::Error;
 use uuid::Uuid;
-
-#[derive(Debug, Error)]
-pub enum AppAuthorizationCredentialError {
-  #[error("An app authorization credential with the ID \"{0}\" does not exist.")]
-  NotFoundError(String),
-  
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
-}
+use crate::resources::ResourceError;
 
 pub struct AppAuthorizationCredential {
 
@@ -22,20 +13,21 @@ pub struct AppAuthorizationCredential {
 
 impl AppAuthorizationCredential {
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, AppAuthorizationCredentialError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/app-authorization-credentials/get-app-authorization-credential-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(AppAuthorizationCredentialError::NotFoundError(id.to_string()))
+        None => return Err(ResourceError::NotFoundError(id.to_string()))
 
       },
 
-      Err(error) => return Err(AppAuthorizationCredentialError::PostgresError(error))
+      Err(error) => return Err(ResourceError::PostgresError(error))
 
     };
 
@@ -55,10 +47,11 @@ impl AppAuthorizationCredential {
   }
 
   /// Initializes the app_authorization_credentials table.
-  pub async fn initialize_app_authorization_credentials_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), AppAuthorizationCredentialError> {
+  pub async fn initialize_app_authorization_credentials_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/app-authorization-credentials/initialize-app-authorization-credentials-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }

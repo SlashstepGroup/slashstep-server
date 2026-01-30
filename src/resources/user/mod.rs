@@ -11,22 +11,8 @@ use std::net::IpAddr;
 use postgres::error::SqlState;
 use postgres_types::ToSql;
 use uuid::Uuid;
-use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum UserError {
-  #[error("A user with the {0} \"{1}\" does not exist.")]
-  NotFoundError(String, String),
-
-  #[error("A user with the username \"{0}\" already exists.")]
-  ConflictError(String),
-
-  #[error("A user with the ID \"{0}\" does not have the required permissions to perform the action \"{1}\".")]
-  ForbiddenError(String, String),
-
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
-}
+use crate::resources::ResourceError;
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -73,7 +59,7 @@ pub struct InitialUserProperties {
 impl User {
 
   /// Creates a new user.
-  pub async fn create(initial_properties: &InitialUserProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, UserError> {
+  pub async fn create(initial_properties: &InitialUserProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     // Insert the access policy into the database.
     let query = include_str!("../../queries/users/insert-user-row.sql");
@@ -84,7 +70,8 @@ impl User {
       &initial_properties.is_anonymous,
       &initial_properties.ip_address
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => match db_error.code() {
 
@@ -94,20 +81,20 @@ impl User {
 
             Some(username) => username,
 
-            // TODO: For IP users, we should make UserError more specific.
-            None => return UserError::PostgresError(error)
+            // TODO: For IP users, we should make ResourceError more specific.
+            None => return ResourceError::PostgresError(error)
 
           };
 
-          UserError::ConflictError(username)
+          ResourceError::ConflictError(username)
           
         },
         
-        _ => UserError::PostgresError(error)
+        _ => ResourceError::PostgresError(error)
 
       },
 
-      None => UserError::PostgresError(error)
+      None => ResourceError::PostgresError(error)
 
     })?;
 
@@ -138,16 +125,17 @@ impl User {
 
   }
 
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<User, UserError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<User, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/users/get-user-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(UserError::NotFoundError("ID".to_string(), id.to_string()))
+        None => return Err(ResourceError::NotFoundError(format!("A user with the ID \"{}\" does not exist.", id)))
 
       },
 
@@ -155,13 +143,13 @@ impl User {
 
         Some(db_error) => match db_error.code() {
 
-          &SqlState::NO_DATA_FOUND => return Err(UserError::NotFoundError("ID".to_string(), id.to_string())),
+          &SqlState::NO_DATA_FOUND => return Err(ResourceError::NotFoundError(format!("A user with the ID \"{}\" does not exist.", id))),
 
-          _ => return Err(UserError::PostgresError(error))
+          _ => return Err(ResourceError::PostgresError(error))
 
         },
 
-        None => return Err(UserError::PostgresError(error))
+        None => return Err(ResourceError::PostgresError(error))
 
       }
 
@@ -173,16 +161,17 @@ impl User {
 
   }
 
-  pub async fn get_by_ip_address(ip_address: &IpAddr, postgres_client: &mut deadpool_postgres::Client) -> Result<User, UserError> {
+  pub async fn get_by_ip_address(ip_address: &IpAddr, database_pool: &deadpool_postgres::Pool) -> Result<User, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/users/get-user-row-by-ip-address.sql");
-    let row = match postgres_client.query_opt(query, &[&ip_address]).await {
+    let row = match database_client.query_opt(query, &[&ip_address]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(UserError::NotFoundError("IP address".to_string(), ip_address.to_string()))
+        None => return Err(ResourceError::NotFoundError(format!("A user with the IP address \"{}\" does not exist.", ip_address)))
 
       },
 
@@ -190,13 +179,13 @@ impl User {
 
         Some(db_error) => match db_error.code() {
 
-          &SqlState::NO_DATA_FOUND => return Err(UserError::NotFoundError("IP address".to_string(), ip_address.to_string())),
+          &SqlState::NO_DATA_FOUND => return Err(ResourceError::NotFoundError(format!("A user with the IP address \"{}\" does not exist.", ip_address))),
 
-          _ => return Err(UserError::PostgresError(error))
+          _ => return Err(ResourceError::PostgresError(error))
 
         },
 
-        None => return Err(UserError::PostgresError(error))
+        None => return Err(ResourceError::PostgresError(error))
 
       }
 
@@ -209,10 +198,11 @@ impl User {
   }
 
   /// Initializes the users table.
-  pub async fn initialize_users_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), UserError> {
+  pub async fn initialize_users_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/users/initialize-users-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }

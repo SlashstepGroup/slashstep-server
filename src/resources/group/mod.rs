@@ -1,20 +1,15 @@
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum GroupError {
-  #[error(transparent)]
-  PostgresError(#[from] postgres::Error)
-}
+use crate::resources::ResourceError;
 
 pub struct Group {}
 
 impl Group {
 
   /// Initializes the groups table.
-  pub async fn initialize_groups_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), GroupError> {
+  pub async fn initialize_groups_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let query = include_str!("../../queries/groups/initialize-groups-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    let database_client = database_pool.get().await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }

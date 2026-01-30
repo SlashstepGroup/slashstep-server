@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, Principal, ResourceHierarchy}, user::UserError};
+use crate::resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, Principal, ResourceHierarchy}};
 
 #[derive(Debug, Error)]
 pub enum PrincipalPermissionVerifierError {
@@ -15,9 +15,6 @@ pub enum PrincipalPermissionVerifierError {
   },
 
   #[error(transparent)]
-  UserError(#[from] UserError),
-
-  #[error(transparent)]
   ResourceError(#[from] ResourceError)
 }
 
@@ -25,9 +22,9 @@ pub struct PrincipalPermissionVerifier;
 
 impl PrincipalPermissionVerifier {
 
-  pub async fn verify_permissions(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, minimum_permission_level: &AccessPolicyPermissionLevel, postgres_client: &mut deadpool_postgres::Client) -> Result<(), PrincipalPermissionVerifierError> {
+  pub async fn verify_permissions(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, minimum_permission_level: &AccessPolicyPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), PrincipalPermissionVerifierError> {
 
-    let relevant_access_policies = AccessPolicy::list_by_hierarchy(principal, action_id, resource_hierarchy, postgres_client).await?;
+    let relevant_access_policies = AccessPolicy::list_by_hierarchy(principal, action_id, resource_hierarchy, database_pool).await?;
     let deepest_access_policy = match relevant_access_policies.first() {
 
       Some(access_policy) => access_policy,

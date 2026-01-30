@@ -1,62 +1,19 @@
-use std::{sync::Arc};
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
-use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePrivateKey, EncodePublicKey, spki::der::pem::LineEnding}};
+use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePublicKey, spki::der::pem::LineEnding}};
 use local_ip_address::local_ip;
 use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::AppAuthorizationError, app_authorization_credential::AppAuthorizationCredentialError, app_credential::{AppCredential, InitialAppCredentialProperties}, group::GroupError, group_membership::GroupMembershipError, http_transaction::HTTPTransactionError, item::ItemError, milestone::MilestoneError, project::ProjectError, role::RoleError, role_memberships::RoleMembershipError, server_log_entry::ServerLogEntryError, session::{InitialSessionProperties, Session, SessionError}, user::{InitialUserProperties, User, UserError}, workspace::WorkspaceError}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum TestSlashstepServerError {
 
   #[error(transparent)]
-  HTTPTransactionError(#[from] HTTPTransactionError),
-
-  #[error(transparent)]
-  UserError(#[from] UserError),
-
-  #[error(transparent)]
-  SessionError(#[from] SessionError),
-
-  #[error(transparent)]
-  GroupError(#[from] GroupError),
-
-  #[error(transparent)]
-  GroupMembershipError(#[from] GroupMembershipError),
-
-  #[error(transparent)]
-  WorkspaceError(#[from] WorkspaceError),
-
-  #[error(transparent)]
-  ProjectError(#[from] ProjectError),
-
-  #[error(transparent)]
-  RoleError(#[from] RoleError),
-
-  #[error(transparent)]
-  ItemError(#[from] ItemError),
-
-  #[error(transparent)]
   ResourceError(#[from] ResourceError),
-
-  #[error(transparent)]
-  AppAuthorizationError(#[from] AppAuthorizationError),
-
-  #[error(transparent)]
-  ServerLogEntryError(#[from] ServerLogEntryError),
-
-  #[error(transparent)]
-  AppAuthorizationCredentialError(#[from] AppAuthorizationCredentialError),
-
-  #[error(transparent)]
-  MilestoneError(#[from] MilestoneError),
-
-  #[error(transparent)]
-  RoleMembershipError(#[from] RoleMembershipError),
 
   #[error(transparent)]
   PostgresError(#[from] postgres::Error),
@@ -98,7 +55,7 @@ pub enum TestSlashstepServerError {
 
 pub struct TestEnvironment {
 
-  pub postgres_pool: Arc<deadpool_postgres::Pool>,
+  pub database_pool: deadpool_postgres::Pool,
 
   // This is required to prevent the compiler from complaining about unused fields.
   // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
@@ -130,10 +87,10 @@ impl TestEnvironment {
     };
     let manager = deadpool_postgres::Manager::from_config(postgres_config, NoTls, manager_config);
 
-    let postgres_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT as usize).build()?;
+    let database_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT as usize).build()?;
 
     let environment = TestEnvironment {
-      postgres_pool: Arc::new(postgres_pool),
+      database_pool: database_pool,
       postgres_container: postgres_container
     };
 
@@ -154,9 +111,7 @@ impl TestEnvironment {
       parent_user_id: None
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
-
-    let app = App::create(&app_properties, &mut postgres_client).await?;
+    let app = App::create(&app_properties, &self.database_pool).await?;
 
     return Ok(app);
 
@@ -172,9 +127,7 @@ impl TestEnvironment {
       parent_resource_type: if parent_app_id.is_some() { ActionParentResourceType::App } else { ActionParentResourceType::Instance }
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
-
-    let action = Action::create(&action_properties, &mut postgres_client).await?;
+    let action = Action::create(&action_properties, &self.database_pool).await?;
 
     return Ok(action);
 
@@ -198,9 +151,7 @@ impl TestEnvironment {
       public_key: public_key.clone()
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
-
-    let app_credential = AppCredential::create(&app_credential_properties, &mut postgres_client).await?;
+    let app_credential = AppCredential::create(&app_credential_properties, &self.database_pool).await?;
 
     return Ok(app_credential);
 
@@ -211,15 +162,13 @@ impl TestEnvironment {
     let action = self.create_random_action(&None).await?;
     let user = self.create_random_user().await?;
 
-    let mut postgres_client = self.postgres_pool.get().await?;
-
     let action_log_entry_properties = InitialActionLogEntryProperties {
       action_id: action.id,
       actor_user_id: Some(user.id),
       ..Default::default()
     };
 
-    let action_log_entry = ActionLogEntry::create(&action_log_entry_properties, &mut postgres_client).await?;
+    let action_log_entry = ActionLogEntry::create(&action_log_entry_properties, &self.database_pool).await?;
 
     return Ok(action_log_entry);
 
@@ -235,9 +184,7 @@ impl TestEnvironment {
       ip_address: None
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
-
-    let user = User::create(&user_properties, &mut postgres_client).await?;
+    let user = User::create(&user_properties, &self.database_pool).await?;
 
     return Ok(user);
 
@@ -253,9 +200,7 @@ impl TestEnvironment {
       creation_ip_address: &local_ip
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
-
-    let session = Session::create(&session_properties, &mut postgres_client).await?;
+    let session = Session::create(&session_properties, &self.database_pool).await?;
 
     return Ok(session);
 
@@ -275,9 +220,7 @@ impl TestEnvironment {
       ..Default::default()
     };
 
-    let mut postgres_client = self.postgres_pool.get().await?;
-
-    let access_policy = AccessPolicy::create(&access_policy_properties, &mut postgres_client).await?;
+    let access_policy = AccessPolicy::create(&access_policy_properties, &self.database_pool).await?;
 
     return Ok(access_policy);
 

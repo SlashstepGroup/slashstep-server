@@ -34,8 +34,7 @@ fn assert_action_log_entry_is_equal_to_initial_properties(action_log_entry: &Act
 async fn verify_action_log_entry_creation() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
 
   // Create the access policy.
   let action = test_environment.create_random_action(&None).await?;
@@ -46,7 +45,7 @@ async fn verify_action_log_entry_creation() -> Result<(), TestSlashstepServerErr
     actor_user_id: Some(user.id),
     ..Default::default()
   };
-  let access_policy = ActionLogEntry::create(&action_log_entry_properties, &mut postgres_client).await?;
+  let access_policy = ActionLogEntry::create(&action_log_entry_properties, &test_environment.database_pool).await?;
 
   // Ensure that all the properties were set correctly.
   assert_action_log_entry_is_equal_to_initial_properties(&access_policy, &action_log_entry_properties);
@@ -61,14 +60,13 @@ async fn verify_action_log_entry_deletion_by_id() -> Result<(), TestSlashstepSer
 
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
-  let mut postgres_client = test_environment.postgres_pool.get().await?;
-  initialize_required_tables(&mut postgres_client).await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
   let created_action_log_entry = test_environment.create_random_action_log_entry().await?;
 
-  created_action_log_entry.delete(&mut postgres_client).await?;
+  created_action_log_entry.delete(&test_environment.database_pool).await?;
 
   // Ensure that the access policy is no longer in the database.
-  match ActionLogEntry::get_by_id(&created_action_log_entry.id, &mut postgres_client).await {
+  match ActionLogEntry::get_by_id(&created_action_log_entry.id, &test_environment.database_pool).await {
 
     Ok(_) => panic!("Expected an action log entry not found error."),
 

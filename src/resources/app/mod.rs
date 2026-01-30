@@ -91,10 +91,11 @@ impl App {
   }
 
   /// Initializes the apps table.
-  pub async fn initialize_apps_table(postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  pub async fn initialize_apps_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/apps/initialize-apps-table.sql");
-    postgres_client.execute(query, &[]).await?;
+    database_client.execute(query, &[]).await?;
     return Ok(());
 
   }
@@ -116,7 +117,7 @@ impl App {
   }
 
   /// Counts the number of apps based on a query.
-  pub async fn count(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -133,14 +134,15 @@ impl App {
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query and return the count.
-    let rows = postgres_client.query_one(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
 
   }
 
   /// Creates a new app.
-  pub async fn create(initial_properties: &InitialAppProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialAppProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/apps/insert-app-row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
@@ -153,7 +155,8 @@ impl App {
       &initial_properties.parent_workspace_id,
       &initial_properties.parent_user_id
     ];
-    let row = postgres_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
+    let database_client = database_pool.get().await?;
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
       Some(db_error) => match db_error.code() {
 
@@ -175,10 +178,11 @@ impl App {
   }
 
   /// Gets an app by its ID.
-  pub async fn get_by_id(id: &Uuid, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/apps/get-app-row-by-id.sql");
-    let row = match postgres_client.query_opt(query, &[&id]).await {
+    let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
@@ -199,7 +203,7 @@ impl App {
   }
 
   /// Returns a list of apps based on a query.
-  pub async fn list(query: &str, postgres_client: &mut deadpool_postgres::Client, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -216,7 +220,8 @@ impl App {
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let rows = postgres_client.query(&query, &parameters).await?;
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
 
@@ -241,12 +246,13 @@ impl App {
   }
 
   /// Updates this app and returns a new instance of the app.
-  pub async fn update(&self, properties: &EditableAppProperties, postgres_client: &mut deadpool_postgres::Client) -> Result<Self, ResourceError> {
+  pub async fn update(&self, properties: &EditableAppProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = String::from("UPDATE apps SET ");
     let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
 
-    postgres_client.query("BEGIN;", &[]).await?;
+    let database_client = database_pool.get().await?;
+    database_client.query("BEGIN;", &[]).await?;
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", &properties.name);
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "display_name", &properties.display_name);
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", &properties.description);
@@ -255,8 +261,8 @@ impl App {
     query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));
     let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-    let row = postgres_client.query_one(&query, &parameters).await?;
-    postgres_client.query("COMMIT;", &[]).await?;
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
 
     let app = Self::convert_from_row(&row);
     return Ok(app);
@@ -268,10 +274,11 @@ impl App {
 impl DeletableResource for App {
 
   /// Deletes this app.
-  async fn delete(&self, postgres_client: &mut deadpool_postgres::Client) -> Result<(), ResourceError> {
+  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
+    let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/apps/delete-app-row-by-id.sql");
-    postgres_client.execute(query, &[&self.id]).await?;
+    database_client.execute(query, &[&self.id]).await?;
     return Ok(());
 
   }
