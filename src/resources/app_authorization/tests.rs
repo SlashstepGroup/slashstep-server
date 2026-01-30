@@ -1,6 +1,6 @@
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
-    access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
+    DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     }, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, DEFAULT_APP_AUTHORIZATION_LIST_LIMIT, InitialAppAuthorizationProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -71,23 +71,34 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 
 }
 
-// #[tokio::test]
-// async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
+#[tokio::test]
+async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 
-//   // Create the access policy.
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   let created_action = test_environment.create_random_action(&None).await?;
+  // Create the access policy.
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  let created_app_authorization = test_environment.create_random_app_authorization(&None).await?;
+  
+  created_app_authorization.delete(&test_environment.database_pool).await?;
 
-//   created_action.delete(&test_environment.database_pool).await?;
+  // Ensure that the access policy is no longer in the database.
+  match AppAuthorization::get_by_id(&created_app_authorization.id, &test_environment.database_pool).await {
 
-//   // Ensure that the access policy is no longer in the database.
-//   let retrieved_action_result = Action::get_by_id(&created_action.id, &test_environment.database_pool).await;
-//   assert!(retrieved_action_result.is_err());
+    Ok(_) => panic!("Expected an app authorization not found error."),
 
-//   return Ok(());
+    Err(error) => match error {
 
-// }
+      ResourceError::NotFoundError(_) => {},
+
+      error => return Err(TestSlashstepServerError::ResourceError(error))
+
+    }
+
+  };
+
+  return Ok(());
+
+}
 
 #[tokio::test]
 async fn initialize_actions_table() -> Result<(), TestSlashstepServerError> {
@@ -265,32 +276,3 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   return Ok(());
 
 }
-
-// #[tokio::test]
-// async fn update_action() -> Result<(), TestSlashstepServerError> {
-
-//   let test_environment = TestEnvironment::new().await?;
-
-//   // Create the action and update it.
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   let original_action = test_environment.create_random_action(&None).await?;
-//   let new_name = Uuid::now_v7().to_string();
-//   let new_display_name = Uuid::now_v7().to_string();
-//   let new_description = Uuid::now_v7().to_string();
-//   let updated_action = original_action.update(&EditableActionProperties {
-//     name: Some(new_name.clone()),
-//     display_name: Some(new_display_name.clone()),
-//     description: Some(new_description.clone())
-//   }, &test_environment.database_pool).await?;
-
-//   // Verify the new action.
-//   assert_eq!(original_action.id, updated_action.id);
-//   assert_eq!(new_name, updated_action.name);
-//   assert_eq!(new_display_name, updated_action.display_name);
-//   assert_eq!(new_description, updated_action.description);
-//   assert_eq!(original_action.parent_app_id, updated_action.parent_app_id);
-//   assert_eq!(original_action.parent_resource_type, updated_action.parent_resource_type);
-
-//   return Ok(());
-
-// }
