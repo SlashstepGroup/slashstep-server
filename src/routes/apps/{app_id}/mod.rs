@@ -1,3 +1,14 @@
+/**
+ * 
+ * Any functionality for /apps/{app_id} should be handled here.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
+
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
@@ -6,10 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_request_middleware}, 
   resources::{
-    DeletableResource,
-    access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, authenticated_app::{App, EditableAppProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    DeletableResource, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{get_action_from_name, get_app_from_id, get_resource_hierarchy, map_postgres_error_to_http_error}
+  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_from_name, get_app_from_id, get_authenticated_principal, get_resource_hierarchy, map_postgres_error_to_http_error, verify_principal_permissions}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -20,12 +30,16 @@ mod app_credentials;
 #[cfg(test)]
 mod tests;
 
+/// GET /apps/{app_id}
+/// 
+/// Gets an app by its ID.
 #[axum::debug_handler]
 async fn handle_get_app_request(
   Path(app_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>
 ) -> Result<Json<App>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
@@ -33,6 +47,7 @@ async fn handle_get_app_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let get_apps_action = get_action_from_name("slashstep.apps.get", &http_transaction, &mut postgres_client).await?;
+  let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
   verify_principal_permissions(&authenticated_principal, &get_apps_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
   
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -51,12 +66,16 @@ async fn handle_get_app_request(
 
 }
 
+/// DELETE /apps/{app_id}
+/// 
+/// Deletes an app by its ID.
 #[axum::debug_handler]
 async fn handle_delete_app_request(
   Path(app_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>
 ) -> Result<StatusCode, HTTPError> {
 
   let http_transaction = http_transaction.clone();
@@ -64,6 +83,7 @@ async fn handle_delete_app_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let delete_actions_action = get_action_from_name("slashstep.apps.delete", &http_transaction, &mut postgres_client).await?;
+  let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
   verify_principal_permissions(&authenticated_principal, &delete_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   match target_app.delete(&mut postgres_client).await {
@@ -96,12 +116,16 @@ async fn handle_delete_app_request(
 
 }
 
+/// PATCH /apps/{app_id}
+/// 
+/// Updates an app by its ID.
 #[axum::debug_handler]
 async fn handle_patch_app_request(
   Path(app_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
   body: Result<Json<EditableAppProperties>, JsonRejection>
 ) -> Result<Json<App>, HTTPError> {
 
@@ -139,6 +163,7 @@ async fn handle_patch_app_request(
   let original_target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&original_target_app, &AccessPolicyResourceType::App, &original_target_app.id, &http_transaction, &mut postgres_client).await?;
   let update_access_policy_action = get_action_from_name("slashstep.apps.update", &http_transaction, &mut postgres_client).await?;
+  let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
   verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_app.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
