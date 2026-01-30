@@ -321,37 +321,37 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
 
 }
 
-// /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
-// #[tokio::test]
-// async fn verify_permission_when_listing_actions() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
+#[tokio::test]
+async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
-//   // Create a user and a session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create a user and a session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.get(&format!("/app-authorizations"))
-//     .add_query_param("query", format!("limit {}", DEFAULT_APP_AUTHORIZATION_LIST_LIMIT + 1))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/app-authorizations"))
+    .add_query_param("query", format!("limit {}", DEFAULT_APP_AUTHORIZATION_LIST_LIMIT + 1))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
