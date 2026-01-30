@@ -31,7 +31,6 @@ async fn handle_get_action_request(
   let http_transaction = http_transaction.clone();
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
   let target_action = get_action_from_id(&action_id, &http_transaction, &mut postgres_client).await?;
-  let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_action, &AccessPolicyResourceType::Action, &target_action.id, &http_transaction, &mut postgres_client).await?;
   let get_actions_action = get_action_from_name("slashstep.actions.get", &http_transaction, &mut postgres_client).await?;
   verify_user_permissions(&user, &get_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
@@ -92,7 +91,6 @@ async fn handle_patch_action_request(
   };
 
   let original_target_action = get_action_from_id(&action_id, &http_transaction, &mut postgres_client).await?;
-  let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&original_target_action, &AccessPolicyResourceType::Action, &original_target_action.id, &http_transaction, &mut postgres_client).await?;
   let update_access_policy_action = get_action_from_name("slashstep.actions.update", &http_transaction, &mut postgres_client).await?;
   verify_user_permissions(&user, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
@@ -138,7 +136,6 @@ async fn handle_delete_action_request(
   let http_transaction = http_transaction.clone();
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
   let target_action = get_action_from_id(&action_id, &http_transaction, &mut postgres_client).await?;
-  let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_action, &AccessPolicyResourceType::Action, &target_action.id, &http_transaction, &mut postgres_client).await?;
   let delete_actions_action = get_action_from_name("slashstep.actions.delete", &http_transaction, &mut postgres_client).await?;
   verify_user_permissions(&user, &delete_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;

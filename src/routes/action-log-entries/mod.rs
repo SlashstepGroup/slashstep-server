@@ -118,6 +118,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
   let router = Router::<AppState>::new()
     .route("/action-log-entries", axum::routing::get(handle_list_action_log_entries_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
     .merge(action_log_entry_id::get_router(state.clone()));
   return router;

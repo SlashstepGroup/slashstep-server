@@ -79,7 +79,6 @@ async fn handle_create_access_policy_request(
 
   // Make sure the user can create access policies for the target resource.
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
-  let user = get_user_from_option_user(&user, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let create_access_policies_action = get_action_from_name("slashstep.accessPolicies.create", &http_transaction, &mut postgres_client).await?;
   verify_user_permissions(&user, &create_access_policies_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
