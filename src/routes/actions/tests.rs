@@ -1,11 +1,20 @@
-use std::net::SocketAddr;
+/**
+ * 
+ * Any test cases for /actions should be handled here.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
 
-use axum::middleware;
+use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use reqwest::StatusCode;
 use crate::{
-  AppState, initialize_required_tables, middleware::http_request_middleware, predefinitions::{
+  AppState, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, 
     initialize_predefined_roles
   }, resources::{
