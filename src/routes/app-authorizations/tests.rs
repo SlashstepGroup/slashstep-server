@@ -85,77 +85,64 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 
 }
 
-// /// Verifies that the router can return a 200 status code and the requested resource list.
-// #[tokio::test]
-// async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 200 status code and the requested resource list.
+#[tokio::test]
+async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
-//   // Grant access to the "slashstep.appAuthorizations.get" action to the user.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let get_actions_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
-//   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: get_actions_action.id,
-//     permission_level: AccessPolicyPermissionLevel::User,
-//     is_inheritance_enabled: true,
-//     principal_type: AccessPolicyPrincipalType::User,
-//     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Instance,
-//     ..Default::default()
-//   }, &test_environment.database_pool).await?;
+  // Grant access to the "slashstep.appAuthorizations.get" action to the user.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-//   // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-//   let list_actions_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
-//   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: list_actions_action.id,
-//     permission_level: AccessPolicyPermissionLevel::User,
-//     is_inheritance_enabled: true,
-//     principal_type: AccessPolicyPrincipalType::User,
-//     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Instance,
-//     ..Default::default()
-//   }, &test_environment.database_pool).await?;
+  // Grant access to the "slashstep.appAuthorizations.list" action to the user.
+  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+  test_environment.create_instance_access_policy(&user.id, &list_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
+  // Create dummy resources.
+  let dummy_app_authorization = test_environment.create_random_app_authorization(&None).await?;
 
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let query = format!("name ~ \"{}\"", "actions");
-//   let response = test_server.get(&format!("/app-authorizations"))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .add_query_param("query", &query)
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let query = format!("app_id = \"{}\"", dummy_app_authorization.app_id);
+  let response = test_server.get(&format!("/app-authorizations"))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_query_param("query", &query)
+    .await;
   
-//   assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
-//   let response_json: ListAppAuthorizationsResponseBody = response.json();
-//   let actual_app_authorization_count = Action::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-//   assert_eq!(response_json.total_count, actual_app_authorization_count);
+  let response_json: ListAppAuthorizationsResponseBody = response.json();
+  let actual_app_authorization_count = AppAuthorization::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_json.total_count, actual_app_authorization_count);
 
-//   let actual_app_authorizations = Action::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-//   assert_eq!(response_json.app_authorizations.len(), actual_app_authorizations.len());
+  let actual_app_authorizations = AppAuthorization::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_json.app_authorizations.len(), actual_app_authorizations.len());
 
-//   for actual_action in actual_app_authorizations {
+  for actual_action in actual_app_authorizations {
 
-//     let found_action = response_json.app_authorizations.iter().find(|action| action.id == actual_action.id);
-//     assert!(found_action.is_some());
+    let found_action = response_json.app_authorizations.iter().find(|action| action.id == actual_action.id);
+    assert!(found_action.is_some());
 
-//   }
+  }
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that there's a default resource list limit.
 // #[tokio::test]
@@ -171,9 +158,9 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 //   let session = test_environment.create_session(&user.id).await?;
 //   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let get_actions_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+//   let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: get_actions_action.id,
+//     action_id: get_app_authorizations_action.id,
 //     permission_level: AccessPolicyPermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
@@ -183,9 +170,9 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 //   }, &test_environment.database_pool).await?;
 
 //   // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-//   let list_actions_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+//   let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: list_actions_action.id,
+//     action_id: list_app_authorizations_action.id,
 //     permission_level: AccessPolicyPermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
@@ -195,7 +182,7 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 //   }, &test_environment.database_pool).await?;
 
 //   // Create dummy actions.
-//   let action_count = Action::count("", &test_environment.database_pool, None).await?;
+//   let action_count = AppAuthorization::count("", &test_environment.database_pool, None).await?;
 //   for _ in 0..(DEFAULT_resource_list_LIMIT - action_count + 1) {
 
 //     test_environment.create_random_action(&None).await?;
@@ -238,9 +225,9 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 //   let session = test_environment.create_session(&user.id).await?;
 //   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let get_actions_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+//   let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: get_actions_action.id,
+//     action_id: get_app_authorizations_action.id,
 //     permission_level: AccessPolicyPermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
@@ -250,9 +237,9 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 //   }, &test_environment.database_pool).await?;
 
 //   // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-//   let list_actions_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+//   let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: list_actions_action.id,
+//     action_id: list_app_authorizations_action.id,
 //     permission_level: AccessPolicyPermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
@@ -294,9 +281,9 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 //   let session = test_environment.create_session(&user.id).await?;
 //   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let get_actions_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+//   let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: get_actions_action.id,
+//     action_id: get_app_authorizations_action.id,
 //     permission_level: AccessPolicyPermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
@@ -306,9 +293,9 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 //   }, &test_environment.database_pool).await?;
 
 //   // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-//   let list_actions_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+//   let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: list_actions_action.id,
+//     action_id: list_app_authorizations_action.id,
 //     permission_level: AccessPolicyPermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
@@ -329,7 +316,7 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 
 //   let requests = vec![
 //     test_server.get(&format!("/app-authorizations"))
-//       .add_query_param("query", format!("app_ied = {}", get_actions_action.id)),
+//       .add_query_param("query", format!("app_ied = {}", get_app_authorizations_action.id)),
 //     test_server.get(&format!("/app-authorizations"))
 //       .add_query_param("query", format!("SELECT * FROM actions")),
 //     test_server.get(&format!("/app-authorizations"))
@@ -337,7 +324,7 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 //     test_server.get(&format!("/app-authorizations"))
 //       .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
 //     test_server.get(&format!("/app-authorizations"))
-//       .add_query_param("query", format!("SELECT * FROM actions WHERE id = {}", get_actions_action.id))
+//       .add_query_param("query", format!("SELECT * FROM actions WHERE id = {}", get_app_authorizations_action.id))
 //   ];
   
 //   for request in requests {
