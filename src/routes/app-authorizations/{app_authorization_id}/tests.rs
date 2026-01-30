@@ -100,32 +100,32 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
 
 }
 
-// /// Verifies that the router can return a 401 status code if the user needs authentication.
-// #[tokio::test]
-// async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
   
-//   let action = test_environment.create_random_action(&None).await?;
+  let app_authorization = test_environment.create_random_app_authorization(&None).await?;
 
-//   let response = test_server.get(&format!("/app-authorizations/{}", action.id))
-//     .await;
+  let response = test_server.get(&format!("/app-authorizations/{}", app_authorization.id))
+    .await;
   
-//   assert_eq!(response.status_code(), 401);
-//   return Ok(());
+  assert_eq!(response.status_code(), 401);
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 403 status code if the user does not have permission to view the action.
 // #[tokio::test]
