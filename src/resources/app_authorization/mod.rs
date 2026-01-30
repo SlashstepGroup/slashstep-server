@@ -1,10 +1,31 @@
+#[cfg(test)]
+mod tests;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
-use crate::resources::{DeletableResource, ResourceError};
+use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
-#[cfg(test)]
-mod tests;
+pub const DEFAULT_APP_AUTHORIZATION_LIST_LIMIT: i64 = 1000;
+pub const DEFAULT_MAXIMUM_APP_AUTHORIZATION_LIST_LIMIT: i64 = 1000;
+pub const ALLOWED_QUERY_KEYS: &[&str] = &[
+  "id",
+  "app_id",
+  "authorizing_resource_type",
+  "authorizing_project_id",
+  "authorizing_workspace_id",
+  "authorizing_user_id"
+];
+pub const UUID_QUERY_KEYS: &[&str] = &[
+  "id",
+  "app_id",
+  "authorizing_project_id",
+  "authorizing_workspace_id",
+  "authorizing_user_id"
+];
+pub const RESOURCE_NAME: &str = "AppAuthorization";
+pub const DATABASE_TABLE_NAME: &str = "app_authorizations";
+pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.appAuthorizations.get";
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[postgres(name = "app_authorization_authorizing_resource_type")]
@@ -60,6 +81,31 @@ pub struct AppAuthorization {
 }
 
 impl AppAuthorization {
+
+  /// Counts the number of app authorizations based on a query.
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+
+    // Prepare the query.
+    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+      filter: query.to_string(),
+      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
+      default_limit: None,
+      maximum_limit: None,
+      should_ignore_limit: true,
+      should_ignore_offset: true
+    };
+    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, true);
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+
+    // Execute the query and return the count.
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query_one(&query, &parameters).await?;
+    let count = rows.get(0);
+    return Ok(count);
+
+  }
 
   pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
@@ -129,6 +175,49 @@ impl AppAuthorization {
     let app_credential = Self::convert_from_row(&row);
 
     return Ok(app_credential);
+
+  }
+
+  /// Parses a string into a parameter for a slashstepql query.
+  fn parse_string_slashstepql_parameters<'a>(key: &'a str, value: &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
+
+    if UUID_QUERY_KEYS.contains(&key) {
+
+      let uuid = match Uuid::parse_str(value) {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\".", value, key)))
+      };
+
+      return Ok(Box::new(uuid));
+
+    }
+
+    return Ok(Box::new(value));
+
+  }
+
+  /// Returns a list of app authorizations based on a query.
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+
+    // Prepare the query.
+    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+      filter: query.to_string(),
+      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
+      default_limit: Some(DEFAULT_APP_AUTHORIZATION_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      maximum_limit: Some(DEFAULT_MAXIMUM_APP_AUTHORIZATION_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      should_ignore_limit: false,
+      should_ignore_offset: false
+    };
+    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, false);
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+
+    // Execute the query.
+    let database_client = database_pool.get().await?;
+    let rows = database_client.query(&query, &parameters).await?;
+    let actions = rows.iter().map(Self::convert_from_row).collect();
+    return Ok(actions);
 
   }
 
