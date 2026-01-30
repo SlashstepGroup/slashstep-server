@@ -9,7 +9,7 @@ use crate::{
     DeletableResource,
     access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{get_action_from_name, get_app_from_id, get_resource_hierarchy, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}
+  utilities::route_handler_utilities::{get_action_from_name, get_app_from_id, get_resource_hierarchy, map_postgres_error_to_http_error}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -33,13 +33,14 @@ async fn handle_get_app_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let get_apps_action = get_action_from_name("slashstep.apps.get", &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &get_apps_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &get_apps_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
   
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: get_apps_action.id,
     http_transaction_id: Some(http_transaction.id),
-    actor_type: ActionLogEntryActorType::User,
-    actor_user_id: Some(user.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::App,
     target_app_id: Some(target_app.id),
     ..Default::default()
@@ -63,7 +64,7 @@ async fn handle_delete_app_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let delete_actions_action = get_action_from_name("slashstep.apps.delete", &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &delete_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &delete_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   match target_app.delete(&mut postgres_client).await {
 
@@ -82,8 +83,9 @@ async fn handle_delete_app_request(
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: delete_actions_action.id,
     http_transaction_id: Some(http_transaction.id),
-    actor_type: ActionLogEntryActorType::User,
-    actor_user_id: Some(user.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::App,
     target_app_id: Some(target_app.id),
     ..Default::default()
@@ -137,7 +139,7 @@ async fn handle_patch_app_request(
   let original_target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&original_target_app, &AccessPolicyResourceType::App, &original_target_app.id, &http_transaction, &mut postgres_client).await?;
   let update_access_policy_action = get_action_from_name("slashstep.apps.update", &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   ServerLogEntry::trace(&format!("Updating app {}...", original_target_app.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
   let updated_target_action = match original_target_app.update(&updated_app_properties, &mut postgres_client).await {
@@ -157,8 +159,9 @@ async fn handle_patch_app_request(
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: update_access_policy_action.id,
     http_transaction_id: Some(http_transaction.id),
-    actor_type: ActionLogEntryActorType::User,
-    actor_user_id: Some(user.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::Action,
     target_action_id: Some(updated_target_action.id),
     ..Default::default()

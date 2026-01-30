@@ -3,7 +3,7 @@ use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::Jso
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{AccessPolicyListQueryParameters, list_access_policies}, route_handler_utilities::{get_action_from_id, get_action_from_name, get_app_from_id, get_resource_hierarchy, get_user_from_option_user, map_postgres_error_to_http_error, verify_user_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{AccessPolicyListQueryParameters, list_access_policies}, route_handler_utilities::{get_action_from_id, get_action_from_name, get_app_from_id, get_resource_hierarchy, map_postgres_error_to_http_error}}};
 
 #[cfg(test)]
 mod tests;
@@ -81,12 +81,12 @@ async fn handle_create_access_policy_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let create_access_policies_action = get_action_from_name("slashstep.accessPolicies.create", &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &create_access_policies_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &create_access_policies_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   // Make sure the user has at least editor access to the access policy's action.
   let access_policy_action = get_action_from_id(&access_policy_properties_json.action_id.to_string(), &http_transaction, &mut postgres_client).await?;
   let minimum_permission_level = if access_policy_properties_json.permission_level > AccessPolicyPermissionLevel::Editor { access_policy_properties_json.permission_level } else { AccessPolicyPermissionLevel::Editor };
-  verify_user_permissions(&user, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &mut postgres_client).await?;
 
   // Create the access policy.
   ServerLogEntry::trace(&format!("Creating access policy for app {}...", target_app.id), Some(&http_transaction.id), &mut postgres_client).await.ok();
@@ -119,8 +119,9 @@ async fn handle_create_access_policy_request(
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: create_access_policies_action.id,
     http_transaction_id: Some(http_transaction.id),
-    actor_type: ActionLogEntryActorType::User,
-    actor_user_id: Some(user.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::AccessPolicy,
     target_access_policy_id: Some(access_policy.id),
     ..Default::default()

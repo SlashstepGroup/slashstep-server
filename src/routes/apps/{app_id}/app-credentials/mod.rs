@@ -6,7 +6,7 @@ use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{En
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app_credential::{AppCredential, DEFAULT_MAXIMUM_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_app_from_id, get_resource_hierarchy, get_user_from_option_user, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_user_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app_credential::{AppCredential, DEFAULT_MAXIMUM_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_app_from_id, get_resource_hierarchy, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error}};
 
 #[cfg(test)]
 mod tests;
@@ -47,7 +47,7 @@ pub async fn handle_list_app_credentials_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let list_app_credentials_action = get_action_from_name("slashstep.appCredentials.list", &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &list_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &list_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
   let query = query_parameters.query.unwrap_or("".to_string());
   let app_credentials = match AppCredential::list(&query, &mut postgres_client, Some(&IndividualPrincipal::User(user.id))).await {
 
@@ -93,8 +93,9 @@ pub async fn handle_list_app_credentials_request(
     action_id: list_app_credentials_action.id,
     http_transaction_id: Some(http_transaction.id),
     reason: None, // TODO: Support reasons.
-    actor_type: ActionLogEntryActorType::User,
-    actor_user_id: Some(user.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
     actor_app_id: None,
     target_resource_type: ActionLogEntryTargetResourceType::App,
     target_app_id: Some(target_app.id),
@@ -155,7 +156,7 @@ async fn handle_create_app_credential_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let create_app_credentials_action = get_action_from_name("slashstep.appCredentials.create", &http_transaction, &mut postgres_client).await?;
-  verify_user_permissions(&user, &create_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &create_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   // Create the key pair.
   let mut os_rng = OsRng;
@@ -224,8 +225,9 @@ async fn handle_create_app_credential_request(
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: create_app_credentials_action.id,
     http_transaction_id: Some(http_transaction.id),
-    actor_type: ActionLogEntryActorType::User,
-    actor_user_id: Some(user.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::AppCredential,
     target_app_credential_id: Some(created_app_credential.id),
     ..Default::default()

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_user_from_option_user, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_user_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error}};
 
 #[path = "./{app_id}/mod.rs"]
 mod app_id;
@@ -34,7 +34,7 @@ async fn handle_list_apps_request(
   let mut postgres_client = state.database_pool.get().await.map_err(map_postgres_error_to_http_error)?;
   let list_apps_action = get_action_from_name("slashstep.apps.list", &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Instance, None)];
-  verify_user_permissions(&user, &list_apps_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  verify_principal_permissions(&authenticated_principal, &list_apps_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   // Get the list of actions.
   let query = query_parameters.query.unwrap_or("".to_string());
@@ -79,8 +79,9 @@ async fn handle_list_apps_request(
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: list_apps_action.id,
     http_transaction_id: Some(http_transaction.id),
-    actor_type: ActionLogEntryActorType::User,
-    actor_user_id: Some(user.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::Instance,
     ..Default::default()
   }, &mut postgres_client).await.ok();
