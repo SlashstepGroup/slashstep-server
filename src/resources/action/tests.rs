@@ -26,8 +26,17 @@ fn assert_actions_are_equal(action_1: &Action, action_2: &Action) {
 
 }
 
+fn assert_action_is_equal_to_initial_properties(action: &Action, initial_properties: &InitialActionProperties) {
+
+  assert_eq!(action.name, initial_properties.name);
+  assert_eq!(action.display_name, initial_properties.display_name);
+  assert_eq!(action.description, initial_properties.description);
+  assert_eq!(action.parent_app_id, initial_properties.parent_app_id);
+
+}
+
 #[tokio::test]
-async fn count_actions() -> Result<(), TestSlashstepServerError> {
+async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -48,13 +57,30 @@ async fn count_actions() -> Result<(), TestSlashstepServerError> {
 
 }
 
-#[test]
-fn create_action() {
+#[tokio::test]
+async fn verify_creation() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+
+  // Create the access policy.
+  let action_properties = InitialActionProperties {
+    name: Uuid::now_v7().to_string(),
+    display_name: Uuid::now_v7().to_string(),
+    description: Uuid::now_v7().to_string(),
+    ..Default::default()
+  };
+  let action = Action::create(&action_properties, &test_environment.database_pool).await?;
+
+  // Ensure that all the properties were set correctly.
+  assert_action_is_equal_to_initial_properties(&action, &action_properties);
+
+  return Ok(());
 
 }
 
 #[tokio::test]
-async fn delete_action() -> Result<(), TestSlashstepServerError> {
+async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
@@ -81,8 +107,17 @@ async fn initialize_actions_table() -> Result<(), TestSlashstepServerError> {
 
 }
 
-#[test]
-fn get_action_by_id() {
+#[tokio::test]
+async fn verify_get_action_by_id() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+
+  let action = test_environment.create_random_action(&None).await?;
+  let retrieved_action = Action::get_by_id(&action.id, &test_environment.database_pool).await?;
+  assert_actions_are_equal(&action, &retrieved_action);
+
+  return Ok(());
 
 }
 

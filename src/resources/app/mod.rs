@@ -94,7 +94,7 @@ impl App {
   pub async fn initialize_apps_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/apps/initialize-apps-table.sql");
+    let query = include_str!("../../queries/apps/initialize_apps_table.sql");
     database_client.execute(query, &[]).await?;
     return Ok(());
 
@@ -144,7 +144,7 @@ impl App {
   /// Creates a new app.
   pub async fn create(initial_properties: &InitialAppProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
-    let query = include_str!("../../queries/apps/insert-app-row.sql");
+    let query = include_str!("../../queries/apps/insert_app_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.name,
       &initial_properties.display_name,
@@ -181,7 +181,7 @@ impl App {
   pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/apps/get-app-row-by-id.sql");
+    let query = include_str!("../../queries/apps/get_app_row_by_id.sql");
     let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
@@ -277,7 +277,7 @@ impl DeletableResource for App {
   async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/apps/delete-app-row-by-id.sql");
+    let query = include_str!("../../queries/apps/delete_app_row_by_id.sql");
     database_client.execute(query, &[&self.id]).await?;
     return Ok(());
 

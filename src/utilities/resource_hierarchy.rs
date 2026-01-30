@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationParentResourceType}, app_authorization_credential::{AppAuthorizationCredential}, app_credential::{AppCredential}, group_membership::{GroupMembership}, item::{Item}, milestone::{Milestone, MilestoneParentResourceType}, project::{Project}, role::{Role, RoleParentResourceType}, role_memberships::{RoleMembership}, session::{Session}};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::{AppAuthorizationCredential}, app_credential::{AppCredential}, group_membership::{GroupMembership}, item::{Item}, milestone::{Milestone, MilestoneParentResourceType}, project::{Project}, role::{Role, RoleParentResourceType}, role_memberships::{RoleMembership}, session::{Session}};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -172,18 +172,31 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         };
 
-        match app_authorization.parent_resource_type {
+        match app_authorization.authorizing_resource_type {
 
-          AppAuthorizationParentResourceType::Instance => {
+          AppAuthorizationAuthorizingResourceType::Instance => {
 
             selected_resource_type = AccessPolicyResourceType::Instance;
             selected_resource_id = None;
 
           },
 
-          AppAuthorizationParentResourceType::Workspace => {
+          AppAuthorizationAuthorizingResourceType::Project => {
 
-            let Some(workspace_id) = app_authorization.parent_workspace_id else {
+            let Some(project_id) = app_authorization.authorizing_project_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Project));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Project;
+            selected_resource_id = Some(project_id);
+
+          },
+
+          AppAuthorizationAuthorizingResourceType::Workspace => {
+
+            let Some(workspace_id) = app_authorization.authorizing_workspace_id else {
 
               return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Workspace));
 
@@ -194,9 +207,9 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
           },
 
-          AppAuthorizationParentResourceType::User => {
+          AppAuthorizationAuthorizingResourceType::User => {
 
-            let Some(user_id) = app_authorization.parent_user_id else {
+            let Some(user_id) = app_authorization.authorizing_user_id else {
 
               return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::User));
 

@@ -4,6 +4,8 @@ mod actions;
 #[path = "./action-log-entries/mod.rs"]
 mod action_log_entries;
 mod apps;
+#[path = "./app-authorizations/mod.rs"]
+mod app_authorizations;
 
 use axum::{Router, response::IntoResponse};
 use crate::{AppState, HTTPError, middleware::http_request_middleware};
@@ -22,6 +24,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(actions::get_router(state.clone()))
     .merge(action_log_entries::get_router(state.clone()))
     .merge(apps::get_router(state.clone()))
+    .merge(app_authorizations::get_router(state.clone()))
     .fallback(fallback);
   return router;
 

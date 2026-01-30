@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -133,6 +133,21 @@ impl TestEnvironment {
 
   }
 
+  pub async fn create_random_app_authorization(&self, app_id: &Option<Uuid>) -> Result<AppAuthorization, TestSlashstepServerError> {
+
+    // Create a random app.
+    let app_id = app_id.unwrap_or(self.create_random_app().await?.id);
+    let app_authorization_properties = InitialAppAuthorizationProperties {
+      app_id,
+      ..Default::default()
+    };
+
+    let app_authorization = AppAuthorization::create(&app_authorization_properties, &self.database_pool).await?;
+
+    return Ok(app_authorization);
+
+  }
+
   pub async fn create_random_app_credential(&self, app_id: &Option<Uuid>) -> Result<AppCredential, TestSlashstepServerError> {
 
     // Create a random app.
@@ -221,6 +236,22 @@ impl TestEnvironment {
     };
 
     let access_policy = AccessPolicy::create(&access_policy_properties, &self.database_pool).await?;
+
+    return Ok(access_policy);
+
+  }
+
+  pub async fn create_instance_access_policy(&self, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
+
+    let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
+      action_id: action_id.clone(),
+      permission_level: permission_level.clone(),
+      is_inheritance_enabled: true,
+      principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
+      principal_user_id: Some(user_id.clone()),
+      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Instance,
+      ..Default::default()
+    }, &self.database_pool).await?;
 
     return Ok(access_policy);
 

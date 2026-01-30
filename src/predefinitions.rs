@@ -145,6 +145,13 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "List all app credentials on a particular scope.".to_string(),
       parent_app_id: None,
       parent_resource_type: ActionParentResourceType::Instance
+    },
+    InitialActionProperties {
+      name: "slashstep.appAuthorizations.get".to_string(),
+      display_name: "Get an app authorization".to_string(),
+      description: "Get an app authorization on a particular scope.".to_string(),
+      parent_app_id: None,
+      parent_resource_type: ActionParentResourceType::Instance
     }
   ];
 

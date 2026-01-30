@@ -266,7 +266,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'AppAuthorization' THEN
 
-                -- AppAuthorization -> (User | Workspace | Instance)
+                -- AppAuthorization -> (User | Project | Workspace | Instance)
                 -- Check if the app authorization has an associated access policy.
                 SELECT
                     permission_level,
@@ -298,7 +298,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 needs_inheritance := TRUE;
 
                 SELECT
-                    parent_resource_type
+                    authorizing_resource_type
                 INTO
                     selected_resource_parent_type
                 FROM
@@ -324,6 +324,26 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                     END IF;
 
                     selected_resource_type := 'User';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Project' THEN
+
+                    SELECT
+                        authorizing_project_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        app_authorizations
+                    WHERE
+                        app_authorizations.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent project for app authorization %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Project';
                     selected_resource_id := selected_resource_parent_id;
 
                 ELSIF selected_resource_parent_type = 'Workspace' THEN

@@ -18,22 +18,6 @@ use reqwest::StatusCode;
 use uuid::Uuid;
 use crate::{AppState, initialize_required_tables,  predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, IndividualPrincipal, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, InitialActionPropertiesForPredefinedScope}, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListActionsResponseBody};
 
-async fn create_instance_access_policy(database_pool: &deadpool_postgres::Pool, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
-
-  let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
-    action_id: action_id.clone(),
-    permission_level: permission_level.clone(),
-    is_inheritance_enabled: true,
-    principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
-    principal_user_id: Some(user_id.clone()),
-    scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Instance,
-    ..Default::default()
-  }, database_pool).await?;
-
-  return Ok(access_policy);
-
-}
-
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
 async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
@@ -48,7 +32,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let create_actions_action = Action::get_by_name("slashstep.actions.create", &test_environment.database_pool).await?;
-  create_instance_access_policy(&test_environment.database_pool, &user.id, &create_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &create_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create a dummy app.
   let dummy_app = test_environment.create_random_app().await?;
@@ -247,11 +231,11 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
-  create_instance_access_policy(&test_environment.database_pool, &user.id, &get_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Give the user access to the "slashstep.actions.list" action.
   let list_actions_action = Action::get_by_name("slashstep.actions.list", &test_environment.database_pool).await?;
-  create_instance_access_policy(&test_environment.database_pool, &user.id, &list_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &list_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
@@ -303,11 +287,11 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
-  create_instance_access_policy(&test_environment.database_pool, &user.id, &get_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Give the user access to the "slashstep.actions.list" action.
   let list_actions_action = Action::get_by_name("slashstep.actions.list", &test_environment.database_pool).await?;
-  create_instance_access_policy(&test_environment.database_pool, &user.id, &list_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &list_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
