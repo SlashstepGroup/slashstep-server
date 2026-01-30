@@ -172,35 +172,34 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 
 }
 
-// #[tokio::test]
-// async fn list_actions_without_query() -> Result<(), TestSlashstepServerError> {
+#[tokio::test]
+async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   const MAXIMUM_ACTION_COUNT: i32 = 25;
-//   let mut created_actions: Vec<Action> = Vec::new();
-//   for _ in 0..MAXIMUM_ACTION_COUNT {
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  const MAXIMUM_RESOURCE_COUNT: i32 = 25;
+  let mut created_app_authorizations: Vec<AppAuthorization> = Vec::new();
+  for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-//     let action = test_environment.create_random_action(&None).await?;
-//     created_actions.push(action);
+    let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+    created_app_authorizations.push(app_authorization);
 
-//   }
+  }
 
-//   let retrieved_actions = Action::list("", &test_environment.database_pool, None).await?;
+  let retrieved_app_authorizations = AppAuthorization::list("", &test_environment.database_pool, None).await?;
+  assert_eq!(created_app_authorizations.len(), retrieved_app_authorizations.len());
+  for i in 0..created_app_authorizations.len() {
 
-//   assert_eq!(created_actions.len(), retrieved_actions.len());
-//   for i in 0..created_actions.len() {
+    let created_app_authorization = &created_app_authorizations[i];
+    let retrieved_app_authorization = &retrieved_app_authorizations[i];
 
-//     let created_action = &created_actions[i];
-//     let retrieved_action = &retrieved_actions[i];
+    assert_app_authorizations_are_equal(created_app_authorization, retrieved_app_authorization);
 
-//     assert_actions_are_equal(created_action, retrieved_action);
+  }
 
-//   }
+  return Ok(());
 
-//   return Ok(());
-
-// }
+}
 
 // /// Verifies that a list of access policies can be retrieved without a query.
 // #[tokio::test]
