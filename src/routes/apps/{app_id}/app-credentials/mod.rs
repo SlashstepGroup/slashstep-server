@@ -1,3 +1,14 @@
+/**
+ * 
+ * Any functionality for /apps/{app_id}/app-credentials should be handled here.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
+
 use std::{net::IpAddr, sync::Arc};
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use axum_extra::response::ErasedJson;
@@ -6,7 +17,7 @@ use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{En
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app_credential::{AppCredential, DEFAULT_MAXIMUM_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_from_name, get_app_from_id, get_resource_hierarchy, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_credential::{AppCredential, DEFAULT_MAXIMUM_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_from_name, get_app_from_id, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_resource_hierarchy, map_postgres_error_to_http_error, match_db_error, match_slashstepql_error, verify_principal_permissions}};
 
 #[cfg(test)]
 mod tests;
@@ -33,13 +44,17 @@ pub struct CreateAppCredentialResponseBody {
   pub private_key: String
 }
 
+/// GET /apps/{app_id}/app-credentials
+/// 
+/// Lists app credentials for an app.
 #[axum::debug_handler]
 pub async fn handle_list_app_credentials_request(
   Path(app_id): Path<String>,
   Query(query_parameters): Query<ListAppCredentialsQueryParameters>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>
 ) -> Result<ErasedJson, HTTPError> {
 
   let http_transaction = http_transaction.clone();
@@ -47,9 +62,12 @@ pub async fn handle_list_app_credentials_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let list_app_credentials_action = get_action_from_name("slashstep.appCredentials.list", &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
+  let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
   verify_principal_permissions(&authenticated_principal, &list_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
+  
+  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
   let query = query_parameters.query.unwrap_or("".to_string());
-  let app_credentials = match AppCredential::list(&query, &mut postgres_client, Some(&IndividualPrincipal::User(authenticated_user.id))).await {
+  let app_credentials = match AppCredential::list(&query, &mut postgres_client, Some(&individual_principal)).await {
 
     Ok(app_credentials) => app_credentials,
 
@@ -73,7 +91,7 @@ pub async fn handle_list_app_credentials_request(
   };
 
   ServerLogEntry::trace(&format!("Counting authenticated_app credentials..."), Some(&http_transaction.id), &mut postgres_client).await.ok();
-  let app_credential_count = match AppCredential::count(&query, &mut postgres_client, Some(&IndividualPrincipal::User(authenticated_user.id))).await {
+  let app_credential_count = match AppCredential::count(&query, &mut postgres_client, Some(&individual_principal)).await {
 
     Ok(app_credential_count) => app_credential_count,
 
@@ -96,7 +114,6 @@ pub async fn handle_list_app_credentials_request(
     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
     actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-    actor_app_id: None,
     target_resource_type: ActionLogEntryTargetResourceType::App,
     target_app_id: Some(target_app.id),
     ..Default::default()
@@ -111,12 +128,16 @@ pub async fn handle_list_app_credentials_request(
 
 }
 
+/// POST /apps/{app_id}/app-credentials
+/// 
+/// Creates an app credential for an app.
 #[axum::debug_handler]
 async fn handle_create_app_credential_request(
   Path(app_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
   body: Result<Json<InitialAppCredentialPropertiesForPredefinedScope>, JsonRejection>
 ) -> Result<(StatusCode, Json<CreateAppCredentialResponseBody>), HTTPError> {
 
@@ -156,6 +177,7 @@ async fn handle_create_app_credential_request(
   let target_app = get_app_from_id(&app_id, &http_transaction, &mut postgres_client).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &mut postgres_client).await?;
   let create_app_credentials_action = get_action_from_name("slashstep.appCredentials.create", &http_transaction, &mut postgres_client).await?;
+  let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
   verify_principal_permissions(&authenticated_principal, &create_app_credentials_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &mut postgres_client).await?;
 
   // Create the key pair.
