@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_credential::AppCredential, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use colored::Colorize;
 use postgres::error::SqlState;
 use uuid::Uuid;
@@ -241,6 +241,47 @@ pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransac
   };
 
   return Ok(app);
+
+}
+
+pub async fn get_app_authorization_credential_from_id(app_authorization_credential_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorizationCredential, HTTPError> {
+
+  let app_authorization_credential_id = match Uuid::parse_str(&app_authorization_credential_id) {
+
+    Ok(app_authorization_credential_id) => app_authorization_credential_id,
+
+    Err(_) => {
+
+      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the app authorization credential ID.".to_string()));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  ServerLogEntry::trace(&format!("Getting app authorization credential {}...", app_authorization_credential_id), Some(&http_transaction.id), database_pool).await.ok();
+  let app_authorization_credential = match AppAuthorizationCredential::get_by_id(&app_authorization_credential_id, database_pool).await {
+
+    Ok(app_authorization_credential) => app_authorization_credential,
+
+    Err(error) => {
+
+      let http_error = match error {
+        
+        ResourceError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
+
+        error => HTTPError::InternalServerError(Some(format!("Failed to get app authorization credential {}: {:?}", app_authorization_credential_id, error)))
+
+      };
+      http_error.print_and_save(Some(&http_transaction.id), &database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  return Ok(app_authorization_credential);
 
 }
 

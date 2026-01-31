@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -145,6 +145,23 @@ impl TestEnvironment {
     let app_authorization = AppAuthorization::create(&app_authorization_properties, &self.database_pool).await?;
 
     return Ok(app_authorization);
+
+  }
+
+  pub async fn create_random_app_authorization_credential(&self, app_authorization_id: &Option<Uuid>) -> Result<AppAuthorizationCredential, TestSlashstepServerError> {
+
+    // Create a random app.
+    let app_authorization_id = app_authorization_id.unwrap_or(self.create_random_app_authorization(&None).await?.id);
+    let app_authorization_properties = InitialAppAuthorizationCredentialProperties {
+      app_authorization_id,
+      access_token_expiration_date: Utc::now() + Duration::days(1),
+      refresh_token_expiration_date: Utc::now() + Duration::days(30),
+      refreshed_app_authorization_credential_id: None
+    };
+
+    let app_authorization_credential = AppAuthorizationCredential::create(&app_authorization_properties, &self.database_pool).await?;
+
+    return Ok(app_authorization_credential);
 
   }
 
