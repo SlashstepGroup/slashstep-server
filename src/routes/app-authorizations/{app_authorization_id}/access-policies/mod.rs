@@ -40,10 +40,12 @@ async fn handle_list_access_policies_request(
     quote_literal(&target_app_authorization.id.to_string()), 
     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
   );
+  println!("{}", &query);
   
   let query_parameters = AccessPolicyListQueryParameters {
     query: Some(query)
   };
+
 
   return list_access_policies(Query(query_parameters), State(state), Extension(http_transaction), Extension(authenticated_user), Extension(authenticated_app), resource_hierarchy, ActionLogEntryTargetResourceType::AppAuthorization, Some(target_app_authorization.id)).await;
 

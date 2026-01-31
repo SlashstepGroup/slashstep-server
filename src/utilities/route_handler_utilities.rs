@@ -296,7 +296,7 @@ pub fn match_slashstepql_error(error: &SlashstepQLError, maximum_limit: &i64, re
 
     SlashstepQLError::InvalidFieldError(field) => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid. The field \"{}\" is not allowed.", field))),
 
-    SlashstepQLError::InvalidQueryError(()) => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid."))),
+    SlashstepQLError::InvalidQueryError(()) => HTTPError::BadRequestError(Some(format!("The provided query is invalid."))),
 
     _ => HTTPError::InternalServerError(Some(format!("Failed to list {}: {:?}", resource_type, error)))
 
@@ -312,7 +312,7 @@ pub fn match_db_error(error: &postgres::Error, resource_type: &str) -> HTTPError
 
     Some(db_error) => match db_error.code() {
 
-      &SqlState::UNDEFINED_FUNCTION => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid."))),
+      &SqlState::UNDEFINED_FUNCTION => HTTPError::BadRequestError(Some(format!("The provided query is invalid."))),
 
       _ => HTTPError::InternalServerError(Some(format!("Failed to list {}: {:?}", resource_type, error)))
 

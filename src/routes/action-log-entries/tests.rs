@@ -371,26 +371,38 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
 
-  let requests = vec![
-    test_server.get(&format!("/action-log-entries"))
-      .add_query_param("query", format!("action_id = {}", get_action_log_entries_action.id)),
+  let bad_requests = vec![
     test_server.get(&format!("/action-log-entries"))
       .add_query_param("query", format!("SELECT * FROM actions")),
-    test_server.get(&format!("/action-log-entries"))
-      .add_query_param("query", format!("1 = 1")),
     test_server.get(&format!("/action-log-entries"))
       .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
     test_server.get(&format!("/action-log-entries"))
       .add_query_param("query", format!("SELECT * FROM actions WHERE id = {}", get_action_log_entries_action.id))
   ];
   
-  for request in requests {
+  for request in bad_requests {
 
     let response = request
       .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
       .await;
 
-    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+  }
+
+  let unprocessable_entity_requests = vec![
+    test_server.get(&format!("/action-log-entries"))
+      .add_query_param("query", format!("action_ied = {}", get_action_log_entries_action.id)),
+    test_server.get(&format!("/action-log-entries"))
+      .add_query_param("query", format!("1 = 1"))
+  ];
+
+  for request in unprocessable_entity_requests {
+
+    let response = request
+      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .await;
+
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
   }
