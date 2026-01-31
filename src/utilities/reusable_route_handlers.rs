@@ -54,7 +54,7 @@ pub async fn list_resources<ResourceType: Serialize, CountResourcesFunction, Lis
 
         ResourceError::PostgresError(error) => match_db_error(&error, &resource_type_name_plural),
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to list {} {:?}", resource_type_name_plural, error)))
+        _ => HTTPError::InternalServerError(Some(format!("Failed to list {}: {:?}", resource_type_name_plural, error)))
 
       };
 
@@ -65,14 +65,14 @@ pub async fn list_resources<ResourceType: Serialize, CountResourcesFunction, Lis
 
   };
 
-  ServerLogEntry::trace(&format!("Counting {} ...", resource_type_name_plural), Some(&http_transaction.id), &state.database_pool).await.ok();
+  ServerLogEntry::trace(&format!("Counting {}...", resource_type_name_plural), Some(&http_transaction.id), &state.database_pool).await.ok();
   let resource_count = match Pin::from(count_resources(&query, &state.database_pool, Some(&individual_principal))).await {
 
     Ok(resource_count) => resource_count,
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count {} {:?}", resource_type_name_plural, error)));
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count {}: {:?}", resource_type_name_plural, error)));
       http_error.print_and_save(Some(&http_transaction.id), &state.database_pool).await.ok();
       return Err(http_error);
 
