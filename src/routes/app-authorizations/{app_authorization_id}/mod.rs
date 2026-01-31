@@ -9,6 +9,11 @@
  * 
  */
 
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
+#[cfg(test)]
+mod tests;
+
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use reqwest::StatusCode;
@@ -23,12 +28,6 @@ use crate::{
     AuthenticatedPrincipal, get_action_from_name, get_app_authorization_from_id, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions
   }
 };
-
-// #[path = "./access-policies/mod.rs"]
-// pub mod access_policies;
-
-#[cfg(test)]
-mod tests;
 
 /// GET /app-authorizations/{app_authorization_id}
 /// 
@@ -121,8 +120,8 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/app-authorizations/{app_authorization_id}", axum::routing::delete(handle_delete_app_authorization_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));
-    // .merge(access_policies::get_router(state.clone()));
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .merge(access_policies::get_router(state.clone()));
   return router;
 
 }

@@ -354,26 +354,38 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
 
-  let requests = vec![
+  let bad_requests = vec![
     test_server.get(&format!("/apps"))
       .add_query_param("query", format!("id ~ '{}'", get_actions_action.id)),
     test_server.get(&format!("/apps"))
-      .add_query_param("query", format!("SELECT * FROM actions")),
-    test_server.get(&format!("/apps"))
-      .add_query_param("query", format!("1 = 1")),
+      .add_query_param("query", format!("SELECT * FROM apps")),
     test_server.get(&format!("/apps"))
       .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
     test_server.get(&format!("/apps"))
-      .add_query_param("query", format!("SELECT * FROM actions WHERE id = {}", get_actions_action.id))
+      .add_query_param("query", format!("SELECT * FROM apps WHERE id = {}", get_actions_action.id))
   ];
   
-  for request in requests {
+  for request in bad_requests {
 
     let response = request
       .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
       .await;
 
-    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+  }
+
+  let unprocessable_entity_requests = vec![
+    test_server.get(&format!("/apps"))
+      .add_query_param("query", format!("1 = 1")),
+  ];
+
+  for request in unprocessable_entity_requests {
+
+    let response = request
+      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .await;
+
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
   }

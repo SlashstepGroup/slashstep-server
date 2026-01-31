@@ -334,20 +334,33 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
   };
   AccessPolicy::create(&list_access_policy_properties, &test_environment.database_pool).await?;
 
-  let requests = vec![
-    test_server.get(&format!("/access-policies"))
-      .add_query_param("query", format!("action_ied = {}", get_access_policies_action.id)),
+  let bad_requests = vec![
     test_server.get(&format!("/access-policies"))
       .add_query_param("query", format!("SELECT * FROM access_policies")),
-    test_server.get(&format!("/access-policies"))
-      .add_query_param("query", format!("1 = 1")),
     test_server.get(&format!("/access-policies"))
       .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
     test_server.get(&format!("/access-policies"))
       .add_query_param("query", format!("SELECT * FROM access_policies WHERE action_id = {}", get_access_policies_action.id))
   ];
   
-  for request in requests {
+  for request in bad_requests {
+
+    let response = request
+      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .await;
+
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+  }
+
+  let unprocessable_entity_requests = vec![
+    test_server.get(&format!("/access-policies"))
+      .add_query_param("query", format!("action_ied = {}", get_access_policies_action.id)),
+    test_server.get(&format!("/access-policies"))
+      .add_query_param("query", format!("1 = 1"))
+  ];
+
+  for request in unprocessable_entity_requests {
 
     let response = request
       .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))

@@ -17,7 +17,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties}, action::Action, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope}, session::Session}, routes::apps::app_id::app_credentials::{CreateAppCredentialResponseBody, ListAppCredentialsResponseBody}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPermissionLevel, IndividualPrincipal}, action::Action, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope}, session::Session}, routes::apps::app_id::app_credentials::{CreateAppCredentialResponseBody, ListAppCredentialsResponseBody}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -260,26 +260,38 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
 
-  let requests = vec![
-    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
-      .add_query_param("query", format!("app_id = {}", get_app_credentials_action.id)),
+  let bad_requests = vec![
     test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
       .add_query_param("query", format!("SELECT * FROM app_credentials")),
-    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
-      .add_query_param("query", format!("1 = 1")),
     test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
       .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
     test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
       .add_query_param("query", format!("SELECT * FROM app_credentials WHERE id = {}", get_app_credentials_action.id))
   ];
   
-  for request in requests {
+  for request in bad_requests {
 
     let response = request
       .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
       .await;
 
-    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+  }
+
+  let unprocessable_entity_requests = vec![
+    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+      .add_query_param("query", format!("app_ied = {}", get_app_credentials_action.id)),
+    test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
+      .add_query_param("query", format!("1 = 1"))
+  ];
+
+  for request in unprocessable_entity_requests {
+
+    let response = request
+      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .await;
+
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
   }
