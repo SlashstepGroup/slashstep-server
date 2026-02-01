@@ -248,7 +248,7 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   
   assert_eq!(response.status_code(), 204);
 
-  match Action::get_by_id(&action.id, &test_environment.database_pool).await.expect_err("Expected an action not found error.") {
+  match Action::get_by_id(&action.id, &test_environment.database_pool).await.expect_err("expected a not found error.") {
 
     ResourceError::NotFoundError(_) => {},
 

@@ -222,7 +222,7 @@ async fn verify_successful_deletion_when_deleting_resource_by_id() -> Result<(),
   
   assert_eq!(response.status_code(), 204);
 
-  match AppAuthorization::get_by_id(&app_authorization.id, &test_environment.database_pool).await.expect_err("Expected an action not found error.") {
+  match AppAuthorization::get_by_id(&app_authorization.id, &test_environment.database_pool).await.expect_err("expected a not found error.") {
 
     ResourceError::NotFoundError(_) => {},
 
