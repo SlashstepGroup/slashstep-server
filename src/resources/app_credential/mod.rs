@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::net::IpAddr;
 use chrono::{DateTime, Utc};
 use postgres_types::ToSql;
