@@ -60,41 +60,41 @@ async fn handle_get_app_credential_request(
 
 }
 
-// /// DELETE /app-credentials/{app_credential_id}
-// /// 
-// /// Deletes an app credential by its ID.
-// #[axum::debug_handler]
-// async fn handle_delete_app_credential_request(
-//   Path(app_credential_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>
-// ) -> Result<StatusCode, HTTPError> {
+/// DELETE /app-credentials/{app_credential_id}
+/// 
+/// Deletes an app credential by its ID.
+#[axum::debug_handler]
+async fn handle_delete_app_credential_request(
+  Path(app_credential_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>
+) -> Result<StatusCode, HTTPError> {
 
-//   let app_credential_id = get_uuid_from_string(&app_credential_id, "app credential", &http_transaction, &state.database_pool).await?;
-//   let response = delete_resource(
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
-//     Some(&AccessPolicyResourceType::AppCredential),
-//     &app_credential_id, 
-//     "slashstep.appCredentials.delete",
-//     "app credential",
-//     &ActionLogEntryTargetResourceType::AppCredential,
-//     |app_credential_id, database_pool| Box::new(AppCredential::get_by_id(app_credential_id, database_pool))
-//   ).await;
+  let app_credential_id = get_uuid_from_string(&app_credential_id, "app credential", &http_transaction, &state.database_pool).await?;
+  let response = delete_resource(
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    Some(&AccessPolicyResourceType::AppCredential),
+    &app_credential_id, 
+    "slashstep.appCredentials.delete",
+    "app credential",
+    &ActionLogEntryTargetResourceType::AppCredential,
+    |app_credential_id, database_pool| Box::new(AppCredential::get_by_id(app_credential_id, database_pool))
+  ).await;
 
-//   return response;
+  return response;
 
-// }
+}
 
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/app-credentials/{app_credential_id}", axum::routing::get(handle_get_app_credential_request))
-    // .route("/app-credentials/{app_credential_id}", axum::routing::delete(handle_delete_app_credential_request))
+    .route("/app-credentials/{app_credential_id}", axum::routing::delete(handle_delete_app_credential_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));

@@ -183,174 +183,174 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }
 
-// /// Verifies that the router can return a 204 status code if the resource is successfully deleted.
-// #[tokio::test]
-// async fn verify_successful_deletion_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 204 status code if the resource is successfully deleted.
+#[tokio::test]
+async fn verify_successful_deletion_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Grant access to the "slashstep.appCredentials.delete" action to the user.
-//   let delete_app_credentials_action = Action::get_by_name("slashstep.appCredentials.delete", &test_environment.database_pool).await?;
-//   test_environment.create_instance_access_policy(&user.id, &delete_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+  // Grant access to the "slashstep.appCredentials.delete" action to the user.
+  let delete_app_credentials_action = Action::get_by_name("slashstep.appCredentials.delete", &test_environment.database_pool).await?;
+  test_environment.create_instance_access_policy(&user.id, &delete_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-//   // Set up the server and send the request.
-//   let app_credential = test_environment.create_random_app_credential(&None).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let app_credential = test_environment.create_random_app_credential(&None).await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   assert_eq!(response.status_code(), 204);
+  assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
 
-//   match appCredential::get_by_id(&app_credential.id, &test_environment.database_pool).await.expect_err("expected a not found error.") {
+  match AppCredential::get_by_id(&app_credential.id, &test_environment.database_pool).await.expect_err("expected a not found error.") {
 
-//     ResourceError::NotFoundError(_) => {},
+    ResourceError::NotFoundError(_) => {},
 
-//     error => return Err(TestSlashstepServerError::ResourceError(error))
+    error => return Err(TestSlashstepServerError::ResourceError(error))
 
-//   }
+  }
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
-// #[tokio::test]
-// async fn verify_uuid_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
 
-//   let response = test_server.delete("/app-credentials/not-a-uuid")
-//     .await;
+  let response = test_server.delete("/app-credentials/not-a-uuid")
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 401 status code if the user needs authentication.
-// #[tokio::test]
-// async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
-//   // Create dummy resources.
-//   let app_credential = test_environment.create_random_app_credential(&None).await?;
+  // Create dummy resources.
+  let app_credential = test_environment.create_random_app_credential(&None).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), 401);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
-// #[tokio::test]
-// async fn verify_permission_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
+#[tokio::test]
+async fn verify_permission_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
-//   // Create dummy resources.
-//   let app_credential = test_environment.create_random_app_credential(&None).await?;
+  // Create dummy resources.
+  let app_credential = test_environment.create_random_app_credential(&None).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), 403);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 404 status code if the resource does not exist.
-// #[tokio::test]
-// async fn verify_resource_exists_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 404 status code if the resource does not exist.
+#[tokio::test]
+async fn verify_resource_exists_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-credentials/{}", uuid::Uuid::now_v7()))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.delete(&format!("/app-credentials/{}", uuid::Uuid::now_v7()))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), 404);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+  return Ok(());
 
-// }
+}
