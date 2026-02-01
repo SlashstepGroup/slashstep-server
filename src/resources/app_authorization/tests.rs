@@ -32,18 +32,18 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACTION_LIST_LIMIT + 1;
-  let mut created_actions: Vec<Action> = Vec::new();
-  for _ in 0..MAXIMUM_ACTION_COUNT {
+  const MAXIMUM_APP_AUTHORIZATION_COUNT: i64 = DEFAULT_APP_AUTHORIZATION_LIST_LIMIT + 1;
+  let mut created_app_authorizations: Vec<AppAuthorization> = Vec::new();
+  for _ in 0..MAXIMUM_APP_AUTHORIZATION_COUNT {
 
-    let action = test_environment.create_random_action(&None).await?;
-    created_actions.push(action);
+    let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+    created_app_authorizations.push(app_authorization);
 
   }
 
-  let retrieved_action_count = Action::count("", &test_environment.database_pool, None).await?;
+  let retrieved_app_authorization_count = AppAuthorization::count("", &test_environment.database_pool, None).await?;
 
-  assert_eq!(retrieved_action_count, MAXIMUM_ACTION_COUNT);
+  assert_eq!(retrieved_app_authorization_count, MAXIMUM_APP_AUTHORIZATION_COUNT);
 
   return Ok(());
 
