@@ -1,6 +1,6 @@
 /**
  * 
- * Any functionality for /actions/{action_id}/access-policies should be handled here.
+ * Any functionality for /app-authorization-credentials/{app_authorization_credential_id}/access-policies should be handled here.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -9,66 +9,69 @@
  * 
  */
 
+#[cfg(test)]
+mod tests;
+
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_id, get_action_from_name, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_id, get_action_from_name, get_app_authorization_credential_from_id, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions}}};
 
-/// GET /actions/{action_id}/access-policies
-/// 
-/// Lists access policies for an action.
-#[axum::debug_handler]
-async fn handle_list_access_policies_request(
-  Path(action_id): Path<String>,
-  Query(query_parameters): Query<ResourceListQueryParameters>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>
-) -> Result<ErasedJson, HTTPError> {
+// /// GET /actions/{action_id}/access-policies
+// /// 
+// /// Lists access policies for an action.
+// #[axum::debug_handler]
+// async fn handle_list_access_policies_request(
+//   Path(action_id): Path<String>,
+//   Query(query_parameters): Query<ResourceListQueryParameters>,
+//   State(state): State<AppState>, 
+//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
+//   Extension(authenticated_app): Extension<Option<Arc<App>>>
+// ) -> Result<ErasedJson, HTTPError> {
 
-  let http_transaction = http_transaction.clone();
-  let action = get_action_from_id(&action_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&action, &AccessPolicyResourceType::Action, &action.id, &http_transaction, &state.database_pool).await?;
+//   let http_transaction = http_transaction.clone();
+//   let action = get_action_from_id(&action_id, &http_transaction, &state.database_pool).await?;
+//   let resource_hierarchy = get_resource_hierarchy(&action, &AccessPolicyResourceType::Action, &action.id, &http_transaction, &state.database_pool).await?;
 
-  let query = format!(
-    "scoped_resource_type = 'Action' AND scoped_action_id = {}{}", 
-    quote_literal(&action_id.to_string()), 
-    query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
-  );
+//   let query = format!(
+//     "scoped_resource_type = 'Action' AND scoped_action_id = {}{}", 
+//     quote_literal(&action_id.to_string()), 
+//     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
+//   );
   
-  let query_parameters = ResourceListQueryParameters {
-    query: Some(query)
-  };
+//   let query_parameters = ResourceListQueryParameters {
+//     query: Some(query)
+//   };
 
-  let response = list_resources(
-    Query(query_parameters), 
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app), 
-    resource_hierarchy, 
-    ActionLogEntryTargetResourceType::Action, 
-    Some(action.id), 
-    |query, database_pool, individual_principal| Box::new(AccessPolicy::count(query, database_pool, individual_principal)),
-    |query, database_pool, individual_principal| Box::new(AccessPolicy::list(query, database_pool, individual_principal)),
-    "slashstep.accessPolicies.list", 
-    DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT,
-    "access policies",
-    "access policy"
-  ).await;
+//   let response = list_resources(
+//     Query(query_parameters), 
+//     State(state), 
+//     Extension(http_transaction), 
+//     Extension(authenticated_user), 
+//     Extension(authenticated_app), 
+//     resource_hierarchy, 
+//     ActionLogEntryTargetResourceType::Action, 
+//     Some(action.id), 
+//     |query, database_pool, individual_principal| Box::new(AccessPolicy::count(query, database_pool, individual_principal)),
+//     |query, database_pool, individual_principal| Box::new(AccessPolicy::list(query, database_pool, individual_principal)),
+//     "slashstep.accessPolicies.list", 
+//     DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT,
+//     "access policies",
+//     "access policy"
+//   ).await;
   
-  return response;
+//   return response;
 
-}
+// }
 
-/// POST /actions/{action_id}/access-policies
+/// POST /app-authorization-credentials/{app_authorization_credential_id}/access-policies
 /// 
-/// Creates an access policy for an action.
+/// Creates an access policy for an app authorization credential.
 #[axum::debug_handler]
 async fn handle_create_access_policy_request(
-  Path(action_id): Path<String>,
+  Path(app_authorization_credential_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(user): Extension<Option<Arc<User>>>,
@@ -108,8 +111,8 @@ async fn handle_create_access_policy_request(
   };
 
   // Make sure the user can create access policies for the target action.
-  let target_action = get_action_from_id(&action_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_action, &AccessPolicyResourceType::Action, &target_action.id, &http_transaction, &state.database_pool).await?;
+  let target_app_authorization_credential = get_app_authorization_credential_from_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app_authorization_credential, &AccessPolicyResourceType::AppAuthorizationCredential, &target_app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
   let create_access_policies_action = get_action_from_name("slashstep.accessPolicies.create", &http_transaction, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(&user, &app)?;
   verify_principal_permissions(&authenticated_principal, &create_access_policies_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &state.database_pool).await?;
@@ -120,7 +123,7 @@ async fn handle_create_access_policy_request(
   verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &state.database_pool).await?;
 
   // Create the access policy.
-  ServerLogEntry::trace(&format!("Creating access policy for action {}...", action_id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  ServerLogEntry::trace(&format!("Creating access policy for app authorization credential {}...", app_authorization_credential_id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let access_policy = match AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: access_policy_properties_json.action_id,
     permission_level: access_policy_properties_json.permission_level,
@@ -130,8 +133,8 @@ async fn handle_create_access_policy_request(
     principal_group_id: access_policy_properties_json.principal_group_id,
     principal_role_id: access_policy_properties_json.principal_role_id,
     principal_app_id: access_policy_properties_json.principal_app_id,
-    scoped_resource_type: AccessPolicyResourceType::Action,
-    scoped_action_id: Some(target_action.id),
+    scoped_resource_type: AccessPolicyResourceType::AppAuthorizationCredential,
+    scoped_app_authorization_credential_id: Some(target_app_authorization_credential.id),
     ..Default::default()
   }, &state.database_pool).await {
 
@@ -166,14 +169,11 @@ async fn handle_create_access_policy_request(
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
-    .route("/actions/{action_id}/access-policies", axum::routing::get(handle_list_access_policies_request))
-    .route("/actions/{action_id}/access-policies", axum::routing::post(handle_create_access_policy_request))
+    // .route("/actions/{action_id}/access-policies", axum::routing::get(handle_list_access_policies_request))
+    .route("/app-authorization-credentials/{app_authorization_credential_id}/access-policies", axum::routing::post(handle_create_access_policy_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));
   return router;
 
 }
-
-#[cfg(test)]
-mod tests;

@@ -9,8 +9,8 @@
  * 
  */
 
-// #[path = "./access-policies/mod.rs"]
-// mod access_policies;
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
 #[cfg(test)]
 mod tests;
 
@@ -101,7 +101,8 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/app-authorization-credentials/{app_authorization_credential_id}", axum::routing::delete(handle_delete_app_authorization_credential_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .merge(access_policies::get_router(state.clone()));
   return router;
 
 }
