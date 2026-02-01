@@ -19,8 +19,8 @@ use axum::{Extension, Json, Router, extract::{Path, State}};
 use reqwest::StatusCode;
 use crate::{
   AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{
-    DeletableResource, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
-  }, routes::app_authorizations::app_authorization_id, utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{
+    access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+  }, utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{
     AuthenticatedPrincipal, get_action_from_name, get_app_authorization_from_id, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_principal_permissions
   }}
 };
