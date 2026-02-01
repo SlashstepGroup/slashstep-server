@@ -258,34 +258,34 @@ async fn verify_uuid_when_deleting_resource_by_id() -> Result<(), TestSlashstepS
 
 }
 
-// /// Verifies that the router can return a 401 status code if the user needs authentication.
-// #[tokio::test]
-// async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
-//   // Create dummy resources.
-//   let app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
+  // Create dummy resources.
+  let app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-authorization-credentials/{}", app_authorization_credential.id))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.delete(&format!("/app-authorization-credentials/{}", app_authorization_credential.id))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), 401);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), 401);
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
 // #[tokio::test]
