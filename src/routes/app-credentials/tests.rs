@@ -85,64 +85,64 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 
 }
 
-// /// Verifies that the router can return a 200 status code and the requested resource list.
-// #[tokio::test]
-// async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 200 status code and the requested resource list.
+#[tokio::test]
+async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
-//   // Grant access to the "slashstep.appCredentials.get" action to the user.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
-//   test_environment.create_instance_access_policy(&user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+  // Grant access to the "slashstep.appCredentials.get" action to the user.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-//   // Grant access to the "slashstep.appCredentials.list" action to the user.
-//   let list_app_credentials_action = Action::get_by_name("slashstep.appCredentials.list", &test_environment.database_pool).await?;
-//   test_environment.create_instance_access_policy(&user.id, &list_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+  // Grant access to the "slashstep.appCredentials.list" action to the user.
+  let list_app_credentials_action = Action::get_by_name("slashstep.appCredentials.list", &test_environment.database_pool).await?;
+  test_environment.create_instance_access_policy(&user.id, &list_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-//   // Create dummy resources.
-//   let dummy_app_credential = test_environment.create_random_app_credential(&None).await?;
+  // Create dummy resources.
+  let dummy_app_credential = test_environment.create_random_app_credential(&None).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let query = format!("app_id = \"{}\"", dummy_app_credential.app_id);
-//   let response = test_server.get(&format!("/app-credentials"))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .add_query_param("query", &query)
-//     .await;
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let query = format!("app_id = \"{}\"", dummy_app_credential.app_id);
+  let response = test_server.get(&format!("/app-credentials"))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_query_param("query", &query)
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::OK);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
-//   let response_json: ListResourcesResponseBody::<AppCredential> = response.json();
-//   let actual_app_credential_count = AppCredential::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-//   assert_eq!(response_json.total_count, actual_app_credential_count);
+  let response_json: ListResourcesResponseBody::<AppCredential> = response.json();
+  let actual_app_credential_count = AppCredential::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_json.total_count, actual_app_credential_count);
 
-//   let actual_app_credentials = AppCredential::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-//   assert_eq!(response_json.resources.len(), actual_app_credentials.len());
+  let actual_app_credentials = AppCredential::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_json.resources.len(), actual_app_credentials.len());
 
-//   for actual_action in actual_app_credentials {
+  for actual_action in actual_app_credentials {
 
-//     let found_action = response_json.resources.iter().find(|action| action.id == actual_action.id);
-//     assert!(found_action.is_some());
+    let found_action = response_json.resources.iter().find(|action| action.id == actual_action.id);
+    assert!(found_action.is_some());
 
-//   }
+  }
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that there's a default resource list limit.
 // #[tokio::test]
