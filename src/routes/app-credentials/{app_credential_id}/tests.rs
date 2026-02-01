@@ -183,7 +183,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }
@@ -220,7 +220,7 @@ async fn verify_successful_deletion_when_deleting_resource_by_id() -> Result<(),
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 204);
+  assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
 
   match AppCredential::get_by_id(&app_credential.id, &test_environment.database_pool).await.expect_err("expected a not found error.") {
 
@@ -234,30 +234,30 @@ async fn verify_successful_deletion_when_deleting_resource_by_id() -> Result<(),
 
 }
 
-// /// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
-// #[tokio::test]
-// async fn verify_uuid_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
 
-//   let response = test_server.delete("/app-credentials/not-a-uuid")
-//     .await;
+  let response = test_server.delete("/app-credentials/not-a-uuid")
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the router can return a 401 status code if the user needs authentication.
 // #[tokio::test]
