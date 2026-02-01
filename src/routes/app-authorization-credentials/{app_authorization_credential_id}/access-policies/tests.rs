@@ -428,3 +428,30 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
   return Ok(());
 
 }
+
+/// Verifies that the server returns a 404 status code when the parent resource is not found.
+#[tokio::test]
+async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/app-authorization-credentials/{}/access-policies", &Uuid::now_v7()))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+
+  return Ok(());
+
+}
