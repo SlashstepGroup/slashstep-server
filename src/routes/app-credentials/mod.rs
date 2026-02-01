@@ -11,8 +11,8 @@
 
 #[path = "./{app_credential_id}/mod.rs"]
 mod app_credential_id;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
