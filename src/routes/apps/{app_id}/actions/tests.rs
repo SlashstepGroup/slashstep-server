@@ -16,7 +16,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, initialize_required_tables,  predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, IndividualPrincipal, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, InitialActionPropertiesForPredefinedScope}, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListActionsResponseBody};
+use crate::{AppState, initialize_required_tables,  predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, IndividualPrincipal, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, InitialActionPropertiesForPredefinedScope}, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
@@ -256,18 +256,18 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_body: ListActionsResponseBody = response.json();
+  let response_body: ListResourcesResponseBody::<Action> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.actions.len(), 1);
+  assert_eq!(response_body.resources.len(), 1);
 
   let query = format!("parent_app_id = {}", quote_literal(&dummy_app.id.to_string()));
   let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_body.total_count, actual_action_count);
 
   let actual_access_policies = Action::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_body.actions.len(), actual_access_policies.len());
-  assert_eq!(response_body.actions[0].id, actual_access_policies[0].id);
-  assert_eq!(response_body.actions[0].id, dummy_action.id);
+  assert_eq!(response_body.resources.len(), actual_access_policies.len());
+  assert_eq!(response_body.resources[0].id, actual_access_policies[0].id);
+  assert_eq!(response_body.resources[0].id, dummy_action.id);
 
   return Ok(());
 
@@ -315,18 +315,18 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_body: ListActionsResponseBody = response.json();
+  let response_body: ListResourcesResponseBody::<Action> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.actions.len(), 1);
+  assert_eq!(response_body.resources.len(), 1);
 
   let query = format!("parent_app_id = {} AND ({})", quote_literal(&dummy_app.id.to_string()), &additional_query);
   let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_body.total_count, actual_action_count);
 
   let actual_actions = Action::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_body.actions.len(), actual_actions.len());
-  assert_eq!(response_body.actions[0].id, actual_actions[0].id);
-  assert_eq!(response_body.actions[0].id, dummy_action.id);
+  assert_eq!(response_body.resources.len(), actual_actions.len());
+  assert_eq!(response_body.resources[0].id, actual_actions[0].id);
+  assert_eq!(response_body.resources[0].id, dummy_action.id);
 
   return Ok(());
 
@@ -393,8 +393,8 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListActionsResponseBody = response.json();
-  assert_eq!(response_body.actions.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
+  let response_body: ListResourcesResponseBody::<Action> = response.json();
+  assert_eq!(response_body.resources.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
   return Ok(());
 

@@ -1,5 +1,5 @@
 use thiserror::Error;
-use crate::utilities::slashstepql::SlashstepQLError;
+use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::SlashstepQLError};
 
 pub mod access_policy;
 pub mod action;
@@ -55,6 +55,11 @@ pub enum ResourceError {
 
   #[error(transparent)]
   JSONWebTokenError(#[from] jsonwebtoken::errors::Error)
+}
+
+pub trait SearchableResource<ResourceStruct> {
+  fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> impl Future<Output = Result<i64, ResourceError>>;
+  fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> impl Future<Output = Result<Vec<ResourceStruct>, ResourceError>>;
 }
 
 pub trait DeletableResource {

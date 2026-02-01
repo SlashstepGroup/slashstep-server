@@ -17,14 +17,14 @@ mod tests;
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{AppAuthorizationListQueryParameters, list_app_authorizations}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::{AppAuthorization, DEFAULT_MAXIMUM_APP_AUTHORIZATION_LIST_LIMIT}, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
 
 /// GET /app-authorizations
 /// 
 /// Lists app authorizations.
 #[axum::debug_handler]
 async fn handle_list_app_authorizations_request(
-  Query(query_parameters): Query<AppAuthorizationListQueryParameters>,
+  Query(query_parameters): Query<ResourceListQueryParameters>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
@@ -32,7 +32,24 @@ async fn handle_list_app_authorizations_request(
 ) -> Result<ErasedJson, HTTPError> {
 
   let resource_hierarchy = vec![(AccessPolicyResourceType::Instance, None)];
-  return list_app_authorizations(Query(query_parameters), State(state), Extension(http_transaction), Extension(authenticated_user), Extension(authenticated_app), resource_hierarchy, ActionLogEntryTargetResourceType::Instance, None).await;
+  let response = list_resources(
+    Query(query_parameters), 
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    resource_hierarchy, 
+    ActionLogEntryTargetResourceType::Instance, 
+    None, 
+    |query, database_pool, individual_principal| Box::new(AppAuthorization::count(query, database_pool, individual_principal)),
+    |query, database_pool, individual_principal| Box::new(AppAuthorization::list(query, database_pool, individual_principal)),
+    "slashstep.appAuthorizations.list", 
+    DEFAULT_MAXIMUM_APP_AUTHORIZATION_LIST_LIMIT,
+    "app authorizations",
+    "app authorization"
+  ).await;
+  
+  return response;
 
 }
 

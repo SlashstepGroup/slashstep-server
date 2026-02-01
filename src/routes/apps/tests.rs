@@ -26,7 +26,7 @@ use crate::{
       IndividualPrincipal, 
       InitialAccessPolicyProperties
     }, action::Action, app::{App, DEFAULT_APP_LIST_LIMIT, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, session::Session
-  }, routes::apps::ListAppsResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
+  }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
 };
 
 /// Verifies that the router can return a 200 status code and the requested list.
@@ -84,19 +84,19 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_json: ListAppsResponseBody = response.json();
+  let response_json: ListResourcesResponseBody::<App> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.apps.len() > 0);
+  assert!(response_json.resources.len() > 0);
 
   let actual_app_count = App::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_json.total_count, actual_app_count);
 
   let actual_apps = App::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.apps.len(), actual_apps.len());
+  assert_eq!(response_json.resources.len(), actual_apps.len());
 
   for actual_app in actual_apps {
 
-    let found_access_policy = response_json.apps.iter().find(|app| app.id == actual_app.id);
+    let found_access_policy = response_json.resources.iter().find(|app| app.id == actual_app.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -163,19 +163,19 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_json: ListAppsResponseBody = response.json();
+  let response_json: ListResourcesResponseBody::<App> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.apps.len() > 0);
+  assert!(response_json.resources.len() > 0);
 
   let actual_app_count = App::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_json.total_count, actual_app_count);
 
   let actual_apps = App::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.apps.len(), actual_apps.len());
+  assert_eq!(response_json.resources.len(), actual_apps.len());
 
   for actual_app in actual_apps {
 
-    let found_action = response_json.apps.iter().find(|app| app.id == actual_app.id);
+    let found_action = response_json.resources.iter().find(|app| app.id == actual_app.id);
     assert!(found_action.is_some());
 
   }
@@ -244,8 +244,8 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListAppsResponseBody = response.json();
-  assert_eq!(response_body.apps.len(), DEFAULT_APP_LIST_LIMIT as usize);
+  let response_body: ListResourcesResponseBody::<App> = response.json();
+  assert_eq!(response_body.resources.len(), DEFAULT_APP_LIST_LIMIT as usize);
 
   return Ok(());
 

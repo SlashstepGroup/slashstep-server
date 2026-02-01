@@ -17,7 +17,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPermissionLevel, IndividualPrincipal}, action::Action, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope}, session::Session}, routes::apps::app_id::app_credentials::{CreateAppCredentialResponseBody, ListAppCredentialsResponseBody}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPermissionLevel, IndividualPrincipal}, action::Action, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope}, session::Session}, routes::apps::app_id::app_credentials::CreateAppCredentialResponseBody, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -57,18 +57,18 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_body: ListAppCredentialsResponseBody = response.json();
+  let response_body: ListResourcesResponseBody::<AppCredential> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.app_credentials.len(), 1);
+  assert_eq!(response_body.resources.len(), 1);
 
   let query = format!("app_id = {}", quote_literal(&dummy_app_credential.app_id.to_string()));
   let actual_app_credential_count = AppCredential::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_body.total_count, actual_app_credential_count);
 
   let actual_app_credentials = AppCredential::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_body.app_credentials.len(), actual_app_credentials.len());
-  assert_eq!(response_body.app_credentials[0].id, actual_app_credentials[0].id);
-  assert_eq!(response_body.app_credentials[0].id, dummy_app_credential.id);
+  assert_eq!(response_body.resources.len(), actual_app_credentials.len());
+  assert_eq!(response_body.resources[0].id, actual_app_credentials[0].id);
+  assert_eq!(response_body.resources[0].id, dummy_app_credential.id);
 
   return Ok(());
 
@@ -114,18 +114,18 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_body: ListAppCredentialsResponseBody = response.json();
+  let response_body: ListResourcesResponseBody::<AppCredential> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.app_credentials.len(), 1);
+  assert_eq!(response_body.resources.len(), 1);
 
   let query = format!("app_id = {} AND {}", quote_literal(&dummy_app_credential.app_id.to_string()), &additional_query);
   let actual_app_credential_count = AppCredential::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_body.total_count, actual_app_credential_count);
 
   let actual_app_credentials = AppCredential::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_body.app_credentials.len(), actual_app_credentials.len());
-  assert_eq!(response_body.app_credentials[0].id, actual_app_credentials[0].id);
-  assert_eq!(response_body.app_credentials[0].id, dummy_app_credential.id);
+  assert_eq!(response_body.resources.len(), actual_app_credentials.len());
+  assert_eq!(response_body.resources[0].id, actual_app_credentials[0].id);
+  assert_eq!(response_body.resources[0].id, dummy_app_credential.id);
 
   return Ok(());
 
@@ -176,8 +176,8 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListAppCredentialsResponseBody = response.json();
-  assert_eq!(response_body.app_credentials.len(), DEFAULT_APP_CREDENTIAL_LIST_LIMIT as usize);
+  let response_body: ListResourcesResponseBody::<AppCredential> = response.json();
+  assert_eq!(response_body.resources.len(), DEFAULT_APP_CREDENTIAL_LIST_LIMIT as usize);
 
   return Ok(());
 

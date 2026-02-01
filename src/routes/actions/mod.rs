@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ActionListQueryParameters, list_actions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action::{Action, DEFAULT_MAXIMUM_ACTION_LIST_LIMIT}, action_log_entry::ActionLogEntryTargetResourceType, app::App, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
 
 #[path = "./{action_id}/mod.rs"]
 pub mod action_id;
@@ -22,7 +22,7 @@ pub mod action_id;
 /// Lists actions.
 #[axum::debug_handler]
 async fn handle_list_actions_request(
-  Query(query_parameters): Query<ActionListQueryParameters>,
+  Query(query_parameters): Query<ResourceListQueryParameters>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
@@ -30,7 +30,24 @@ async fn handle_list_actions_request(
 ) -> Result<ErasedJson, HTTPError> {
 
   let resource_hierarchy = vec![(AccessPolicyResourceType::Instance, None)];
-  return list_actions(Query(query_parameters), State(state), Extension(http_transaction), Extension(authenticated_user), Extension(authenticated_app), resource_hierarchy, ActionLogEntryTargetResourceType::Instance, None).await;
+  let response = list_resources(
+    Query(query_parameters), 
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    resource_hierarchy, 
+    ActionLogEntryTargetResourceType::Instance, 
+    None, 
+    |query, database_pool, individual_principal| Box::new(Action::count(query, database_pool, individual_principal)),
+    |query, database_pool, individual_principal| Box::new(Action::list(query, database_pool, individual_principal)),
+    "slashstep.actions.list", 
+    DEFAULT_MAXIMUM_ACTION_LIST_LIMIT,
+    "actions",
+    "action"
+  ).await;
+  
+  return response;
 
 }
 

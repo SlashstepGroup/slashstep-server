@@ -15,7 +15,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListAccessPolicyResponseBody};
+use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
 
 async fn create_app_authorization_access_policy(database_pool: &deadpool_postgres::Pool, scoped_app_authorization_id: &Uuid, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
@@ -128,18 +128,18 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_access_policies: ListAccessPolicyResponseBody = response.json();
+  let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert_eq!(response_access_policies.total_count, 1);
-  assert_eq!(response_access_policies.access_policies.len(), 1);
+  assert_eq!(response_access_policies.resources.len(), 1);
 
   let query = format!("scoped_resource_type = 'AppAuthorization' AND scoped_app_authorization_id = {}", quote_literal(&dummy_app_authorization.id.to_string()));
   let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
   let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_access_policies.access_policies.len(), actual_access_policies.len());
-  assert_eq!(response_access_policies.access_policies[0].id, actual_access_policies[0].id);
-  assert_eq!(response_access_policies.access_policies[0].id, shown_access_policy.id);
+  assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
+  assert_eq!(response_access_policies.resources[0].id, actual_access_policies[0].id);
+  assert_eq!(response_access_policies.resources[0].id, shown_access_policy.id);
 
   return Ok(());
 
@@ -188,18 +188,18 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_access_policies: ListAccessPolicyResponseBody = response.json();
+  let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert_eq!(response_access_policies.total_count, 1);
-  assert_eq!(response_access_policies.access_policies.len(), 1);
+  assert_eq!(response_access_policies.resources.len(), 1);
 
   let query = format!("scoped_resource_type = 'AppAuthorization' AND scoped_app_authorization_id = {} and permission_level = 'Editor'", quote_literal(&dummy_app_authorization.id.to_string()));
   let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
   let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_access_policies.access_policies.len(), actual_access_policies.len());
-  assert_eq!(response_access_policies.access_policies[0].id, actual_access_policies[0].id);
-  assert_eq!(response_access_policies.access_policies[0].id, shown_access_policy.id);
+  assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
+  assert_eq!(response_access_policies.resources[0].id, actual_access_policies[0].id);
+  assert_eq!(response_access_policies.resources[0].id, shown_access_policy.id);
 
   return Ok(());
 
@@ -248,8 +248,8 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListAccessPolicyResponseBody = response.json();
-  assert_eq!(response_body.access_policies.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
+  let response_body: ListResourcesResponseBody::<AccessPolicy> = response.json();
+  assert_eq!(response_body.resources.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
 
   return Ok(());
 

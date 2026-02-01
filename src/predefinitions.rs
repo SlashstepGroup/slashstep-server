@@ -150,6 +150,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "Get an app authorization credential on a particular scope.".to_string(),
       ..Default::default()
     },
+    InitialActionProperties {
+      name: "slashstep.appAuthorizationCredentials.list".to_string(),
+      display_name: "List app authorization credentials".to_string(),
+      description: "List app authorization credentials on a particular scope.".to_string(),
+      ..Default::default()
+    },
   ];
 
   let mut actions: Vec<Action> = Vec::new();

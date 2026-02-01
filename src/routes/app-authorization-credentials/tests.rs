@@ -1,6 +1,6 @@
 /**
  * 
- * Any test cases for /app-authorizations should be handled here.
+ * Any test cases for /app-authorization-credentials should be handled here.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -21,7 +21,7 @@ use crate::{
     access_policy::{
       AccessPolicyPermissionLevel,
       IndividualPrincipal
-    }, action::Action, app_authorization::{AppAuthorization, DEFAULT_APP_AUTHORIZATION_LIST_LIMIT}, session::Session
+    }, action::Action, app_authorization_credential::{AppAuthorizationCredential, DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT, DEFAULT_MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT}, session::Session
   }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
 };
 
@@ -34,20 +34,20 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
-  // Grant access to the "slashstep.appAuthorizations.get" action to the user.
+  // Grant access to the "slashstep.appAuthorizationCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.get", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &get_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-  // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+  // Grant access to the "slashstep.appAuthorizationCredentials.list" action to the user.
+  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.list", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &list_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy resources.
-  test_environment.create_random_app_authorization(&None).await?;
+  test_environment.create_random_app_authorization_credential(&None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -57,24 +57,24 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/app-authorizations"))
+  let response = test_server.get(&format!("/app-authorization-credentials"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_json: ListResourcesResponseBody::<AppAuthorization> = response.json();
+  let response_json: ListResourcesResponseBody::<AppAuthorizationCredential> = response.json();
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_app_authorization_count = AppAuthorization::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.total_count, actual_app_authorization_count);
+  let actual_app_authorization_credential_count = AppAuthorizationCredential::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_json.total_count, actual_app_authorization_credential_count);
 
-  let actual_app_authorizations = AppAuthorization::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.resources.len(), actual_app_authorizations.len());
+  let actual_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_json.resources.len(), actual_app_authorization_credentials.len());
 
-  for actual_app_authorization in actual_app_authorizations {
+  for actual_app_authorization in actual_app_authorization_credentials {
 
     let found_access_policy = response_json.resources.iter().find(|app_authorization| app_authorization.id == actual_app_authorization.id);
     assert!(found_access_policy.is_some());
@@ -94,20 +94,20 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
-  // Grant access to the "slashstep.appAuthorizations.get" action to the user.
+  // Grant access to the "slashstep.appAuthorizationCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.get", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &get_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-  // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+  // Grant access to the "slashstep.appAuthorizationCredentials.list" action to the user.
+  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.list", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &list_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_app_authorization = test_environment.create_random_app_authorization(&None).await?;
+  let dummy_app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -118,22 +118,22 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let query = format!("app_id = \"{}\"", dummy_app_authorization.app_id);
-  let response = test_server.get(&format!("/app-authorizations"))
+  let query = format!("app_authorization_id = \"{}\"", dummy_app_authorization_credential.app_authorization_id);
+  let response = test_server.get(&format!("/app-authorization-credentials"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .add_query_param("query", &query)
     .await;
   
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_json: ListResourcesResponseBody::<AppAuthorization> = response.json();
-  let actual_app_authorization_count = AppAuthorization::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.total_count, actual_app_authorization_count);
+  let response_json: ListResourcesResponseBody::<AppAuthorizationCredential> = response.json();
+  let actual_app_authorization_credential_count = AppAuthorizationCredential::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_json.total_count, actual_app_authorization_credential_count);
 
-  let actual_app_authorizations = AppAuthorization::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.resources.len(), actual_app_authorizations.len());
+  let actual_app_authorization_credentials = AppAuthorizationCredential::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  assert_eq!(response_json.resources.len(), actual_app_authorization_credentials.len());
 
-  for actual_action in actual_app_authorizations {
+  for actual_action in actual_app_authorization_credentials {
 
     let found_action = response_json.resources.iter().find(|action| action.id == actual_action.id);
     assert!(found_action.is_some());
@@ -153,23 +153,23 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
-  // Grant access to the "slashstep.appAuthorizations.get" action to the user.
+  // Grant access to the "slashstep.appAuthorizationCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.get", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &get_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-  // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+  // Grant access to the "slashstep.appAuthorizationCredentials.list" action to the user.
+  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.list", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &list_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Create dummy actions.
-  let app_authorization_count = AppAuthorization::count("", &test_environment.database_pool, None).await?;
-  for _ in 0..(DEFAULT_APP_AUTHORIZATION_LIST_LIMIT - app_authorization_count + 1) {
+  let app_authorization_count = AppAuthorizationCredential::count("", &test_environment.database_pool, None).await?;
+  for _ in 0..(DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT - app_authorization_count + 1) {
 
-    test_environment.create_random_app_authorization(&None).await?;
+    test_environment.create_random_app_authorization_credential(&None).await?;
 
   }
 
@@ -181,15 +181,15 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/app-authorizations"))
+  let response = test_server.get(&format!("/app-authorization-credentials"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListResourcesResponseBody::<AppAuthorization> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_APP_AUTHORIZATION_LIST_LIMIT as usize);
+  let response_body: ListResourcesResponseBody::<AppAuthorizationCredential> = response.json();
+  assert_eq!(response_body.resources.len(), DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT as usize);
 
   return Ok(());
 
@@ -204,16 +204,16 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
-  // Grant access to the "slashstep.appAuthorizations.get" action to the user.
+  // Grant access to the "slashstep.appAuthorizationCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.get", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &get_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-  // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+  // Grant access to the "slashstep.appAuthorizationCredentials.list" action to the user.
+  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.list", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &list_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Set up the server and send the request.
@@ -224,8 +224,8 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/app-authorizations"))
-    .add_query_param("query", format!("LIMIT {}", DEFAULT_APP_AUTHORIZATION_LIST_LIMIT + 1))
+  let response = test_server.get(&format!("/app-authorization-credentials"))
+    .add_query_param("query", format!("LIMIT {}", DEFAULT_MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
@@ -244,16 +244,16 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
-  // Grant access to the "slashstep.appAuthorizations.get" action to the user.
+  // Grant access to the "slashstep.appAuthorizationCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
+  let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.get", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &get_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
-  // Grant access to the "slashstep.appAuthorizations.list" action to the user.
-  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.list", &test_environment.database_pool).await?;
+  // Grant access to the "slashstep.appAuthorizationCredentials.list" action to the user.
+  let list_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.list", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &list_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
 
   // Set up the server and send the request.
@@ -267,12 +267,12 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   let test_server = TestServer::new(router)?;
 
   let bad_requests = vec![
-    test_server.get(&format!("/app-authorizations"))
-      .add_query_param("query", format!("SELECT * FROM app_authorizations")),
-    test_server.get(&format!("/app-authorizations"))
+    test_server.get(&format!("/app-authorization-credentials"))
+      .add_query_param("query", format!("SELECT * FROM app_authorization_credentials")),
+    test_server.get(&format!("/app-authorization-credentials"))
       .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
-    test_server.get(&format!("/app-authorizations"))
-      .add_query_param("query", format!("SELECT * FROM app_authorizations WHERE id = {}", get_app_authorizations_action.id))
+      test_server.get(&format!("/app-authorization-credentials"))
+      .add_query_param("query", format!("app_authorization_id = {}", get_app_authorizations_action.id)),
   ];
   
   for request in bad_requests {
@@ -286,9 +286,9 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   }
 
   let unprocessable_entity_requests = vec![
-    test_server.get(&format!("/app-authorizations"))
-      .add_query_param("query", format!("app_ied = {}", get_app_authorizations_action.id)),
-    test_server.get(&format!("/app-authorizations"))
+    test_server.get(&format!("/app-authorization-credentials"))
+      .add_query_param("query", format!("app_authorization_ied = {}", get_app_authorizations_action.id)),
+    test_server.get(&format!("/app-authorization-credentials"))
       .add_query_param("query", format!("1 = 1"))
   ];
 
@@ -323,7 +323,7 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/app-authorizations"))
+  let response = test_server.get(&format!("/app-authorization-credentials"))
     .await;
   
   // Verify the response.
@@ -356,8 +356,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/app-authorizations"))
-    .add_query_param("query", format!("limit {}", DEFAULT_APP_AUTHORIZATION_LIST_LIMIT + 1))
+  let response = test_server.get(&format!("/app-authorization-credentials"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   

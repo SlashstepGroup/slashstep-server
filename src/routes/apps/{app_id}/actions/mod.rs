@@ -14,21 +14,21 @@ use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::Jso
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action::{Action, ActionParentResourceType, InitialActionProperties, InitialActionPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ActionListQueryParameters, list_actions}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_name, get_app_from_id, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action::{Action, ActionParentResourceType, DEFAULT_MAXIMUM_ACTION_LIST_LIMIT, InitialActionProperties, InitialActionPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_name, get_app_from_id, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions}}};
 
 #[axum::debug_handler]
 async fn handle_list_actions_request(
   Path(app_id): Path<String>,
-  Query(query_parameters): Query<ActionListQueryParameters>,
+  Query(query_parameters): Query<ResourceListQueryParameters>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(user): Extension<Option<Arc<User>>>,
-  Extension(app): Extension<Option<Arc<App>>>
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>
 ) -> Result<ErasedJson, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let authenticated_app = get_app_from_id(&app_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&authenticated_app, &AccessPolicyResourceType::App, &authenticated_app.id, &http_transaction, &state.database_pool).await?;
+  let app = get_app_from_id(&app_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&app, &AccessPolicyResourceType::App, &app.id, &http_transaction, &state.database_pool).await?;
 
   let query = format!(
     "parent_app_id = {}{}", 
@@ -36,11 +36,28 @@ async fn handle_list_actions_request(
     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
   );
   
-  let query_parameters = ActionListQueryParameters {
+  let query_parameters = ResourceListQueryParameters {
     query: Some(query)
   };
 
-  return list_actions(Query(query_parameters), State(state), Extension(http_transaction), Extension(user), Extension(app), resource_hierarchy, ActionLogEntryTargetResourceType::App, Some(authenticated_app.id)).await;
+  let response = list_resources(
+    Query(query_parameters), 
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    resource_hierarchy, 
+    ActionLogEntryTargetResourceType::Action, 
+    Some(app.id), 
+    |query, database_pool, individual_principal| Box::new(Action::count(query, database_pool, individual_principal)),
+    |query, database_pool, individual_principal| Box::new(Action::list(query, database_pool, individual_principal)),
+    "slashstep.actions.list", 
+    DEFAULT_MAXIMUM_ACTION_LIST_LIMIT,
+    "apps",
+    "app"
+  ).await;
+  
+  return response;
 
 }
 

@@ -31,7 +31,7 @@ use crate::{
       DEFAULT_ACTION_LIST_LIMIT
     }, 
     session::Session
-  }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListActionsResponseBody
+  }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
 };
 
 /// Verifies that the router can return a 200 status code and the requested action list.
@@ -86,19 +86,19 @@ async fn verify_returned_action_list_without_query() -> Result<(), TestSlashstep
   // Verify the response.
   assert_eq!(response.status_code(), 200);
 
-  let response_json: ListActionsResponseBody = response.json();
+  let response_json: ListResourcesResponseBody::<Action> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.actions.len() > 0);
+  assert!(response_json.resources.len() > 0);
 
   let actual_action_count = Action::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_json.total_count, actual_action_count);
 
   let actual_actions = Action::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.actions.len(), actual_actions.len());
+  assert_eq!(response_json.resources.len(), actual_actions.len());
 
   for actual_action in actual_actions {
 
-    let found_access_policy = response_json.actions.iter().find(|action| action.id == actual_action.id);
+    let found_access_policy = response_json.resources.iter().find(|action| action.id == actual_action.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -161,16 +161,16 @@ async fn verify_returned_action_list_with_query() -> Result<(), TestSlashstepSer
   
   assert_eq!(response.status_code(), 200);
 
-  let response_json: ListActionsResponseBody = response.json();
+  let response_json: ListResourcesResponseBody::<Action> = response.json();
   let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_json.total_count, actual_action_count);
 
   let actual_actions = Action::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.actions.len(), actual_actions.len());
+  assert_eq!(response_json.resources.len(), actual_actions.len());
 
   for actual_action in actual_actions {
 
-    let found_action = response_json.actions.iter().find(|action| action.id == actual_action.id);
+    let found_action = response_json.resources.iter().find(|action| action.id == actual_action.id);
     assert!(found_action.is_some());
 
   }
@@ -239,8 +239,8 @@ async fn verify_default_action_list_limit() -> Result<(), TestSlashstepServerErr
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListActionsResponseBody = response.json();
-  assert_eq!(response_body.actions.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
+  let response_body: ListResourcesResponseBody::<Action> = response.json();
+  assert_eq!(response_body.resources.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
   return Ok(());
 

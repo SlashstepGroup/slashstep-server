@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use reqwest::StatusCode;
-use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties}, action::Action, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListAccessPolicyResponseBody};
+use crate::{AppState, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties}, action::Action, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
@@ -66,19 +66,19 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   
   assert_eq!(response.status_code(), 200);
 
-  let response_access_policies: ListAccessPolicyResponseBody = response.json();
+  let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert!(response_access_policies.total_count > 0);
-  assert!(response_access_policies.access_policies.len() > 0);
+  assert!(response_access_policies.resources.len() > 0);
 
   let actual_access_policy_count = AccessPolicy::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
   let actual_access_policies = AccessPolicy::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_access_policies.access_policies.len(), actual_access_policies.len());
+  assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
 
   for actual_access_policy in actual_access_policies {
 
-    let found_access_policy = response_access_policies.access_policies.iter().find(|access_policy| access_policy.id == actual_access_policy.id);
+    let found_access_policy = response_access_policies.resources.iter().find(|access_policy| access_policy.id == actual_access_policy.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -139,16 +139,16 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   
   assert_eq!(response.status_code(), 200);
 
-  let response_access_policies: ListAccessPolicyResponseBody = response.json();
+  let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
   let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_access_policies.access_policies.len(), actual_access_policies.len());
+  assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
 
   for actual_access_policy in actual_access_policies {
 
-    let found_access_policy = response_access_policies.access_policies.iter().find(|access_policy| access_policy.id == actual_access_policy.id);
+    let found_access_policy = response_access_policies.resources.iter().find(|access_policy| access_policy.id == actual_access_policy.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -226,8 +226,8 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListAccessPolicyResponseBody = response.json();
-  assert_eq!(response_body.access_policies.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
+  let response_body: ListResourcesResponseBody::<AccessPolicy> = response.json();
+  assert_eq!(response_body.resources.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
 
   return Ok(());
 

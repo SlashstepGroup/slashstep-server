@@ -14,7 +14,7 @@ use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::Jso
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{AccessPolicyListQueryParameters, list_access_policies}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_id, get_action_from_name, get_app_from_id, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_id, get_action_from_name, get_app_from_id, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions}}};
 
 #[cfg(test)]
 mod tests;
@@ -25,7 +25,7 @@ mod tests;
 #[axum::debug_handler]
 async fn handle_list_access_policies_request(
   Path(app_id): Path<String>,
-  Query(query_parameters): Query<AccessPolicyListQueryParameters>,
+  Query(query_parameters): Query<ResourceListQueryParameters>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
@@ -42,11 +42,28 @@ async fn handle_list_access_policies_request(
     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
   );
   
-  let query_parameters = AccessPolicyListQueryParameters {
+  let query_parameters = ResourceListQueryParameters {
     query: Some(query)
   };
 
-  return list_access_policies(Query(query_parameters), State(state), Extension(http_transaction), Extension(authenticated_user), Extension(authenticated_app), resource_hierarchy, ActionLogEntryTargetResourceType::App, Some(app.id)).await;
+  let response = list_resources(
+    Query(query_parameters), 
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    resource_hierarchy, 
+    ActionLogEntryTargetResourceType::App, 
+    Some(app.id), 
+    |query, database_pool, individual_principal| Box::new(AccessPolicy::count(query, database_pool, individual_principal)),
+    |query, database_pool, individual_principal| Box::new(AccessPolicy::list(query, database_pool, individual_principal)),
+    "slashstep.accessPolicies.list", 
+    DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT,
+    "access policies",
+    "access policy"
+  ).await;
+  
+  return response;
 
 }
 
