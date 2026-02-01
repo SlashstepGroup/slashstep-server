@@ -18,53 +18,53 @@ use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
 use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_id, get_action_from_name, get_app_authorization_credential_from_id, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions}}};
 
-// /// GET /actions/{action_id}/access-policies
-// /// 
-// /// Lists access policies for an action.
-// #[axum::debug_handler]
-// async fn handle_list_access_policies_request(
-//   Path(action_id): Path<String>,
-//   Query(query_parameters): Query<ResourceListQueryParameters>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>
-// ) -> Result<ErasedJson, HTTPError> {
+/// GET /app-authorization-credentials/{app_authorization_credential_id}/access-policies
+/// 
+/// Lists access policies for an app authorization credential.
+#[axum::debug_handler]
+async fn handle_list_access_policies_request(
+  Path(app_authorization_credential_id): Path<String>,
+  Query(query_parameters): Query<ResourceListQueryParameters>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>
+) -> Result<ErasedJson, HTTPError> {
 
-//   let http_transaction = http_transaction.clone();
-//   let action = get_action_from_id(&action_id, &http_transaction, &state.database_pool).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&action, &AccessPolicyResourceType::Action, &action.id, &http_transaction, &state.database_pool).await?;
+  let http_transaction = http_transaction.clone();
+  let app_authorization_credential = get_app_authorization_credential_from_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&app_authorization_credential, &AccessPolicyResourceType::AppAuthorizationCredential, &app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
 
-//   let query = format!(
-//     "scoped_resource_type = 'Action' AND scoped_action_id = {}{}", 
-//     quote_literal(&action_id.to_string()), 
-//     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
-//   );
+  let query = format!(
+    "scoped_resource_type = 'AppAuthorizationCredential' AND scoped_app_authorization_credential_id = {}{}",
+    quote_literal(&app_authorization_credential.id.to_string()), 
+    query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
+  );
   
-//   let query_parameters = ResourceListQueryParameters {
-//     query: Some(query)
-//   };
+  let query_parameters = ResourceListQueryParameters {
+    query: Some(query)
+  };
 
-//   let response = list_resources(
-//     Query(query_parameters), 
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
-//     resource_hierarchy, 
-//     ActionLogEntryTargetResourceType::Action, 
-//     Some(action.id), 
-//     |query, database_pool, individual_principal| Box::new(AccessPolicy::count(query, database_pool, individual_principal)),
-//     |query, database_pool, individual_principal| Box::new(AccessPolicy::list(query, database_pool, individual_principal)),
-//     "slashstep.accessPolicies.list", 
-//     DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT,
-//     "access policies",
-//     "access policy"
-//   ).await;
+  let response = list_resources(
+    Query(query_parameters), 
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    resource_hierarchy, 
+    ActionLogEntryTargetResourceType::AppAuthorizationCredential, 
+    Some(app_authorization_credential.id), 
+    |query, database_pool, individual_principal| Box::new(AccessPolicy::count(query, database_pool, individual_principal)),
+    |query, database_pool, individual_principal| Box::new(AccessPolicy::list(query, database_pool, individual_principal)),
+    "slashstep.accessPolicies.list", 
+    DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT,
+    "access policies",
+    "access policy"
+  ).await;
   
-//   return response;
+  return response;
 
-// }
+}
 
 /// POST /app-authorization-credentials/{app_authorization_credential_id}/access-policies
 /// 
@@ -169,7 +169,7 @@ async fn handle_create_access_policy_request(
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
-    // .route("/actions/{action_id}/access-policies", axum::routing::get(handle_list_access_policies_request))
+    .route("/app-authorization-credentials/{app_authorization_credential_id}/access-policies", axum::routing::get(handle_list_access_policies_request))
     .route("/app-authorization-credentials/{app_authorization_credential_id}/access-policies", axum::routing::post(handle_create_access_policy_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
