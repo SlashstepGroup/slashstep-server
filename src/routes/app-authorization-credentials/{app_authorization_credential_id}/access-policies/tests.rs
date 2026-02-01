@@ -363,35 +363,35 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
 
 }
 
-// /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
-// #[tokio::test]
-// async fn verify_authentication_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
+#[tokio::test]
+async fn verify_authentication_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
 
-//   // Create a dummy action.
-//   let dummy_app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
+  // Create dummy resources.
+  let dummy_app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.get(&format!("/app-authorization-credentials/{}/access-policies", &dummy_app_authorization_credential.id))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.get(&format!("/app-authorization-credentials/{}/access-policies", &dummy_app_authorization_credential.id))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
 // /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 // #[tokio::test]
