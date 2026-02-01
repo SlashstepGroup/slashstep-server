@@ -1,78 +1,78 @@
-// /**
-//  * 
-//  * Any test cases for /app-authorizations/{action_id} should be handled here.
-//  * 
-//  * Programmers: 
-//  * - Christian Toney (https://christiantoney.com)
-//  * 
-//  * © 2026 Beastslash LLC
-//  * 
-//  */
+/**
+ * 
+ * Any test cases for /app-credentials/{action_id} should be handled here.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
 
-// use std::net::SocketAddr;
-// use axum_extra::extract::cookie::Cookie;
-// use axum_test::TestServer;
-// use ntest::timeout;
-// use reqwest::StatusCode;
-// use crate::{
-//   Action, 
-//   AppState,
-//   initialize_required_tables,
-//   predefinitions::{
-//     initialize_predefined_actions, 
-//     initialize_predefined_roles
-//   }, 
-//   resources::{
-//     ResourceError, access_policy::AccessPolicyPermissionLevel, app_authorization::AppAuthorization, session::Session
-//   }, 
-//   tests::{TestEnvironment, TestSlashstepServerError}
-// };
+use std::net::SocketAddr;
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use ntest::timeout;
+use reqwest::StatusCode;
+use crate::{
+  Action, 
+  AppState,
+  initialize_required_tables,
+  predefinitions::{
+    initialize_predefined_actions, 
+    initialize_predefined_roles
+  }, 
+  resources::{
+    ResourceError, access_policy::AccessPolicyPermissionLevel, app_credential::{AppCredential}, session::Session
+  }, 
+  tests::{TestEnvironment, TestSlashstepServerError}
+};
 
-// /// Verifies that the router can return a 200 status code and the requested resource.
-// #[tokio::test]
-// #[timeout(20000)]
-// async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 200 status code and the requested resource.
+#[tokio::test]
+#[timeout(20000)]
+async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError> {
   
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
 
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
   
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
-//   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.get", &test_environment.database_pool).await?;
-//   test_environment.create_instance_access_policy(&user.id, &get_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_session(&user.id).await?;
+  let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
   
-//   let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+  let app_credential = test_environment.create_random_app_credential(&None).await?;
 
-//   let response = test_server.get(&format!("/app-authorizations/{}", app_authorization.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  let response = test_server.get(&format!("/app-credentials/{}", app_credential.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), 200);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::OK);
 
-//   let response_app_authorization: AppAuthorization = response.json();
-//   assert_eq!(response_app_authorization.id, app_authorization.id);
-//   assert_eq!(response_app_authorization.app_id, app_authorization.app_id);
-//   assert_eq!(response_app_authorization.authorizing_resource_type, app_authorization.authorizing_resource_type);
-//   assert_eq!(response_app_authorization.authorizing_project_id, app_authorization.authorizing_project_id);
-//   assert_eq!(response_app_authorization.authorizing_workspace_id, app_authorization.authorizing_workspace_id);
-//   assert_eq!(response_app_authorization.authorizing_user_id, app_authorization.authorizing_user_id);
+  let response_app_credential: AppCredential = response.json();
+  assert_eq!(response_app_credential.id, app_credential.id);
+  assert_eq!(response_app_credential.app_id, app_credential.app_id);
+  assert_eq!(response_app_credential.description, app_credential.description);
+  assert_eq!(response_app_credential.expiration_date, app_credential.expiration_date);
+  assert_eq!(response_app_credential.creation_ip_address, app_credential.creation_ip_address);
+  assert_eq!(response_app_credential.public_key, app_credential.public_key);
 
-//   return Ok(());
+  return Ok(());
   
-// }
+}
 
 // /// Verifies that the router can return a 400 if the resource ID is not a UUID.
 // #[tokio::test]
@@ -91,7 +91,7 @@
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
 
-//   let response = test_server.get("/app-authorizations/not-a-uuid")
+//   let response = test_server.get("/app-credentials/not-a-uuid")
 //     .await;
   
 //   assert_eq!(response.status_code(), 400);
@@ -116,9 +116,9 @@
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
   
-//   let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+//   let app_credential = test_environment.create_random_app_credential(&None).await?;
 
-//   let response = test_server.get(&format!("/app-authorizations/{}", app_authorization.id))
+//   let response = test_server.get(&format!("/app-credentials/{}", app_credential.id))
 //     .await;
   
 //   assert_eq!(response.status_code(), 401);
@@ -141,7 +141,7 @@
 //   let session = test_environment.create_session(&user.id).await?;
 //   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+//   let app_credential = test_environment.create_random_app_credential(&None).await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -151,7 +151,7 @@
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.get(&format!("/app-authorizations/{}", app_authorization.id))
+//   let response = test_server.get(&format!("/app-credentials/{}", app_credential.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
@@ -179,7 +179,7 @@
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.get(&format!("/app-authorizations/{}", uuid::Uuid::now_v7()))
+//   let response = test_server.get(&format!("/app-credentials/{}", uuid::Uuid::now_v7()))
 //     .await;
   
 //   // Verify the response.
@@ -203,12 +203,12 @@
 //   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Grant access to the "slashstep.appAuthorizations.delete" action to the user.
-//   let delete_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizations.delete", &test_environment.database_pool).await?;
-//   test_environment.create_instance_access_policy(&user.id, &delete_app_authorizations_action.id, &AccessPolicyPermissionLevel::User).await?;
+//   // Grant access to the "slashstep.appCredentials.delete" action to the user.
+//   let delete_app_credentials_action = Action::get_by_name("slashstep.appCredentials.delete", &test_environment.database_pool).await?;
+//   test_environment.create_instance_access_policy(&user.id, &delete_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
 
 //   // Set up the server and send the request.
-//   let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+//   let app_credential = test_environment.create_random_app_credential(&None).await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -216,13 +216,13 @@
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-authorizations/{}", app_authorization.id))
+//   let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
 //   assert_eq!(response.status_code(), 204);
 
-//   match AppAuthorization::get_by_id(&app_authorization.id, &test_environment.database_pool).await.expect_err("expected a not found error.") {
+//   match appCredential::get_by_id(&app_credential.id, &test_environment.database_pool).await.expect_err("expected a not found error.") {
 
 //     ResourceError::NotFoundError(_) => {},
 
@@ -251,7 +251,7 @@
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
 
-//   let response = test_server.delete("/app-authorizations/not-a-uuid")
+//   let response = test_server.delete("/app-credentials/not-a-uuid")
 //     .await;
   
 //   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -269,7 +269,7 @@
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
   
 //   // Create dummy resources.
-//   let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+//   let app_credential = test_environment.create_random_app_credential(&None).await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -279,7 +279,7 @@
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-authorizations/{}", app_authorization.id))
+//   let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
 //     .await;
   
 //   // Verify the response.
@@ -304,7 +304,7 @@
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
 //   // Create dummy resources.
-//   let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+//   let app_credential = test_environment.create_random_app_credential(&None).await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -314,7 +314,7 @@
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-authorizations/{}", app_authorization.id))
+//   let response = test_server.delete(&format!("/app-credentials/{}", app_credential.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
@@ -345,7 +345,7 @@
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/app-authorizations/{}", uuid::Uuid::now_v7()))
+//   let response = test_server.delete(&format!("/app-credentials/{}", uuid::Uuid::now_v7()))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
