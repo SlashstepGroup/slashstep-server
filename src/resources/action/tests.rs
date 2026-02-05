@@ -4,7 +4,7 @@ use crate::{
     DeletableResource,
     access_policy::{ 
       AccessPolicy, 
-      AccessPolicyPermissionLevel, 
+      ActionPermissionLevel, 
       AccessPolicyPrincipalType, 
       AccessPolicyResourceType, 
       IndividualPrincipal, 
@@ -44,7 +44,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
 
-    let action = test_environment.create_random_action(&None).await?;
+    let action = test_environment.create_random_action(None).await?;
     created_actions.push(action);
 
   }
@@ -85,7 +85,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  let created_action = test_environment.create_random_action(&None).await?;
+  let created_action = test_environment.create_random_action(None).await?;
 
   created_action.delete(&test_environment.database_pool).await?;
 
@@ -98,7 +98,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 }
 
 #[tokio::test]
-async fn initialize_actions_table() -> Result<(), TestSlashstepServerError> {
+async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -113,7 +113,7 @@ async fn verify_get_action_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
   let retrieved_action = Action::get_by_id(&action.id, &test_environment.database_pool).await?;
   assert_actions_are_equal(&action, &retrieved_action);
 
@@ -131,7 +131,7 @@ async fn list_actions_with_default_limit() -> Result<(), TestSlashstepServerErro
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
 
-    let action = test_environment.create_random_action(&None).await?;
+    let action = test_environment.create_random_action(None).await?;
     created_actions.push(action);
 
   }
@@ -154,7 +154,7 @@ async fn list_actions_with_query() -> Result<(), TestSlashstepServerError> {
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
 
-    let action = test_environment.create_random_action(&None).await?;
+    let action = test_environment.create_random_action(None).await?;
     created_actions.push(action);
 
   }
@@ -195,7 +195,7 @@ async fn list_actions_without_query() -> Result<(), TestSlashstepServerError> {
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
 
-    let action = test_environment.create_random_action(&None).await?;
+    let action = test_environment.create_random_action(None).await?;
     created_actions.push(action);
 
   }
@@ -230,7 +230,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_actions.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let action = test_environment.create_random_action(&None).await?;
+      let action = test_environment.create_random_action(None).await?;
       current_actions.push(action);
 
     }
@@ -251,7 +251,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
     AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: get_actions_action.id.clone(),
-      permission_level: AccessPolicyPermissionLevel::User,
+      permission_level: ActionPermissionLevel::User,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
       scoped_resource_type: AccessPolicyResourceType::Action,
@@ -287,7 +287,7 @@ async fn update_action() -> Result<(), TestSlashstepServerError> {
 
   // Create the action and update it.
   initialize_required_tables(&test_environment.database_pool).await?;
-  let original_action = test_environment.create_random_action(&None).await?;
+  let original_action = test_environment.create_random_action(None).await?;
   let new_name = Uuid::now_v7().to_string();
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Uuid::now_v7().to_string();

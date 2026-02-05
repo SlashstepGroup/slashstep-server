@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyResourceType, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT}, action_log_entry::ActionLogEntryTargetResourceType, app::App, http_transaction::HTTPTransaction, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, reusable_route_handlers::{ResourceListQueryParameters, list_resources}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyResourceType, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT}, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, reusable_route_handlers::{ResourceListQueryParameters, list_resources}}};
 
 #[path = "./{access_policy_id}/mod.rs"]
 mod access_policy_id;
@@ -26,7 +26,8 @@ async fn handle_list_access_policies_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<ErasedJson, HTTPError> {
 
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Instance, None)];
@@ -36,6 +37,7 @@ async fn handle_list_access_policies_request(
     Extension(http_transaction), 
     Extension(authenticated_user), 
     Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
     resource_hierarchy, 
     ActionLogEntryTargetResourceType::Instance, 
     None, 

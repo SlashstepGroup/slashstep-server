@@ -4,7 +4,7 @@ use axum_extra::response::ErasedJson;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_name, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_resource_by_id, get_resource_hierarchy, match_db_error, match_slashstepql_error, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_resource_by_id, get_resource_hierarchy, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListResourcesResponseBody<ResourceStruct> {
@@ -23,6 +23,7 @@ pub async fn list_resources<ResourceType: Serialize, CountResourcesFunction, Lis
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
   resource_hierarchy: ResourceHierarchy,
   action_log_entry_target_resource_type: ActionLogEntryTargetResourceType,
   action_log_entry_target_resource_id: Option<Uuid>,
@@ -38,9 +39,10 @@ pub async fn list_resources<ResourceType: Serialize, CountResourcesFunction, Lis
 {
 
   let http_transaction = http_transaction.clone();
-  let list_resources_action = get_action_from_name(list_resources_action_name, &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &state.database_pool).await?;
+  let list_resources_action = get_action_by_name(list_resources_action_name, &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
   let query = query_parameters.query.unwrap_or("".to_string());
   let resources = match Pin::from(list_resources(&query, &state.database_pool, Some(&individual_principal))).await {
@@ -101,6 +103,7 @@ pub async fn list_resources<ResourceType: Serialize, CountResourcesFunction, Lis
     target_http_transaction_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::HTTPTransaction { action_log_entry_target_resource_id.clone() } else { None },
     target_item_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Item { action_log_entry_target_resource_id.clone() } else { None },
     target_milestone_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Milestone { action_log_entry_target_resource_id.clone() } else { None }, 
+    target_oauth_authorization_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::OAuthAuthorization { action_log_entry_target_resource_id.clone() } else { None },
     target_project_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Project { action_log_entry_target_resource_id.clone() } else { None },
     target_role_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Role { action_log_entry_target_resource_id.clone() } else { None },
     target_role_membership_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::RoleMembership { action_log_entry_target_resource_id.clone() } else { None },
@@ -125,6 +128,7 @@ pub async fn delete_resource<ResourceStruct, GetResourceByIDFunction>(
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
   resource_type: Option<&AccessPolicyResourceType>,
   resource_id: &Uuid,
   delete_resources_action_name: &str,
@@ -146,9 +150,10 @@ pub async fn delete_resource<ResourceStruct, GetResourceByIDFunction>(
     None => vec![(AccessPolicyResourceType::Instance, None)]
 
   };
-  let delete_resources_action = get_action_from_name(&delete_resources_action_name, &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(&authenticated_user, &authenticated_app)?;
-  verify_principal_permissions(&authenticated_principal, &delete_resources_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &state.database_pool).await?;
+  let delete_resources_action = get_action_by_name(&delete_resources_action_name, &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &delete_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   match target_resource.delete(&state.database_pool).await {
 
@@ -184,6 +189,7 @@ pub async fn delete_resource<ResourceStruct, GetResourceByIDFunction>(
     target_http_transaction_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::HTTPTransaction { Some(resource_id.clone()) } else { None },
     target_item_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Item { Some(resource_id.clone()) } else { None },
     target_milestone_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Milestone { Some(resource_id.clone()) } else { None }, 
+    target_oauth_authorization_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::OAuthAuthorization { Some(resource_id.clone()) } else { None },
     target_project_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Project { Some(resource_id.clone()) } else { None },
     target_role_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Role { Some(resource_id.clone()) } else { None },
     target_role_membership_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::RoleMembership { Some(resource_id.clone()) } else { None },

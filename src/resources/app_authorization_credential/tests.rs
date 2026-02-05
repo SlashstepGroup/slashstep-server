@@ -37,7 +37,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_app_authorization_credentials: Vec<AppAuthorizationCredential> = Vec::new();
   for _ in 0..MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_COUNT {
 
-    let app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
+    let app_authorization_credential = test_environment.create_random_app_authorization_credential(None).await?;
     created_app_authorization_credentials.push(app_authorization_credential);
 
   }
@@ -57,7 +57,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
 
   // Create the access policy.
-  let app_authorization = test_environment.create_random_app_authorization(&None).await?;
+  let app_authorization = test_environment.create_random_app_authorization(None).await?;
   let app_authorization_credential_properties = InitialAppAuthorizationCredentialProperties {
     app_authorization_id: app_authorization.id,
     access_token_expiration_date: Utc::now() + Duration::days(30),
@@ -79,7 +79,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  let created_app_authorization = test_environment.create_random_app_authorization(&None).await?;
+  let created_app_authorization = test_environment.create_random_app_authorization(None).await?;
   
   created_app_authorization.delete(&test_environment.database_pool).await?;
 
@@ -103,7 +103,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 }
 
 #[tokio::test]
-async fn initialize_actions_table() -> Result<(), TestSlashstepServerError> {
+async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -118,7 +118,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
+  let created_app_authorization_credential = test_environment.create_random_app_authorization_credential(None).await?;
   let retrieved_app_authorization_credential = AppAuthorizationCredential::get_by_id(&created_app_authorization_credential.id, &test_environment.database_pool).await?;
   assert_app_authorization_credentials_are_equal(&created_app_authorization_credential, &retrieved_app_authorization_credential);
 
@@ -136,7 +136,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut app_authorization_credentials: Vec<AppAuthorizationCredential> = Vec::new();
   for _ in 0..MAXIMUM_APP_AUTHORIZATION_COUNT {
 
-    let app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
+    let app_authorization_credential = test_environment.create_random_app_authorization_credential(None).await?;
     app_authorization_credentials.push(app_authorization_credential);
 
   }
@@ -159,12 +159,12 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_app_authorization_credentials: Vec<AppAuthorizationCredential> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
+    let app_authorization_credential = test_environment.create_random_app_authorization_credential(None).await?;
     created_app_authorization_credentials.push(app_authorization_credential);
 
   }
   
-  let app_authorization_with_same_app_authorization_id = test_environment.create_random_app_authorization_credential(&Some(created_app_authorization_credentials[0].app_authorization_id)).await?;
+  let app_authorization_with_same_app_authorization_id = test_environment.create_random_app_authorization_credential(Some(&created_app_authorization_credentials[0].app_authorization_id)).await?;
   created_app_authorization_credentials.push(app_authorization_with_same_app_authorization_id);
 
   let query = format!("app_authorization_id = \"{}\"", created_app_authorization_credentials[0].app_authorization_id);
@@ -194,7 +194,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_app_authorization_credentials: Vec<AppAuthorizationCredential> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
+    let app_authorization_credential = test_environment.create_random_app_authorization_credential(None).await?;
     created_app_authorization_credentials.push(app_authorization_credential);
 
   }
@@ -230,7 +230,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_app_authorization_credentials.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let app_authorization_credential = test_environment.create_random_app_authorization_credential(&None).await?;
+      let app_authorization_credential = test_environment.create_random_app_authorization_credential(None).await?;
       current_app_authorization_credentials.push(app_authorization_credential);
 
     }
@@ -250,7 +250,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
 
     AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: get_app_authorization_credentials_action.id.clone(),
-      permission_level: crate::resources::access_policy::AccessPolicyPermissionLevel::User,
+      permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
       scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::AppAuthorizationCredential,

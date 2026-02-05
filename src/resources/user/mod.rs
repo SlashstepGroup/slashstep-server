@@ -12,7 +12,7 @@ use postgres::error::SqlState;
 use postgres_types::ToSql;
 use uuid::Uuid;
 
-use crate::resources::ResourceError;
+use crate::resources::{DeletableResource, ResourceError};
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -198,7 +198,7 @@ impl User {
   }
 
   /// Initializes the users table.
-  pub async fn initialize_users_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/users/initialize-users-table.sql");
@@ -211,6 +211,19 @@ impl User {
 
     let hashed_password = self.hashed_password.as_ref().expect("User does not have a hashed password.");
     return &hashed_password;
+
+  }
+
+}
+
+impl DeletableResource for User {
+
+  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/users/delete_user_row_by_id.sql");
+    database_client.execute(query, &[&self.id]).await?;
+    return Ok(());
 
   }
 

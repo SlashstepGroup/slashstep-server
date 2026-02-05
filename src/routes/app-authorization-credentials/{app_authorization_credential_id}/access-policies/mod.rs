@@ -16,7 +16,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyResourceType, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_from_id, get_action_from_name, get_app_authorization_credential_from_id, get_authenticated_principal, get_resource_hierarchy, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_app_authorization_credential_by_id, get_authenticated_principal, get_resource_hierarchy, verify_delegate_permissions, verify_principal_permissions}}};
 
 /// GET /app-authorization-credentials/{app_authorization_credential_id}/access-policies
 /// 
@@ -28,11 +28,12 @@ async fn handle_list_access_policies_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<ErasedJson, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let app_authorization_credential = get_app_authorization_credential_from_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
+  let app_authorization_credential = get_app_authorization_credential_by_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&app_authorization_credential, &AccessPolicyResourceType::AppAuthorizationCredential, &app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
 
   let query = format!(
@@ -51,6 +52,7 @@ async fn handle_list_access_policies_request(
     Extension(http_transaction), 
     Extension(authenticated_user), 
     Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
     resource_hierarchy, 
     ActionLogEntryTargetResourceType::AppAuthorizationCredential, 
     Some(app_authorization_credential.id), 
@@ -74,8 +76,9 @@ async fn handle_create_access_policy_request(
   Path(app_authorization_credential_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(user): Extension<Option<Arc<User>>>,
-  Extension(app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
   body: Result<Json<InitialAccessPolicyPropertiesForPredefinedScope>, JsonRejection>
 ) -> Result<Json<AccessPolicy>, HTTPError> {
 
@@ -111,15 +114,17 @@ async fn handle_create_access_policy_request(
   };
 
   // Make sure the user can create access policies for the target action.
-  let target_app_authorization_credential = get_app_authorization_credential_from_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
+  let target_app_authorization_credential = get_app_authorization_credential_by_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app_authorization_credential, &AccessPolicyResourceType::AppAuthorizationCredential, &target_app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
-  let create_access_policies_action = get_action_from_name("slashstep.accessPolicies.create", &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(&user, &app)?;
-  verify_principal_permissions(&authenticated_principal, &create_access_policies_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &state.database_pool).await?;
+  let create_access_policies_action = get_action_by_name("slashstep.accessPolicies.create", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_access_policies_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &create_access_policies_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Make sure the user has at least editor access to the access policy's action.
-  let access_policy_action = get_action_from_id(&access_policy_properties_json.action_id.to_string(), &http_transaction, &state.database_pool).await?;
-  let minimum_permission_level = if access_policy_properties_json.permission_level > AccessPolicyPermissionLevel::Editor { access_policy_properties_json.permission_level } else { AccessPolicyPermissionLevel::Editor };
+  let access_policy_action = get_action_by_id(&access_policy_properties_json.action_id.to_string(), &http_transaction, &state.database_pool).await?;
+  let minimum_permission_level = if access_policy_properties_json.permission_level > ActionPermissionLevel::Editor { access_policy_properties_json.permission_level } else { ActionPermissionLevel::Editor };
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &access_policy_action.id, &http_transaction.id, &minimum_permission_level, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &state.database_pool).await?;
 
   // Create the access policy.

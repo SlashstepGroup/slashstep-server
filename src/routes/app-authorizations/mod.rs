@@ -28,7 +28,8 @@ async fn handle_list_app_authorizations_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<ErasedJson, HTTPError> {
 
   let resource_hierarchy = vec![(AccessPolicyResourceType::Instance, None)];
@@ -38,6 +39,7 @@ async fn handle_list_app_authorizations_request(
     Extension(http_transaction), 
     Extension(authenticated_user), 
     Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
     resource_hierarchy, 
     ActionLogEntryTargetResourceType::Instance, 
     None, 

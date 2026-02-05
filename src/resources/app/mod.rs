@@ -77,8 +77,9 @@ pub struct EditableAppProperties {
 
 impl App {
 
-  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: &Option<T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
+  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
 
+    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
     if let Some(parameter_value) = parameter_value.clone() {
 
       query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
@@ -91,7 +92,7 @@ impl App {
   }
 
   /// Initializes the apps table.
-  pub async fn initialize_apps_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/apps/initialize_apps_table.sql");
@@ -253,10 +254,10 @@ impl App {
 
     let database_client = database_pool.get().await?;
     database_client.query("BEGIN;", &[]).await?;
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", &properties.name);
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "display_name", &properties.display_name);
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", &properties.description);
-    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "client_type", &properties.client_type);
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", Some(&properties.name));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "display_name", Some(&properties.display_name));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", Some(&properties.description));
+    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "client_type", Some(&properties.client_type));
 
     query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));

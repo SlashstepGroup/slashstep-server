@@ -18,11 +18,11 @@ pub enum ResourceHierarchyError {
 
 }
 
-pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scoped_resource_id: &Option<Uuid>, database_pool: &deadpool_postgres::Pool) -> Result<ResourceHierarchy, ResourceHierarchyError> {
+pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scoped_resource_id: Option<&Uuid>, database_pool: &deadpool_postgres::Pool) -> Result<ResourceHierarchy, ResourceHierarchyError> {
 
   let mut hierarchy: ResourceHierarchy = vec![];
   let mut selected_resource_type: AccessPolicyResourceType = scoped_resource_type.clone();
-  let mut selected_resource_id = scoped_resource_id.clone();
+  let mut selected_resource_id = scoped_resource_id.copied();
   
   loop {
 

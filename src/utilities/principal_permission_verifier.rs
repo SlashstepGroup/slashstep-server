@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, Principal, ResourceHierarchy}};
+use crate::resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, Principal, ResourceHierarchy}};
 
 #[derive(Debug, Error)]
 pub enum PrincipalPermissionVerifierError {
@@ -10,8 +10,8 @@ pub enum PrincipalPermissionVerifierError {
   ForbiddenError {
     principal: Principal,
     action_id: String,
-    minimum_permission_level: AccessPolicyPermissionLevel,
-    actual_permission_level: AccessPolicyPermissionLevel
+    minimum_permission_level: ActionPermissionLevel,
+    actual_permission_level: ActionPermissionLevel
   },
 
   #[error(transparent)]
@@ -22,7 +22,7 @@ pub struct PrincipalPermissionVerifier;
 
 impl PrincipalPermissionVerifier {
 
-  pub async fn verify_permissions(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, minimum_permission_level: &AccessPolicyPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), PrincipalPermissionVerifierError> {
+  pub async fn verify_permissions(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), PrincipalPermissionVerifierError> {
 
     let relevant_access_policies = AccessPolicy::list_by_hierarchy(principal, action_id, resource_hierarchy, database_pool).await?;
     let deepest_access_policy = match relevant_access_policies.first() {
@@ -33,7 +33,7 @@ impl PrincipalPermissionVerifier {
         principal: principal.clone(),
         action_id: action_id.to_string(),
         minimum_permission_level: minimum_permission_level.clone(),
-        actual_permission_level: AccessPolicyPermissionLevel::None
+        actual_permission_level: ActionPermissionLevel::None
       })
 
     };

@@ -150,25 +150,25 @@ pub enum SlashstepServerError {
 pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool) -> Result<(), SlashstepServerError> {
 
   // Because the access_policies table depends on other tables, we need to initialize them in a specific order.
-  HTTPTransaction::initialize_http_transactions_table(database_pool).await?;
-  ServerLogEntry::initialize_server_log_entries_table(database_pool).await?;
-  User::initialize_users_table(database_pool).await?;
-  Session::initialize_sessions_table(database_pool).await?;
-  Group::initialize_groups_table(database_pool).await?;
-  App::initialize_apps_table(database_pool).await?;
-  GroupMembership::initialize_app_authorizations_table(database_pool).await?;
-  Workspace::initialize_workspaces_table(database_pool).await?;
-  Project::initialize_projects_table(database_pool).await?;
-  Role::initialize_roles_table(database_pool).await?;
-  RoleMembership::initialize_role_memberships_table(database_pool).await?;
-  Item::initialize_items_table(database_pool).await?;
-  Action::initialize_actions_table(database_pool).await?;
-  AppCredential::initialize_app_credentials_table(database_pool).await?;
-  AppAuthorization::initialize_app_authorizations_table(database_pool).await?;
-  AppAuthorizationCredential::initialize_app_authorization_credentials_table(database_pool).await?;
-  Milestone::initialize_milestones_table(database_pool).await?;
-  ActionLogEntry::initialize_action_log_entries_table(database_pool).await?;
-  AccessPolicy::initialize_access_policies_table(database_pool).await?;
+  HTTPTransaction::initialize_resource_table(database_pool).await?;
+  ServerLogEntry::initialize_resource_table(database_pool).await?;
+  User::initialize_resource_table(database_pool).await?;
+  Session::initialize_resource_table(database_pool).await?;
+  Group::initialize_resource_table(database_pool).await?;
+  App::initialize_resource_table(database_pool).await?;
+  GroupMembership::initialize_resource_table(database_pool).await?;
+  Workspace::initialize_resource_table(database_pool).await?;
+  Project::initialize_resource_table(database_pool).await?;
+  Role::initialize_resource_table(database_pool).await?;
+  RoleMembership::initialize_resource_table(database_pool).await?;
+  Item::initialize_resource_table(database_pool).await?;
+  Action::initialize_resource_table(database_pool).await?;
+  AppCredential::initialize_resource_table(database_pool).await?;
+  AppAuthorization::initialize_resource_table(database_pool).await?;
+  AppAuthorizationCredential::initialize_resource_table(database_pool).await?;
+  Milestone::initialize_resource_table(database_pool).await?;
+  ActionLogEntry::initialize_resource_table(database_pool).await?;
+  AccessPolicy::initialize_resource_table(database_pool).await?;
   
   return Ok(());
 

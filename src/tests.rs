@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -117,13 +117,13 @@ impl TestEnvironment {
 
   }
   
-  pub async fn create_random_action(&self, parent_app_id: &Option<Uuid>) -> Result<Action, TestSlashstepServerError> {
+  pub async fn create_random_action(&self, parent_app_id: Option<&Uuid>) -> Result<Action, TestSlashstepServerError> {
 
     let action_properties = InitialActionProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
       description: Uuid::now_v7().to_string(),
-      parent_app_id: parent_app_id.clone(),
+      parent_app_id: parent_app_id.copied(),
       parent_resource_type: if parent_app_id.is_some() { ActionParentResourceType::App } else { ActionParentResourceType::Instance }
     };
 
@@ -133,10 +133,10 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_app_authorization(&self, app_id: &Option<Uuid>) -> Result<AppAuthorization, TestSlashstepServerError> {
+  pub async fn create_random_app_authorization(&self, app_id: Option<&Uuid>) -> Result<AppAuthorization, TestSlashstepServerError> {
 
     // Create a random app.
-    let app_id = app_id.unwrap_or(self.create_random_app().await?.id);
+    let app_id = app_id.copied().unwrap_or(self.create_random_app().await?.id);
     let app_authorization_properties = InitialAppAuthorizationProperties {
       app_id,
       ..Default::default()
@@ -148,10 +148,10 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_app_authorization_credential(&self, app_authorization_id: &Option<Uuid>) -> Result<AppAuthorizationCredential, TestSlashstepServerError> {
+  pub async fn create_random_app_authorization_credential(&self, app_authorization_id: Option<&Uuid>) -> Result<AppAuthorizationCredential, TestSlashstepServerError> {
 
     // Create a random app.
-    let app_authorization_id = app_authorization_id.unwrap_or(self.create_random_app_authorization(&None).await?.id);
+    let app_authorization_id = app_authorization_id.copied().unwrap_or(self.create_random_app_authorization(None).await?.id);
     let app_authorization_properties = InitialAppAuthorizationCredentialProperties {
       app_authorization_id,
       access_token_expiration_date: Utc::now() + Duration::days(1),
@@ -165,10 +165,10 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_app_credential(&self, app_id: &Option<Uuid>) -> Result<AppCredential, TestSlashstepServerError> {
+  pub async fn create_random_app_credential(&self, app_id: Option<&Uuid>) -> Result<AppCredential, TestSlashstepServerError> {
 
     // Create a random app.
-    let app_id = app_id.unwrap_or(self.create_random_app().await?.id);
+    let app_id = app_id.copied().unwrap_or(self.create_random_app().await?.id);
 
     // Create a public key.
     let mut os_rng = OsRng;
@@ -191,7 +191,7 @@ impl TestEnvironment {
 
   pub async fn create_random_action_log_entry(&self) -> Result<ActionLogEntry, TestSlashstepServerError> {
 
-    let action = self.create_random_action(&None).await?;
+    let action = self.create_random_action(None).await?;
     let user = self.create_random_user().await?;
 
     let action_log_entry_properties = InitialActionLogEntryProperties {
@@ -240,11 +240,11 @@ impl TestEnvironment {
 
   pub async fn create_random_access_policy(&self) -> Result<AccessPolicy, TestSlashstepServerError> {
 
-    let action = self.create_random_action(&None).await?;
+    let action = self.create_random_action(None).await?;
     let user = self.create_random_user().await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
-      permission_level: crate::resources::access_policy::AccessPolicyPermissionLevel::User,
+      permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
       is_inheritance_enabled: true,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
@@ -258,7 +258,7 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_instance_access_policy(&self, user_id: &Uuid, action_id: &Uuid, permission_level: &AccessPolicyPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
+  pub async fn create_instance_access_policy(&self, user_id: &Uuid, action_id: &Uuid, permission_level: &ActionPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
     let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: action_id.clone(),

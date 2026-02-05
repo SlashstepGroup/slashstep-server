@@ -1,0 +1,1 @@
+SELECT * FROM oauth_authorizations WHERE id = $1 LIMIT 1;
