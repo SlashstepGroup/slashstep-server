@@ -1,0 +1,1 @@
+DELETE FROM delegation_policies WHERE id = $1;

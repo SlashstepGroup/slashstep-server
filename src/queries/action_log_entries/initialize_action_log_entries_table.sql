@@ -21,14 +21,15 @@ DO $$
         'HTTPTransaction',
         'Instance',
         'Item',
+        'Milestone',
+        'OAuthAuthorization',
         'Project',
         'Role',
         'RoleMembership',
         'ServerLogEntry',
         'Session',
         'User',
-        'Workspace',
-        'Milestone'
+        'Workspace'
       );
     END IF;
 
@@ -53,6 +54,7 @@ DO $$
       target_http_transaction_id UUID,
       target_item_id UUID,
       target_milestone_id UUID,
+      target_oauth_authorization_id UUID,
       target_project_id UUID,
       target_role_id UUID,
       target_role_membership_id UUID,

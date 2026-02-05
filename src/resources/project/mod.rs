@@ -29,7 +29,7 @@ pub struct Project {
 impl Project {
 
   /// Initializes the projects table.
-  pub async fn initialize_projects_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/projects/initialize-projects-table.sql");

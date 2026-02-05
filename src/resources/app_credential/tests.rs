@@ -41,7 +41,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
 
-    let app_credential = test_environment.create_random_app_credential(&None).await?;
+    let app_credential = test_environment.create_random_app_credential(None).await?;
     created_app_credentials.push(app_credential);
 
   }
@@ -87,7 +87,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  let created_app_credential = test_environment.create_random_app_credential(&None).await?;
+  let created_app_credential = test_environment.create_random_app_credential(None).await?;
   
   created_app_credential.delete(&test_environment.database_pool).await?;
 
@@ -111,7 +111,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 }
 
 #[tokio::test]
-async fn initialize_actions_table() -> Result<(), TestSlashstepServerError> {
+async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -126,7 +126,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_app_credential = test_environment.create_random_app_credential(&None).await?;
+  let created_app_credential = test_environment.create_random_app_credential(None).await?;
   let retrieved_app_credential = AppCredential::get_by_id(&created_app_credential.id, &test_environment.database_pool).await?;
   assert_app_credentials_are_equal(&created_app_credential, &retrieved_app_credential);
 
@@ -144,7 +144,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
 
-    let app_credential = test_environment.create_random_app_credential(&None).await?;
+    let app_credential = test_environment.create_random_app_credential(None).await?;
     app_credentials.push(app_credential);
 
   }
@@ -167,12 +167,12 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let app_credential = test_environment.create_random_app_credential(&None).await?;
+    let app_credential = test_environment.create_random_app_credential(None).await?;
     created_app_credentials.push(app_credential);
 
   }
   
-  let app_credential_with_same_app_id = test_environment.create_random_app_credential(&Some(created_app_credentials[0].app_id)).await?;
+  let app_credential_with_same_app_id = test_environment.create_random_app_credential(Some(&created_app_credentials[0].app_id)).await?;
   created_app_credentials.push(app_credential_with_same_app_id);
 
   let query = format!("app_id = \"{}\"", created_app_credentials[0].app_id);
@@ -202,7 +202,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let app_credential = test_environment.create_random_app_credential(&None).await?;
+    let app_credential = test_environment.create_random_app_credential(None).await?;
     created_app_credentials.push(app_credential);
 
   }
@@ -238,7 +238,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_app_credentials.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let app_credential = test_environment.create_random_app_credential(&None).await?;
+      let app_credential = test_environment.create_random_app_credential(None).await?;
       current_app_credentials.push(app_credential);
 
     }
@@ -258,7 +258,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
 
     AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: get_app_credentials_action.id.clone(),
-      permission_level: crate::resources::access_policy::AccessPolicyPermissionLevel::User,
+      permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
       scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::AppCredential,

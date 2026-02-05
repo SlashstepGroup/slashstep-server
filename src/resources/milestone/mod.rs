@@ -61,7 +61,7 @@ pub struct InitialMilestoneProperties {
 impl Milestone {
 
   /// Initializes the milestones table.
-  pub async fn initialize_milestones_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/milestones/initialize-milestones-table.sql");

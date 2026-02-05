@@ -16,7 +16,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, initialize_required_tables,  predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, IndividualPrincipal, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, InitialActionPropertiesForPredefinedScope}, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
+use crate::{AppState, initialize_required_tables,  predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, ActionPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, IndividualPrincipal, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, InitialActionPropertiesForPredefinedScope}, session::Session}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
@@ -32,7 +32,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let create_actions_action = Action::get_by_name("slashstep.actions.create", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &create_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &create_actions_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a dummy app.
   let dummy_app = test_environment.create_random_app().await?;
@@ -231,15 +231,15 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &get_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_actions_action.id, &ActionPermissionLevel::User).await?;
 
   // Give the user access to the "slashstep.actions.list" action.
   let list_actions_action = Action::get_by_name("slashstep.actions.list", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &list_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &list_actions_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
-  let dummy_action = test_environment.create_random_action(&Some(dummy_app.id)).await?;
+  let dummy_action = test_environment.create_random_action(Some(&dummy_app.id)).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -287,16 +287,16 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &get_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_actions_action.id, &ActionPermissionLevel::User).await?;
 
   // Give the user access to the "slashstep.actions.list" action.
   let list_actions_action = Action::get_by_name("slashstep.actions.list", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &list_actions_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &list_actions_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
-  test_environment.create_random_action(&Some(dummy_app.id)).await?;
-  let dummy_action = test_environment.create_random_action(&Some(dummy_app.id)).await?;
+  test_environment.create_random_action(Some(&dummy_app.id)).await?;
+  let dummy_action = test_environment.create_random_action(Some(&dummy_app.id)).await?;
 
   // Set up the server and send the request.
   let additional_query = format!("id = {}", quote_literal(&dummy_action.id.to_string()));
@@ -349,7 +349,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -361,7 +361,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let list_actions_action = Action::get_by_name("slashstep.actions.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -374,7 +374,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let action_count = Action::count(format!("parent_app_id = {}", quote_literal(&dummy_app.id.to_string())).as_str(), &test_environment.database_pool, None).await?;
   for _ in 0..(DEFAULT_ACTION_LIST_LIMIT - action_count + 1) {
 
-    test_environment.create_random_action(&Some(dummy_app.id)).await?;
+    test_environment.create_random_action(Some(&dummy_app.id)).await?;
 
   }
 
@@ -417,7 +417,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -429,7 +429,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let list_actions_action = Action::get_by_name("slashstep.actions.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -476,7 +476,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -488,7 +488,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   let list_actions_action = Action::get_by_name("slashstep.actions.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

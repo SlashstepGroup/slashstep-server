@@ -86,13 +86,14 @@ pub enum ActionLogEntryTargetResourceType {
   #[default]
   Instance,
   Item,
+  Milestone,
+  OAuthAuthorization,
   Project,
   Role,
   RoleMembership,
   ServerLogEntry,
   Session,
   User,
-  Milestone,
   Workspace
 }
 
@@ -155,6 +156,9 @@ pub struct ActionLogEntry {
 
   /// The target milestone ID of the action, if applicable.
   pub target_milestone_id: Option<Uuid>,
+
+  /// The target OAuth authorization ID of the action, if applicable.
+  pub target_oauth_authorization_id: Option<Uuid>,
 
   /// The target project ID of the action, if applicable.
   pub target_project_id: Option<Uuid>,
@@ -239,6 +243,9 @@ pub struct InitialActionLogEntryProperties {
   /// The target milestone ID of the action, if applicable.
   pub target_milestone_id: Option<Uuid>,
 
+  /// The target OAuth authorization ID of the action, if applicable.
+  pub target_oauth_authorization_id: Option<Uuid>,
+
   /// The target project ID of the action, if applicable.
   pub target_project_id: Option<Uuid>,
 
@@ -315,6 +322,7 @@ impl ActionLogEntry {
       target_http_transaction_id: row.get("target_http_transaction_id"),
       target_item_id: row.get("target_item_id"),
       target_milestone_id: row.get("target_milestone_id"),
+      target_oauth_authorization_id: row.get("target_oauth_authorization_id"),
       target_project_id: row.get("target_project_id"),
       target_role_id: row.get("target_role_id"),
       target_role_membership_id: row.get("target_role_membership_id"),
@@ -375,6 +383,7 @@ impl ActionLogEntry {
       &initial_properties.target_http_transaction_id,
       &initial_properties.target_item_id,
       &initial_properties.target_milestone_id,
+      &initial_properties.target_oauth_authorization_id,
       &initial_properties.target_project_id,
       &initial_properties.target_role_id,
       &initial_properties.target_role_membership_id,
@@ -394,7 +403,7 @@ impl ActionLogEntry {
   }
   
   /// Initializes the action_log_entries table.
-  pub async fn initialize_action_log_entries_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/action_log_entries/initialize_action_log_entries_table.sql");

@@ -17,13 +17,13 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_request_middleware}, 
   resources::{
-    access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action::{
+    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action::{
       Action, 
       EditableActionProperties
-    }, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    }, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{
-      AuthenticatedPrincipal, get_action_from_id, get_action_from_name, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_principal_permissions
+      AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions
     }}
 };
 
@@ -38,16 +38,18 @@ async fn handle_get_action_request(
   Path(action_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(user): Extension<Option<Arc<User>>>,
-  Extension(app): Extension<Option<Arc<App>>>
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<Json<Action>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let target_action = get_action_from_id(&action_id, &http_transaction, &state.database_pool).await?;
+  let target_action = get_action_by_id(&action_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_action, &AccessPolicyResourceType::Action, &target_action.id, &http_transaction, &state.database_pool).await?;
-  let get_actions_action = get_action_from_name("slashstep.actions.get", &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(&user, &app)?;
-  verify_principal_permissions(&authenticated_principal, &get_actions_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &state.database_pool).await?;
+  let get_actions_action = get_action_by_name("slashstep.actions.get", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_actions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &get_actions_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: get_actions_action.id,
@@ -73,8 +75,9 @@ async fn handle_patch_action_request(
   Path(action_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(user): Extension<Option<Arc<User>>>,
-  Extension(app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
   body: Result<Json<EditableActionProperties>, JsonRejection>
 ) -> Result<Json<Action>, HTTPError> {
 
@@ -108,11 +111,12 @@ async fn handle_patch_action_request(
 
   };
 
-  let original_target_action = get_action_from_id(&action_id, &http_transaction, &state.database_pool).await?;
+  let original_target_action = get_action_by_id(&action_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&original_target_action, &AccessPolicyResourceType::Action, &original_target_action.id, &http_transaction, &state.database_pool).await?;
-  let update_access_policy_action = get_action_from_name("slashstep.actions.update", &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(&user, &app)?;
-  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &state.database_pool).await?;
+  let update_access_policy_action = get_action_by_name("slashstep.actions.update", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace(&format!("Updating action {}...", action_id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_action = match original_target_action.update(&updated_action_properties, &state.database_pool).await {
@@ -154,7 +158,8 @@ async fn handle_delete_action_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<StatusCode, HTTPError> {
 
   let action_log_entry_id = get_uuid_from_string(&action_id, "action", &http_transaction, &state.database_pool).await?;
@@ -163,6 +168,7 @@ async fn handle_delete_action_request(
     Extension(http_transaction), 
     Extension(authenticated_user), 
     Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
     Some(&AccessPolicyResourceType::Action),
     &action_log_entry_id, 
     "slashstep.actions.delete",

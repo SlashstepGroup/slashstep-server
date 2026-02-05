@@ -23,7 +23,7 @@ use crate::{
     initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicyPermissionLevel, app_credential::{AppCredential}, session::Session
+    ResourceError, access_policy::ActionPermissionLevel, app_credential::{AppCredential}, session::Session
   }, 
   tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -51,9 +51,9 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &get_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_app_credentials_action.id, &ActionPermissionLevel::User).await?;
   
-  let app_credential = test_environment.create_random_app_credential(&None).await?;
+  let app_credential = test_environment.create_random_app_credential(None).await?;
 
   let response = test_server.get(&format!("/app-credentials/{}", app_credential.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -116,7 +116,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   
-  let app_credential = test_environment.create_random_app_credential(&None).await?;
+  let app_credential = test_environment.create_random_app_credential(None).await?;
 
   let response = test_server.get(&format!("/app-credentials/{}", app_credential.id))
     .await;
@@ -141,7 +141,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let app_credential = test_environment.create_random_app_credential(&None).await?;
+  let app_credential = test_environment.create_random_app_credential(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -205,10 +205,10 @@ async fn verify_successful_deletion_when_deleting_resource_by_id() -> Result<(),
 
   // Grant access to the "slashstep.appCredentials.delete" action to the user.
   let delete_app_credentials_action = Action::get_by_name("slashstep.appCredentials.delete", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &delete_app_credentials_action.id, &AccessPolicyPermissionLevel::User).await?;
+  test_environment.create_instance_access_policy(&user.id, &delete_app_credentials_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let app_credential = test_environment.create_random_app_credential(&None).await?;
+  let app_credential = test_environment.create_random_app_credential(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -269,7 +269,7 @@ async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), Test
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Create dummy resources.
-  let app_credential = test_environment.create_random_app_credential(&None).await?;
+  let app_credential = test_environment.create_random_app_credential(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -304,7 +304,7 @@ async fn verify_permission_when_deleting_resource_by_id() -> Result<(), TestSlas
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
   // Create dummy resources.
-  let app_credential = test_environment.create_random_app_credential(&None).await?;
+  let app_credential = test_environment.create_random_app_credential(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {

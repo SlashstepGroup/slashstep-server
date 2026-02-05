@@ -84,7 +84,7 @@ pub struct InitialAppCredentialPropertiesForPredefinedScope {
 impl AppCredential {
 
   /// Initializes the app_credentials table.
-  pub async fn initialize_app_credentials_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/app_credentials/initialize_app_credentials_table.sql");

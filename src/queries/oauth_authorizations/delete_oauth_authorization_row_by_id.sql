@@ -1,0 +1,1 @@
+DELETE FROM oauth_authorizations WHERE id = $1;

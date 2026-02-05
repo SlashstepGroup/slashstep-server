@@ -25,7 +25,7 @@ use crate::{
   resources::{
     ResourceError, access_policy::{
       AccessPolicy,
-      AccessPolicyPermissionLevel, 
+      ActionPermissionLevel, 
       AccessPolicyPrincipalType, 
       AccessPolicyResourceType, 
       InitialAccessPolicyProperties
@@ -59,7 +59,7 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -68,7 +68,7 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
   };
   AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
   
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
 
   let response = test_server.get(&format!("/actions/{}", action.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -129,7 +129,7 @@ async fn verify_authentication_when_getting_action_by_id() -> Result<(), TestSla
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
 
   let response = test_server.get(&format!("/actions/{}", action.id))
     .await;
@@ -154,7 +154,7 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = Session::get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -225,7 +225,7 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   let delete_actions_action = Action::get_by_name("slashstep.actions.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -234,7 +234,7 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   }, &test_environment.database_pool).await?;
 
   // Set up the server and send the request.
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -295,7 +295,7 @@ async fn verify_authentication_when_deleting_action_by_id() -> Result<(), TestSl
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Create a dummy action.
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -330,7 +330,7 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
   // Create a dummy action.
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -398,7 +398,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   let get_actions_action = Action::get_by_name("slashstep.actions.update", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::Editor,
+    permission_level: ActionPermissionLevel::Editor,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -407,7 +407,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   }, &test_environment.database_pool).await?;
 
   // Set up the server and send the request.
-  let original_action = test_environment.create_random_action(&None).await?;
+  let original_action = test_environment.create_random_action(None).await?;
   let new_name = format!("slashstep.{}.{}", Uuid::now_v7().to_string(), Uuid::now_v7().to_string());
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Uuid::now_v7().to_string();
@@ -565,7 +565,7 @@ async fn verify_authentication_when_patching_action_by_id() -> Result<(), TestSl
   initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -601,7 +601,7 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Set up the server and send the request.
-  let action = test_environment.create_random_action(&None).await?;
+  let action = test_environment.create_random_action(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };

@@ -25,7 +25,7 @@ use crate::{
   resources::{
     ResourceError, access_policy::{
       AccessPolicy,
-      AccessPolicyPermissionLevel, 
+      ActionPermissionLevel, 
       AccessPolicyPrincipalType, 
       AccessPolicyResourceType, 
       InitialAccessPolicyProperties
@@ -59,7 +59,7 @@ async fn verify_returned_app_by_id() -> Result<(), TestSlashstepServerError> {
   let get_apps_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_apps_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -228,7 +228,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   let delete_apps_action = Action::get_by_name("slashstep.apps.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_apps_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -401,7 +401,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let update_apps_action = Action::get_by_name("slashstep.apps.update", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: update_apps_action.id,
-    permission_level: AccessPolicyPermissionLevel::Editor,
+    permission_level: ActionPermissionLevel::Editor,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

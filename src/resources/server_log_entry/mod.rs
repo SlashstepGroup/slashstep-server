@@ -131,7 +131,7 @@ impl ServerLogEntry {
 
   }
 
-  pub async fn initialize_server_log_entries_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/server_log_entries/initialize_server_log_entries_table.sql");

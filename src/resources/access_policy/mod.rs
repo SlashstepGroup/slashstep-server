@@ -79,7 +79,7 @@ pub const DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default, PartialOrd)]
 #[postgres(name = "permission_level")]
-pub enum AccessPolicyPermissionLevel {
+pub enum ActionPermissionLevel {
   #[default]
   None,
   User,
@@ -87,28 +87,28 @@ pub enum AccessPolicyPermissionLevel {
   Admin
 }
 
-impl fmt::Display for AccessPolicyPermissionLevel {
+impl fmt::Display for ActionPermissionLevel {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match self {
-      AccessPolicyPermissionLevel::None => write!(f, "None"),
-      AccessPolicyPermissionLevel::User => write!(f, "User"),
-      AccessPolicyPermissionLevel::Editor => write!(f, "Editor"),
-      AccessPolicyPermissionLevel::Admin => write!(f, "Admin")
+      ActionPermissionLevel::None => write!(f, "None"),
+      ActionPermissionLevel::User => write!(f, "User"),
+      ActionPermissionLevel::Editor => write!(f, "Editor"),
+      ActionPermissionLevel::Admin => write!(f, "Admin")
     }
   }
 }
 
-impl FromStr for AccessPolicyPermissionLevel {
+impl FromStr for ActionPermissionLevel {
 
   type Err = ResourceError;
 
   fn from_str(string: &str) -> Result<Self, Self::Err> {
 
     match string {
-      "None" => Ok(AccessPolicyPermissionLevel::None),
-      "User" => Ok(AccessPolicyPermissionLevel::User),
-      "Editor" => Ok(AccessPolicyPermissionLevel::Editor),
-      "Admin" => Ok(AccessPolicyPermissionLevel::Admin),
+      "None" => Ok(ActionPermissionLevel::None),
+      "User" => Ok(ActionPermissionLevel::User),
+      "Editor" => Ok(ActionPermissionLevel::Editor),
+      "Admin" => Ok(ActionPermissionLevel::Admin),
       _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
     }
     
@@ -291,7 +291,7 @@ pub struct InitialAccessPolicyProperties {
 
   pub action_id: Uuid,
 
-  pub permission_level: AccessPolicyPermissionLevel,
+  pub permission_level: ActionPermissionLevel,
 
   pub is_inheritance_enabled: bool,
 
@@ -349,7 +349,7 @@ pub struct InitialAccessPolicyProperties {
 #[serde(deny_unknown_fields)]
 pub struct EditableAccessPolicyProperties {
 
-  pub permission_level: Option<AccessPolicyPermissionLevel>,
+  pub permission_level: Option<ActionPermissionLevel>,
 
   pub is_inheritance_enabled: Option<bool>,
 
@@ -366,7 +366,7 @@ pub enum IndividualPrincipal {
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct InitialAccessPolicyPropertiesForPredefinedScope {
   pub action_id: Uuid,
-  pub permission_level: AccessPolicyPermissionLevel,
+  pub permission_level: ActionPermissionLevel,
   pub is_inheritance_enabled: bool,
   pub principal_type: AccessPolicyPrincipalType,
   pub principal_user_id: Option<Uuid>,
@@ -385,7 +385,7 @@ pub struct AccessPolicy {
   /// The action ID that this access policy refers to.
   pub action_id: Uuid,
 
-  pub permission_level: AccessPolicyPermissionLevel,
+  pub permission_level: ActionPermissionLevel,
 
   pub is_inheritance_enabled: bool,
 
@@ -587,7 +587,7 @@ impl AccessPolicy {
   }
 
   /// Initializes the access policies table.
-  pub async fn initialize_access_policies_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
     let table_query = include_str!("../../queries/access_policies/initialize_access_policies_table.sql");
@@ -651,7 +651,7 @@ impl AccessPolicy {
 
         "permission_level" => {
 
-          let permission_level = match AccessPolicyPermissionLevel::from_str(value) {
+          let permission_level = match ActionPermissionLevel::from_str(value) {
 
             Ok(permission_level) => permission_level,
             Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
@@ -814,9 +814,10 @@ impl AccessPolicy {
 
   }
 
-  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: &Option<T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
+  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
 
-    if let Some(parameter_value) = parameter_value.clone() {
+    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
+    if let Some(parameter_value) = parameter_value {
 
       query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
       parameter_boxes.push(Box::new(parameter_value));
@@ -835,8 +836,8 @@ impl AccessPolicy {
     let database_client = database_pool.get().await?;
 
     database_client.query("begin;", &[]).await?;
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "permission_level", &properties.permission_level);
-    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "is_inheritance_enabled", &properties.is_inheritance_enabled);
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "permission_level", Some(&properties.permission_level));
+    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "is_inheritance_enabled", Some(&properties.is_inheritance_enabled));
 
     query.push_str(format!(" where id = ${} returning *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));

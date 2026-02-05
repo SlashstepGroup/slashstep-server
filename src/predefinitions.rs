@@ -103,6 +103,18 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "slashstep.apps.authorize".to_string(),
+      display_name: "Authorize apps".to_string(),
+      description: "Authorize apps on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.oauthAuthorizations.create".to_string(),
+      display_name: "Create OAuth authorizations".to_string(),
+      description: "Create OAuth authorizations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "slashstep.actions.create".to_string(),
       display_name: "Create actions".to_string(),
       description: "Create new actions on a particular scope.".to_string(),

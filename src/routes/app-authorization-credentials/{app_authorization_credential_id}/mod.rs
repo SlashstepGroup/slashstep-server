@@ -22,10 +22,10 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_request_middleware}, 
   resources::{
-    access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization_credential::AppAuthorizationCredential, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{
-    AuthenticatedPrincipal, get_action_from_name, get_app_authorization_credential_from_id, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_principal_permissions
+    AuthenticatedPrincipal, get_action_by_name, get_app_authorization_credential_by_id, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions
   }}
 };
 
@@ -37,16 +37,18 @@ async fn handle_get_app_authorization_credential_request(
   Path(app_authorization_credential_id): Path<String>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(user): Extension<Option<Arc<User>>>,
-  Extension(app): Extension<Option<Arc<App>>>
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<Json<AppAuthorizationCredential>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
-  let target_app_authorization_credential = get_app_authorization_credential_from_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
+  let target_app_authorization_credential = get_app_authorization_credential_by_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app_authorization_credential, &AccessPolicyResourceType::AppAuthorizationCredential, &target_app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
-  let get_app_authorizations_action = get_action_from_name("slashstep.appAuthorizationCredentials.get", &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(&user, &app)?;
-  verify_principal_permissions(&authenticated_principal, &get_app_authorizations_action, &resource_hierarchy, &http_transaction, &AccessPolicyPermissionLevel::User, &state.database_pool).await?;
+  let get_app_authorizations_action = get_action_by_name("slashstep.appAuthorizationCredentials.get", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_app_authorizations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &get_app_authorizations_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: get_app_authorizations_action.id,
@@ -73,7 +75,8 @@ async fn handle_delete_app_authorization_credential_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<StatusCode, HTTPError> {
 
   let app_authorization_id = get_uuid_from_string(&app_authorization_id, "app authorization credential", &http_transaction, &state.database_pool).await?;
@@ -82,6 +85,7 @@ async fn handle_delete_app_authorization_credential_request(
     Extension(http_transaction), 
     Extension(authenticated_user), 
     Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
     Some(&AccessPolicyResourceType::AppAuthorizationCredential), 
     &app_authorization_id, 
     "slashstep.appAuthorizationCredentials.delete",

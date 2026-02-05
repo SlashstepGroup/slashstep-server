@@ -23,7 +23,7 @@ use crate::{
   resources::{
     ResourceError, access_policy::{
       AccessPolicy, 
-      AccessPolicyPermissionLevel, 
+      ActionPermissionLevel, 
       AccessPolicyPrincipalType, 
       AccessPolicyResourceType, 
       InitialAccessPolicyProperties
@@ -57,7 +57,7 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
   let get_action_log_entries_action = Action::get_by_name("slashstep.actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -239,7 +239,7 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
   let delete_action_log_entries_action = Action::get_by_name("slashstep.actionLogEntries.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_action_log_entries_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

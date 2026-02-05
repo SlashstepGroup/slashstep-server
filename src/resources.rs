@@ -8,18 +8,20 @@ pub mod app_authorization_credential;
 pub mod app_authorization;
 pub mod app_credential;
 pub mod app;
+pub mod delegation_policy;
 pub mod group;
 pub mod group_membership;
+pub mod http_transaction;
 pub mod item;
 pub mod milestone;
+pub mod oauth_authorization;
 pub mod project;
 pub mod role;
-pub mod user;
-pub mod workspace;
-pub mod server_log_entry;
-pub mod http_transaction;
-pub mod session;
 pub mod role_memberships;
+pub mod user;
+pub mod server_log_entry;
+pub mod session;
+pub mod workspace;
 
 #[derive(Debug, Error)]
 pub enum ResourceError {

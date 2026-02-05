@@ -1,0 +1,1 @@
+SELECT * FROM delegation_policies WHERE id = $1 LIMIT 1;

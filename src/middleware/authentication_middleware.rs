@@ -4,7 +4,7 @@ use axum::{Extension, body::Body, extract::{Request, State}, http::HeaderMap, mi
 use axum_extra::extract::CookieJar;
 use reqwest::header;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, resources::{ResourceError, app::App, http_transaction::HTTPTransaction, role::Role, role_memberships::{InitialRoleMembershipProperties, RoleMembership}, server_log_entry::ServerLogEntry, session::{Session, SessionTokenClaims}, user::{InitialUserProperties, User}}, utilities::route_handler_utilities::{get_app_credential_from_id, get_app_from_id}};
+use crate::{AppState, HTTPError, resources::{ResourceError, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, role::Role, role_memberships::{InitialRoleMembershipProperties, RoleMembership}, server_log_entry::ServerLogEntry, session::{Session, SessionTokenClaims}, user::{InitialUserProperties, User}}, utilities::route_handler_utilities::{get_app_by_id, get_app_credential_by_id}};
 
 async fn get_jwt_public_key(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<String, HTTPError> {
 
@@ -312,6 +312,8 @@ pub async fn authenticate_app(
   next: Next
 ) -> Result<Response, HTTPError> {
   
+  request.extensions_mut().insert(None as Option<Arc<AppAuthorization>>); // TODO: Add support for app authorizations.
+
   // Get the cookie from the request.
   let Some(authorization_token) = headers.get(header::AUTHORIZATION) else {
 
@@ -368,7 +370,7 @@ pub async fn authenticate_app(
     
   };
 
-  let app_credential = match get_app_credential_from_id(&app_credential_id.to_string(), &http_transaction, &state.database_pool).await {
+  let app_credential = match get_app_credential_by_id(&app_credential_id.to_string(), &http_transaction, &state.database_pool).await {
 
     Ok(app_credential) => app_credential,
 
@@ -388,7 +390,7 @@ pub async fn authenticate_app(
 
   };
 
-  let app = match get_app_from_id(&app_credential.app_id.to_string(), &http_transaction, &state.database_pool).await {
+  let app = match get_app_by_id(&app_credential.app_id.to_string(), &http_transaction, &state.database_pool).await {
 
     Ok(app) => app,
 

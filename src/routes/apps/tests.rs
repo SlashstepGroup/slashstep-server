@@ -20,7 +20,7 @@ use crate::{
   }, resources::{
     access_policy::{
       AccessPolicy, 
-      AccessPolicyPermissionLevel, 
+      ActionPermissionLevel, 
       AccessPolicyPrincipalType, 
       AccessPolicyResourceType, 
       IndividualPrincipal, 
@@ -46,7 +46,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -58,7 +58,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let list_actions_action = Action::get_by_name("slashstep.apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -122,7 +122,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -134,7 +134,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let list_actions_action = Action::get_by_name("slashstep.apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -201,7 +201,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -213,7 +213,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let list_actions_action = Action::get_by_name("slashstep.apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -268,7 +268,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -280,7 +280,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let list_actions_action = Action::get_by_name("slashstep.apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -324,7 +324,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -336,7 +336,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let list_actions_action = Action::get_by_name("slashstep.apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: AccessPolicyPermissionLevel::User,
+    permission_level: ActionPermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

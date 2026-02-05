@@ -1,7 +1,8 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyPermissionLevel, AccessPolicyResourceType, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use colored::Colorize;
+use pg_escape::quote_literal;
 use postgres::error::SqlState;
 use uuid::Uuid;
 
@@ -13,7 +14,7 @@ pub fn map_postgres_error_to_http_error(error: deadpool_postgres::PoolError) -> 
 
 }
 
-pub async fn get_action_from_name(action_name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Action, HTTPError> {
+pub async fn get_action_by_name(action_name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Action, HTTPError> {
 
   ServerLogEntry::trace(&format!("Getting action \"{}\"...", action_name), Some(&http_transaction.id), &database_pool).await.ok();
   let action = match Action::get_by_name(&action_name, &database_pool).await {
@@ -39,7 +40,63 @@ pub enum AuthenticatedPrincipal {
   App(Arc<App>)
 }
 
-pub async fn verify_principal_permissions(authenticated_principal: &AuthenticatedPrincipal, action: &Action, resource_hierarchy: &ResourceHierarchy, http_transaction: &HTTPTransaction, minimum_permission_level: &AccessPolicyPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+
+  let app_authorization_id = match app_authorization_id {
+
+    Some(app_authorization_id) => app_authorization_id,
+
+    None => return Ok(())
+
+  };
+
+  let query = format!("action_id = {} AND delegate_app_authorization_id = {} LIMIT 1", quote_literal(&action_id.to_string()), quote_literal(&app_authorization_id.to_string()));
+  let delegation_policy = match DelegationPolicy::list(&query, &database_pool, None).await {
+
+    Ok(delegation_policies) => {
+      
+      let delegation_policy = match delegation_policies.first() {
+
+        Some(delegation_policy) => delegation_policy.clone(),
+
+        None => return Err(HTTPError::ForbiddenError(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id))))
+
+      };
+
+      delegation_policy
+
+    },
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::NotFoundError(_) => HTTPError::ForbiddenError(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id))),
+
+        _ => HTTPError::InternalServerError(Some(error.to_string()))
+
+      };
+
+      http_error.print_and_save(Some(&http_transaction_id), &database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  if delegation_policy.maximum_permission_level < *required_permission_level {
+
+    let http_error = HTTPError::ForbiddenError(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id)));
+    http_error.print_and_save(Some(&http_transaction_id), &database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  return Ok(());
+
+}
+
+pub async fn verify_principal_permissions(authenticated_principal: &AuthenticatedPrincipal, action: &Action, resource_hierarchy: &ResourceHierarchy, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
 
   ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
 
@@ -80,7 +137,7 @@ pub async fn verify_principal_permissions(authenticated_principal: &Authenticate
 
 }
 
-pub async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Action, HTTPError> {
+pub async fn get_action_by_id(action_id_string: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Action, HTTPError> {
 
   let action_id = match Uuid::parse_str(&action_id_string) {
 
@@ -121,7 +178,47 @@ pub async fn get_action_from_id(action_id_string: &str, http_transaction: &HTTPT
 
 }
 
-pub async fn get_app_authorization_from_id(app_authorization_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorization, HTTPError> {
+pub async fn get_user_by_id(user_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<User, HTTPError> {
+
+  let user_id = match Uuid::parse_str(&user_id) {
+
+    Ok(user_id) => user_id,
+
+    Err(_) => {
+
+      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the user ID.".to_string()));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  let user = match User::get_by_id(&user_id, database_pool).await {
+
+    Ok(user) => user,
+
+    Err(resource_error) => {
+
+      let http_error = match resource_error {
+        
+        ResourceError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
+
+        error => HTTPError::InternalServerError(Some(format!("Failed to get user {}: {:?}", user_id, error)))
+
+      };
+      http_error.print_and_save(Some(&http_transaction.id), &database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  return Ok(user);
+
+}
+
+pub async fn get_app_authorization_by_id(app_authorization_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorization, HTTPError> {
 
   let app_authorization_id = match Uuid::parse_str(&app_authorization_id) {
 
@@ -162,7 +259,7 @@ pub async fn get_app_authorization_from_id(app_authorization_id: &str, http_tran
 
 }
 
-pub async fn get_app_credential_from_id(app_credential_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppCredential, HTTPError> {
+pub async fn get_app_credential_by_id(app_credential_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppCredential, HTTPError> {
 
   let app_credential_id = match Uuid::parse_str(&app_credential_id) {
 
@@ -203,7 +300,7 @@ pub async fn get_app_credential_from_id(app_credential_id: &str, http_transactio
 
 }
 
-pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<App, HTTPError> {
+pub async fn get_app_by_id(app_id_string: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<App, HTTPError> {
 
   let app_id = match Uuid::parse_str(&app_id_string) {
 
@@ -244,7 +341,7 @@ pub async fn get_app_from_id(app_id_string: &str, http_transaction: &HTTPTransac
 
 }
 
-pub async fn get_app_authorization_credential_from_id(app_authorization_credential_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorizationCredential, HTTPError> {
+pub async fn get_app_authorization_credential_by_id(app_authorization_credential_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorizationCredential, HTTPError> {
 
   let app_authorization_credential_id = match Uuid::parse_str(&app_authorization_credential_id) {
 
@@ -345,7 +442,7 @@ pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T
 
   let resource_type_string = resource_type.to_string().to_lowercase();
   ServerLogEntry::trace(&format!("Getting resource hierarchy for {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &database_pool).await.ok();
-  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&resource_type, &Some(*resource_id), &database_pool).await {
+  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&resource_type, Some(resource_id), &database_pool).await {
 
     Ok(resource_hierarchy) => resource_hierarchy,
 
@@ -423,12 +520,12 @@ pub fn match_db_error(error: &postgres::Error, resource_type: &str) -> HTTPError
 
 }
 
-pub fn get_authenticated_principal(user: &Option<Arc<User>>, app: &Option<Arc<App>>) -> Result<AuthenticatedPrincipal, HTTPError> {
+pub fn get_authenticated_principal(user: Option<&Arc<User>>, app: Option<&Arc<App>>) -> Result<AuthenticatedPrincipal, HTTPError> {
 
   if let Some(authenticated_principal) =
-    user.clone()
-    .and_then(|user| Some(AuthenticatedPrincipal::User(user)))
-    .or_else(|| app.clone().and_then(|app| Some(AuthenticatedPrincipal::App(app)))) 
+    user
+    .and_then(|user| Some(AuthenticatedPrincipal::User(user.clone())))
+    .or_else(|| app.and_then(|app| Some(AuthenticatedPrincipal::App(app.clone())))) 
   {
 
     return Ok(authenticated_principal);
