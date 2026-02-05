@@ -1,6 +1,6 @@
 /**
  * 
- * Any functionality for /oauth-authorizations should be handled here.
+ * Any functionality for /users/{user_id}/oauth-authorizations should be handled here.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -8,6 +8,9 @@
  * © 2026 Beastslash LLC
  * 
  */
+
+#[cfg(test)]
+mod tests;
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};

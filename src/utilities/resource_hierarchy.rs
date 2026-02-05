@@ -630,6 +630,9 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::User, Some(scoped_user_id)));
 
+        selected_resource_type = AccessPolicyResourceType::Instance;
+        selected_resource_id = None;
+
       },
 
       // Workspace -> Instance

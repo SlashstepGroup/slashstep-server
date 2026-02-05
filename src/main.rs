@@ -26,37 +26,7 @@ use crate::{
     initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::{
-      AppAuthorization
-    }, app_authorization_credential::{
-      AppAuthorizationCredential
-    }, app_credential::{
-      AppCredential
-    }, group::{
-      Group
-    }, group_membership::{
-      GroupMembership
-    }, http_transaction::{
-      HTTPTransaction
-    }, item::{
-      Item
-    }, milestone::{
-      Milestone
-    }, project::{
-      Project
-    }, role::{
-      Role
-    }, role_memberships::{
-      RoleMembership
-    }, server_log_entry::{
-      ServerLogEntry
-    }, session::{
-      Session
-    }, user::{
-      User
-    }, workspace::{
-      Workspace
-    }
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, group::Group, group_membership::GroupMembership, http_transaction::HTTPTransaction, item::Item, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, role_memberships::RoleMembership, server_log_entry::ServerLogEntry, session::Session, user::User, workspace::Workspace
   },
   utilities::resource_hierarchy::ResourceHierarchyError
 };
@@ -168,7 +138,9 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   AppAuthorizationCredential::initialize_resource_table(database_pool).await?;
   Milestone::initialize_resource_table(database_pool).await?;
   ActionLogEntry::initialize_resource_table(database_pool).await?;
+  OAuthAuthorization::initialize_resource_table(database_pool).await?;
   AccessPolicy::initialize_resource_table(database_pool).await?;
+  DelegationPolicy::initialize_resource_table(database_pool).await?;
   
   return Ok(());
 
