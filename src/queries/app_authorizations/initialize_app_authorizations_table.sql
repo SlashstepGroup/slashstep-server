@@ -1,23 +1,24 @@
-do $$
-begin
+DO $$
+BEGIN
 
-  if not exists (select 1 from pg_type where typname = 'app_authorization_authorizing_resource_type') then
-    create type app_authorization_authorizing_resource_type as enum (
-      'Instance',
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_authorization_authorizing_resource_type') THEN
+    CREATE TYPE app_authorization_authorizing_resource_type AS ENUM (
+      'Server',
       'Workspace',
       'Project',
       'User'
     );
-  end if;
+  END IF;
 
-  create table if not exists app_authorizations (
-    id UUID default uuidv7() primary key,
-    app_id UUID references apps(id) on delete cascade,
-    authorizing_resource_type app_authorization_authorizing_resource_type not null,
-    authorizing_project_id UUID references projects(id) on delete cascade,
-    authorizing_user_id UUID references users(id) on delete cascade,
-    authorizing_workspace_id UUID references workspaces(id) on delete cascade
+  CREATE TABLE IF NOT EXISTS app_authorizations (
+    id UUID DEFAULT uuidv7() PRIMARY KEY,
+    app_id UUID NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+    authorizing_resource_type app_authorization_authorizing_resource_type NOT NULL,
+    authorizing_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    authorizing_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    authorizing_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+    oauth_authorization_id UUID REFERENCES oauth_authorizations(id) ON DELETE CASCADE
   );
   
-end
+END
 $$ LANGUAGE plpgsql;

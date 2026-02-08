@@ -164,7 +164,7 @@ async fn list_actions_with_query() -> Result<(), TestSlashstepServerError> {
     display_name: created_actions[0].display_name.clone(),
     description: Uuid::now_v7().to_string(),
     parent_app_id: None,
-    parent_resource_type: ActionParentResourceType::Instance
+    parent_resource_type: ActionParentResourceType::Server
   }, &test_environment.database_pool).await?;
   created_actions.push(action_with_same_display_name);
 

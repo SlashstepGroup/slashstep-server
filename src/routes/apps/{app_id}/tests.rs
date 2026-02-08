@@ -54,7 +54,7 @@ async fn verify_returned_app_by_id() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
   
@@ -223,7 +223,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -396,7 +396,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 

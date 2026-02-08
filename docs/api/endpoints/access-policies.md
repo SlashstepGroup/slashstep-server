@@ -18,7 +18,7 @@ Returns a list of access policies. Authentication may be required if anonymous u
 | `limit` | The maximum number of results to return. | No |
 
 ### Required permissions
-* [`slashstep.accessPolicies.list`](/src/resources/AccessPolicy/README.md#slashstepaccesspolicieslist) on the instance level.
+* [`slashstep.accessPolicies.list`](/src/resources/AccessPolicy/README.md#slashstepaccesspolicieslist) on the server level.
 
 ### Status codes
 | Status code | Description |

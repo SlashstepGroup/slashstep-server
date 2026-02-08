@@ -19,7 +19,7 @@ use reqwest::StatusCode;
 use serde::Serialize;
 use uuid::Uuid;
 use std::str::FromStr;
-use crate::{AppState, HTTPError, get_json_web_token_private_key, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{self, InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_app_by_id, get_authenticated_principal, get_resource_hierarchy, get_user_by_id, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_app_by_id, get_authenticated_principal, get_json_web_token_private_key, get_resource_hierarchy, get_user_by_id, verify_delegate_permissions, verify_principal_permissions}};
 
 
 // /// GET /apps
@@ -34,7 +34,7 @@ use crate::{AppState, HTTPError, get_json_web_token_private_key, middleware::{au
 //   Extension(authenticated_app): Extension<Option<Arc<App>>>
 // ) -> Result<ErasedJson, HTTPError> {
 
-//   let resource_hierarchy = vec![(AccessPolicyResourceType::Instance, None)];
+//   let resource_hierarchy = vec![(AccessPolicyResourceType::Server, None)];
 //   let response = list_resources(
 //     Query(query_parameters), 
 //     State(state), 
@@ -42,7 +42,7 @@ use crate::{AppState, HTTPError, get_json_web_token_private_key, middleware::{au
 //     Extension(authenticated_user), 
 //     Extension(authenticated_app), 
 //     resource_hierarchy, 
-//     ActionLogEntryTargetResourceType::Instance, 
+//     ActionLogEntryTargetResourceType::Server, 
 //     None, 
 //     |query, database_pool, individual_principal| Box::new(App::count(query, database_pool, individual_principal)),
 //     |query, database_pool, individual_principal| Box::new(App::list(query, database_pool, individual_principal)),
@@ -78,14 +78,8 @@ pub async fn create_regex(string: &str, http_transaction: &HTTPTransaction, data
 
 #[derive(Debug, Serialize)]
 pub struct CreateOAuthAuthorizationResponseBody {
-  pub id: Uuid,
-  pub app_id: Uuid,
-  pub authorizing_user_id: Uuid,
   pub code: String,
-  pub code_challenge: Option<String>,
-  pub code_challenge_method: Option<String>,
-  pub redirect_uri: Option<String>,
-  pub scope: String
+  pub oauth_authorization: OAuthAuthorization,
 }
 
 /// POST /users/{user_id}/oauth-authorizations
@@ -131,7 +125,7 @@ async fn handle_create_oauth_authorization_request(
 
   };
 
-  if initial_oauth_authorization_properties_json.code_challenge.is_some() && initial_oauth_authorization_properties_json.code_challenge_method.is_none_or(|code_challenge_method| code_challenge_method != "S256") {
+  if initial_oauth_authorization_properties_json.code_challenge.is_some() && initial_oauth_authorization_properties_json.code_challenge_method.as_ref().is_none_or(|code_challenge_method| code_challenge_method != "S256") {
 
     let http_error = HTTPError::BadRequestError(Some("The code challenge method must be \"S256\" if a code challenge is provided.".to_string()));
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
@@ -229,7 +223,11 @@ async fn handle_create_oauth_authorization_request(
     app_id: target_app.id,
     authorizing_user_id: target_user.id.clone(),
     code_challenge: initial_oauth_authorization_properties_json.code_challenge.clone(),
-    scope: initial_oauth_authorization_properties_json.scope.clone()
+    scope: initial_oauth_authorization_properties_json.scope.clone(),
+    redirect_uri: initial_oauth_authorization_properties_json.redirect_uri.clone(),
+    code_challenge_method: initial_oauth_authorization_properties_json.code_challenge_method.clone(),
+    state: initial_oauth_authorization_properties_json.state.clone(),
+    usage_date: None
   }, &state.database_pool).await {
 
     Ok(created_oauth_authorization) => created_oauth_authorization,
@@ -245,7 +243,7 @@ async fn handle_create_oauth_authorization_request(
   };
 
   ServerLogEntry::trace("Generating OAuth authorization code...", Some(&http_transaction.id), &state.database_pool).await.ok();
-  let jwt_private_key = get_json_web_token_private_key().await?;
+  let jwt_private_key = get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await?;
   let authorization_code = match created_oauth_authorization.generate_authorization_code(&jwt_private_key) {
 
     Ok(authorization_code) => authorization_code,
@@ -284,16 +282,10 @@ async fn handle_create_oauth_authorization_request(
   ServerLogEntry::success(&format!("Successfully created OAuth authorization {}.", created_oauth_authorization.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 
   let response_body = CreateOAuthAuthorizationResponseBody {
-    id: created_oauth_authorization.id,
-    app_id: created_oauth_authorization.app_id,
-    authorizing_user_id: created_oauth_authorization.authorizing_user_id,
-    code: authorization_code,
-    code_challenge: created_oauth_authorization.code_challenge,
-    code_challenge_method: created_oauth_authorization.code_challenge_method,
-    redirect_uri: created_oauth_authorization.redirect_uri,
-    scope: created_oauth_authorization.scope
+    oauth_authorization: created_oauth_authorization,
+    code: authorization_code
   };
-  return Ok((StatusCode::CREATED, Json(created_oauth_authorization)));
+  return Ok((StatusCode::CREATED, Json(response_body)));
 
 }
 

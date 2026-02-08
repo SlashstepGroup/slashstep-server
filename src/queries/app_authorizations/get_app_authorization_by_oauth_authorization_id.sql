@@ -1,0 +1,1 @@
+SELECT * FROM app_authorizations WHERE oauth_authorization_id = $1 LIMIT 1;

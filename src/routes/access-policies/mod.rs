@@ -30,7 +30,7 @@ async fn handle_list_access_policies_request(
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<ErasedJson, HTTPError> {
 
-  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Instance, None)];
+  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
   let response = list_resources(
     Query(query_parameters), 
     State(state), 
@@ -39,7 +39,7 @@ async fn handle_list_access_policies_request(
     Extension(authenticated_app), 
     Extension(authenticated_app_authorization),
     resource_hierarchy, 
-    ActionLogEntryTargetResourceType::Instance, 
+    ActionLogEntryTargetResourceType::Server, 
     None, 
     |query, database_pool, individual_principal| Box::new(AccessPolicy::count(query, database_pool, individual_principal)),
     |query, database_pool, individual_principal| Box::new(AccessPolicy::list(query, database_pool, individual_principal)),

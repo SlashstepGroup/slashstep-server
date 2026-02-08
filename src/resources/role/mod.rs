@@ -7,7 +7,7 @@ use crate::resources::ResourceError;
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone)]
 #[postgres(name = "role_parent_resource_type")]
 pub enum RoleParentResourceType {
-  Instance,
+  Server,
   Workspace,
   Project,
   Group

@@ -85,7 +85,7 @@ pub enum ActionLogEntryTargetResourceType {
   GroupMembership,
   HTTPTransaction,
   #[default]
-  Instance,
+  Server,
   Item,
   Milestone,
   OAuthAuthorization,

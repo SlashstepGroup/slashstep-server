@@ -248,7 +248,7 @@ pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool
       name: "anonymous-users".to_string(),
       display_name: "Anonymous Users".to_string(),
       description: Some("Users who have not logged in. Registered users should not be assigned this role.".to_string()),
-      parent_resource_type: crate::resources::role::RoleParentResourceType::Instance,
+      parent_resource_type: crate::resources::role::RoleParentResourceType::Server,
       parent_workspace_id: None,
       parent_project_id: None,
       parent_group_id: None

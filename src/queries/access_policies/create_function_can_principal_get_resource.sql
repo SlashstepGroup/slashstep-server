@@ -68,9 +68,9 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
         LOOP
 
-            IF selected_resource_type = 'Instance' THEN
+            IF selected_resource_type = 'Server' THEN
 
-                -- Instance
+                -- Server
                 SELECT
                     permission_level,
                     is_inheritance_enabled
@@ -80,7 +80,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 FROM
                     get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
                 WHERE
-                    principal_access_policies.scoped_resource_type = 'Instance' AND (
+                    principal_access_policies.scoped_resource_type = 'Server' AND (
                         NOT needs_inheritance OR 
                         principal_access_policies.is_inheritance_enabled
                     )
@@ -90,7 +90,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'Action' THEN
 
-                -- Action -> (App | Instance)
+                -- Action -> (App | Server)
                 SELECT
                     permission_level,
                     is_inheritance_enabled
@@ -149,9 +149,9 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                     selected_resource_type := 'App';
                     selected_resource_id := selected_resource_parent_id;
 
-                ELSIF selected_resource_parent_type = 'Instance' THEN
+                ELSIF selected_resource_parent_type = 'Server' THEN
 
-                    selected_resource_type := 'Instance';
+                    selected_resource_type := 'Server';
                     selected_resource_id := NULL;
 
                 ELSE
@@ -162,7 +162,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'ActionLogEntry' THEN
 
-                -- ActionLogEntry -> Instance
+                -- ActionLogEntry -> Server
                 SELECT
                     permission_level,
                     is_inheritance_enabled
@@ -191,12 +191,12 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 -- Use the parent resource type.
                 needs_inheritance := TRUE;
-                selected_resource_type := 'Instance';
+                selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'App' THEN
 
-                -- App -> (Workspace | User | Instance)
+                -- App -> (Workspace | User | Server)
                 -- Check if the app has an associated access policy.
                 SELECT
                     permission_level,
@@ -261,12 +261,12 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 END IF;
 
-                selected_resource_type := 'Instance';
+                selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'AppAuthorization' THEN
 
-                -- AppAuthorization -> (User | Project | Workspace | Instance)
+                -- AppAuthorization -> (User | Project | Workspace | Server)
                 -- Check if the app authorization has an associated access policy.
                 SELECT
                     permission_level,
@@ -366,9 +366,9 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                     selected_resource_type := 'Workspace';
                     selected_resource_id := selected_resource_parent_id;
 
-                ELSIF selected_resource_parent_type = 'Instance' THEN
+                ELSIF selected_resource_parent_type = 'Server' THEN
 
-                    selected_resource_type := 'Instance';
+                    selected_resource_type := 'Server';
                     selected_resource_id := NULL;
 
                 ELSE
@@ -481,7 +481,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'Group' THEN
 
-                -- Group -> Instance
+                -- Group -> Server
                 -- Check if the group has an associated access policy.
                 SELECT
                     permission_level,
@@ -511,12 +511,12 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 -- Use the parent resource type.
                 needs_inheritance := TRUE;
-                selected_resource_type := 'Instance';
+                selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'HTTPTransaction' THEN
 
-                -- HTTPTransaction -> Instance
+                -- HTTPTransaction -> Server
                 -- Check if the HTTP transaction has an associated access policy.
                 SELECT
                     permission_level,
@@ -546,12 +546,12 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 -- Use the parent resource type.
                 needs_inheritance := TRUE;
-                selected_resource_type := 'Instance';
+                selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'ServerLogEntry' THEN
 
-                -- ServerLogEntry -> Instance
+                -- ServerLogEntry -> Server
                 -- Check if the HTTP transaction log entry has an associated access policy.
                 SELECT
                     permission_level,
@@ -581,7 +581,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 -- Use the parent resource type.
                 needs_inheritance := TRUE;
-                selected_resource_type := 'Instance';
+                selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'Item' THEN
@@ -776,7 +776,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'Role' THEN
 
-                -- Role -> (Project | Workspace | Group | Instance)
+                -- Role -> (Project | Workspace | Group | Server)
                 -- Check if the role has an associated access policy.
                 SELECT
                     permission_level,
@@ -816,9 +816,9 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 WHERE
                     roles.id = selected_resource_id;
 
-                IF selected_resource_parent_type = 'Instance' THEN
+                IF selected_resource_parent_type = 'Server' THEN
 
-                    selected_resource_type := 'Instance';
+                    selected_resource_type := 'Server';
                     selected_resource_id := NULL;
 
                 ELSIF selected_resource_parent_type = 'Workspace' THEN
@@ -991,7 +991,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'User' THEN
 
-                -- User -> Instance
+                -- User -> Server
                 -- Check if the user has an associated access policy.
                 SELECT
                     permission_level,
@@ -1021,12 +1021,12 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 -- Look for the parent resource type.
                 needs_inheritance := TRUE;
-                selected_resource_type := 'Instance';
+                selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'Workspace' THEN
 
-                -- Workspace -> Instance
+                -- Workspace -> Server
                 -- Check if the workspace has an associated access policy.
                 SELECT
                     permission_level,
@@ -1056,7 +1056,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 -- Use the parent resource type.
                 needs_inheritance := TRUE;
-                selected_resource_type := 'Instance';
+                selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSE

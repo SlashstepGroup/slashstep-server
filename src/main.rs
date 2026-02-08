@@ -18,7 +18,6 @@ use reqwest::{StatusCode};
 use serde::Serialize;
 use tokio::net::TcpListener;
 use colored::Colorize;
-use uuid::Uuid;
 use thiserror::Error;
 use crate::{
   predefinitions::{

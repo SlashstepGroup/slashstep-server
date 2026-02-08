@@ -20,7 +20,7 @@ CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_pol
         RETURN access_policy_record.scoped_group_membership_id;
       WHEN 'HTTPTransaction' THEN 
         RETURN access_policy_record.scoped_http_transaction_id;
-      WHEN 'Instance' THEN 
+      WHEN 'Server' THEN 
         RETURN NULL;
       WHEN 'Item' THEN 
         RETURN access_policy_record.scoped_item_id;

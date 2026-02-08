@@ -38,7 +38,7 @@ pub enum AppClientType {
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Serialize, Deserialize)]
 #[postgres(name = "app_parent_resource_type")]
 pub enum AppParentResourceType {
-  Instance,
+  Server,
   User,
   Workspace
 }

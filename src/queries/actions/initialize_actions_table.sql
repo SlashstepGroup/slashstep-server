@@ -3,7 +3,7 @@ DO $$
 
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'action_parent_resource_type') THEN
             CREATE TYPE action_parent_resource_type AS ENUM (
-                'Instance',
+                'Server',
                 'App'
             );
         END IF;

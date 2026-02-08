@@ -12,10 +12,7 @@
 use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
-use ntest::timeout;
-use reqwest::StatusCode;
-use uuid::Uuid;
-use crate::{AppState, initialize_required_tables,  predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, InitialActionPropertiesForPredefinedScope}, oauth_authorization::{InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization},}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::ActionPermissionLevel, action::Action, oauth_authorization::{InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization},}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
@@ -45,7 +42,8 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   let initial_oauth_authorization_properties = InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer {
     app_id: dummy_app.id,
     code_challenge: None,
-    scope: format!("{}:Editor", dummy_action.id)
+    scope: format!("{}:Editor", dummy_action.id),
+    ..Default::default()
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),

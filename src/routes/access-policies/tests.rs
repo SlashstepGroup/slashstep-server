@@ -43,7 +43,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&get_access_policy_properties, &test_environment.database_pool).await?;
@@ -55,7 +55,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&list_access_policy_properties, &test_environment.database_pool).await?;
@@ -115,7 +115,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&get_access_policy_properties, &test_environment.database_pool).await?;
@@ -127,7 +127,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&list_access_policy_properties, &test_environment.database_pool).await?;
@@ -185,7 +185,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&get_access_policy_properties, &test_environment.database_pool).await?;
@@ -201,7 +201,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(random_user.id),
-      scoped_resource_type: AccessPolicyResourceType::Instance,
+      scoped_resource_type: AccessPolicyResourceType::Server,
       ..Default::default()
     };
     AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -215,7 +215,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&list_access_policy_properties, &test_environment.database_pool).await?;
@@ -261,7 +261,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&get_access_policy_properties, &test_environment.database_pool).await?;
@@ -273,7 +273,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&list_access_policy_properties, &test_environment.database_pool).await?;
@@ -317,7 +317,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&get_access_policy_properties, &test_environment.database_pool).await?;
@@ -329,7 +329,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Instance,
+    scoped_resource_type: AccessPolicyResourceType::Server,
     ..Default::default()
   };
   AccessPolicy::create(&list_access_policy_properties, &test_environment.database_pool).await?;

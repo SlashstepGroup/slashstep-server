@@ -2,7 +2,7 @@ do $$
 begin
   if not exists (select 1 from pg_type where typname = 'app_parent_resource_type') then
     create type app_parent_resource_type as enum (
-      'Instance',
+      'Server',
       'User',
       'Workspace'
     );

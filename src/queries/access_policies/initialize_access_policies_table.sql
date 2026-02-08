@@ -21,7 +21,7 @@ DO $$
         'Group',
         'GroupMembership',
         'HTTPTransaction',
-        'Instance',
+        'Server',
         'Item',
         'Milestone',
         'Project',
@@ -45,7 +45,7 @@ DO $$
         'Group',
         'GroupMembership',
         'HTTPTransaction',
-        'Instance',
+        'Server',
         'Item',
         'Milestone',
         'Project',
@@ -114,7 +114,7 @@ DO $$
       -- Verifies that there is only one scoped resource ID provided at most.
       CONSTRAINT scoped_resource_id_limit CHECK (
         (
-          scoped_resource_type = 'Instance'
+          scoped_resource_type = 'Server'
           AND scoped_action_id IS NULL
           AND scoped_action_log_entry_id IS NULL
           AND scoped_app_id IS NULL
@@ -157,7 +157,7 @@ DO $$
 
       -- Verifies that the scoped resource ID matches the scoped resource type.
       CONSTRAINT scoped_resource_id_match CHECK (
-        scoped_resource_type = 'Instance'
+        scoped_resource_type = 'Server'
         OR (scoped_resource_type = 'Action' AND scoped_action_id IS NOT NULL)
         OR (scoped_resource_type = 'ActionLogEntry' AND scoped_action_log_entry_id IS NOT NULL)
         OR (scoped_resource_type = 'App' AND scoped_app_id IS NOT NULL)

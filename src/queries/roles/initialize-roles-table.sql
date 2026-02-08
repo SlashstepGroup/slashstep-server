@@ -2,7 +2,7 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'role_parent_resource_type') THEN
     CREATE TYPE role_parent_resource_type AS ENUM (
-      'Instance',
+      'Server',
       'Workspace',
       'Project',
       'Group'
@@ -23,7 +23,7 @@ BEGIN
 
     /* Constraints */
     CONSTRAINT one_parent_type CHECK (
-      (parent_resource_type = 'Instance' AND parent_group_id IS NULL AND parent_workspace_id IS NULL AND parent_project_id IS NULL)
+      (parent_resource_type = 'Server' AND parent_group_id IS NULL AND parent_workspace_id IS NULL AND parent_project_id IS NULL)
       OR (parent_resource_type = 'Workspace' AND parent_group_id IS NULL AND parent_workspace_id IS NOT NULL AND parent_project_id IS NULL)
       OR (parent_resource_type = 'Project' AND parent_group_id IS NULL AND parent_workspace_id IS NULL AND parent_project_id IS NOT NULL)
       OR (parent_resource_type = 'Group' AND parent_group_id IS NOT NULL AND parent_workspace_id IS NULL AND parent_project_id IS NULL)

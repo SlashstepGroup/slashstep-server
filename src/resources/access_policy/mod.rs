@@ -129,7 +129,7 @@ pub enum ResourceType {
   Group,
   GroupMembership,
   HTTPTransaction,
-  Instance,
+  Server,
   Item,
   Project,
   Role,
@@ -154,7 +154,7 @@ pub enum AccessPolicyResourceType {
   GroupMembership,
   HTTPTransaction,
   #[default]
-  Instance,
+  Server,
   Item,
   Project,
   Role,
@@ -178,7 +178,7 @@ impl fmt::Display for AccessPolicyResourceType {
       AccessPolicyResourceType::Group => write!(formatter, "Group"),
       AccessPolicyResourceType::GroupMembership => write!(formatter, "GroupMembership"),
       AccessPolicyResourceType::HTTPTransaction => write!(formatter, "HTTPTransaction"),
-      AccessPolicyResourceType::Instance => write!(formatter, "Instance"),
+      AccessPolicyResourceType::Server => write!(formatter, "Server"),
       AccessPolicyResourceType::Item => write!(formatter, "Item"),
       AccessPolicyResourceType::Milestone => write!(formatter, "Milestone"),
       AccessPolicyResourceType::Project => write!(formatter, "Project"),
@@ -208,7 +208,7 @@ impl FromStr for AccessPolicyResourceType {
       "Group" => Ok(AccessPolicyResourceType::Group),
       "GroupMembership" => Ok(AccessPolicyResourceType::GroupMembership),
       "HTTPTransaction" => Ok(AccessPolicyResourceType::HTTPTransaction),
-      "Instance" => Ok(AccessPolicyResourceType::Instance),
+      "Server" => Ok(AccessPolicyResourceType::Server),
       "Item" => Ok(AccessPolicyResourceType::Item),
       "Milestone" => Ok(AccessPolicyResourceType::Milestone),
       "Project" => Ok(AccessPolicyResourceType::Project),
@@ -713,9 +713,9 @@ impl AccessPolicy {
 
     for (resource_type, resource_id) in resource_hierarchy {
 
-      if *resource_type == AccessPolicyResourceType::Instance {
+      if *resource_type == AccessPolicyResourceType::Server {
 
-        query_clauses.push(format!("scoped_resource_type = 'Instance'"));
+        query_clauses.push(format!("scoped_resource_type = 'Server'"));
         continue;
 
       }
@@ -737,7 +737,7 @@ impl AccessPolicy {
             AccessPolicyResourceType::Group => "A group ID must be provided.",
             AccessPolicyResourceType::GroupMembership => "A group membership ID must be provided.",
             AccessPolicyResourceType::HTTPTransaction => "An HTTP transaction ID must be provided.",
-            AccessPolicyResourceType::Instance => "An instance ID must be provided.", // Huh??
+            AccessPolicyResourceType::Server => "An server ID must be provided.", // Huh??
             AccessPolicyResourceType::Item => "An item ID must be provided.",
             AccessPolicyResourceType::Milestone => "A milestone ID must be provided.",
             AccessPolicyResourceType::Project => "A project ID must be provided.",
@@ -784,7 +784,7 @@ impl AccessPolicy {
     }
 
     // This will turn the query into something like:
-    // action_id = $1 and (scoped_resource_type = 'Instance' or scoped_workspace_id = $2 or scoped_project_id = $3 or scoped_milestone_id = $4 or scoped_item_id = $5)
+    // action_id = $1 and (scoped_resource_type = 'Server' or scoped_workspace_id = $2 or scoped_project_id = $3 or scoped_milestone_id = $4 or scoped_item_id = $5)
     let principal_clause = match principal {
 
       Principal::User(user_id) => format!("principal_user_id = '{}'", user_id),
@@ -863,7 +863,7 @@ impl AccessPolicy {
       AccessPolicyResourceType::Group => self.scoped_group_id,
       AccessPolicyResourceType::GroupMembership => self.scoped_group_membership_id,
       AccessPolicyResourceType::HTTPTransaction => self.scoped_http_transaction_id,
-      AccessPolicyResourceType::Instance => None,
+      AccessPolicyResourceType::Server => None,
       AccessPolicyResourceType::Item => self.scoped_item_id,
       AccessPolicyResourceType::Milestone => self.scoped_milestone_id,
       AccessPolicyResourceType::Project => self.scoped_project_id,

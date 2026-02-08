@@ -59,7 +59,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let app = test_environment.create_random_app().await?;
   let app_authorization_properties = InitialAppAuthorizationProperties {
     app_id: app.id,
-    authorizing_resource_type: AppAuthorizationAuthorizingResourceType::Instance,
+    authorizing_resource_type: AppAuthorizationAuthorizingResourceType::Server,
     ..Default::default()
   };
   let app_authorization = AppAuthorization::create(&app_authorization_properties, &test_environment.database_pool).await?;

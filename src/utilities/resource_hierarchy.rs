@@ -28,7 +28,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
     match selected_resource_type {
 
-      // Action -> (App | Instance)
+      // Action -> (App | Server)
       AccessPolicyResourceType::Action => {
 
         let Some(action_id) = selected_resource_id else {
@@ -60,14 +60,14 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         } else {
 
-          selected_resource_type = AccessPolicyResourceType::Instance;
+          selected_resource_type = AccessPolicyResourceType::Server;
           selected_resource_id = None;
 
         }
 
       },
 
-      // ActionLogEntry -> Instance
+      // ActionLogEntry -> Server
       AccessPolicyResourceType::ActionLogEntry => {
 
         let Some(scoped_action_log_entry_id) = selected_resource_id else {
@@ -78,12 +78,12 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::ActionLogEntry, Some(scoped_action_log_entry_id)));
 
-        selected_resource_type = AccessPolicyResourceType::Instance;
+        selected_resource_type = AccessPolicyResourceType::Server;
         selected_resource_id = None;
 
       },
 
-      // App -> (Workspace | User | Instance)
+      // App -> (Workspace | User | Server)
       AccessPolicyResourceType::App => {
 
         let Some(app_id) = selected_resource_id else {
@@ -110,9 +110,9 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         match app.parent_resource_type {
 
-          AppParentResourceType::Instance => {
+          AppParentResourceType::Server => {
 
-            selected_resource_type = AccessPolicyResourceType::Instance;
+            selected_resource_type = AccessPolicyResourceType::Server;
             selected_resource_id = None;
 
           },
@@ -147,7 +147,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // AppAuthorization -> (User | Workspace | Instance)
+      // AppAuthorization -> (User | Workspace | Server)
       AccessPolicyResourceType::AppAuthorization => {
 
         let Some(app_authorization_id) = selected_resource_id else {
@@ -174,9 +174,9 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         match app_authorization.authorizing_resource_type {
 
-          AppAuthorizationAuthorizingResourceType::Instance => {
+          AppAuthorizationAuthorizingResourceType::Server => {
 
-            selected_resource_type = AccessPolicyResourceType::Instance;
+            selected_resource_type = AccessPolicyResourceType::Server;
             selected_resource_id = None;
 
           },
@@ -284,7 +284,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // Group -> Instance
+      // Group -> Server
       AccessPolicyResourceType::Group => {
 
         let Some(group_id) = selected_resource_id else {
@@ -295,7 +295,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::Group, Some(group_id)));
 
-        selected_resource_type = AccessPolicyResourceType::Instance;
+        selected_resource_type = AccessPolicyResourceType::Server;
         selected_resource_id = None;
 
       },
@@ -330,7 +330,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // HTTPTransaction -> Instance
+      // HTTPTransaction -> Server
       AccessPolicyResourceType::HTTPTransaction => {
 
         let Some(http_transaction_id) = selected_resource_id else {
@@ -341,13 +341,13 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::HTTPTransaction, Some(http_transaction_id)));
 
-        selected_resource_type = AccessPolicyResourceType::Instance;
+        selected_resource_type = AccessPolicyResourceType::Server;
         selected_resource_id = None;
 
       },
       
-      // Instance
-      AccessPolicyResourceType::Instance => break,
+      // Server
+      AccessPolicyResourceType::Server => break,
 
       // Item -> Project
       AccessPolicyResourceType::Item => {
@@ -466,7 +466,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // Role -> (Project | Workspace | Group | Instance)
+      // Role -> (Project | Workspace | Group | Server)
       AccessPolicyResourceType::Role => {
 
         let Some(scoped_role_id) = selected_resource_id else {
@@ -493,9 +493,9 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         match role.parent_resource_type {
 
-          RoleParentResourceType::Instance => {
+          RoleParentResourceType::Server => {
 
-            selected_resource_type = AccessPolicyResourceType::Instance;
+            selected_resource_type = AccessPolicyResourceType::Server;
             selected_resource_id = None;
 
           },
@@ -573,7 +573,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       }
 
-      // ServerLogEntry -> Instance
+      // ServerLogEntry -> Server
       AccessPolicyResourceType::ServerLogEntry => {
 
         let Some(scoped_server_log_entry_id) = selected_resource_id else {
@@ -584,7 +584,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::ServerLogEntry, Some(scoped_server_log_entry_id)));
 
-        selected_resource_type = AccessPolicyResourceType::Instance;
+        selected_resource_type = AccessPolicyResourceType::Server;
         selected_resource_id = None;
 
       },
@@ -619,7 +619,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // User -> Instance
+      // User -> Server
       AccessPolicyResourceType::User => {
 
         let Some(scoped_user_id) = selected_resource_id else {
@@ -630,12 +630,12 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         hierarchy.push((AccessPolicyResourceType::User, Some(scoped_user_id)));
 
-        selected_resource_type = AccessPolicyResourceType::Instance;
+        selected_resource_type = AccessPolicyResourceType::Server;
         selected_resource_id = None;
 
       },
 
-      // Workspace -> Instance
+      // Workspace -> Server
       AccessPolicyResourceType::Workspace => {
 
         let Some(scoped_workspace_id) = selected_resource_id else {
@@ -652,7 +652,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
     
   }
 
-  hierarchy.push((AccessPolicyResourceType::Instance, None));
+  hierarchy.push((AccessPolicyResourceType::Server, None));
 
   return Ok(hierarchy);
 

@@ -106,7 +106,7 @@ impl TestEnvironment {
       description: Some(Uuid::now_v7().to_string()),
       client_type: AppClientType::Public,
       client_secret_hash: Uuid::now_v7().to_string(),
-      parent_resource_type: AppParentResourceType::Instance,
+      parent_resource_type: AppParentResourceType::Server,
       parent_workspace_id: None,
       parent_user_id: None
     };
@@ -124,7 +124,7 @@ impl TestEnvironment {
       display_name: Uuid::now_v7().to_string(),
       description: Uuid::now_v7().to_string(),
       parent_app_id: parent_app_id.copied(),
-      parent_resource_type: if parent_app_id.is_some() { ActionParentResourceType::App } else { ActionParentResourceType::Instance }
+      parent_resource_type: if parent_app_id.is_some() { ActionParentResourceType::App } else { ActionParentResourceType::Server }
     };
 
     let action = Action::create(&action_properties, &self.database_pool).await?;
@@ -248,7 +248,7 @@ impl TestEnvironment {
       is_inheritance_enabled: true,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Instance,
+      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Server,
       ..Default::default()
     };
 
@@ -266,7 +266,7 @@ impl TestEnvironment {
       is_inheritance_enabled: true,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user_id.clone()),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Instance,
+      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Server,
       ..Default::default()
     }, &self.database_pool).await?;
 

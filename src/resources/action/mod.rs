@@ -33,7 +33,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
 #[postgres(name = "action_parent_resource_type")]
 pub enum ActionParentResourceType {
   #[default]
-  Instance,
+  Server,
   App
 }
 

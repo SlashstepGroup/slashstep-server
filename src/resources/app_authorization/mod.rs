@@ -31,7 +31,7 @@ pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.appAuthorizations.get";
 #[postgres(name = "app_authorization_authorizing_resource_type")]
 pub enum AppAuthorizationAuthorizingResourceType {
   #[default]
-  Instance,
+  Server,
   Workspace,
   Project,
   User
@@ -53,7 +53,10 @@ pub struct InitialAppAuthorizationProperties {
   pub authorizing_workspace_id: Option<Uuid>,
 
   /// The ID of the parent user of the app authorization, if applicable.
-  pub authorizing_user_id: Option<Uuid>
+  pub authorizing_user_id: Option<Uuid>,
+
+  /// The ID of the OAuth authorization, if applicable.
+  pub oauth_authorization_id: Option<Uuid>
 
 }
 
@@ -76,7 +79,10 @@ pub struct AppAuthorization {
   pub authorizing_workspace_id: Option<Uuid>,
 
   /// The ID of the parent user of the app authorization, if applicable.
-  pub authorizing_user_id: Option<Uuid>
+  pub authorizing_user_id: Option<Uuid>,
+
+  /// The ID of the OAuth authorization, if applicable.
+  pub oauth_authorization_id: Option<Uuid>
 
 }
 
@@ -131,6 +137,30 @@ impl AppAuthorization {
 
   }
 
+  pub async fn get_by_oauth_authorization_id(oauth_authorization_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/app_authorizations/get_app_authorization_by_oauth_authorization_id.sql");
+    let row = match database_client.query_opt(query, &[&oauth_authorization_id]).await {
+
+      Ok(row) => match row {
+
+        Some(row) => row,
+
+        None => return Err(ResourceError::NotFoundError(format!("An app authorization with the OAuth authorization ID \"{}\" does not exist.", oauth_authorization_id)))
+
+      },
+
+      Err(error) => return Err(ResourceError::PostgresError(error))
+
+    };
+
+    let app_authorization = Self::convert_from_row(&row);
+
+    return Ok(app_authorization);
+
+  }
+
   fn convert_from_row(row: &postgres::Row) -> Self {
 
     return AppAuthorization {
@@ -139,7 +169,8 @@ impl AppAuthorization {
       authorizing_resource_type: row.get("authorizing_resource_type"),
       authorizing_project_id: row.get("authorizing_project_id"),
       authorizing_workspace_id: row.get("authorizing_workspace_id"),
-      authorizing_user_id: row.get("authorizing_user_id")
+      authorizing_user_id: row.get("authorizing_user_id"),
+      oauth_authorization_id: row.get("oauth_authorization_id")
     };
 
   }

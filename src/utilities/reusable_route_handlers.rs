@@ -146,8 +146,8 @@ pub async fn delete_resource<ResourceStruct, GetResourceByIDFunction>(
     
     Some(resource_type) => get_resource_hierarchy(&target_resource, &resource_type, &resource_id, &http_transaction, &state.database_pool).await?,
 
-    // Access policies currently lack a resource hierarchy, so we'll just return the instance.
-    None => vec![(AccessPolicyResourceType::Instance, None)]
+    // Access policies currently lack a resource hierarchy, so we'll just return the server.
+    None => vec![(AccessPolicyResourceType::Server, None)]
 
   };
   let delete_resources_action = get_action_by_name(&delete_resources_action_name, &http_transaction, &state.database_pool).await?;

@@ -20,7 +20,7 @@ DO $$
         'Group',
         'GroupMembership',
         'HTTPTransaction',
-        'Instance',
+        'Server',
         'Item',
         'Milestone',
         'OAuthAuthorization',
