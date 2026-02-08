@@ -14,7 +14,8 @@ mod tests;
 
 use std::sync::Arc;
 use argon2::{Argon2, PasswordHash, PasswordVerifier, password_hash};
-use axum::{Extension, Json, Router, extract::{Query, State}};
+use axum::{Extension, Json, Router, extract::{Query, State}, response::{IntoResponse, Response}};
+use axum_extra::response::ErasedJson;
 use base64::{Engine, engine::general_purpose};
 use chrono::{Duration, Utc};
 use reqwest::StatusCode;
@@ -33,12 +34,47 @@ pub struct CreateOAuthAccessTokenQueryParameters {
   pub grant_type: String
 }
 
-#[derive(Debug, Serialize)]
-pub struct OAuthError {
-  pub error: String,
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub enum OAuthTokenError {
+  InvalidRequest,
+  InvalidClient,
+  InvalidGrant,
+  UnauthorizedClient,
+  UnsupportedGrantType,
+  InvalidScope,
+  InternalServerError,
+  NotImplementedError
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OAuthTokenErrorResponse {
+  pub error: OAuthTokenError,
   pub error_description: String,
   pub error_uri: Option<String>,
   pub state: Option<String>
+}
+
+impl IntoResponse for OAuthTokenErrorResponse {
+  fn into_response(self) -> Response {
+    let status_code = match self.error {
+      OAuthTokenError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
+      OAuthTokenError::NotImplementedError => StatusCode::NOT_IMPLEMENTED,
+      _ => StatusCode::BAD_REQUEST
+    };
+    let error_description = match self.error {
+
+      OAuthTokenError::InternalServerError => "Internal server error. Try again later, and contact the admin if this keeps happening.".to_string(),
+
+      _ => self.error_description
+
+    };
+
+    return (status_code, ErasedJson::pretty(OAuthTokenErrorResponse {
+      error_description,
+      ..self
+    })).into_response();
+
+  }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -52,12 +88,12 @@ pub struct CreateAccessTokenResponseBody {
   pub app_authorization_credential_id: Uuid
 }
 
-impl OAuthError {
+impl OAuthTokenErrorResponse {
 
-  pub fn new(error: &str, error_description: &str, error_uri: Option<&str>, state: Option<&String>) -> Self {
+  pub fn new(error: &OAuthTokenError, error_description: &str, error_uri: Option<&str>, state: Option<&String>) -> Self {
 
-    OAuthError {
-      error: error.to_string(),
+    OAuthTokenErrorResponse {
+      error: error.clone(),
       error_description: error_description.to_string(),
       error_uri: error_uri.map(|error_uri| error_uri.to_string()),
       state: state.cloned()
@@ -67,7 +103,27 @@ impl OAuthError {
 
 }
 
-pub async fn convert_client_id_string_to_uuid(client_id: &str, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Uuid, HTTPError> {
+impl From<OAuthTokenErrorResponse> for HTTPError {
+
+  fn from(error_response: OAuthTokenErrorResponse) -> Self {
+
+    let http_error = match error_response.error {
+
+      OAuthTokenError::InternalServerError => HTTPError::InternalServerError(Some(error_response.error_description)),
+
+      OAuthTokenError::NotImplementedError => HTTPError::NotImplementedError(Some(error_response.error_description)),
+      
+      _ => HTTPError::BadRequestError(Some(error_response.error_description))
+
+    };
+
+    http_error
+
+  }
+
+}
+
+pub async fn convert_client_id_string_to_uuid(client_id: &str, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Uuid, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace(format!("Converting client ID \"{}\" to UUID...", client_id).as_str(), Some(&http_transaction_id), &database_pool).await.ok();
 
@@ -77,17 +133,11 @@ pub async fn convert_client_id_string_to_uuid(client_id: &str, http_transaction_
 
     Err(_) => {
 
-      let oauth_error = OAuthError::new("invalid_client", "The client ID must be a valid UUID.", None, None);
-      let http_error = match serde_json::to_string_pretty(&oauth_error) {
-
-        Ok(http_error) => HTTPError::BadRequestError(Some(http_error)),
-
-        Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-
-      };
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidClient, "The client ID must be a valid UUID.", None, None);
+      let http_error = oauth_error_response.clone().into();
 
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -97,35 +147,35 @@ pub async fn convert_client_id_string_to_uuid(client_id: &str, http_transaction_
 
 }
 
-pub async fn decode_json_web_token_claims(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool, json_web_token_public_key: &str, token: &str) -> Result<jsonwebtoken::TokenData<OAuthAuthorizationClaims>, HTTPError> {
+pub async fn decode_json_web_token_claims(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool, json_web_token_public_key: &str, token: &str) -> Result<jsonwebtoken::TokenData<OAuthAuthorizationClaims>, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace("Decoding and verifying authorization code...", Some(&http_transaction_id), &database_pool).await.ok();
 
   let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
-  let decoding_key = get_decoding_key(&http_transaction_id, &database_pool, &json_web_token_public_key).await?;
+  let decoding_key = match get_decoding_key(&http_transaction_id, &database_pool, &json_web_token_public_key).await {
+
+    Ok(decoding_key) => decoding_key,
+
+    Err(error) => return Err(OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None))
+
+  };
   let decoded_claims = match jsonwebtoken::decode::<OAuthAuthorizationClaims>(token, &decoding_key, &validation) {
 
     Ok(decoded_claims) => decoded_claims,
 
     Err(error) => {
 
-      let http_error = match &error.kind() {
+      let oauth_error_response = match &error.kind() {
 
-        jsonwebtoken::errors::ErrorKind::InvalidToken => HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string())),
+        jsonwebtoken::errors::ErrorKind::InvalidToken | jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(_) => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The authorization code is invalid.", None, None),
 
-        jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(claims) => {
-         
-          ServerLogEntry::warning(&format!("Missing required claim \"{}\" in session token.", claims), Some(&http_transaction_id), &database_pool).await.ok();
-          HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string()))
-          
-        },
-
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
+        _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None)
 
       };
+      let http_error = oauth_error_response.clone().into();
 
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -135,7 +185,7 @@ pub async fn decode_json_web_token_claims(http_transaction_id: &Uuid, database_p
 
 }
 
-pub async fn get_app_by_client_id(client_id: &Uuid, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<App, HTTPError> {
+pub async fn get_app_by_client_id(client_id: &Uuid, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<App, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace(format!("Getting app for client ID \"{}\"...", client_id).as_str(), Some(&http_transaction_id), &database_pool).await.ok();
 
@@ -145,16 +195,17 @@ pub async fn get_app_by_client_id(client_id: &Uuid, http_transaction_id: &Uuid, 
 
     Err(error) => {
 
-      let http_error = match error {
+      let oauth_error_response = match error {
 
-        ResourceError::NotFoundError(_) => HTTPError::NotFoundError(Some(format!("The app with the client ID \"{}\" does not exist.", client_id))),
+        ResourceError::NotFoundError(_) => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidClient, format!("The app with the client ID \"{}\" does not exist.", client_id).as_str(), None, None),
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to get app with the client ID \"{}\": {:?}", client_id, error)))
+        _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None)
 
       };
+      let http_error = oauth_error_response.clone().into();
 
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -164,7 +215,7 @@ pub async fn get_app_by_client_id(client_id: &Uuid, http_transaction_id: &Uuid, 
 
 }
 
-pub async fn get_oauth_authorization_by_id(oauth_authorization_id: &Uuid, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<OAuthAuthorization, HTTPError> {
+pub async fn get_oauth_authorization_by_id(oauth_authorization_id: &Uuid, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<OAuthAuthorization, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace(format!("Getting OAuth authorization {}...", oauth_authorization_id).as_str(), Some(&http_transaction_id), &database_pool).await.ok();
 
@@ -174,16 +225,16 @@ pub async fn get_oauth_authorization_by_id(oauth_authorization_id: &Uuid, http_t
 
     Err(error) => {
 
-      let http_error = match error {
+      let oauth_error_response = match error {
 
-        ResourceError::NotFoundError(_) => HTTPError::NotFoundError(Some(format!("The OAuth authorization with the ID \"{}\" does not exist.", oauth_authorization_id))),
+        ResourceError::NotFoundError(_) => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidClient, format!("The OAuth authorization with the ID \"{}\" does not exist. Ask the user to reauthorize the app.", oauth_authorization_id).as_str(), None, None),
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to get OAuth authorization with the ID \"{}\": {:?}", oauth_authorization_id, error)))
+        _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to get OAuth authorization with the ID \"{}\": {:?}", oauth_authorization_id, error), None, None)
 
       };
-
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -193,7 +244,7 @@ pub async fn get_oauth_authorization_by_id(oauth_authorization_id: &Uuid, http_t
 
 }
 
-pub async fn convert_oauth_authorization_id_string_to_uuid(oauth_authorization_id: &str, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Uuid, HTTPError> {
+pub async fn convert_oauth_authorization_id_string_to_uuid(oauth_authorization_id: &str, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Uuid, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace(format!("Converting OAuth authorization ID \"{}\" to UUID...", oauth_authorization_id).as_str(), Some(&http_transaction_id), &database_pool).await.ok();
 
@@ -203,17 +254,10 @@ pub async fn convert_oauth_authorization_id_string_to_uuid(oauth_authorization_i
 
     Err(_) => {
 
-      let oauth_error = OAuthError::new("invalid_grant", "The authorization code is invalid.", None, None);
-      let http_error = match serde_json::to_string_pretty(&oauth_error) {
-
-        Ok(oauth_error) => HTTPError::UnauthorizedError(Some(oauth_error)),
-
-        Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-
-      };
-
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The authorization code is invalid.", None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -223,7 +267,7 @@ pub async fn convert_oauth_authorization_id_string_to_uuid(oauth_authorization_i
 
 }
 
-pub async fn verify_client_secret(client_secret: Option<&str>, client_secret_hash: Option<&str>, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn verify_client_secret(client_secret: Option<&str>, client_secret_hash: Option<&str>, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<(), OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace("Verifying client secret is present...", Some(&http_transaction_id), &database_pool).await.ok();
 
@@ -233,17 +277,10 @@ pub async fn verify_client_secret(client_secret: Option<&str>, client_secret_has
 
     None => {
 
-      let oauth_error = OAuthError::new("invalid_client", "The client ID or client secret is incorrect.", None, None);
-      let http_error = match serde_json::to_string_pretty(&oauth_error) {
-
-        Ok(http_error) => HTTPError::UnauthorizedError(Some(http_error)),
-
-        Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-
-      };
-
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidClient, "The client ID or client secret is incorrect.", None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -256,9 +293,10 @@ pub async fn verify_client_secret(client_secret: Option<&str>, client_secret_has
 
     None => {
 
-      let http_error = HTTPError::InternalServerError(Some("The app is confidential, but the client secret hash is not set. Database table constraints should have prevented this from happening.".to_string()));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, "The app is confidential, but the client secret hash is not set. Database table constraints should have prevented this from happening.", None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
     
@@ -270,9 +308,10 @@ pub async fn verify_client_secret(client_secret: Option<&str>, client_secret_has
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to parse client secret hash: {:?}", error)));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to parse client secret hash: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -285,15 +324,16 @@ pub async fn verify_client_secret(client_secret: Option<&str>, client_secret_has
 
     Err(error) => {
 
-      let http_error = match error {
+      let oauth_error_response = match error {
 
-        password_hash::Error::Password => HTTPError::UnauthorizedError(Some("The client ID or client secret is incorrect.".to_string())),
+        password_hash::Error::Password => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidClient, "The client ID or client secret is incorrect.", None, None),
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to verify client secret: {:?}", error)))
+        _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, format!("Failed to verify client secret: {:?}", error).as_str(), None, None)
 
       };
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -303,7 +343,7 @@ pub async fn verify_client_secret(client_secret: Option<&str>, client_secret_has
 
 }
 
-pub async fn update_oauth_authorization_usage_date(oauth_authorization: &OAuthAuthorization, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn update_oauth_authorization_usage_date(oauth_authorization: &OAuthAuthorization, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<(), OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace(&format!("Updating OAuth authorization {} with a usage date...", oauth_authorization.id), Some(&http_transaction_id), &database_pool).await.ok();
   
@@ -315,9 +355,10 @@ pub async fn update_oauth_authorization_usage_date(oauth_authorization: &OAuthAu
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to update OAuth authorization: {:?}", error)));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to update OAuth authorization: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -327,7 +368,7 @@ pub async fn update_oauth_authorization_usage_date(oauth_authorization: &OAuthAu
 
 }
 
-pub async fn create_app_authorization(oauth_authorization: &OAuthAuthorization, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorization, HTTPError> {
+pub async fn create_app_authorization(oauth_authorization: &OAuthAuthorization, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorization, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace("Creating app authorization...", Some(&http_transaction.id), &database_pool).await.ok();
 
@@ -343,15 +384,27 @@ pub async fn create_app_authorization(oauth_authorization: &OAuthAuthorization, 
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create app authorization: {:?}", error)));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to create app authorization: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
   };
 
-  let create_app_authorizations_action = get_action_by_name("slashstep.appAuthorizations.create", &http_transaction, &database_pool).await?;
+  let create_app_authorizations_action = match get_action_by_name("slashstep.appAuthorizations.create", &http_transaction, &database_pool).await {
+
+    Ok(create_app_authorizations_action) => create_app_authorizations_action,
+
+    Err(error) => {
+
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None);
+      return Err(oauth_error_response);
+
+    }
+
+  };
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: create_app_authorizations_action.id,
     http_transaction_id: Some(http_transaction.id),
@@ -368,22 +421,16 @@ pub async fn create_app_authorization(oauth_authorization: &OAuthAuthorization, 
 
 }
 
-pub async fn verify_code_verifier(code_verifier: Option<&str>, code_challenge: &str, code_challenge_method: Option<&str>, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool, oauth_state: Option<&String>) -> Result<(), HTTPError> {
+pub async fn verify_code_verifier(code_verifier: Option<&str>, code_challenge: &str, code_challenge_method: Option<&str>, http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool, oauth_state: Option<&String>) -> Result<(), OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace("Verifying code_verifier...", Some(&http_transaction_id), &database_pool).await.ok();
 
   if code_challenge_method.is_none_or(|code_challenge_method| code_challenge_method != "S256") {
     
-    let oauth_error = OAuthError::new("invalid_request", "The code challenge method must be \"S256\".", None, oauth_state);
-    let http_error = match serde_json::to_string_pretty(&oauth_error) {
-      
-      Ok(http_error) => HTTPError::BadRequestError(Some(http_error)),
-      
-      Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-      
-    };
+    let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidRequest, "The code challenge method must be \"S256\".", None, oauth_state);
+    let http_error = oauth_error_response.clone().into();
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-    return Err(http_error);
+    return Err(oauth_error_response);
     
   }
 
@@ -393,16 +440,10 @@ pub async fn verify_code_verifier(code_verifier: Option<&str>, code_challenge: &
     
     None => {
       
-      let oauth_error = OAuthError::new("invalid_request", "The code verifier is required.", None, oauth_state);
-      let http_error = match serde_json::to_string_pretty(&oauth_error) {
-        
-        Ok(http_error) => HTTPError::BadRequestError(Some(http_error)),
-        
-        Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-        
-      };
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidRequest, "The code verifier is required.", None, oauth_state);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
       
     }
 
@@ -412,16 +453,10 @@ pub async fn verify_code_verifier(code_verifier: Option<&str>, code_challenge: &
   let base64_hashed_code_verifier = general_purpose::STANDARD.encode(hashed_code_verifier);
   if code_challenge != &base64_hashed_code_verifier {
     
-    let oauth_error = OAuthError::new("invalid_grant", "The code verifier is incorrect.", None, oauth_state);
-    let http_error = match serde_json::to_string_pretty(&oauth_error) {
-      
-      Ok(http_error) => HTTPError::BadRequestError(Some(http_error)),
-      
-      Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-      
-    };
+    let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The code verifier is incorrect.", None, oauth_state);
+    let http_error = oauth_error_response.clone().into();
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-    return Err(http_error);
+    return Err(oauth_error_response);
     
   }
 
@@ -429,7 +464,7 @@ pub async fn verify_code_verifier(code_verifier: Option<&str>, code_challenge: &
 
 }
 
-pub async fn delete_oauth_authorization(oauth_authorization: &OAuthAuthorization, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn delete_oauth_authorization(oauth_authorization: &OAuthAuthorization, database_pool: &deadpool_postgres::Pool) -> Result<(), OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace(&format!("Deleting OAuth authorization {}...", oauth_authorization.id), Some(&oauth_authorization.id), database_pool).await.ok();
 
@@ -439,9 +474,10 @@ pub async fn delete_oauth_authorization(oauth_authorization: &OAuthAuthorization
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete OAuth authorization: {:?}", error)));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete OAuth authorization: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&oauth_authorization.id), database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -451,7 +487,7 @@ pub async fn delete_oauth_authorization(oauth_authorization: &OAuthAuthorization
 
 }
 
-pub async fn create_app_authorization_credential(app_authorization_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorizationCredential, HTTPError> {
+pub async fn create_app_authorization_credential(app_authorization_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorizationCredential, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace(&format!("Creating app authorization credential for app authorization {}...", app_authorization_id), Some(&http_transaction.id), database_pool).await.ok();
 
@@ -466,9 +502,10 @@ pub async fn create_app_authorization_credential(app_authorization_id: &Uuid, ht
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create app authorization credential: {:?}", error)));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to create app authorization credential: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -478,7 +515,7 @@ pub async fn create_app_authorization_credential(app_authorization_id: &Uuid, ht
 
 }
 
-pub async fn get_app_authorization_by_oauth_authorization_id(oauth_authorization_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AppAuthorization, HTTPError> {
+pub async fn find_app_authorization_by_oauth_authorization_id(oauth_authorization_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Option<AppAuthorization>, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace(&format!("Getting app authorization for OAuth authorization {}...", oauth_authorization_id), Some(&http_transaction.id), database_pool).await.ok();
 
@@ -488,26 +525,26 @@ pub async fn get_app_authorization_by_oauth_authorization_id(oauth_authorization
 
     Err(error) => {
 
-      let http_error = match error {
+      let oauth_error_response = match error {
 
-        ResourceError::NotFoundError(_) => HTTPError::NotFoundError(Some(format!("The app authorization for the OAuth authorization with the ID \"{}\" does not exist.", oauth_authorization_id))),
+        ResourceError::NotFoundError(_) => return Ok(None),
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to get app authorization for OAuth authorization: {:?}", error)))
+        _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to get app authorization for OAuth authorization: {:?}", error), None, None)
 
       };
-
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
   };
 
-  return Ok(app_authorization);
+  return Ok(Some(app_authorization));
 
 }
 
-pub async fn delete_app_authorization(app_authorization: &AppAuthorization, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn delete_app_authorization(app_authorization: &AppAuthorization, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), OAuthTokenErrorResponse> {
 
   match app_authorization.delete(&database_pool).await {
 
@@ -515,15 +552,27 @@ pub async fn delete_app_authorization(app_authorization: &AppAuthorization, http
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete app authorization: {:?}", error)));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete app authorization: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
   }
 
-  let delete_app_authorizations_action = get_action_by_name("slashstep.appAuthorizations.delete", &http_transaction, &database_pool).await?;
+  let delete_app_authorizations_action = match get_action_by_name("slashstep.appAuthorizations.delete", &http_transaction, &database_pool).await {
+
+    Ok(delete_app_authorizations_action) => delete_app_authorizations_action,
+
+    Err(error) => {
+
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None);
+      return Err(oauth_error_response);
+
+    }
+
+  };
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: delete_app_authorizations_action.id,
     http_transaction_id: Some(http_transaction.id),
@@ -546,7 +595,7 @@ async fn handle_create_oauth_access_token_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Query(query_parameters): Query<CreateOAuthAccessTokenQueryParameters>,
-) -> Result<(StatusCode, Json<CreateAccessTokenResponseBody>), HTTPError> {
+) -> Result<(StatusCode, Json<CreateAccessTokenResponseBody>), OAuthTokenErrorResponse> {
   
   let http_transaction = http_transaction.clone();
   let client_id = convert_client_id_string_to_uuid(&query_parameters.client_id, &http_transaction.id, &state.database_pool).await?;
@@ -562,7 +611,18 @@ async fn handle_create_oauth_access_token_request(
   let oauth_state: Option<String>;
   if query_parameters.grant_type == "authorization_code" {
 
-    let json_web_token_public_key = get_json_web_token_public_key(&http_transaction.id, &state.database_pool).await?;
+    let json_web_token_public_key = match get_json_web_token_public_key(&http_transaction.id, &state.database_pool).await {
+
+      Ok(json_web_token_public_key) => json_web_token_public_key,
+
+      Err(error) => {
+
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None);
+        return Err(oauth_error_response);
+
+      }
+
+    };
     let decoded_claims = decode_json_web_token_claims(&http_transaction.id, &state.database_pool, &json_web_token_public_key, &query_parameters.code).await?;
     let oauth_authorization_id = convert_oauth_authorization_id_string_to_uuid(&decoded_claims.claims.jti, &http_transaction.id, &state.database_pool).await?;
     let oauth_authorization = get_oauth_authorization_by_id(&oauth_authorization_id, &http_transaction.id, &state.database_pool).await?;
@@ -571,16 +631,10 @@ async fn handle_create_oauth_access_token_request(
     // More information: https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.3
     if oauth_authorization.redirect_uri.is_some() && oauth_authorization.redirect_uri != Some(query_parameters.redirect_uri) {
 
-      let oauth_error = OAuthError::new("invalid_grant", "The redirect URI is invalid.", None, oauth_state.as_ref());
-      let http_error = match serde_json::to_string_pretty(&oauth_error) {
-
-        Ok(http_error) => HTTPError::BadRequestError(Some(http_error)),
-
-        Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-
-      };
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The redirect URI is invalid.", None, oauth_state.as_ref());
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -589,18 +643,15 @@ async fn handle_create_oauth_access_token_request(
     if oauth_authorization.usage_date.is_some() {
 
       delete_oauth_authorization(&oauth_authorization, &state.database_pool).await?;
-      let app_authorization = get_app_authorization_by_oauth_authorization_id(&oauth_authorization_id, &http_transaction, &state.database_pool).await?;
-      delete_app_authorization(&app_authorization, &http_transaction, &state.database_pool).await?;
-      let oauth_error = OAuthError::new("invalid_grant", "The authorization code is invalid.", None, oauth_state.as_ref());
-      let http_error = match serde_json::to_string_pretty(&oauth_error) {
+      if let Some(app_authorization) = find_app_authorization_by_oauth_authorization_id(&oauth_authorization_id, &http_transaction, &state.database_pool).await? {
+        
+        delete_app_authorization(&app_authorization, &http_transaction, &state.database_pool).await?;
 
-        Ok(oauth_error) => HTTPError::BadRequestError(Some(oauth_error)),
-
-        Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-
-      };
+      }
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The authorization code is invalid.", None, oauth_state.as_ref());
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -617,34 +668,45 @@ async fn handle_create_oauth_access_token_request(
   } else if query_parameters.grant_type == "refresh_token" {
 
     // TODO: Implement refresh token grant type.
-    return Err(HTTPError::NotImplementedError(Some("Refresh token grant type is not implemented.".to_string())));
+    let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::NotImplementedError, "Refresh token grant type is not implemented.", None, None);
+    let http_error = oauth_error_response.clone().into();
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(oauth_error_response);
 
   } else {
 
-    let oauth_error = OAuthError::new("unsupported_grant_type", "The grant type is not supported.", None, None);
-    let http_error = match serde_json::to_string_pretty(&oauth_error) {
-
-      Ok(http_error) => HTTPError::BadRequestError(Some(http_error)),
-
-      Err(error) => HTTPError::InternalServerError(Some(format!("Failed to serialize OAuth error: {:?}", error)))
-
-    };
+    let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::UnsupportedGrantType, "The grant type is not supported.", None, None);
+    let http_error = oauth_error_response.clone().into();
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-    return Err(http_error);
+    return Err(oauth_error_response);
 
   }
 
   let app_authorization_credential = create_app_authorization_credential(&app_authorization.id, &http_transaction, &state.database_pool).await?;
-  let json_web_token_private_key = get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await?;
+  let json_web_token_private_key = match get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await {
+
+    Ok(json_web_token_private_key) => json_web_token_private_key,
+
+    Err(error) => {
+
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None);
+      let http_error = oauth_error_response.clone().into();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(oauth_error_response);
+
+    }
+
+  };
   let access_token = match app_authorization_credential.generate_access_token(&json_web_token_private_key) {
 
     Ok(access_token) => access_token,
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to generate access token: {:?}", error)));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to generate access token: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -655,9 +717,10 @@ async fn handle_create_oauth_access_token_request(
 
     Err(error) => {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to generate refresh token: {:?}", error)));
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to generate refresh token: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
+      return Err(oauth_error_response);
 
     }
 
@@ -673,7 +736,20 @@ async fn handle_create_oauth_access_token_request(
     app_authorization_credential_id: app_authorization_credential.id
   };
 
-  let create_app_authorization_credentials_action = get_action_by_name("slashstep.appAuthorizationCredentials.create", &http_transaction, &state.database_pool).await?;
+  let create_app_authorization_credentials_action = match get_action_by_name("slashstep.appAuthorizationCredentials.create", &http_transaction, &state.database_pool).await {
+
+    Ok(create_app_authorization_credentials_action) => create_app_authorization_credentials_action,
+
+    Err(error) => {
+
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None);
+      let http_error = oauth_error_response.clone().into();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(oauth_error_response);
+
+    }
+
+  };
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: create_app_authorization_credentials_action.id,
     http_transaction_id: Some(http_transaction.id),
