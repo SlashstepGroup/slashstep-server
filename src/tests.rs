@@ -117,13 +117,13 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_oauth_authorization(&self, app_id: Option<&Uuid>) -> Result<OAuthAuthorization, TestSlashstepServerError> {
+  pub async fn create_random_oauth_authorization(&self, app_id: Option<&Uuid>, code_challenge: Option<&str>) -> Result<OAuthAuthorization, TestSlashstepServerError> {
 
     let oauth_authorization_properties = InitialOAuthAuthorizationProperties {
       app_id: app_id.copied().unwrap_or(self.create_random_app().await?.id),
       authorizing_user_id: self.create_random_user().await?.id,
-      code_challenge: None,
-      code_challenge_method: None,
+      code_challenge: code_challenge.map(|code_challenge| code_challenge.to_string()),
+      code_challenge_method: code_challenge.and(Some("S256".to_string())),
       redirect_uri: None,
       scope: Uuid::now_v7().to_string(),
       usage_date: None,
