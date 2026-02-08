@@ -11,7 +11,7 @@
 
 use std::net::SocketAddr;
 use axum_test::TestServer;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::ActionPermissionLevel, action::Action}, routes::{oauth_access_tokens::CreateOAuthAccessTokenQueryParameters}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::ActionPermissionLevel, action::Action}, routes::oauth_access_tokens::{CreateAccessTokenResponseBody, CreateOAuthAccessTokenQueryParameters}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
@@ -26,6 +26,12 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let dummy_oauth_authorization = test_environment.create_random_oauth_authorization(None).await?;
   let authorization_code = dummy_oauth_authorization.generate_authorization_code(json_web_token_private_key.as_ref())?;
+  let create_oauth_access_token_query_parameters = CreateOAuthAccessTokenQueryParameters {
+    client_id: dummy_oauth_authorization.app_id.to_string(),
+    code: authorization_code,
+    grant_type: "authorization_code".to_string(),
+    ..Default::default()
+  };
 
   // Set up the server and send the request.
   let state = AppState {
@@ -36,24 +42,13 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   let response = test_server.post("/oauth-access-tokens")
-    .add_query_params(CreateOAuthAccessTokenQueryParameters {
-      client_id: dummy_oauth_authorization.app_id.to_string(),
-      code: authorization_code,
-      grant_type: "authorization_code".to_string(),
-      ..Default::default()
-    })
+    .add_query_params(create_oauth_access_token_query_parameters)
     .await;
   
   // Verify the response.
   assert_eq!(response.status_code(), 201);
 
-  // let response_oauth_authorization: CreateOAuthAuthorizationResponseBody = response.json();
-  // assert_eq!(initial_oauth_authorization_properties.app_id, response_oauth_authorization.oauth_authorization.app_id);
-  // assert_eq!(dummy_user.id, response_oauth_authorization.oauth_authorization.authorizing_user_id);
-  // assert_eq!(initial_oauth_authorization_properties.code_challenge, response_oauth_authorization.oauth_authorization.code_challenge);
-  // assert_eq!(initial_oauth_authorization_properties.app_id, response_oauth_authorization.app_id);
-  // assert_eq!(dummy_user.id, response_oauth_authorization.authorizing_user_id);
-  // assert_eq!(initial_oauth_authorization_properties.code_challenge, response_oauth_authorization.code_challenge);
+  let _: CreateAccessTokenResponseBody = response.json();
 
   return Ok(());
   

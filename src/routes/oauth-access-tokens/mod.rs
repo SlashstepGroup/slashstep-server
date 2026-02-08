@@ -41,8 +41,8 @@ pub struct OAuthError {
   pub state: Option<String>
 }
 
-#[derive(Debug, Serialize)]
-pub struct AccessTokenResponseBody {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateAccessTokenResponseBody {
   pub access_token: String,
   pub token_type: String,
   pub expires_in: i64,
@@ -546,7 +546,7 @@ async fn handle_create_oauth_access_token_request(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Query(query_parameters): Query<CreateOAuthAccessTokenQueryParameters>,
-) -> Result<(StatusCode, Json<AccessTokenResponseBody>), HTTPError> {
+) -> Result<(StatusCode, Json<CreateAccessTokenResponseBody>), HTTPError> {
   
   let http_transaction = http_transaction.clone();
   let client_id = convert_client_id_string_to_uuid(&query_parameters.client_id, &http_transaction.id, &state.database_pool).await?;
@@ -663,7 +663,7 @@ async fn handle_create_oauth_access_token_request(
 
   };
 
-  let access_token_response_body = AccessTokenResponseBody {
+  let access_token_response_body = CreateAccessTokenResponseBody {
     access_token,
     token_type: "Bearer".to_string(),
     expires_in: Utc::now().signed_duration_since(app_authorization_credential.access_token_expiration_date).num_seconds(),
