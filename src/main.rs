@@ -133,11 +133,11 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   Item::initialize_resource_table(database_pool).await?;
   Action::initialize_resource_table(database_pool).await?;
   AppCredential::initialize_resource_table(database_pool).await?;
-  AppAuthorization::initialize_resource_table(database_pool).await?;
-  AppAuthorizationCredential::initialize_resource_table(database_pool).await?;
   Milestone::initialize_resource_table(database_pool).await?;
   ActionLogEntry::initialize_resource_table(database_pool).await?;
   OAuthAuthorization::initialize_resource_table(database_pool).await?;
+  AppAuthorization::initialize_resource_table(database_pool).await?;
+  AppAuthorizationCredential::initialize_resource_table(database_pool).await?;
   AccessPolicy::initialize_resource_table(database_pool).await?;
   DelegationPolicy::initialize_resource_table(database_pool).await?;
   

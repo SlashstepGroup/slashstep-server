@@ -198,7 +198,12 @@ impl OAuthAuthorization {
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.app_id,
       &initial_properties.authorizing_user_id,
-      &initial_properties.code_challenge
+      &initial_properties.code_challenge,
+      &initial_properties.code_challenge_method,
+      &initial_properties.redirect_uri,
+      &initial_properties.scope,
+      &initial_properties.usage_date,
+      &initial_properties.state
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {

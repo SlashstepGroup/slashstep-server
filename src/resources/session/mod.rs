@@ -122,7 +122,7 @@ impl Session {
       jti: self.id.to_string(),
       exp: (Utc::now() + Duration::days(30)).timestamp() as usize
     };
-    let encoding_key = jsonwebtoken::EncodingKey::from_rsa_pem(private_key.as_ref())?;
+    let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
     let token = jsonwebtoken::encode(&Header::new(jsonwebtoken::Algorithm::EdDSA), &claims, &encoding_key)?;
 
     return Ok(token);
