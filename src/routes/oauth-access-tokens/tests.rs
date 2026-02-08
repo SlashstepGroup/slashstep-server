@@ -10,14 +10,15 @@
  */
 
 use std::net::SocketAddr;
+use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, rand_core::OsRng}};
 use axum_test::TestServer;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::ActionPermissionLevel, action::Action}, routes::oauth_access_tokens::{CreateAccessTokenResponseBody, CreateOAuthAccessTokenQueryParameters, OAuthTokenError, OAuthTokenErrorResponse}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_roles}, resources::{access_policy::ActionPermissionLevel, action::Action, app::{App, AppClientType, EditableAppProperties}}, routes::oauth_access_tokens::{CreateAccessTokenResponseBody, CreateOAuthAccessTokenQueryParameters, OAuthTokenError, OAuthTokenErrorResponse}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
-async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
+async fn verify_successful_creation_for_public_client() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -30,6 +31,58 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   let authorization_code = dummy_oauth_authorization.generate_authorization_code(json_web_token_private_key.as_ref())?;
   let create_oauth_access_token_query_parameters = CreateOAuthAccessTokenQueryParameters {
     client_id: dummy_oauth_authorization.app_id.to_string(),
+    code: authorization_code,
+    grant_type: "authorization_code".to_string(),
+    ..Default::default()
+  };
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post("/oauth-access-tokens")
+    .add_query_params(create_oauth_access_token_query_parameters)
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), 201);
+
+  let _: CreateAccessTokenResponseBody = response.json();
+
+  return Ok(());
+  
+}
+
+/// Verifies that the router can return a 201 status code and the created resource.
+#[tokio::test]
+async fn verify_successful_creation_for_confidential_client() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+
+  // Create dummy resources.
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let dummy_oauth_authorization = test_environment.create_random_oauth_authorization(None).await?;
+  let app = App::get_by_id(&dummy_oauth_authorization.app_id, &test_environment.database_pool).await.expect("Expected a dummy app to exist.");
+  let argon2 = Argon2::default();
+  let salt = SaltString::generate(&mut OsRng);
+  let new_client_secret = Uuid::now_v7().to_string();
+  let hashed_client_secret = argon2.hash_password(new_client_secret.as_bytes(), &salt).expect("Failed to hash client secret.");
+  app.update(&EditableAppProperties {
+    client_type: Some(AppClientType::Confidential),
+    client_secret_hash: Some(hashed_client_secret.to_string()),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  let authorization_code = dummy_oauth_authorization.generate_authorization_code(json_web_token_private_key.as_ref())?;
+  let create_oauth_access_token_query_parameters = CreateOAuthAccessTokenQueryParameters {
+    client_id: dummy_oauth_authorization.app_id.to_string(),
+    client_secret: Some(new_client_secret),
     code: authorization_code,
     grant_type: "authorization_code".to_string(),
     ..Default::default()
@@ -203,6 +256,58 @@ async fn verify_client_id_links_to_app() -> Result<(), TestSlashstepServerError>
   let authorization_code = dummy_oauth_authorization.generate_authorization_code(json_web_token_private_key.as_ref())?;
   let create_oauth_access_token_query_parameters = CreateOAuthAccessTokenQueryParameters {
     client_id: Uuid::now_v7().to_string(),
+    code: authorization_code,
+    grant_type: "authorization_code".to_string(),
+    ..Default::default()
+  };
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post("/oauth-access-tokens")
+    .add_query_params(create_oauth_access_token_query_parameters)
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+
+  let oauth_error: OAuthTokenErrorResponse = response.json();
+  assert_eq!(oauth_error.error, OAuthTokenError::InvalidClient);
+
+  return Ok(());
+  
+}
+
+/// Verifies that the router can return a 400 if the client secret is not provided for confidential clients.
+#[tokio::test]
+async fn verify_client_secret_is_provided_for_confidential_client() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+
+  // Create dummy resources.
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let dummy_oauth_authorization = test_environment.create_random_oauth_authorization(None).await?;
+  let app = App::get_by_id(&dummy_oauth_authorization.app_id, &test_environment.database_pool).await.expect("Expected a dummy app to exist.");
+  let argon2 = Argon2::default();
+  let salt = SaltString::generate(&mut OsRng);
+  let new_client_secret = Uuid::now_v7().to_string();
+  let hashed_client_secret = argon2.hash_password(new_client_secret.as_bytes(), &salt).expect("Failed to hash client secret.");
+  app.update(&EditableAppProperties {
+    client_type: Some(AppClientType::Confidential),
+    client_secret_hash: Some(hashed_client_secret.to_string()),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  let authorization_code = dummy_oauth_authorization.generate_authorization_code(json_web_token_private_key.as_ref())?;
+  let create_oauth_access_token_query_parameters = CreateOAuthAccessTokenQueryParameters {
+    client_id: dummy_oauth_authorization.app_id.to_string(),
     code: authorization_code,
     grant_type: "authorization_code".to_string(),
     ..Default::default()

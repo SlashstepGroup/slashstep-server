@@ -1,3 +1,6 @@
+use argon2::{Argon2, PasswordHasher};
+use argon2::password_hash::SaltString;
+use argon2::password_hash::rand_core::OsRng;
 use uuid::Uuid;
 use crate::resources::DeletableResource;
 
@@ -30,11 +33,17 @@ async fn verify_update() -> Result<(), TestSlashstepServerError> {
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Some(Uuid::now_v7().to_string());
   let new_client_type = AppClientType::Confidential;
+  let argon2 = Argon2::default();
+  let salt = SaltString::generate(&mut OsRng);
+  let new_client_secret = Uuid::now_v7().to_string();
+  let hashed_client_secret = argon2.hash_password(new_client_secret.as_bytes(), &salt).expect("Failed to hash client secret.");
   let updated_app = original_app.update(&EditableAppProperties {
     name: Some(new_name.clone()),
     display_name: Some(new_display_name.clone()),
-    description: new_description.clone(),
-    client_type: Some(new_client_type.clone())
+    description: Some(new_description.clone()),
+    client_type: Some(new_client_type.clone()),
+    client_secret_hash: Some(hashed_client_secret.to_string()),
+    ..Default::default()
   }, &test_environment.database_pool).await?;
 
   // Verify the new action.
@@ -46,6 +55,7 @@ async fn verify_update() -> Result<(), TestSlashstepServerError> {
   assert_eq!(original_app.parent_resource_type, updated_app.parent_resource_type);
   assert_eq!(original_app.parent_workspace_id, updated_app.parent_workspace_id);
   assert_eq!(original_app.parent_user_id, updated_app.parent_user_id);
+  assert_eq!(hashed_client_secret.to_string(), updated_app.client_secret_hash.expect("Client secret hash is not set."));
 
   return Ok(());
 

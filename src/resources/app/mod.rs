@@ -67,12 +67,16 @@ pub struct InitialAppProperties {
   pub parent_user_id: Option<Uuid>
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct EditableAppProperties {
   pub name: Option<String>,
   pub display_name: Option<String>,
-  pub description: Option<String>,
-  pub client_type: Option<AppClientType>
+  pub description: Option<Option<String>>,
+  pub client_type: Option<AppClientType>,
+  pub client_secret_hash: Option<String>,
+  pub parent_resource_type: Option<AppParentResourceType>,
+  pub parent_workspace_id: Option<Option<Uuid>>,
+  pub parent_user_id: Option<Option<Uuid>>
 }
 
 impl App {
@@ -254,10 +258,14 @@ impl App {
 
     let database_client = database_pool.get().await?;
     database_client.query("BEGIN;", &[]).await?;
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", Some(&properties.name));
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "display_name", Some(&properties.display_name));
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", Some(&properties.description));
-    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "client_type", Some(&properties.client_type));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "client_type", properties.client_type.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "client_secret_hash", properties.client_secret_hash.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "parent_resource_type", properties.parent_resource_type.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "parent_workspace_id", properties.parent_workspace_id.as_ref());
+    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "parent_user_id", properties.parent_user_id.as_ref());
 
     query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));
