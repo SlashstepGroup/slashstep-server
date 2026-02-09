@@ -22,16 +22,17 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware::get_decoding_key, http_request_middleware}, resources::{DeletableResource, ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, http_transaction::HTTPTransaction, oauth_authorization::{EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims}, server_log_entry::ServerLogEntry}, utilities::route_handler_utilities::{get_action_by_name, get_json_web_token_private_key, get_json_web_token_public_key}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware::get_decoding_key, http_request_middleware}, resources::{DeletableResource, ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialClaims, InitialAppAuthorizationCredentialProperties}, http_transaction::HTTPTransaction, oauth_authorization::{EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims}, server_log_entry::ServerLogEntry}, utilities::route_handler_utilities::{get_action_by_name, get_json_web_token_private_key, get_json_web_token_public_key}};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct CreateOAuthAccessTokenQueryParameters {
   pub client_id: String,
   pub client_secret: Option<String>,
-  pub code: String,
-  pub redirect_uri: String,
+  pub code: Option<String>,
+  pub redirect_uri: Option<String>,
   pub code_verifier: Option<String>,
-  pub grant_type: String
+  pub grant_type: String,
+  pub refresh_token: Option<String>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -147,7 +148,7 @@ pub async fn convert_client_id_string_to_uuid(client_id: &str, http_transaction_
 
 }
 
-pub async fn decode_json_web_token_claims(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool, json_web_token_public_key: &str, token: &str) -> Result<jsonwebtoken::TokenData<OAuthAuthorizationClaims>, OAuthTokenErrorResponse> {
+pub async fn decode_authorization_code_jwt_claims(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool, json_web_token_public_key: &str, token: &str) -> Result<jsonwebtoken::TokenData<OAuthAuthorizationClaims>, OAuthTokenErrorResponse> {
 
   ServerLogEntry::trace("Decoding and verifying authorization code...", Some(&http_transaction_id), &database_pool).await.ok();
 
@@ -168,6 +169,44 @@ pub async fn decode_json_web_token_claims(http_transaction_id: &Uuid, database_p
       let oauth_error_response = match &error.kind() {
 
         jsonwebtoken::errors::ErrorKind::InvalidToken | jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(_) => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The authorization code is invalid.", None, None),
+
+        _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None)
+
+      };
+      let http_error = oauth_error_response.clone().into();
+
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
+      return Err(oauth_error_response);
+
+    }
+
+  };
+
+  return Ok(decoded_claims);
+
+}
+
+pub async fn decode_app_authorization_credential_jwt_claims(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool, json_web_token_public_key: &str, token: &str) -> Result<jsonwebtoken::TokenData<AppAuthorizationCredentialClaims>, OAuthTokenErrorResponse> {
+
+  ServerLogEntry::trace("Decoding and verifying refresh token...", Some(&http_transaction_id), &database_pool).await.ok();
+
+  let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
+  let decoding_key = match get_decoding_key(&http_transaction_id, &database_pool, &json_web_token_public_key).await {
+
+    Ok(decoding_key) => decoding_key,
+
+    Err(error) => return Err(OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None))
+
+  };
+  let decoded_claims = match jsonwebtoken::decode::<AppAuthorizationCredentialClaims>(token, &decoding_key, &validation) {
+
+    Ok(decoded_claims) => decoded_claims,
+
+    Err(error) => {
+
+      let oauth_error_response = match &error.kind() {
+
+        jsonwebtoken::errors::ErrorKind::InvalidToken | jsonwebtoken::errors::ErrorKind::ExpiredSignature | jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(_) => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The refresh token is invalid.", None, None),
 
         _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None)
 
@@ -607,34 +646,68 @@ async fn handle_create_oauth_access_token_request(
 
   }
 
+  let json_web_token_public_key = match get_json_web_token_public_key(&http_transaction.id, &state.database_pool).await {
+
+    Ok(json_web_token_public_key) => json_web_token_public_key,
+
+    Err(error) => {
+
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None);
+      return Err(oauth_error_response);
+
+    }
+
+  };
+
   let app_authorization: AppAuthorization;
   let oauth_state: Option<String>;
   if query_parameters.grant_type == "authorization_code" {
 
-    let json_web_token_public_key = match get_json_web_token_public_key(&http_transaction.id, &state.database_pool).await {
+    let authorization_code = match query_parameters.code {
 
-      Ok(json_web_token_public_key) => json_web_token_public_key,
+      Some(authorization_code) => authorization_code,
 
-      Err(error) => {
+      None => {
 
-        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &error.to_string(), None, None);
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidRequest, "The authorization code is required.", None, None);
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
         return Err(oauth_error_response);
 
       }
 
     };
-    let decoded_claims = decode_json_web_token_claims(&http_transaction.id, &state.database_pool, &json_web_token_public_key, &query_parameters.code).await?;
+    let decoded_claims = decode_authorization_code_jwt_claims(&http_transaction.id, &state.database_pool, &json_web_token_public_key, &authorization_code).await?;
     let oauth_authorization_id = convert_oauth_authorization_id_string_to_uuid(&decoded_claims.claims.jti, &http_transaction.id, &state.database_pool).await?;
     let oauth_authorization = get_oauth_authorization_by_id(&oauth_authorization_id, &http_transaction.id, &state.database_pool).await?;
     oauth_state = oauth_authorization.state.clone();
 
     // More information: https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.3
-    if oauth_authorization.redirect_uri.is_some() && oauth_authorization.redirect_uri != Some(query_parameters.redirect_uri) {
+    if oauth_authorization.redirect_uri.is_some() {
 
-      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The redirect URI is invalid.", None, oauth_state.as_ref());
-      let http_error = oauth_error_response.clone().into();
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(oauth_error_response);
+      let redirect_uri = match &oauth_authorization.redirect_uri {
+
+        Some(redirect_uri) => redirect_uri,
+
+        None => {
+
+          let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The redirect URI is invalid.", None, oauth_state.as_ref());
+          let http_error = oauth_error_response.clone().into();
+          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+          return Err(oauth_error_response);
+
+        }
+
+      };
+
+      if Some(redirect_uri) != query_parameters.redirect_uri.as_ref() {
+        
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The redirect URI is invalid.", None, oauth_state.as_ref());
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(oauth_error_response);
+
+      }
 
     }
 
@@ -667,11 +740,119 @@ async fn handle_create_oauth_access_token_request(
 
   } else if query_parameters.grant_type == "refresh_token" {
 
-    // TODO: Implement refresh token grant type.
-    let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::NotImplementedError, "Refresh token grant type is not implemented.", None, None);
-    let http_error = oauth_error_response.clone().into();
-    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-    return Err(oauth_error_response);
+    oauth_state = None;
+    let refresh_token = match query_parameters.refresh_token {
+
+      Some(refresh_token) => refresh_token,
+
+      None => {
+
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidRequest, "The refresh token is required.", None, None);
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(oauth_error_response);
+
+      }
+
+    };
+    let decoded_claims = decode_app_authorization_credential_jwt_claims(&http_transaction.id, &state.database_pool, &json_web_token_public_key, &refresh_token).await?;
+    if decoded_claims.claims.r#type != "Refresh" {
+
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The refresh token is invalid.", None, None);
+      let http_error = oauth_error_response.clone().into();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(oauth_error_response);
+
+    }
+
+    let app_authorization_credential_id = match Uuid::parse_str(&decoded_claims.claims.jti) {
+
+      Ok(app_authorization_credential_id) => app_authorization_credential_id,
+
+      Err(_) => {
+
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The refresh token is invalid.", None, None);
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(oauth_error_response);
+
+      }
+
+    };
+    let app_authorization_credential = match AppAuthorizationCredential::get_by_id(&app_authorization_credential_id, &state.database_pool).await {
+
+      Ok(app_authorization_credential) => app_authorization_credential,
+
+      Err(error) => {
+
+        let oauth_error_response = match error {
+
+          ResourceError::NotFoundError(_) => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidGrant, "The refresh token is invalid.", None, None),
+
+          _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to get app authorization credential with the ID \"{}\": {:?}", app_authorization_credential_id, error), None, None)
+
+        };
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(oauth_error_response);
+
+      }
+
+    };
+    match app_authorization_credential.delete(&state.database_pool).await {
+
+      Ok(_) => {},
+
+      Err(error) => {
+
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete app authorization credential with the ID \"{}\": {:?}", app_authorization_credential_id, error), None, None);
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(oauth_error_response);
+
+      }
+
+    }
+    let delete_app_authorization_credentials_action = match get_action_by_name("slashstep.appAuthorizationCredentials.delete", &http_transaction, &state.database_pool).await {
+
+      Ok(delete_app_authorization_credentials_action) => delete_app_authorization_credentials_action,
+
+      Err(error) => {
+
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to get action \"slashstep.appAuthorizationCredentials.delete\": {:?}", error), None, None);
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(oauth_error_response);
+
+      }
+
+    };
+    ActionLogEntry::create(&InitialActionLogEntryProperties {
+      action_id: delete_app_authorization_credentials_action.id,
+      http_transaction_id: Some(http_transaction.id),
+      actor_type: ActionLogEntryActorType::App,
+      actor_user_id: None,
+      actor_app_id: Some(app_authorization_credential.app_authorization_id),
+      target_resource_type: ActionLogEntryTargetResourceType::AppAuthorizationCredential,
+      target_app_authorization_credential_id: Some(app_authorization_credential.id),
+      reason: Some("Refresh token was used to create a new access token.".to_string()),
+      ..Default::default()
+    }, &state.database_pool).await.ok();
+
+    app_authorization = match AppAuthorization::get_by_id(&app_authorization_credential.app_authorization_id, &state.database_pool).await {
+
+      Ok(app_authorization) => app_authorization,
+
+      Err(error) => {
+
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to find app authorization with the ID \"{}\": {:?}", app_authorization_credential.app_authorization_id, error), None, None);
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(oauth_error_response);
+
+      } 
+
+    }
 
   } else {
 

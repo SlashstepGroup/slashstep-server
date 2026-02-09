@@ -51,6 +51,9 @@ pub enum TestSlashstepServerError {
   #[error(transparent)]
   AnyhowError(#[from] anyhow::Error),
 
+  #[error(transparent)]
+  JsonWebTokenError(#[from] jsonwebtoken::errors::Error)
+
 }
 
 pub struct TestEnvironment {
