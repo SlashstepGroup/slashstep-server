@@ -528,3 +528,45 @@ async fn verify_code_verifier_is_correct_when_code_challenge_is_present() -> Res
   return Ok(());
   
 }
+
+/// Verifies that the router can return a 201 status code and the created resource.
+#[tokio::test]
+async fn verify_successful_creation_for_public_client_with_refresh_token() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+
+  // Create dummy resources.
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let dummy_app_authorization = test_environment.create_random_app_authorization(None).await?;
+  let dummy_app_authorization_credential = test_environment.create_random_app_authorization_credential(Some(&dummy_app_authorization.id)).await?;
+  let refresh_token = dummy_app_authorization_credential.generate_refresh_token(json_web_token_private_key.as_ref())?;
+  let create_oauth_access_token_query_parameters = CreateOAuthAccessTokenQueryParameters {
+    client_id: dummy_app_authorization.app_id.to_string(),
+    grant_type: "refresh_token".to_string(),
+    refresh_token: Some(refresh_token),
+    ..Default::default()
+  };
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post("/oauth-access-tokens")
+    .add_query_params(create_oauth_access_token_query_parameters)
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), 201);
+
+  let _: CreateAccessTokenResponseBody = response.json();
+
+  return Ok(());
+  
+}
