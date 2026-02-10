@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, field::{Field, FieldParentResourceType, FieldType, InitialFieldProperties}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -225,6 +225,31 @@ impl TestEnvironment {
     let action_log_entry = ActionLogEntry::create(&action_log_entry_properties, &self.database_pool).await?;
 
     return Ok(action_log_entry);
+
+  }
+
+  pub async fn create_random_field(&self) -> Result<Field, TestSlashstepServerError> {
+
+    let parent_user = self.create_random_user().await?;
+    let field_properties = InitialFieldProperties {
+      name: Uuid::now_v7().to_string(),
+      display_name: Uuid::now_v7().to_string(),
+      description: Uuid::now_v7().to_string(),
+      is_required: true,
+      field_type: FieldType::Text,
+      minimum_value: None,
+      maximum_value: None,
+      minimum_choice_count: None,
+      maximum_choice_count: None,
+      parent_resource_type: FieldParentResourceType::User,
+      parent_project_id: None,
+      parent_workspace_id: None,
+      parent_user_id: Some(parent_user.id)
+    };
+
+    let field = Field::create(&field_properties, &self.database_pool).await?;
+
+    return Ok(field);
 
   }
 

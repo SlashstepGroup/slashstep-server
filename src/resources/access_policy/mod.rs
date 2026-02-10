@@ -41,6 +41,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_app_credential_id",
   "scoped_app_authorization_id",
   "scoped_app_authorization_credential_id",
+  "scoped_field_id",
   "scoped_group_id", 
   "scoped_item_id", 
   "scoped_milestone_id", 
@@ -64,6 +65,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_app_id",
   "scoped_app_authorization_id",
   "scoped_app_authorization_credential_id",
+  "scoped_field_id",
   "scoped_group_id",
   "scoped_app_credential_id",
   "scoped_item_id", 
@@ -150,6 +152,7 @@ pub enum AccessPolicyResourceType {
   AppAuthorization,
   AppAuthorizationCredential,
   AppCredential,
+  Field,
   Group,
   GroupMembership,
   HTTPTransaction,
@@ -175,6 +178,7 @@ impl fmt::Display for AccessPolicyResourceType {
       AccessPolicyResourceType::AppAuthorization => write!(formatter, "AppAuthorization"),
       AccessPolicyResourceType::AppAuthorizationCredential => write!(formatter, "AppAuthorizationCredential"),
       AccessPolicyResourceType::AppCredential => write!(formatter, "AppCredential"),
+      AccessPolicyResourceType::Field => write!(formatter, "Field"),
       AccessPolicyResourceType::Group => write!(formatter, "Group"),
       AccessPolicyResourceType::GroupMembership => write!(formatter, "GroupMembership"),
       AccessPolicyResourceType::HTTPTransaction => write!(formatter, "HTTPTransaction"),
@@ -205,6 +209,7 @@ impl FromStr for AccessPolicyResourceType {
       "AppAuthorization" => Ok(AccessPolicyResourceType::AppAuthorization),
       "AppAuthorizationCredential" => Ok(AccessPolicyResourceType::AppAuthorizationCredential),
       "AppCredential" => Ok(AccessPolicyResourceType::AppCredential),
+      "Field" => Ok(AccessPolicyResourceType::Field),
       "Group" => Ok(AccessPolicyResourceType::Group),
       "GroupMembership" => Ok(AccessPolicyResourceType::GroupMembership),
       "HTTPTransaction" => Ok(AccessPolicyResourceType::HTTPTransaction),
@@ -319,6 +324,8 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_app_credential_id: Option<Uuid>,
 
+  pub scoped_field_id: Option<Uuid>,
+
   pub scoped_group_id: Option<Uuid>,
 
   pub scoped_group_membership_id: Option<Uuid>,
@@ -413,6 +420,8 @@ pub struct AccessPolicy {
 
   pub scoped_app_credential_id: Option<Uuid>,
 
+  pub scoped_field_id: Option<Uuid>,
+
   pub scoped_group_id: Option<Uuid>,
 
   pub scoped_group_membership_id: Option<Uuid>,
@@ -488,6 +497,7 @@ impl AccessPolicy {
       &initial_properties.scoped_app_authorization_id,
       &initial_properties.scoped_app_authorization_credential_id,
       &initial_properties.scoped_app_credential_id,
+      &initial_properties.scoped_field_id,
       &initial_properties.scoped_group_membership_id,
       &initial_properties.scoped_http_transaction_id,
       &initial_properties.scoped_item_id,
@@ -570,6 +580,7 @@ impl AccessPolicy {
       scoped_app_authorization_id: row.get("scoped_app_authorization_id"),
       scoped_app_authorization_credential_id: row.get("scoped_app_authorization_credential_id"),
       scoped_app_credential_id: row.get("scoped_app_credential_id"),
+      scoped_field_id: row.get("scoped_field_id"),
       scoped_group_id: row.get("scoped_group_id"),
       scoped_group_membership_id: row.get("scoped_group_membership_id"),
       scoped_http_transaction_id: row.get("scoped_http_transaction_id"),
@@ -734,6 +745,7 @@ impl AccessPolicy {
             AccessPolicyResourceType::AppAuthorization => "An app authorization ID must be provided.",
             AccessPolicyResourceType::AppAuthorizationCredential => "An app authorization credential ID must be provided.",
             AccessPolicyResourceType::AppCredential => "An app credential ID must be provided.",
+            AccessPolicyResourceType::Field => "A field ID must be provided.",
             AccessPolicyResourceType::Group => "A group ID must be provided.",
             AccessPolicyResourceType::GroupMembership => "A group membership ID must be provided.",
             AccessPolicyResourceType::HTTPTransaction => "An HTTP transaction ID must be provided.",
@@ -860,6 +872,7 @@ impl AccessPolicy {
       AccessPolicyResourceType::AppAuthorization => self.scoped_app_authorization_id,
       AccessPolicyResourceType::AppAuthorizationCredential => self.scoped_app_authorization_credential_id,
       AccessPolicyResourceType::AppCredential => self.scoped_app_credential_id,
+      AccessPolicyResourceType::Field => self.scoped_field_id,
       AccessPolicyResourceType::Group => self.scoped_group_id,
       AccessPolicyResourceType::GroupMembership => self.scoped_group_membership_id,
       AccessPolicyResourceType::HTTPTransaction => self.scoped_http_transaction_id,

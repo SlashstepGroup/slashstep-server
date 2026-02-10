@@ -14,6 +14,8 @@ CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_pol
         RETURN access_policy_record.scoped_app_authorization_credential_id;
       WHEN 'AppCredential' THEN 
         RETURN access_policy_record.scoped_app_credential_id;
+      WHEN 'Field' THEN 
+        RETURN access_policy_record.scoped_field_id;
       WHEN 'Group' THEN 
         RETURN access_policy_record.scoped_group_id;
       WHEN 'GroupMembership' THEN 

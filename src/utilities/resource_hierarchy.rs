@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::{AppAuthorizationCredential}, app_credential::{AppCredential}, group_membership::{GroupMembership}, item::{Item}, milestone::{Milestone, MilestoneParentResourceType}, project::{Project}, role::{Role, RoleParentResourceType}, role_memberships::{RoleMembership}, session::{Session}};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, group_membership::GroupMembership, item::Item, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, role_memberships::RoleMembership, session::Session};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -281,6 +281,76 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         selected_resource_type = AccessPolicyResourceType::App;
         selected_resource_id = Some(app_credential.app_id);
+
+      },
+
+      // Field -> (User | Workspace | Project)
+      AccessPolicyResourceType::Field => {
+
+        let Some(field_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Field));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::Field, Some(field_id)));
+
+        let field = match Field::get_by_id(&field_id, database_pool).await {
+
+          Ok(field) => field,
+
+          Err(error) => match error {
+
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Field, hierarchy)),
+
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
+
+          }
+
+        };
+
+        match field.parent_resource_type {
+
+          FieldParentResourceType::User => {
+            
+            let Some(user_id) = field.parent_user_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::User));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::User;
+            selected_resource_id = Some(user_id);
+
+          },
+
+          FieldParentResourceType::Workspace => {
+
+            let Some(workspace_id) = field.parent_workspace_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Workspace));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Workspace;
+            selected_resource_id = Some(workspace_id);
+
+          },
+
+          FieldParentResourceType::Project => {
+
+            let Some(project_id) = field.parent_project_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Project));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Project;
+            selected_resource_id = Some(project_id);
+
+          }
+
+        }
 
       },
 

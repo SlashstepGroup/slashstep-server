@@ -10,6 +10,7 @@ mod app_authorizations;
 mod app_authorization_credentials;
 #[path = "./app-credentials/mod.rs"]
 mod app_credentials;
+mod fields;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
 mod users;
@@ -34,6 +35,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(app_authorizations::get_router(state.clone()))
     .merge(app_authorization_credentials::get_router(state.clone()))
     .merge(app_credentials::get_router(state.clone()))
+    .merge(fields::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))
     .merge(users::get_router(state.clone()))
     .fallback(fallback);

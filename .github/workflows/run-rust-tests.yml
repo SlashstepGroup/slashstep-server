@@ -9,6 +9,7 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths: 
       - src/**
       - Cargo.toml
@@ -21,10 +22,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  test-pull-request:
     name: cargo test
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
+    environment: Development
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    steps:
+      - uses: actions/checkout@v6.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: mkdir secrets
+      - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
+      - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
+      - run: RUSTFLAGS="-Awarnings" cargo test --all-features
+        env:
+          JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
+          JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+  test-development:
+    name: cargo test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Development
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
