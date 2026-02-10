@@ -4,7 +4,6 @@
 name: Bypass Rust tests
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: 
       - src/**
       - Cargo.toml
@@ -20,6 +19,5 @@ jobs:
   test:
     name: cargo test # This needs to be the same name as the one in run-rust-tests.yml.
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     steps:
       - run: 'echo "No code was changed, so testing is not required."'
