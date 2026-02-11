@@ -156,6 +156,10 @@ impl Project {
     let database_client = database_pool.get().await?;
     let query = include_str!("../../queries/projects/initialize_projects_table.sql");
     database_client.execute(query, &[]).await?;
+
+    let query = include_str!("../../queries/projects/create_function_create_project_sequence.sql");
+    database_client.execute(query, &[]).await?;
+
     return Ok(());
 
   }
@@ -180,10 +184,12 @@ impl Project {
     
     })?;
 
-    // Return the app authorization.
-    let app_credential = Self::convert_from_row(&row);
+    // Create the project sequence.
+    let project = Self::convert_from_row(&row);
+    let query = include_str!("../../queries/projects/create_project_sequence.sql");
+    database_client.execute(query, &[&project.id]).await?;
 
-    return Ok(app_credential);
+    return Ok(project);
 
   }
 

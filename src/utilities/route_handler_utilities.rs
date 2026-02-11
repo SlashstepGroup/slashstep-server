@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, default_field_value::DefaultFieldValue, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, http_transaction::HTTPTransaction, project::Project, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, default_field_value::DefaultFieldValue, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, http_transaction::HTTPTransaction, item::Item, project::Project, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use colored::Colorize;
 use pg_escape::quote_literal;
 use postgres::error::SqlState;
@@ -467,6 +467,13 @@ pub async fn get_project_by_id(project_id: &Uuid, http_transaction: &HTTPTransac
 
   let project = get_resource_by_id::<Project, _>("project", &project_id, &http_transaction, &database_pool, |project_id, database_pool| Box::new(Project::get_by_id(project_id, database_pool))).await?;
   return Ok(project);
+
+}
+
+pub async fn get_item_by_id(item_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Item, HTTPError> {
+
+  let item = get_resource_by_id::<Item, _>("item", &item_id, &http_transaction, &database_pool, |item_id, database_pool| Box::new(Item::get_by_id(item_id, database_pool))).await?;
+  return Ok(item);
 
 }
 
