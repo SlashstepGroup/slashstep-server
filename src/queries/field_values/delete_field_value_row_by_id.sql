@@ -1,0 +1,1 @@
+DELETE FROM field_values WHERE id = $1;

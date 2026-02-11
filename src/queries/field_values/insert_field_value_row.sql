@@ -1,5 +1,8 @@
-INSERT INTO default_field_values (
+INSERT INTO field_values (
   field_id,
+  parent_resource_type,
+  parent_field_id,
+  parent_item_id,
   value_type,
   text_value,
   number_value,
@@ -19,5 +22,8 @@ INSERT INTO default_field_values (
   $7,
   $8,
   $9,
-  $10
+  $10,
+  $11,
+  $12,
+  $13
 ) RETURNING *;

@@ -13,6 +13,9 @@ pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "field_id",
+  "parent_resource_type",
+  "parent_field_id",
+  "parent_item_id",
   "value_type",
   "text_value",
   "number_value",
@@ -28,17 +31,36 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "field_id",
   "stakeholder_user_id",
   "stakeholder_group_id",
-  "stakeholder_app_id"
+  "stakeholder_app_id",
+  "parent_field_id",
+  "parent_item_id"
 ];
-pub const RESOURCE_NAME: &str = "DefaultFieldValue";
-pub const DATABASE_TABLE_NAME: &str = "default_field_values";
-pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.defaultFieldValues.get";
+pub const RESOURCE_NAME: &str = "FieldValue";
+pub const DATABASE_TABLE_NAME: &str = "field_values";
+pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.fieldValues.get";
+
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[postgres(name = "field_value_parent_resource_type")]
+pub enum FieldValueParentResourceType {
+  #[default]
+  Field,
+  Item
+}
 
 #[derive(Debug, Clone, ToSql, FromSql, Default)]
-pub struct InitialDefaultFieldValueProperties {
+pub struct InitialFieldValueProperties {
 
   /// The field choice's field ID.
   pub field_id: Uuid,
+
+  /// The field choice's parent resource type.
+  pub parent_resource_type: FieldValueParentResourceType,
+
+  /// The field choice's parent field ID, if applicable.
+  pub parent_field_id: Option<Uuid>,
+
+  /// The field choice's parent item ID, if applicable.
+  pub parent_item_id: Option<Uuid>,
 
   /// The field choice's type.
   pub value_type: FieldValueType,
@@ -70,13 +92,22 @@ pub struct InitialDefaultFieldValueProperties {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSql, FromSql)]
-pub struct DefaultFieldValue {
+pub struct FieldValue {
 
   /// The field choice's ID.
   pub id: Uuid,
 
   /// The field choice's field ID.
   pub field_id: Uuid,
+
+  /// The field choice's parent resource type.
+  pub parent_resource_type: FieldValueParentResourceType,
+
+  /// The field choice's parent field ID, if applicable.
+  pub parent_field_id: Option<Uuid>,
+
+  /// The field choice's parent item ID, if applicable.
+  pub parent_item_id: Option<Uuid>,
 
   /// The field choice's type.
   pub value_type: FieldValueType,
@@ -107,9 +138,9 @@ pub struct DefaultFieldValue {
 
 }
 
-impl DefaultFieldValue {
+impl FieldValue {
 
-  /// Counts the number of default_field_values based on a query.
+  /// Counts the number of field_values based on a query.
   pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
@@ -138,14 +169,14 @@ impl DefaultFieldValue {
   pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/default_field_values/get_default_field_value_row_by_id.sql");
+    let query = include_str!("../../queries/field_values/get_field_value_row_by_id.sql");
     let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(format!("A default field value with the ID \"{}\" does not exist.", id)))
+        None => return Err(ResourceError::NotFoundError(format!("A field value with the ID \"{}\" does not exist.", id)))
 
       },
 
@@ -162,9 +193,12 @@ impl DefaultFieldValue {
   /// Converts a row into a field.
   fn convert_from_row(row: &postgres::Row) -> Self {
 
-    return DefaultFieldValue {
+    return FieldValue {
       id: row.get("id"),
       field_id: row.get("field_id"),
+      parent_resource_type: row.get("parent_resource_type"),
+      parent_field_id: row.get("parent_field_id"),
+      parent_item_id: row.get("parent_item_id"),
       value_type: row.get("value_type"),
       text_value: row.get("text_value"),
       number_value: row.get("number_value"),
@@ -178,22 +212,25 @@ impl DefaultFieldValue {
 
   }
 
-  /// Initializes the default_field_values table.
+  /// Initializes the field_values table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/default_field_values/initialize_default_field_values_table.sql");
+    let query = include_str!("../../queries/field_values/initialize_field_values_table.sql");
     database_client.execute(query, &[]).await?;
     return Ok(());
 
   }
 
   /// Creates a new field.
-  pub async fn create(initial_properties: &InitialDefaultFieldValueProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialFieldValueProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
-    let query = include_str!("../../queries/default_field_values/insert_default_field_value_row.sql");
+    let query = include_str!("../../queries/field_values/insert_field_value_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.field_id,
+      &initial_properties.parent_resource_type,
+      &initial_properties.parent_field_id,
+      &initial_properties.parent_item_id,
       &initial_properties.value_type,
       &initial_properties.text_value,
       &initial_properties.number_value,
@@ -236,7 +273,7 @@ impl DefaultFieldValue {
 
   }
 
-  /// Returns a list of default_field_values based on a query.
+  /// Returns a list of field_values based on a query.
   pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
@@ -263,13 +300,13 @@ impl DefaultFieldValue {
 
 }
 
-impl DeletableResource for DefaultFieldValue {
+impl DeletableResource for FieldValue {
 
   /// Deletes this field.
   async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/default_field_values/delete_default_field_value_row_by_id.sql");
+    let query = include_str!("../../queries/field_values/delete_field_value_row_by_id.sql");
     database_client.execute(query, &[&self.id]).await?;
     return Ok(());
 

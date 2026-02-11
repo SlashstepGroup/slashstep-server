@@ -81,7 +81,7 @@ pub enum ActionLogEntryTargetResourceType {
   AppAuthorization,
   AppAuthorizationCredential,
   AppCredential,
-  DefaultFieldValue,
+  FieldValue,
   Field,
   FieldChoice,
   Group,
@@ -146,8 +146,8 @@ pub struct ActionLogEntry {
   /// The target app credential ID of the action, if applicable.
   pub target_app_credential_id: Option<Uuid>,
 
-  /// The target default field value ID of the action, if applicable.
-  pub target_default_field_value_id: Option<Uuid>,
+  /// The target field value ID of the action, if applicable.
+  pub target_field_value_id: Option<Uuid>,
 
   /// The target field ID of the action, if applicable.
   pub target_field_id: Option<Uuid>,
@@ -241,8 +241,8 @@ pub struct InitialActionLogEntryProperties {
   /// The target app credential ID of the action, if applicable.
   pub target_app_credential_id: Option<Uuid>,
 
-  /// The target default field value ID of the action, if applicable.
-  pub target_default_field_value_id: Option<Uuid>,
+  /// The target field value ID of the action, if applicable.
+  pub target_field_value_id: Option<Uuid>,
 
   /// The target field ID of the action, if applicable.
   pub target_field_id: Option<Uuid>,
@@ -339,7 +339,7 @@ impl ActionLogEntry {
       target_app_authorization_id: row.get("target_app_authorization_id"),
       target_app_authorization_credential_id: row.get("target_app_authorization_credential_id"),
       target_app_credential_id: row.get("target_app_credential_id"),
-      target_default_field_value_id: row.get("target_default_field_value_id"),
+      target_field_value_id: row.get("target_field_value_id"),
       target_field_id: row.get("target_field_id"),
       target_field_choice_id: row.get("target_field_choice_id"),
       target_group_id: row.get("target_group_id"),
@@ -403,7 +403,7 @@ impl ActionLogEntry {
       &initial_properties.target_app_authorization_id,
       &initial_properties.target_app_authorization_credential_id,
       &initial_properties.target_app_credential_id,
-      &initial_properties.target_default_field_value_id,
+      &initial_properties.target_field_value_id,
       &initial_properties.target_field_id,
       &initial_properties.target_field_choice_id,
       &initial_properties.target_group_id,

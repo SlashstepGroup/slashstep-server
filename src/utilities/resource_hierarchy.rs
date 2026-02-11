@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, default_field_value::DefaultFieldValue, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, group_membership::GroupMembership, item::Item, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, role_memberships::RoleMembership, session::Session};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, group_membership::GroupMembership, item::Item, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, role_memberships::RoleMembership, session::Session};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -284,24 +284,24 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // DefaultFieldValue -> Field
-      AccessPolicyResourceType::DefaultFieldValue => {
+      // FieldValue -> (Field | Item)
+      AccessPolicyResourceType::FieldValue => {
 
-        let Some(default_field_value_id) = selected_resource_id else {
+        let Some(field_value_id) = selected_resource_id else {
 
-          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::DefaultFieldValue));
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::FieldValue));
 
         };
 
-        hierarchy.push((AccessPolicyResourceType::DefaultFieldValue, Some(default_field_value_id)));
+        hierarchy.push((AccessPolicyResourceType::FieldValue, Some(field_value_id)));
 
-        let default_field_value = match DefaultFieldValue::get_by_id(&default_field_value_id, database_pool).await {
+        let field_value = match FieldValue::get_by_id(&field_value_id, database_pool).await {
 
-          Ok(default_field_value) => default_field_value,
+          Ok(field_value) => field_value,
 
           Err(error) => match error {
 
-            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::DefaultFieldValue, hierarchy)),
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::FieldValue, hierarchy)),
 
             _ => return Err(ResourceHierarchyError::ResourceError(error))
 
@@ -309,8 +309,23 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         };
 
-        selected_resource_type = AccessPolicyResourceType::Field;
-        selected_resource_id = Some(default_field_value.field_id);
+        match field_value.parent_resource_type {
+
+          FieldValueParentResourceType::Field => {
+            
+            selected_resource_type = AccessPolicyResourceType::Field;
+            selected_resource_id = field_value.parent_field_id;
+
+          },
+
+          FieldValueParentResourceType::Item => {
+
+            selected_resource_type = AccessPolicyResourceType::Item;
+            selected_resource_id = field_value.parent_item_id;
+
+          }
+
+        };
 
       },
 

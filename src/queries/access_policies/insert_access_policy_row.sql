@@ -14,7 +14,7 @@ INSERT INTO access_policies (
   scoped_app_authorization_id,
   scoped_app_authorization_credential_id,
   scoped_app_credential_id,
-  scoped_default_field_value_id,
+  scoped_field_value_id,
   scoped_field_id,
   scoped_field_choice_id,
   scoped_group_membership_id,

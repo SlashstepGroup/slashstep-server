@@ -1,6 +1,6 @@
 /**
  * 
- * Any test cases for /default-field-values/{default_field_value_id} should be handled here.
+ * Any test cases for /field-values/{field_value_id} should be handled here.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -21,7 +21,7 @@ use crate::{
   }, resources::{
     access_policy::
       ActionPermissionLevel
-    , default_field_value::DefaultFieldValue,
+    , field_value::FieldValue,
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -47,28 +47,28 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_default_field_values_action = Action::get_by_name("slashstep.defaultFieldValues.get", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &get_default_field_values_action.id, &ActionPermissionLevel::User).await?;
+  let get_field_values_action = Action::get_by_name("slashstep.fieldValues.get", &test_environment.database_pool).await?;
+  test_environment.create_instance_access_policy(&user.id, &get_field_values_action.id, &ActionPermissionLevel::User).await?;
   
-  let default_field_value = test_environment.create_random_default_field_value().await?;
+  let field_value = test_environment.create_random_field_value().await?;
 
-  let response = test_server.get(&format!("/default-field-values/{}", default_field_value.id))
+  let response = test_server.get(&format!("/field-values/{}", field_value.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_default_field_value: DefaultFieldValue = response.json();
-  assert_eq!(response_default_field_value.id, default_field_value.id);
-  assert_eq!(response_default_field_value.field_id, default_field_value.field_id);
-  assert_eq!(response_default_field_value.value_type, default_field_value.value_type);
-  assert_eq!(response_default_field_value.text_value, default_field_value.text_value);
-  assert_eq!(response_default_field_value.number_value, default_field_value.number_value);
-  assert_eq!(response_default_field_value.timestamp_value, default_field_value.timestamp_value);
-  assert_eq!(response_default_field_value.stakeholder_type, default_field_value.stakeholder_type);
-  assert_eq!(response_default_field_value.stakeholder_user_id, default_field_value.stakeholder_user_id);
-  assert_eq!(response_default_field_value.stakeholder_app_id, default_field_value.stakeholder_app_id);
-  assert_eq!(response_default_field_value.stakeholder_group_id, default_field_value.stakeholder_group_id);
+  let response_field_value: FieldValue = response.json();
+  assert_eq!(response_field_value.id, field_value.id);
+  assert_eq!(response_field_value.field_id, field_value.field_id);
+  assert_eq!(response_field_value.value_type, field_value.value_type);
+  assert_eq!(response_field_value.text_value, field_value.text_value);
+  assert_eq!(response_field_value.number_value, field_value.number_value);
+  assert_eq!(response_field_value.timestamp_value, field_value.timestamp_value);
+  assert_eq!(response_field_value.stakeholder_type, field_value.stakeholder_type);
+  assert_eq!(response_field_value.stakeholder_user_id, field_value.stakeholder_user_id);
+  assert_eq!(response_field_value.stakeholder_app_id, field_value.stakeholder_app_id);
+  assert_eq!(response_field_value.stakeholder_group_id, field_value.stakeholder_group_id);
 
   return Ok(());
   
@@ -91,7 +91,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
 
-  let response = test_server.get("/default-field-values/not-a-uuid")
+  let response = test_server.get("/field-values/not-a-uuid")
     .await;
   
   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -116,9 +116,9 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   
-  let default_field_value = test_environment.create_random_default_field_value().await?;
+  let field_value = test_environment.create_random_field_value().await?;
 
-  let response = test_server.get(&format!("/default-field-values/{}", default_field_value.id))
+  let response = test_server.get(&format!("/field-values/{}", field_value.id))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
@@ -141,7 +141,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let session = test_environment.create_session(&user.id).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let default_field_value = test_environment.create_random_default_field_value().await?;
+  let field_value = test_environment.create_random_field_value().await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -151,7 +151,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/default-field-values/{}", default_field_value.id))
+  let response = test_server.get(&format!("/field-values/{}", field_value.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
@@ -183,7 +183,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/default-field-values/{}", uuid::Uuid::now_v7()))
+  let response = test_server.get(&format!("/field-values/{}", uuid::Uuid::now_v7()))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
@@ -208,8 +208,8 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Grant access to the "slashstep.defaultFieldValues.delete" action to the user.
-//   let delete_fields_action = Action::get_by_name("slashstep.defaultFieldValues.delete", &test_environment.database_pool).await?;
+//   // Grant access to the "slashstep.fieldValues.delete" action to the user.
+//   let delete_fields_action = Action::get_by_name("slashstep.fieldValues.delete", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: delete_fields_action.id,
 //     permission_level: ActionPermissionLevel::User,
@@ -221,7 +221,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   }, &test_environment.database_pool).await?;
 
 //   // Set up the server and send the request.
-//   let default_field_value = test_environment.create_random_default_field_value().await?;
+//   let field_value = test_environment.create_random_field_value().await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -229,13 +229,13 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/default-field-values/{}", default_field_value.id))
+//   let response = test_server.delete(&format!("/field-values/{}", field_value.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
 //   assert_eq!(response.status_code(), 204);
 
-//   match App::get_by_id(&default_field_value.id, &test_environment.database_pool).await.expect_err("Expected an app not found error.") {
+//   match App::get_by_id(&field_value.id, &test_environment.database_pool).await.expect_err("Expected an app not found error.") {
 
 //     ResourceError::NotFoundError(_) => {},
 
@@ -264,7 +264,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
 
-//   let response = test_server.delete("/default-field-values/not-a-uuid")
+//   let response = test_server.delete("/field-values/not-a-uuid")
 //     .await;
   
 //   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -282,7 +282,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
   
 //   // Create a dummy app.
-//   let default_field_value = test_environment.create_random_default_field_value().await?;
+//   let field_value = test_environment.create_random_field_value().await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -292,7 +292,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/default-field-values/{}", default_field_value.id))
+//   let response = test_server.delete(&format!("/field-values/{}", field_value.id))
 //     .await;
   
 //   // Verify the response.
@@ -317,7 +317,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
 //   // Create a dummy app.
-//   let default_field_value = test_environment.create_random_default_field_value().await?;
+//   let field_value = test_environment.create_random_field_value().await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -327,7 +327,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/default-field-values/{}", default_field_value.id))
+//   let response = test_server.delete(&format!("/field-values/{}", field_value.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
@@ -358,7 +358,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/default-field-values/{}", uuid::Uuid::now_v7()))
+//   let response = test_server.delete(&format!("/field-values/{}", uuid::Uuid::now_v7()))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
@@ -382,7 +382,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let session = test_environment.create_session(&user.id).await?;
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let update_fields_action = Action::get_by_name("slashstep.defaultFieldValues.update", &test_environment.database_pool).await?;
+//   let update_fields_action = Action::get_by_name("slashstep.fieldValues.update", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: update_fields_action.id,
 //     permission_level: ActionPermissionLevel::Editor,
@@ -407,7 +407,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/default-field-values/{}", original_field.id))
+//   let response = test_server.patch(&format!("/field-values/{}", original_field.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .json(&serde_json::json!({
 //       "name": new_name.clone(),
@@ -451,7 +451,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/default-field-values/not-a-uuid")
+//   let response = test_server.patch("/field-values/not-a-uuid")
 //     .await;
   
 //   // Verify the response.
@@ -477,7 +477,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/default-field-values/not-a-uuid")
+//   let response = test_server.patch("/field-values/not-a-uuid")
 //     .add_header("Content-Type", "application/json")
 //     .await;
   
@@ -504,7 +504,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/default-field-values/{}", uuid::Uuid::now_v7()))
+//   let response = test_server.patch(&format!("/field-values/{}", uuid::Uuid::now_v7()))
 //     .add_header("Content-Type", "application/json")
 //     .json(&serde_json::json!({
 //       "name": "Super Duper Admin",
@@ -534,7 +534,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/default-field-values/not-a-uuid")
+//   let response = test_server.patch("/field-values/not-a-uuid")
 //     .add_header("Content-Type", "application/json")
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
@@ -556,7 +556,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
   
 //   // Set up the server and send the request.
-//   let default_field_value = test_environment.create_random_default_field_value().await?;
+//   let field_value = test_environment.create_random_field_value().await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -564,7 +564,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/default-field-values/{}", default_field_value.id))
+//   let response = test_server.patch(&format!("/field-values/{}", field_value.id))
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
 //     }))
@@ -592,7 +592,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
 //   // Set up the server and send the request.
-//   let default_field_value = test_environment.create_random_default_field_value().await?;
+//   let field_value = test_environment.create_random_field_value().await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -600,7 +600,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/default-field-values/{}", default_field_value.id))
+//   let response = test_server.patch(&format!("/field-values/{}", field_value.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
@@ -631,7 +631,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/default-field-values/{}", Uuid::now_v7()))
+//   let response = test_server.patch(&format!("/field-values/{}", Uuid::now_v7()))
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
 //     }))

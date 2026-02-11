@@ -12,7 +12,7 @@ INSERT INTO action_log_entries (
   target_app_authorization_id,
   target_app_authorization_credential_id,
   target_app_credential_id,
-  target_default_field_value_id,
+  target_field_value_id,
   target_field_id,
   target_field_choice_id,
   target_group_id,

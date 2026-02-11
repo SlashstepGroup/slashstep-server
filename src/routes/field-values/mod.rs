@@ -1,6 +1,6 @@
 /**
  * 
- * Any functionality for /default-field-values should be handled here.
+ * Any functionality for /field-values should be handled here.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -14,12 +14,12 @@ use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
 use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
 
-#[path = "./{default_field_value_id}/mod.rs"]
-mod default_field_value_id;
+#[path = "./{field_value_id}/mod.rs"]
+mod field_value_id;
 #[cfg(test)]
 mod tests;
 
-// /// GET /default-field-values
+// /// GET /field-values
 // /// 
 // /// Lists apps.
 // #[axum::debug_handler]
@@ -58,11 +58,11 @@ mod tests;
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
-    // .route("/default-field-values", axum::routing::get(handle_list_apps_request))
+    // .route("/field-values", axum::routing::get(handle_list_apps_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
-    .merge(default_field_value_id::get_router(state.clone()));
+    .merge(field_value_id::get_router(state.clone()));
   return router;
 
 }

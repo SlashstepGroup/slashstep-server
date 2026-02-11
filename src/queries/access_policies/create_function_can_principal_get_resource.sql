@@ -479,10 +479,10 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 selected_resource_type := 'App';
                 selected_resource_id := selected_resource_parent_id;
 
-            ELSIF selected_resource_type = 'DefaultFieldValue' THEN
+            ELSIF selected_resource_type = 'FieldValue' THEN
 
-                -- DefaultFieldValue -> Field
-                -- Check if the default field value has an associated access policy.
+                -- FieldValue -> (Item | Field)
+                -- Check if the field value has an associated access policy.
                 SELECT
                     permission_level,
                     is_inheritance_enabled
@@ -492,8 +492,8 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 FROM
                     get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
                 WHERE
-                    principal_access_policies.scoped_resource_type = 'DefaultFieldValue' AND 
-                    principal_access_policies.scoped_default_field_value_id = selected_resource_id AND (
+                    principal_access_policies.scoped_resource_type = 'FieldValue' AND 
+                    principal_access_policies.scoped_field_value_id = selected_resource_id AND (
                         NOT needs_inheritance OR
                         principal_access_policies.is_inheritance_enabled
                     )
@@ -513,22 +513,59 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 needs_inheritance := TRUE;
 
                 SELECT
-                    field_id
+                    parent_resource_type
                 INTO
-                    selected_resource_parent_id
+                    selected_resource_parent_type
                 FROM
-                    default_field_values
+                    field_values
                 WHERE
-                    default_field_values.id = selected_resource_id;
+                    field_values.id = selected_resource_id;
 
-                IF selected_resource_parent_id IS NULL THEN
+                IF selected_resource_parent_type = 'Field' THEN
 
-                    RAISE EXCEPTION 'Couldn''t find a parent field for default field value %.', selected_resource_id;
+                    SELECT
+                        parent_field_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        field_values
+                    WHERE
+                        field_values.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent field for field value %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Field';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Item' THEN
+
+                    SELECT
+                        parent_item_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        field_values
+                    WHERE
+                        field_values.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent item for field value %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Item';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSE
+
+                    RAISE EXCEPTION 'Unknown parent resource type % for field value %.', selected_resource_parent_type, selected_resource_id;
 
                 END IF;
-
-                selected_resource_type := 'Field';
-                selected_resource_id := selected_resource_parent_id;
 
             ELSIF selected_resource_type = 'Field' THEN
 

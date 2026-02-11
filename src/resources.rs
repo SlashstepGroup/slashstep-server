@@ -11,7 +11,7 @@ pub mod app_authorization;
 pub mod app_credential;
 pub mod app;
 pub mod delegation_policy;
-pub mod default_field_value;
+pub mod field_value;
 pub mod field;
 pub mod field_choice;
 pub mod group;

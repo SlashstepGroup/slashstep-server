@@ -1,9 +1,19 @@
 DO $$
 BEGIN
 
-  CREATE TABLE IF NOT EXISTS default_field_values (
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'field_value_parent_resource_type') THEN
+    CREATE TYPE field_value_parent_resource_type AS ENUM (
+      'Item',
+      'Field'
+    );
+  END IF;
+
+  CREATE TABLE IF NOT EXISTS field_values (
     id UUID DEFAULT uuidv7() PRIMARY KEY,
     field_id UUID NOT NULL REFERENCES fields(id) ON DELETE CASCADE,
+    parent_resource_type field_value_parent_resource_type NOT NULL,
+    parent_field_id UUID REFERENCES fields(id) ON DELETE CASCADE,
+    parent_item_id UUID REFERENCES items(id) ON DELETE CASCADE,
     value_type field_value_type NOT NULL,
     text_value TEXT,
     number_value DECIMAL,

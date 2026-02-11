@@ -1,1 +1,0 @@
-DELETE FROM default_field_values WHERE id = $1;
