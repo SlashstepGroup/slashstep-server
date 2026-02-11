@@ -17,6 +17,7 @@ mod fields;
 mod field_choices;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
+mod projects;
 mod users;
 
 use axum::{Router, response::IntoResponse};
@@ -43,6 +44,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(fields::get_router(state.clone()))
     .merge(field_choices::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))
+    .merge(projects::get_router(state.clone()))
     .merge(users::get_router(state.clone()))
     .fallback(fallback);
   return router;

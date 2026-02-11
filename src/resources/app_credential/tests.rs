@@ -26,7 +26,7 @@ fn assert_app_credential_is_equal_to_initial_properties(app_credential: &AppCred
 
   assert_eq!(app_credential.app_id, initial_properties.app_id);
   assert_eq!(app_credential.description, initial_properties.description);
-  assert_eq!(app_credential.expiration_date, initial_properties.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())));
+  assert_eq!(app_credential.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())), initial_properties.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())));
   assert_eq!(app_credential.creation_ip_address, initial_properties.creation_ip_address);
   assert_eq!(app_credential.public_key, initial_properties.public_key);
 

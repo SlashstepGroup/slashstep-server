@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, default_field_value::{DefaultFieldValue, InitialDefaultFieldValueProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, default_field_value::{DefaultFieldValue, InitialDefaultFieldValueProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -276,6 +276,24 @@ impl TestEnvironment {
     let field_choice = FieldChoice::create(&field_choice_properties, &self.database_pool).await?;
 
     return Ok(field_choice);
+
+  }
+
+  pub async fn create_random_project(&self) -> Result<Project, TestSlashstepServerError> {
+
+    let project_properties = InitialProjectProperties {
+      name: Uuid::now_v7().to_string(),
+      display_name: Uuid::now_v7().to_string(),
+      key: Uuid::now_v7().to_string(),
+      description: Some(Uuid::now_v7().to_string()),
+      start_date: Some(Utc::now()),
+      end_date: Some(Utc::now()),
+      workspace_id: self.create_random_workspace().await?.id
+    };
+
+    let project = Project::create(&project_properties, &self.database_pool).await?;
+
+    return Ok(project);
 
   }
 

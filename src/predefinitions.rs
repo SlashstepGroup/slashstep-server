@@ -282,6 +282,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "Delete a specific field choice on a particular scope.".to_string(),
       ..Default::default()
     },
+    InitialActionProperties {
+      name: "slashstep.projects.get".to_string(),
+      display_name: "Get projects".to_string(),
+      description: "Get a specific project on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.projects.list".to_string(),
+      display_name: "List projects".to_string(),
+      description: "List all projects on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.projects.create".to_string(),
+      display_name: "Create projects".to_string(),
+      description: "Create new projects on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.projects.update".to_string(),
+      display_name: "Update projects".to_string(),
+      description: "Update projects on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.projects.delete".to_string(),
+      display_name: "Delete projects".to_string(),
+      description: "Delete projects on a particular scope.".to_string(),
+      ..Default::default()
+    }
   ];
 
   let mut actions: Vec<Action> = Vec::new();
