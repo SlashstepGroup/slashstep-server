@@ -6,7 +6,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
-use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{DeletableResource, ResourceError, StakeholderType, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -14,10 +14,10 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "field_id",
   "description",
-  "field_choice_type",
+  "value_type",
   "text_value",
   "number_value",
-  "date_time_value"
+  "timestamp_value"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
@@ -28,12 +28,13 @@ pub const DATABASE_TABLE_NAME: &str = "field_choices";
 pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.fieldChoices.get";
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[postgres(name = "field_choice_type")]
+#[postgres(name = "value_type")]
 pub enum FieldChoiceType {
   #[default]
   Text,
   Number,
-  DateTime,
+  Timestamp,
+  Stakeholder
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Default)]
@@ -46,7 +47,7 @@ pub struct InitialFieldChoiceProperties {
   pub description: Option<String>,
 
   /// The field choice's type.
-  pub field_choice_type: FieldChoiceType,
+  pub value_type: FieldChoiceType,
 
   /// The field choice's text value, if applicable.
   pub text_value: Option<String>,
@@ -55,7 +56,19 @@ pub struct InitialFieldChoiceProperties {
   pub number_value: Option<Decimal>,
 
   /// The field choice's date time value, if applicable.
-  pub date_time_value: Option<DateTime<Utc>>
+  pub timestamp_value: Option<DateTime<Utc>>,
+
+  /// The field choice's stakeholder type, if applicable.
+  pub stakeholder_type: Option<StakeholderType>,
+
+  /// The field choice's stakeholder user ID, if applicable.
+  pub stakeholder_user_id: Option<Uuid>,
+
+  /// The field choice's stakeholder group ID, if applicable.
+  pub stakeholder_group_id: Option<Uuid>,
+
+  /// The field choice's stakeholder app ID, if applicable.
+  pub stakeholder_app_id: Option<Uuid>
 
 }
 
@@ -72,7 +85,7 @@ pub struct FieldChoice {
   pub description: Option<String>,
 
   /// The field choice's type.
-  pub field_choice_type: FieldChoiceType,
+  pub value_type: FieldChoiceType,
 
   /// The field choice's text value, if applicable.
   pub text_value: Option<String>,
@@ -81,7 +94,19 @@ pub struct FieldChoice {
   pub number_value: Option<Decimal>,
 
   /// The field choice's date time value, if applicable.
-  pub date_time_value: Option<DateTime<Utc>>
+  pub timestamp_value: Option<DateTime<Utc>>,
+
+  /// The field choice's stakeholder type, if applicable.
+  pub stakeholder_type: Option<StakeholderType>,
+
+  /// The field choice's stakeholder user ID, if applicable.
+  pub stakeholder_user_id: Option<Uuid>,
+
+  /// The field choice's stakeholder group ID, if applicable.
+  pub stakeholder_group_id: Option<Uuid>,
+
+  /// The field choice's stakeholder app ID, if applicable.
+  pub stakeholder_app_id: Option<Uuid>
 
 }
 
@@ -123,7 +148,7 @@ impl FieldChoice {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(format!("An app authorization with the ID \"{}\" does not exist.", id)))
+        None => return Err(ResourceError::NotFoundError(format!("A field choice with the ID \"{}\" does not exist.", id)))
 
       },
 
@@ -144,10 +169,14 @@ impl FieldChoice {
       id: row.get("id"),
       field_id: row.get("field_id"),
       description: row.get("description"),
-      field_choice_type: row.get("type"),
+      value_type: row.get("value_type"),
       text_value: row.get("text_value"),
       number_value: row.get("number_value"),
-      date_time_value: row.get("date_time_value")
+      timestamp_value: row.get("timestamp_value"),
+      stakeholder_type: row.get("stakeholder_type"),
+      stakeholder_user_id: row.get("stakeholder_user_id"),
+      stakeholder_group_id: row.get("stakeholder_group_id"),
+      stakeholder_app_id: row.get("stakeholder_app_id")
     };
 
   }
@@ -169,10 +198,14 @@ impl FieldChoice {
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.field_id,
       &initial_properties.description,
-      &initial_properties.field_choice_type,
+      &initial_properties.value_type,
       &initial_properties.text_value,
       &initial_properties.number_value,
-      &initial_properties.date_time_value
+      &initial_properties.timestamp_value,
+      &initial_properties.stakeholder_type,
+      &initial_properties.stakeholder_user_id,
+      &initial_properties.stakeholder_group_id,
+      &initial_properties.stakeholder_app_id
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {

@@ -1,1 +1,1 @@
-select * from hydrated_actions where name = $1;
+select * from actions where name = $1;

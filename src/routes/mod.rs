@@ -10,6 +10,8 @@ mod app_authorizations;
 mod app_authorization_credentials;
 #[path = "./app-credentials/mod.rs"]
 mod app_credentials;
+#[path = "./default-field-values/mod.rs"]
+mod default_field_values;
 mod fields;
 #[path = "./field-choices/mod.rs"]
 mod field_choices;
@@ -37,6 +39,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(app_authorizations::get_router(state.clone()))
     .merge(app_authorization_credentials::get_router(state.clone()))
     .merge(app_credentials::get_router(state.clone()))
+    .merge(default_field_values::get_router(state.clone()))
     .merge(fields::get_router(state.clone()))
     .merge(field_choices::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))

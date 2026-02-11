@@ -1,47 +1,115 @@
-use postgres_types::ToSql;
+#[cfg(test)]
+mod tests;
+
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use postgres_types::{FromSql, ToSql};
+use crate::{resources::{DeletableResource, ResourceError, StakeholderType, access_policy::IndividualPrincipal, field::FieldValueType}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
-pub const ALLOWED_QUERY_KEYS: &[&str] = &[];
-pub const UUID_QUERY_KEYS: &[&str] = &[];
-pub const RESOURCE_NAME: &str = "Workspace";
-pub const DATABASE_TABLE_NAME: &str = "workspaces";
-pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.workspaces.get";
+pub const ALLOWED_QUERY_KEYS: &[&str] = &[
+  "id",
+  "field_id",
+  "value_type",
+  "text_value",
+  "number_value",
+  "boolean_value",
+  "timestamp_value",
+  "stakeholder_type",
+  "stakeholder_user_id",
+  "stakeholder_group_id",
+  "stakeholder_app_id"
+];
+pub const UUID_QUERY_KEYS: &[&str] = &[
+  "id",
+  "field_id",
+  "stakeholder_user_id",
+  "stakeholder_group_id",
+  "stakeholder_app_id"
+];
+pub const RESOURCE_NAME: &str = "DefaultFieldValue";
+pub const DATABASE_TABLE_NAME: &str = "default_field_values";
+pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.defaultFieldValues.get";
 
-pub struct InitialWorkspaceProperties {
+#[derive(Debug, Clone, ToSql, FromSql, Default)]
+pub struct InitialDefaultFieldValueProperties {
 
-  /// The workspace's name.
-  pub name: String,
+  /// The field choice's field ID.
+  pub field_id: Uuid,
 
-  /// The workspace's display name.
-  pub display_name: String,
+  /// The field choice's type.
+  pub value_type: FieldValueType,
 
-  /// The workspace's description, if applicable.
-  pub description: Option<String>
+  /// The field choice's text value, if applicable.
+  pub text_value: Option<String>,
+
+  /// The field choice's number value, if applicable.
+  pub number_value: Option<Decimal>,
+
+  /// The field choice's boolean value, if applicable.
+  pub boolean_value: Option<bool>,
+
+  /// The field choice's date time value, if applicable.
+  pub timestamp_value: Option<DateTime<Utc>>,
+
+  /// The field choice's stakeholder type, if applicable.
+  pub stakeholder_type: Option<StakeholderType>,
+
+  /// The field choice's stakeholder user ID, if applicable.
+  pub stakeholder_user_id: Option<Uuid>,
+
+  /// The field choice's stakeholder group ID, if applicable.
+  pub stakeholder_group_id: Option<Uuid>,
+
+  /// The field choice's stakeholder app ID, if applicable.
+  pub stakeholder_app_id: Option<Uuid>
 
 }
 
-pub struct Workspace {
+#[derive(Debug, Clone, Serialize, Deserialize, ToSql, FromSql)]
+pub struct DefaultFieldValue {
 
-  /// The workspace's ID.
+  /// The field choice's ID.
   pub id: Uuid,
 
-  /// The workspace's name.
-  pub name: String,
+  /// The field choice's field ID.
+  pub field_id: Uuid,
 
-  /// The workspace's display name.
-  pub display_name: String,
+  /// The field choice's type.
+  pub value_type: FieldValueType,
 
-  /// The workspace's description, if applicable.
-  pub description: Option<String>
+  /// The field choice's text value, if applicable.
+  pub text_value: Option<String>,
+
+  /// The field choice's number value, if applicable.
+  pub number_value: Option<Decimal>,
+
+  /// The field choice's boolean value, if applicable.
+  pub boolean_value: Option<bool>,
+
+  /// The field choice's date time value, if applicable.
+  pub timestamp_value: Option<DateTime<Utc>>,
+
+  /// The field choice's stakeholder type, if applicable.
+  pub stakeholder_type: Option<StakeholderType>,
+
+  /// The field choice's stakeholder user ID, if applicable.
+  pub stakeholder_user_id: Option<Uuid>,
+
+  /// The field choice's stakeholder group ID, if applicable.
+  pub stakeholder_group_id: Option<Uuid>,
+
+  /// The field choice's stakeholder app ID, if applicable.
+  pub stakeholder_app_id: Option<Uuid>
 
 }
 
-impl Workspace {
+impl DefaultFieldValue {
 
-  /// Counts the number of workspaces based on a query.
+  /// Counts the number of default_field_values based on a query.
   pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
@@ -70,7 +138,7 @@ impl Workspace {
   pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/workspaces/get_workspace_row_by_id.sql");
+    let query = include_str!("../../queries/default_field_values/get_default_field_value_row_by_id.sql");
     let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
@@ -94,33 +162,47 @@ impl Workspace {
   /// Converts a row into a field.
   fn convert_from_row(row: &postgres::Row) -> Self {
 
-    return Workspace {
+    return DefaultFieldValue {
       id: row.get("id"),
-      name: row.get("name"),
-      display_name: row.get("display_name"),
-      description: row.get("description")
+      field_id: row.get("field_id"),
+      value_type: row.get("value_type"),
+      text_value: row.get("text_value"),
+      number_value: row.get("number_value"),
+      boolean_value: row.get("boolean_value"),
+      timestamp_value: row.get("timestamp_value"),
+      stakeholder_type: row.get("stakeholder_type"),
+      stakeholder_user_id: row.get("stakeholder_user_id"),
+      stakeholder_group_id: row.get("stakeholder_group_id"),
+      stakeholder_app_id: row.get("stakeholder_app_id")
     };
 
   }
 
-  /// Initializes the workspaces table.
+  /// Initializes the default_field_values table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/workspaces/initialize_workspaces_table.sql");
+    let query = include_str!("../../queries/default_field_values/initialize_default_field_values_table.sql");
     database_client.execute(query, &[]).await?;
     return Ok(());
 
   }
 
   /// Creates a new field.
-  pub async fn create(initial_properties: &InitialWorkspaceProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialDefaultFieldValueProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
-    let query = include_str!("../../queries/workspaces/insert_workspace_row.sql");
+    let query = include_str!("../../queries/default_field_values/insert_default_field_value_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
-      &initial_properties.name,
-      &initial_properties.display_name,
-      &initial_properties.description
+      &initial_properties.field_id,
+      &initial_properties.value_type,
+      &initial_properties.text_value,
+      &initial_properties.number_value,
+      &initial_properties.boolean_value,
+      &initial_properties.timestamp_value,
+      &initial_properties.stakeholder_type,
+      &initial_properties.stakeholder_user_id,
+      &initial_properties.stakeholder_group_id,
+      &initial_properties.stakeholder_app_id
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {
@@ -154,7 +236,7 @@ impl Workspace {
 
   }
 
-  /// Returns a list of workspaces based on a query.
+  /// Returns a list of default_field_values based on a query.
   pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
@@ -181,13 +263,13 @@ impl Workspace {
 
 }
 
-impl DeletableResource for Workspace {
+impl DeletableResource for DefaultFieldValue {
 
   /// Deletes this field.
   async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/workspaces/delete_workspace_row_by_id.sql");
+    let query = include_str!("../../queries/default_field_values/delete_default_field_value_row_by_id.sql");
     database_client.execute(query, &[&self.id]).await?;
     return Ok(());
 

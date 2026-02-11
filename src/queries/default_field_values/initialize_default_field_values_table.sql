@@ -1,22 +1,13 @@
 DO $$
 BEGIN
 
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'field_choice_type') THEN
-    CREATE TYPE field_choice_type AS ENUM (
-      'Text',
-      'Number',
-      'Timestamp',
-      'Stakeholder'
-    );
-  END IF;
-
-  CREATE TABLE IF NOT EXISTS field_choices (
+  CREATE TABLE IF NOT EXISTS default_field_values (
     id UUID DEFAULT uuidv7() PRIMARY KEY,
     field_id UUID NOT NULL REFERENCES fields(id) ON DELETE CASCADE,
-    description TEXT,
-    value_type field_choice_type NOT NULL,
+    value_type field_value_type NOT NULL,
     text_value TEXT,
     number_value DECIMAL,
+    boolean_value BOOLEAN,
     timestamp_value TIMESTAMPTZ,
     stakeholder_type stakeholder_type,
     stakeholder_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -25,6 +16,7 @@ BEGIN
     CONSTRAINT one_value_type CHECK (
       (value_type = 'Text' AND text_value IS NOT NULL)
       OR (value_type = 'Number' AND number_value IS NOT NULL)
+      OR (value_type = 'Boolean' AND number_value IS NOT NULL)
       OR (value_type = 'Timestamp' AND timestamp_value IS NOT NULL)
       OR (value_type = 'Stakeholder' AND stakeholder_type IS NOT NULL AND (
         stakeholder_type = 'User' AND stakeholder_user_id IS NOT NULL

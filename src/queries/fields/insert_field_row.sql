@@ -11,7 +11,6 @@ INSERT INTO fields (
   parent_resource_type,
   parent_project_id,
   parent_workspace_id,
-  parent_user_id,
   is_deadline
 ) VALUES (
   $1,
@@ -26,6 +25,5 @@ INSERT INTO fields (
   $10,
   $11,
   $12,
-  $13,
-  $14
+  $13
 ) RETURNING *;

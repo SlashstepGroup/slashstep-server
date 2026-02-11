@@ -256,9 +256,6 @@ impl Action {
     let table_initialization_query = include_str!("../../queries/actions/initialize_actions_table.sql");
     database_client.execute(table_initialization_query, &[]).await?;
 
-    let view_initialization_query = include_str!("../../queries/actions/initialize_hydrated_actions_view.sql");
-    database_client.execute(view_initialization_query, &[]).await?;
-
     return Ok(());
 
   }

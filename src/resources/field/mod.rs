@@ -7,8 +7,8 @@ use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
 use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
-pub const DEFAULT_FIELD_LIST_LIMIT: i64 = 1000;
-pub const DEFAULT_MAXIMUM_FIELD_LIST_LIMIT: i64 = 1000;
+pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
+pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "name",
@@ -37,13 +37,13 @@ pub const DATABASE_TABLE_NAME: &str = "fields";
 pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.fields.get";
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[postgres(name = "field_type")]
-pub enum FieldType {
+#[postgres(name = "field_value_type")]
+pub enum FieldValueType {
   #[default]
   Text,
   Number,
   Boolean,
-  DateTime,
+  Timestamp,
   Stakeholder
 }
 
@@ -52,8 +52,7 @@ pub enum FieldType {
 pub enum FieldParentResourceType {
   #[default]
   Project,
-  Workspace,
-  User
+  Workspace
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Default)]
@@ -72,7 +71,7 @@ pub struct InitialFieldProperties {
   pub is_required: bool,
 
   /// The field's type.
-  pub field_type: FieldType,
+  pub field_value_type: FieldValueType,
 
   /// The field's minimum value.
   pub minimum_value: Option<Decimal>,
@@ -94,9 +93,6 @@ pub struct InitialFieldProperties {
 
   /// The field's parent workspace ID.
   pub parent_workspace_id: Option<Uuid>,
-
-  /// The field's parent user ID.
-  pub parent_user_id: Option<Uuid>,
 
   /// Whether the field is a deadline.
   pub is_deadline: Option<bool>
@@ -122,7 +118,7 @@ pub struct Field {
   pub is_required: bool,
 
   /// The field's type.
-  pub field_type: FieldType,
+  pub field_value_type: FieldValueType,
 
   /// The field's minimum value.
   pub minimum_value: Option<Decimal>,
@@ -144,9 +140,6 @@ pub struct Field {
 
   /// The field's parent workspace ID.
   pub parent_workspace_id: Option<Uuid>,
-
-  /// The field's parent user ID.
-  pub parent_user_id: Option<Uuid>,
 
   /// Whether the field is a deadline.
   pub is_deadline: Option<bool>
@@ -214,7 +207,7 @@ impl Field {
       display_name: row.get("display_name"),
       description: row.get("description"),
       is_required: row.get("is_required"),
-      field_type: row.get("type"),
+      field_value_type: row.get("type"),
       minimum_value: row.get("minimum_value"),
       maximum_value: row.get("maximum_value"),
       minimum_choice_count: row.get("minimum_choice_count"),
@@ -222,7 +215,6 @@ impl Field {
       parent_resource_type: row.get("parent_resource_type"),
       parent_project_id: row.get("parent_project_id"),
       parent_workspace_id: row.get("parent_workspace_id"),
-      parent_user_id: row.get("parent_user_id"),
       is_deadline: row.get("is_deadline")
     };
 
@@ -247,7 +239,7 @@ impl Field {
       &initial_properties.display_name,
       &initial_properties.description,
       &initial_properties.is_required,
-      &initial_properties.field_type,
+      &initial_properties.field_value_type,
       &initial_properties.minimum_value,
       &initial_properties.maximum_value,
       &initial_properties.minimum_choice_count,
@@ -255,7 +247,6 @@ impl Field {
       &initial_properties.parent_resource_type,
       &initial_properties.parent_project_id,
       &initial_properties.parent_workspace_id,
-      &initial_properties.parent_user_id,
       &initial_properties.is_deadline
     ];
     let database_client = database_pool.get().await?;
@@ -297,8 +288,8 @@ impl Field {
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
       allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
-      default_limit: Some(DEFAULT_FIELD_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      maximum_limit: Some(DEFAULT_MAXIMUM_FIELD_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      default_limit: Some(DEFAULT_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       should_ignore_limit: false,
       should_ignore_offset: false
     };

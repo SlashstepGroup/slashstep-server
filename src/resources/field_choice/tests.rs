@@ -13,10 +13,10 @@ fn assert_fields_are_equal(field_1: &FieldChoice, field_2: &FieldChoice) {
   assert_eq!(field_1.id, field_2.id);
   assert_eq!(field_1.field_id, field_2.field_id);
   assert_eq!(field_1.description, field_2.description);
-  assert_eq!(field_1.field_choice_type, field_2.field_choice_type);
+  assert_eq!(field_1.value_type, field_2.value_type);
   assert_eq!(field_1.text_value, field_2.text_value);
   assert_eq!(field_1.number_value, field_2.number_value);
-  assert_eq!(field_1.date_time_value, field_2.date_time_value);
+  assert_eq!(field_1.timestamp_value, field_2.timestamp_value);
 
 }
 
@@ -24,10 +24,10 @@ fn assert_field_is_equal_to_initial_properties(field_choice: &FieldChoice, initi
 
   assert_eq!(field_choice.field_id, initial_properties.field_id);
   assert_eq!(field_choice.description, initial_properties.description);
-  assert_eq!(field_choice.field_choice_type, initial_properties.field_choice_type);
+  assert_eq!(field_choice.value_type, initial_properties.value_type);
   assert_eq!(field_choice.text_value, initial_properties.text_value);
   assert_eq!(field_choice.number_value, initial_properties.number_value);
-  assert_eq!(field_choice.date_time_value, initial_properties.date_time_value);
+  assert_eq!(field_choice.timestamp_value, initial_properties.timestamp_value);
 
 }
 
@@ -64,7 +64,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let field_properties = InitialFieldChoiceProperties {
     field_id: field.id,
     description: Some(Uuid::now_v7().to_string()),
-    field_choice_type: FieldChoiceType::Text,
+    value_type: FieldChoiceType::Text,
     text_value: Some(Uuid::now_v7().to_string()),
     ..Default::default()
   };

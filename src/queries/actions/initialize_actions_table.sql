@@ -17,5 +17,7 @@ DO $$
             parent_resource_type action_parent_resource_type NOT NULL
         );
 
+        CREATE UNIQUE INDEX IF NOT EXISTS actions_name_unique ON actions (upper(name));
+
     END
 $$ LANGUAGE plpgsql;

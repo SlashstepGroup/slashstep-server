@@ -479,9 +479,60 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 selected_resource_type := 'App';
                 selected_resource_id := selected_resource_parent_id;
 
+            ELSIF selected_resource_type = 'DefaultFieldValue' THEN
+
+                -- DefaultFieldValue -> Field
+                -- Check if the default field value has an associated access policy.
+                SELECT
+                    permission_level,
+                    is_inheritance_enabled
+                INTO
+                    current_permission_Level,
+                    is_inheritance_enabled_on_selected_resource
+                FROM
+                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
+                WHERE
+                    principal_access_policies.scoped_resource_type = 'DefaultFieldValue' AND 
+                    principal_access_policies.scoped_default_field_value_id = selected_resource_id AND (
+                        NOT needs_inheritance OR
+                        principal_access_policies.is_inheritance_enabled
+                    )
+                LIMIT 1;
+
+                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
+
+                    RETURN FALSE;
+
+                ELSIF current_permission_Level IS NOT NULL THEN
+
+                    RETURN current_permission_Level >= 'User';
+
+                END IF;
+
+                -- Look for the parent resource type.
+                needs_inheritance := TRUE;
+
+                SELECT
+                    field_id
+                INTO
+                    selected_resource_parent_id
+                FROM
+                    default_field_values
+                WHERE
+                    default_field_values.id = selected_resource_id;
+
+                IF selected_resource_parent_id IS NULL THEN
+
+                    RAISE EXCEPTION 'Couldn''t find a parent field for default field value %.', selected_resource_id;
+
+                END IF;
+
+                selected_resource_type := 'Field';
+                selected_resource_id := selected_resource_parent_id;
+
             ELSIF selected_resource_type = 'Field' THEN
 
-                -- Field -> User | Workspace | Project
+                -- Field -> Workspace | Project
                 -- Check if the field has an associated access policy.
                 SELECT
                     permission_level,
@@ -521,27 +572,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 WHERE
                     fields.id = selected_resource_id;
 
-                IF selected_resource_parent_type = 'User' THEN
-
-                    SELECT
-                        parent_user_id
-                    INTO
-                        selected_resource_parent_id
-                    FROM
-                        fields
-                    WHERE
-                        fields.id = selected_resource_id;
-
-                    IF selected_resource_parent_id IS NULL THEN
-
-                        RAISE EXCEPTION 'Couldn''t find a parent user for field %.', selected_resource_id;
-
-                    END IF;
-
-                    selected_resource_type := 'User';
-                    selected_resource_id := selected_resource_parent_id;
-
-                ELSIF selected_resource_parent_type = 'Workspace' THEN
+                IF selected_resource_parent_type = 'Workspace' THEN
 
                     SELECT
                         parent_workspace_id

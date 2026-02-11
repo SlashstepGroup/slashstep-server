@@ -1,0 +1,1 @@
+SELECT * FROM default_field_values WHERE id = $1 LIMIT 1;
