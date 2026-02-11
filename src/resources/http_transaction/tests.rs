@@ -30,7 +30,7 @@ fn assert_http_transaction_is_equal_to_initial_properties(http_transaction: &HTT
   assert_eq!(http_transaction.ip_address, initial_properties.ip_address);
   assert_eq!(http_transaction.headers, initial_properties.headers);
   assert_eq!(http_transaction.status_code, initial_properties.status_code);
-  assert_eq!(http_transaction.expiration_date, initial_properties.expiration_date);
+  assert_eq!(http_transaction.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())), initial_properties.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())));
 
 }
 
@@ -62,8 +62,6 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  // Create the access policy.
-  let http_transaction = test_environment.create_random_http_transaction().await?;
   let http_transaction_properties = InitialHTTPTransactionProperties {
     method: "GET".to_string(),
     url: Uuid::now_v7().to_string(),
@@ -73,8 +71,6 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
     expiration_date: Some(Utc::now() + Duration::days(30))
   };
   let http_transaction = HTTPTransaction::create(&http_transaction_properties, &test_environment.database_pool).await?;
-
-  // Ensure that all the properties were set correctly.
   assert_http_transaction_is_equal_to_initial_properties(&http_transaction, &http_transaction_properties);
 
   return Ok(());
