@@ -282,6 +282,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "Delete a specific field choice on a particular scope.".to_string(),
       ..Default::default()
     },
+    InitialActionProperties { 
+      name: "slashstep.items.get".to_string(),
+      display_name: "Get items".to_string(),
+      description: "Get a specific item on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.items.list".to_string(),
+      display_name: "List items".to_string(),
+      description: "List all items on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.items.create".to_string(),
+      display_name: "Create items".to_string(),
+      description: "Create new items on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.items.update".to_string(),
+      display_name: "Update items".to_string(),
+      description: "Update items on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.items.delete".to_string(),
+      display_name: "Delete items".to_string(),
+      description: "Delete items on a particular scope.".to_string(),
+      ..Default::default()
+    },
     InitialActionProperties {
       name: "slashstep.projects.get".to_string(),
       display_name: "Get projects".to_string(),
