@@ -193,36 +193,6 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
-      name: "slashstep.fieldValues.get".to_string(),
-      display_name: "Get field values".to_string(),
-      description: "Get a specific field value on a particular scope.".to_string(),
-      ..Default::default()
-    },
-    InitialActionProperties {
-      name: "slashstep.fieldValues.list".to_string(),
-      display_name: "List field values".to_string(),
-      description: "List all field values on a particular scope.".to_string(),
-      ..Default::default()
-    },
-    InitialActionProperties {
-      name: "slashstep.fieldValues.create".to_string(),
-      display_name: "Create field values".to_string(),
-      description: "Create new field values on a particular scope.".to_string(),
-      ..Default::default()
-    },
-    InitialActionProperties {
-      name: "slashstep.fieldValues.update".to_string(),
-      display_name: "Update field values".to_string(),
-      description: "Update field values on a particular scope.".to_string(),
-      ..Default::default()
-    },
-    InitialActionProperties {
-      name: "slashstep.fieldValues.delete".to_string(),
-      display_name: "Delete field values".to_string(),
-      description: "Delete field values on a particular scope.".to_string(),
-      ..Default::default()
-    },
-    InitialActionProperties {
       name: "slashstep.fields.get".to_string(),
       display_name: "Get fields".to_string(),
       description: "Get a specific field on a particular scope.".to_string(),
@@ -280,6 +250,66 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       name: "slashstep.fieldChoices.delete".to_string(),
       display_name: "Delete field choice".to_string(),
       description: "Delete a specific field choice on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.fieldValues.get".to_string(),
+      display_name: "Get field values".to_string(),
+      description: "Get a specific field value on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.fieldValues.list".to_string(),
+      display_name: "List field values".to_string(),
+      description: "List all field values on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.fieldValues.create".to_string(),
+      display_name: "Create field values".to_string(),
+      description: "Create new field values on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.fieldValues.update".to_string(),
+      display_name: "Update field values".to_string(),
+      description: "Update field values on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.fieldValues.delete".to_string(),
+      display_name: "Delete field values".to_string(),
+      description: "Delete field values on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.groups.get".to_string(),
+      display_name: "Get groups".to_string(),
+      description: "Get a specific group on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.groups.list".to_string(),
+      display_name: "List groups".to_string(),
+      description: "List all groups on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.groups.create".to_string(),
+      display_name: "Create groups".to_string(),
+      description: "Create new groups on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.groups.update".to_string(),
+      display_name: "Update groups".to_string(),
+      description: "Update groups on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.groups.delete".to_string(),
+      display_name: "Delete groups".to_string(),
+      description: "Delete groups on a particular scope.".to_string(),
       ..Default::default()
     },
     InitialActionProperties { 

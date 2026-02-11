@@ -10,11 +10,12 @@ mod app_authorizations;
 mod app_authorization_credentials;
 #[path = "./app-credentials/mod.rs"]
 mod app_credentials;
-#[path = "./field-values/mod.rs"]
-mod field_values;
 mod fields;
 #[path = "./field-choices/mod.rs"]
 mod field_choices;
+#[path = "./field-values/mod.rs"]
+mod field_values;
+mod groups;
 mod items;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
@@ -41,9 +42,10 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(app_authorizations::get_router(state.clone()))
     .merge(app_authorization_credentials::get_router(state.clone()))
     .merge(app_credentials::get_router(state.clone()))
-    .merge(field_values::get_router(state.clone()))
     .merge(fields::get_router(state.clone()))
     .merge(field_choices::get_router(state.clone()))
+    .merge(field_values::get_router(state.clone()))
+    .merge(groups::get_router(state.clone()))
     .merge(items::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))
     .merge(projects::get_router(state.clone()))

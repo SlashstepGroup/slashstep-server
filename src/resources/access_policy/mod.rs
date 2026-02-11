@@ -309,11 +309,11 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_app_credential_id: Option<Uuid>,
 
-  pub scoped_field_value_id: Option<Uuid>,
-
   pub scoped_field_id: Option<Uuid>,
 
   pub scoped_field_choice_id: Option<Uuid>,
+
+  pub scoped_field_value_id: Option<Uuid>,
 
   pub scoped_group_id: Option<Uuid>,
 
@@ -409,11 +409,11 @@ pub struct AccessPolicy {
 
   pub scoped_app_credential_id: Option<Uuid>,
 
-  pub scoped_field_value_id: Option<Uuid>,
-
   pub scoped_field_id: Option<Uuid>,
 
   pub scoped_field_choice_id: Option<Uuid>,
+
+  pub scoped_field_value_id: Option<Uuid>,
 
   pub scoped_group_id: Option<Uuid>,
 
@@ -490,9 +490,10 @@ impl AccessPolicy {
       &initial_properties.scoped_app_authorization_id,
       &initial_properties.scoped_app_authorization_credential_id,
       &initial_properties.scoped_app_credential_id,
-      &initial_properties.scoped_field_value_id,
       &initial_properties.scoped_field_id,
       &initial_properties.scoped_field_choice_id,
+      &initial_properties.scoped_field_value_id,
+      &initial_properties.scoped_group_id,
       &initial_properties.scoped_group_membership_id,
       &initial_properties.scoped_http_transaction_id,
       &initial_properties.scoped_item_id,
@@ -575,9 +576,9 @@ impl AccessPolicy {
       scoped_app_authorization_id: row.get("scoped_app_authorization_id"),
       scoped_app_authorization_credential_id: row.get("scoped_app_authorization_credential_id"),
       scoped_app_credential_id: row.get("scoped_app_credential_id"),
-      scoped_field_value_id: row.get("scoped_field_value_id"),
       scoped_field_id: row.get("scoped_field_id"),
       scoped_field_choice_id: row.get("scoped_field_choice_id"),
+      scoped_field_value_id: row.get("scoped_field_value_id"),
       scoped_group_id: row.get("scoped_group_id"),
       scoped_group_membership_id: row.get("scoped_group_membership_id"),
       scoped_http_transaction_id: row.get("scoped_http_transaction_id"),

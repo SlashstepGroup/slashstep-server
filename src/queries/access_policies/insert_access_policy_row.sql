@@ -14,9 +14,10 @@ INSERT INTO access_policies (
   scoped_app_authorization_id,
   scoped_app_authorization_credential_id,
   scoped_app_credential_id,
-  scoped_field_value_id,
   scoped_field_id,
   scoped_field_choice_id,
+  scoped_field_value_id,
+  scoped_group_id,
   scoped_group_membership_id,
   scoped_http_transaction_id,
   scoped_item_id,
@@ -57,5 +58,6 @@ INSERT INTO access_policies (
   $26,
   $27,
   $28,
-  $29
+  $29,
+  $30
 ) RETURNING *;
