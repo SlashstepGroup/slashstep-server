@@ -16,6 +16,8 @@ mod field_choices;
 #[path = "./field-values/mod.rs"]
 mod field_values;
 mod groups;
+#[path = "./http-transactions/mod.rs"]
+mod http_transactions;
 mod items;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
@@ -46,6 +48,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(field_choices::get_router(state.clone()))
     .merge(field_values::get_router(state.clone()))
     .merge(groups::get_router(state.clone()))
+    .merge(http_transactions::get_router(state.clone()))
     .merge(items::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))
     .merge(projects::get_router(state.clone()))

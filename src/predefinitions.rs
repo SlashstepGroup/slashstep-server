@@ -312,6 +312,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "Delete groups on a particular scope.".to_string(),
       ..Default::default()
     },
+    InitialActionProperties {
+      name: "slashstep.httpTransactions.get".to_string(),
+      display_name: "Get HTTP transactions".to_string(),
+      description: "Get a specific HTTP transaction on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.httpTransactions.list".to_string(),
+      display_name: "List HTTP transactions".to_string(),
+      description: "List all HTTP transactions on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.httpTransactions.create".to_string(),
+      display_name: "Create HTTP transactions".to_string(),
+      description: "Create new HTTP transactions on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.httpTransactions.update".to_string(),
+      display_name: "Update HTTP transactions".to_string(),
+      description: "Update HTTP transactions on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.httpTransactions.delete".to_string(),
+      display_name: "Delete HTTP transactions".to_string(),
+      description: "Delete HTTP transactions on a particular scope.".to_string(),
+      ..Default::default()
+    },
     InitialActionProperties { 
       name: "slashstep.items.get".to_string(),
       display_name: "Get items".to_string(),

@@ -484,6 +484,13 @@ pub async fn get_group_by_id(group_id: &Uuid, http_transaction: &HTTPTransaction
 
 }
 
+pub async fn get_http_transaction_by_id(http_transaction_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<HTTPTransaction, HTTPError> {
+
+  let target_http_transaction = get_resource_by_id::<HTTPTransaction, _>("HTTP transaction", &http_transaction_id, &http_transaction, &database_pool, |http_transaction_id, database_pool| Box::new(HTTPTransaction::get_by_id(http_transaction_id, database_pool))).await?;
+  return Ok(target_http_transaction);
+
+}
+
 pub async fn get_resource_by_id<ResourceStruct, GetResourceByIDFunction>(
   resource_type_name_singular: &str, 
   resource_id: &Uuid, 
