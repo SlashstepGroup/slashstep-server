@@ -1,9 +1,9 @@
-INSERT INTO field_choices (
+INSERT INTO default_field_values (
   field_id,
-  description,
   value_type,
   text_value,
   number_value,
+  boolean_value,
   timestamp_value,
   stakeholder_type,
   stakeholder_user_id,

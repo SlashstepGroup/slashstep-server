@@ -65,7 +65,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   assert_eq!(response_field.display_name, field.display_name);
   assert_eq!(response_field.description, field.description);
   assert_eq!(response_field.is_required, field.is_required);
-  assert_eq!(response_field.field_type, field.field_type);
+  assert_eq!(response_field.field_value_type, field.field_value_type);
   assert_eq!(response_field.minimum_value, field.minimum_value);
   assert_eq!(response_field.maximum_value, field.maximum_value);
   assert_eq!(response_field.minimum_choice_count, field.minimum_choice_count);
@@ -73,7 +73,6 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   assert_eq!(response_field.parent_resource_type, field.parent_resource_type);
   assert_eq!(response_field.parent_project_id, field.parent_project_id);
   assert_eq!(response_field.parent_workspace_id, field.parent_workspace_id);
-  assert_eq!(response_field.parent_user_id, field.parent_user_id);
 
   return Ok(());
   

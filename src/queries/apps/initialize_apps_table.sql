@@ -27,5 +27,7 @@ begin
     client_secret_hash text
   );
 
+  CREATE UNIQUE INDEX IF NOT EXISTS apps_name_unique ON apps (upper(name));
+
 end
 $$ LANGUAGE plpgsql;

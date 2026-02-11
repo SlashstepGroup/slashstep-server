@@ -1,3 +1,5 @@
+use postgres_types::{FromSql, ToSql};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::SlashstepQLError};
 
@@ -9,6 +11,7 @@ pub mod app_authorization;
 pub mod app_credential;
 pub mod app;
 pub mod delegation_policy;
+pub mod default_field_value;
 pub mod field;
 pub mod field_choice;
 pub mod group;
@@ -24,6 +27,15 @@ pub mod user;
 pub mod server_log_entry;
 pub mod session;
 pub mod workspace;
+
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[postgres(name = "stakeholder_type")]
+pub enum StakeholderType {
+  #[default]
+  User,
+  Group,
+  App
+}
 
 #[derive(Debug, Error)]
 pub enum ResourceError {

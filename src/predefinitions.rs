@@ -193,6 +193,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "slashstep.defaultFieldValues.get".to_string(),
+      display_name: "Get default field values".to_string(),
+      description: "Get a specific default field value on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.defaultFieldValues.list".to_string(),
+      display_name: "List default field values".to_string(),
+      description: "List all default field values on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.defaultFieldValues.create".to_string(),
+      display_name: "Create default field values".to_string(),
+      description: "Create new default field values on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.defaultFieldValues.update".to_string(),
+      display_name: "Update default field values".to_string(),
+      description: "Update default field values on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.defaultFieldValues.delete".to_string(),
+      display_name: "Delete default field values".to_string(),
+      description: "Delete default field values on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "slashstep.fields.get".to_string(),
       display_name: "Get fields".to_string(),
       description: "Get a specific field on a particular scope.".to_string(),
