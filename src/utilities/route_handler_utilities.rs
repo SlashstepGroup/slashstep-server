@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, project::Project, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, project::Project, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use colored::Colorize;
 use pg_escape::quote_literal;
 use postgres::error::SqlState;
@@ -495,6 +495,13 @@ pub async fn get_item_connection_by_id(item_connection_id: &Uuid, http_transacti
 
   let target_item_connection = get_resource_by_id::<ItemConnection, _>("item connection", &item_connection_id, &http_transaction, &database_pool, |item_connection_id, database_pool| Box::new(ItemConnection::get_by_id(item_connection_id, database_pool))).await?;
   return Ok(target_item_connection);
+
+}
+
+pub async fn get_item_connection_type_by_id(item_connection_type_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ItemConnectionType, HTTPError> {
+
+  let target_item_connection_type = get_resource_by_id::<ItemConnectionType, _>("item connection type", &item_connection_type_id, &http_transaction, &database_pool, |item_connection_type_id, database_pool| Box::new(ItemConnectionType::get_by_id(item_connection_type_id, database_pool))).await?;
+  return Ok(target_item_connection_type);
 
 }
 

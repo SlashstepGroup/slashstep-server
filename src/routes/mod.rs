@@ -21,6 +21,8 @@ mod http_transactions;
 mod items;
 #[path = "./item-connections/mod.rs"]
 mod item_connections;
+#[path = "./item-connection-types/mod.rs"]
+mod item_connection_types;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
 mod projects;
@@ -53,6 +55,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(http_transactions::get_router(state.clone()))
     .merge(items::get_router(state.clone()))
     .merge(item_connections::get_router(state.clone()))
+    .merge(item_connection_types::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))
     .merge(projects::get_router(state.clone()))
     .merge(users::get_router(state.clone()))
