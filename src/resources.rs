@@ -18,6 +18,8 @@ pub mod group;
 pub mod group_membership;
 pub mod http_transaction;
 pub mod item;
+pub mod item_connection;
+pub mod item_connection_type;
 pub mod milestone;
 pub mod oauth_authorization;
 pub mod project;

@@ -1,0 +1,1 @@
+DELETE FROM item_connections WHERE id = $1;

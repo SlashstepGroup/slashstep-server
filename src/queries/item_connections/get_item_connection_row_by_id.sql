@@ -1,0 +1,1 @@
+SELECT * FROM item_connections WHERE id = $1 LIMIT 1;

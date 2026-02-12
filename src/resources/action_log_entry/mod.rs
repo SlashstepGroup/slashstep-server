@@ -90,6 +90,8 @@ pub enum ActionLogEntryTargetResourceType {
   #[default]
   Server,
   Item,
+  ItemConnection,
+  ItemConnectionType,
   Milestone,
   OAuthAuthorization,
   Project,
@@ -166,6 +168,12 @@ pub struct ActionLogEntry {
 
   /// The target item ID of the action, if applicable.
   pub target_item_id: Option<Uuid>,
+
+  /// The target item connection ID of the action, if applicable.
+  pub target_item_connection_id: Option<Uuid>,
+
+  /// The target item connection type ID of the action, if applicable.
+  pub target_item_connection_type_id: Option<Uuid>,
 
   /// The target milestone ID of the action, if applicable.
   pub target_milestone_id: Option<Uuid>,
@@ -262,6 +270,12 @@ pub struct InitialActionLogEntryProperties {
   /// The target item ID of the action, if applicable.
   pub target_item_id: Option<Uuid>,
 
+  /// The target item connection ID of the action, if applicable.
+  pub target_item_connection_id: Option<Uuid>,
+
+  /// The target item connection type ID of the action, if applicable.
+  pub target_item_connection_type_id: Option<Uuid>,
+
   /// The target milestone ID of the action, if applicable.
   pub target_milestone_id: Option<Uuid>,
 
@@ -346,6 +360,8 @@ impl ActionLogEntry {
       target_group_membership_id: row.get("target_group_membership_id"),
       target_http_transaction_id: row.get("target_http_transaction_id"),
       target_item_id: row.get("target_item_id"),
+      target_item_connection_id: row.get("target_item_connection_id"),
+      target_item_connection_type_id: row.get("target_item_connection_type_id"),
       target_milestone_id: row.get("target_milestone_id"),
       target_oauth_authorization_id: row.get("target_oauth_authorization_id"),
       target_project_id: row.get("target_project_id"),
@@ -410,6 +426,8 @@ impl ActionLogEntry {
       &initial_properties.target_group_membership_id,
       &initial_properties.target_http_transaction_id,
       &initial_properties.target_item_id,
+      &initial_properties.target_item_connection_id,
+      &initial_properties.target_item_connection_type_id,
       &initial_properties.target_milestone_id,
       &initial_properties.target_oauth_authorization_id,
       &initial_properties.target_project_id,

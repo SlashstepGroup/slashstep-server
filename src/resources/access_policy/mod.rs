@@ -46,7 +46,9 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_field_choice_id",
   "scoped_group_id",
   "scoped_http_transaction_id",
-  "scoped_item_id", 
+  "scoped_item_id",
+  "scoped_item_connection_id",
+  "scoped_item_connection_type_id",
   "scoped_milestone_id", 
   "scoped_project_id", 
   "scoped_role_id", 
@@ -74,7 +76,9 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_group_id",
   "scoped_http_transaction_id",
   "scoped_app_credential_id",
-  "scoped_item_id", 
+  "scoped_item_id",
+  "scoped_item_connection_id",
+  "scoped_item_connection_type_id",
   "scoped_milestone_id", 
   "scoped_project_id", 
   "scoped_role_id", 
@@ -142,6 +146,8 @@ pub enum AccessPolicyResourceType {
   #[default]
   Server,
   Item,
+  ItemConnection,
+  ItemConnectionType,
   Project,
   Role,
   RoleMembership,
@@ -169,6 +175,8 @@ impl fmt::Display for AccessPolicyResourceType {
       AccessPolicyResourceType::HTTPTransaction => write!(formatter, "HTTPTransaction"),
       AccessPolicyResourceType::Server => write!(formatter, "Server"),
       AccessPolicyResourceType::Item => write!(formatter, "Item"),
+      AccessPolicyResourceType::ItemConnection => write!(formatter, "ItemConnection"),
+      AccessPolicyResourceType::ItemConnectionType => write!(formatter, "ItemConnectionType"),
       AccessPolicyResourceType::Milestone => write!(formatter, "Milestone"),
       AccessPolicyResourceType::Project => write!(formatter, "Project"),
       AccessPolicyResourceType::Role => write!(formatter, "Role"),
@@ -202,6 +210,8 @@ impl FromStr for AccessPolicyResourceType {
       "HTTPTransaction" => Ok(AccessPolicyResourceType::HTTPTransaction),
       "Server" => Ok(AccessPolicyResourceType::Server),
       "Item" => Ok(AccessPolicyResourceType::Item),
+      "ItemConnection" => Ok(AccessPolicyResourceType::ItemConnection),
+      "ItemConnectionType" => Ok(AccessPolicyResourceType::ItemConnectionType),
       "Milestone" => Ok(AccessPolicyResourceType::Milestone),
       "Project" => Ok(AccessPolicyResourceType::Project),
       "Role" => Ok(AccessPolicyResourceType::Role),
@@ -325,6 +335,10 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_item_id: Option<Uuid>,
 
+  pub scoped_item_connection_id: Option<Uuid>,
+
+  pub scoped_item_connection_type_id: Option<Uuid>,
+
   pub scoped_milestone_id: Option<Uuid>,
 
   pub scoped_project_id: Option<Uuid>,
@@ -425,6 +439,10 @@ pub struct AccessPolicy {
 
   pub scoped_item_id: Option<Uuid>,
 
+  pub scoped_item_connection_id: Option<Uuid>,
+
+  pub scoped_item_connection_type_id: Option<Uuid>,
+
   pub scoped_milestone_id: Option<Uuid>,
 
   pub scoped_project_id: Option<Uuid>,
@@ -499,6 +517,8 @@ impl AccessPolicy {
       &initial_properties.scoped_group_membership_id,
       &initial_properties.scoped_http_transaction_id,
       &initial_properties.scoped_item_id,
+      &initial_properties.scoped_item_connection_id,
+      &initial_properties.scoped_item_connection_type_id,
       &initial_properties.scoped_milestone_id,
       &initial_properties.scoped_project_id,
       &initial_properties.scoped_role_id,
@@ -585,6 +605,8 @@ impl AccessPolicy {
       scoped_group_membership_id: row.get("scoped_group_membership_id"),
       scoped_http_transaction_id: row.get("scoped_http_transaction_id"),
       scoped_item_id: row.get("scoped_item_id"),
+      scoped_item_connection_id: row.get("scoped_item_connection_id"),
+      scoped_item_connection_type_id: row.get("scoped_item_connection_type_id"),
       scoped_milestone_id: row.get("scoped_milestone_id"),
       scoped_project_id: row.get("scoped_project_id"),
       scoped_role_id: row.get("scoped_role_id"),
@@ -753,6 +775,8 @@ impl AccessPolicy {
             AccessPolicyResourceType::HTTPTransaction => "An HTTP transaction ID must be provided.",
             AccessPolicyResourceType::Server => "An server ID must be provided.", // Huh??
             AccessPolicyResourceType::Item => "An item ID must be provided.",
+            AccessPolicyResourceType::ItemConnection => "An item connection ID must be provided.",
+            AccessPolicyResourceType::ItemConnectionType => "An item connection type ID must be provided.",
             AccessPolicyResourceType::Milestone => "A milestone ID must be provided.",
             AccessPolicyResourceType::Project => "A project ID must be provided.",
             AccessPolicyResourceType::Role => "A role ID must be provided.",
@@ -885,6 +909,8 @@ impl AccessPolicy {
       AccessPolicyResourceType::HTTPTransaction => self.scoped_http_transaction_id,
       AccessPolicyResourceType::Server => None,
       AccessPolicyResourceType::Item => self.scoped_item_id,
+      AccessPolicyResourceType::ItemConnection => self.scoped_item_connection_id,
+      AccessPolicyResourceType::ItemConnectionType => self.scoped_item_connection_type_id,
       AccessPolicyResourceType::Milestone => self.scoped_milestone_id,
       AccessPolicyResourceType::Project => self.scoped_project_id,
       AccessPolicyResourceType::Role => self.scoped_role_id,

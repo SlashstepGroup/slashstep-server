@@ -3,21 +3,29 @@ use crate::{initialize_required_tables, resources::{DeletableResource, ResourceE
 fn assert_action_log_entry_is_equal_to_initial_properties(action_log_entry: &ActionLogEntry, initial_properties: &InitialActionLogEntryProperties) {
 
   assert_eq!(action_log_entry.action_id, initial_properties.action_id);
+  assert_eq!(action_log_entry.http_transaction_id, initial_properties.http_transaction_id);
   assert_eq!(action_log_entry.actor_type, initial_properties.actor_type);
   assert_eq!(action_log_entry.actor_user_id, initial_properties.actor_user_id);
   assert_eq!(action_log_entry.actor_app_id, initial_properties.actor_app_id);
   assert_eq!(action_log_entry.target_resource_type, initial_properties.target_resource_type);
+  assert_eq!(action_log_entry.target_access_policy_id, initial_properties.target_access_policy_id);
   assert_eq!(action_log_entry.target_action_id, initial_properties.target_action_id);
   assert_eq!(action_log_entry.target_action_log_entry_id, initial_properties.target_action_log_entry_id);
   assert_eq!(action_log_entry.target_app_id, initial_properties.target_app_id);
   assert_eq!(action_log_entry.target_app_authorization_id, initial_properties.target_app_authorization_id);
   assert_eq!(action_log_entry.target_app_authorization_credential_id, initial_properties.target_app_authorization_credential_id);
   assert_eq!(action_log_entry.target_app_credential_id, initial_properties.target_app_credential_id);
+  assert_eq!(action_log_entry.target_field_value_id, initial_properties.target_field_value_id);
+  assert_eq!(action_log_entry.target_field_id, initial_properties.target_field_id);
+  assert_eq!(action_log_entry.target_field_choice_id, initial_properties.target_field_choice_id);
   assert_eq!(action_log_entry.target_group_id, initial_properties.target_group_id);
   assert_eq!(action_log_entry.target_group_membership_id, initial_properties.target_group_membership_id);
   assert_eq!(action_log_entry.target_http_transaction_id, initial_properties.target_http_transaction_id);
-  assert_eq!(action_log_entry.target_item_id, initial_properties.target_item_id);
+  assert_eq!(action_log_entry.target_item_id, initial_properties.target_item_connection_id);
+  assert_eq!(action_log_entry.target_item_connection_id, initial_properties.target_item_connection_id);
+  assert_eq!(action_log_entry.target_item_connection_type_id, initial_properties.target_item_connection_type_id);
   assert_eq!(action_log_entry.target_milestone_id, initial_properties.target_milestone_id);
+  assert_eq!(action_log_entry.target_oauth_authorization_id, initial_properties.target_oauth_authorization_id);
   assert_eq!(action_log_entry.target_project_id, initial_properties.target_project_id);
   assert_eq!(action_log_entry.target_role_id, initial_properties.target_role_id);
   assert_eq!(action_log_entry.target_role_membership_id, initial_properties.target_role_membership_id);

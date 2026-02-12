@@ -19,6 +19,8 @@ mod groups;
 #[path = "./http-transactions/mod.rs"]
 mod http_transactions;
 mod items;
+#[path = "./item-connections/mod.rs"]
+mod item_connections;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
 mod projects;
@@ -50,6 +52,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(groups::get_router(state.clone()))
     .merge(http_transactions::get_router(state.clone()))
     .merge(items::get_router(state.clone()))
+    .merge(item_connections::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))
     .merge(projects::get_router(state.clone()))
     .merge(users::get_router(state.clone()))

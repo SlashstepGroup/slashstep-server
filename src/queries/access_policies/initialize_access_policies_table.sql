@@ -9,7 +9,7 @@ DO $$
       );
     END IF;
 
-    if not exists (SELECT 1 FROM pg_type WHERE typname = 'resource_type') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'resource_type') THEN
       CREATE TYPE resource_type AS ENUM (
         'AccessPolicy',
         'Action',
@@ -26,6 +26,8 @@ DO $$
         'HTTPTransaction',
         'Server',
         'Item',
+        'ItemConnection',
+        'ItemConnectionType',
         'Milestone',
         'Project',
         'Role',
@@ -37,7 +39,7 @@ DO $$
       );
     END IF;
 
-    if not exists (SELECT 1 FROM pg_type WHERE typname = 'access_policy_resource_type') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'access_policy_resource_type') THEN
       CREATE TYPE access_policy_resource_type AS ENUM (
         'Action',
         'ActionLogEntry',
@@ -53,6 +55,8 @@ DO $$
         'HTTPTransaction',
         'Server',
         'Item',
+        'ItemConnection',
+        'ItemConnectionType',
         'Milestone',
         'Project',
         'Role',
@@ -64,7 +68,7 @@ DO $$
       );
     END IF;
 
-    if not exists (SELECT 1 FROM pg_type WHERE typname = 'principal_type') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'principal_type') THEN
       CREATE TYPE principal_type AS ENUM (
         'User',
         'Group',
@@ -74,50 +78,52 @@ DO $$
     END IF;
 
     CREATE TABLE IF NOT EXISTS access_policies (
-      id UUID default uuidv7() primary key,
+      id UUID DEFAULT uuidv7() primary key,
 
       /* Principals */
-      principal_type principal_type not null,
-      principal_user_id UUID references users(id) on delete cascade,
-      principal_group_id UUID references groups(id) on delete cascade,
-      principal_role_id UUID references roles(id) on delete cascade,
-      principal_app_id UUID references apps(id) on delete cascade,
+      principal_type principal_type NOT NULL,
+      principal_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      principal_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+      principal_role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
+      principal_app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
 
       /* Scopes */
-      scoped_resource_type access_policy_resource_type not null,
-      scoped_action_id UUID references actions(id) on delete cascade,
-      scoped_action_log_entry_id UUID references action_log_entries(id) on delete cascade,
-      scoped_app_id UUID references apps(id) on delete cascade,
-      scoped_app_authorization_id UUID references app_authorizations(id) on delete cascade,
-      scoped_app_authorization_credential_id UUID references app_authorization_credentials(id) on delete cascade,
-      scoped_app_credential_id UUID references app_credentials(id) on delete cascade,
-      scoped_field_id UUID references fields(id) on delete cascade,
-      scoped_field_choice_id UUID references field_choices(id) on delete cascade,
-      scoped_field_value_id UUID references field_values(id) on delete cascade,
-      scoped_group_id UUID references groups(id) on delete cascade,
-      scoped_group_membership_id UUID references group_memberships(id) on delete cascade,
-      scoped_http_transaction_id UUID references http_transactions(id) on delete cascade,
-      scoped_item_id UUID references items(id) on delete cascade,
-      scoped_milestone_id UUID references milestones(id) on delete cascade,
-      scoped_project_id UUID references projects(id) on delete cascade,
-      scoped_role_id UUID references roles(id) on delete cascade,
-      scoped_role_membership_id UUID references role_memberships(id) on delete cascade,
-      scoped_server_log_entry_id UUID references server_log_entries(id) on delete cascade,
-      scoped_session_id UUID references sessions(id) on delete cascade,
-      scoped_user_id UUID references users(id) on delete cascade,
-      scoped_workspace_id UUID references workspaces(id) on delete cascade,
+      scoped_resource_type access_policy_resource_type NOT NULL,
+      scoped_action_id UUID REFERENCES actions(id) ON DELETE CASCADE,
+      scoped_action_log_entry_id UUID REFERENCES action_log_entries(id) ON DELETE CASCADE,
+      scoped_app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
+      scoped_app_authorization_id UUID REFERENCES app_authorizations(id) ON DELETE CASCADE,
+      scoped_app_authorization_credential_id UUID REFERENCES app_authorization_credentials(id) ON DELETE CASCADE,
+      scoped_app_credential_id UUID REFERENCES app_credentials(id) ON DELETE CASCADE,
+      scoped_field_id UUID REFERENCES fields(id) ON DELETE CASCADE,
+      scoped_field_choice_id UUID REFERENCES field_choices(id) ON DELETE CASCADE,
+      scoped_field_value_id UUID REFERENCES field_values(id) ON DELETE CASCADE,
+      scoped_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+      scoped_group_membership_id UUID REFERENCES group_memberships(id) ON DELETE CASCADE,
+      scoped_http_transaction_id UUID REFERENCES http_transactions(id) ON DELETE CASCADE,
+      scoped_item_id UUID REFERENCES items(id) ON DELETE CASCADE,
+      scoped_item_connection_id UUID REFERENCES item_connections(id) ON DELETE CASCADE,
+      scoped_item_connection_type_id UUID REFERENCES item_connection_types(id) ON DELETE CASCADE,
+      scoped_milestone_id UUID REFERENCES milestones(id) ON DELETE CASCADE,
+      scoped_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+      scoped_role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
+      scoped_role_membership_id UUID REFERENCES role_memberships(id) ON DELETE CASCADE,
+      scoped_server_log_entry_id UUID REFERENCES server_log_entries(id) ON DELETE CASCADE,
+      scoped_session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+      scoped_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      scoped_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
 
       /* Permissions */
-      action_id UUID not null references actions(id) on delete cascade,
-      permission_level permission_level not null,
-      is_inheritance_enabled BOOLEAN not null,
+      action_id UUID NOT NULL REFERENCES actions(id) ON DELETE CASCADE,
+      permission_level permission_level NOT NULL,
+      is_inheritance_enabled BOOLEAN NOT NULL,
 
       /* Constraints */
       constraint one_principal_type check (
-        (principal_type = 'User' and principal_user_id is not null and principal_group_id is null and principal_role_id is null and principal_app_id is null)
-        or (principal_type = 'Group' and principal_user_id is null and principal_group_id is not null and principal_role_id is null and principal_app_id is null)
-        or (principal_type = 'Role' and principal_user_id is null and principal_group_id is null and principal_role_id is not null and principal_app_id is null)
-        or (principal_type = 'App' and principal_user_id is null and principal_group_id is null and principal_role_id is null and principal_app_id is not null)
+        (principal_type = 'User' and principal_user_id IS NOT NULL and principal_group_id IS NULL and principal_role_id IS NULL and principal_app_id IS NULL)
+        or (principal_type = 'Group' and principal_user_id IS NULL and principal_group_id IS NOT NULL and principal_role_id IS NULL and principal_app_id IS NULL)
+        or (principal_type = 'Role' and principal_user_id IS NULL and principal_group_id IS NULL and principal_role_id IS NOT NULL and principal_app_id IS NULL)
+        or (principal_type = 'App' and principal_user_id IS NULL and principal_group_id IS NULL and principal_role_id IS NULL and principal_app_id IS NOT NULL)
       ),
 
       -- Verifies that there is only one scoped resource ID provided at most.
@@ -137,6 +143,8 @@ DO $$
           AND scoped_group_membership_id IS NULL
           AND scoped_http_transaction_id IS NULL
           AND scoped_item_id IS NULL
+          AND scoped_item_connection_id IS NULL
+          AND scoped_item_connection_type_id IS NULL
           AND scoped_milestone_id IS NULL
           AND scoped_project_id IS NULL
           AND scoped_role_id IS NULL
@@ -159,6 +167,8 @@ DO $$
           (scoped_group_membership_id IS NOT NULL)::INTEGER +
           (scoped_http_transaction_id IS NOT NULL)::INTEGER +
           (scoped_item_id IS NOT NULL)::INTEGER +
+          (scoped_item_connection_id IS NOT NULL)::INTEGER +
+          (scoped_item_connection_type_id IS NOT NULL)::INTEGER +
           (scoped_milestone_id IS NOT NULL)::INTEGER +
           (scoped_project_id IS NOT NULL)::INTEGER +
           (scoped_role_id IS NOT NULL)::INTEGER +
@@ -186,6 +196,8 @@ DO $$
         OR (scoped_resource_type = 'GroupMembership' AND scoped_group_membership_id IS NOT NULL)
         OR (scoped_resource_type = 'HTTPTransaction' AND scoped_http_transaction_id IS NOT NULL)
         OR (scoped_resource_type = 'Item' AND scoped_item_id IS NOT NULL)
+        OR (scoped_resource_type = 'ItemConnection' AND scoped_item_connection_id IS NOT NULL)
+        OR (scoped_resource_type = 'ItemConnectionType' AND scoped_item_connection_type_id IS NOT NULL)
         OR (scoped_resource_type = 'Milestone' AND scoped_milestone_id IS NOT NULL)
         OR (scoped_resource_type = 'Project' AND scoped_project_id IS NOT NULL)
         OR (scoped_resource_type = 'Role' AND scoped_role_id IS NOT NULL)

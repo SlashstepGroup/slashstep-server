@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, group_membership::GroupMembership, item::Item, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, role_memberships::RoleMembership, session::Session};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, group_membership::GroupMembership, item::Item, item_connection::ItemConnection, item_connection_type::{ItemConnectionType, ItemConnectionTypeParentResourceType}, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, role_memberships::RoleMembership, session::Session};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -12,6 +12,9 @@ pub enum ResourceHierarchyError {
 
   #[error("An ancestor resource of type {0} is required.")]
   OrphanedResourceError(AccessPolicyResourceType, ResourceHierarchy),
+
+  #[error("{0} resources have multiple owners. Use the get_all_hierarchies() function to get all the resource hierarchies.")]
+  MultipleOwnersError(AccessPolicyResourceType),
 
   #[error(transparent)]
   ResourceError(#[from] ResourceError)
@@ -511,6 +514,70 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
+      // ItemConnection -> Item + Item
+      AccessPolicyResourceType::ItemConnection => {
+
+        return Err(ResourceHierarchyError::MultipleOwnersError(AccessPolicyResourceType::ItemConnection));
+
+      },
+
+      // ItemConnectionType -> (Project | Workspace)
+      AccessPolicyResourceType::ItemConnectionType => {
+
+        let Some(item_connection_type_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::ItemConnectionType));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::ItemConnectionType, Some(item_connection_type_id)));
+
+        let item_connection_type = match ItemConnectionType::get_by_id(&item_connection_type_id, database_pool).await {
+
+          Ok(item_connection_type) => item_connection_type,
+
+          Err(error) => match error {
+
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::ItemConnectionType, hierarchy)),
+
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
+
+          }
+
+        };
+        
+        match item_connection_type.parent_resource_type {
+
+          ItemConnectionTypeParentResourceType::Project => {
+
+            let Some(project_id) = item_connection_type.parent_project_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Project));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Project;
+            selected_resource_id = Some(project_id);
+
+          },
+
+          ItemConnectionTypeParentResourceType::Workspace => {
+
+            let Some(workspace_id) = item_connection_type.parent_workspace_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Workspace));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Workspace;
+            selected_resource_id = Some(workspace_id);
+
+          }
+
+        }
+
+      },
+
       // Milestone -> (Project | Workspace)
       AccessPolicyResourceType::Milestone => {
 
@@ -790,5 +857,43 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
   hierarchy.push((AccessPolicyResourceType::Server, None));
 
   return Ok(hierarchy);
+
+}
+
+pub async fn get_all_hierarchies(scoped_resource_type: &AccessPolicyResourceType, scoped_resource_id: Option<&Uuid>, database_pool: &deadpool_postgres::Pool) -> Result<Vec<ResourceHierarchy>, ResourceHierarchyError> {
+
+  let mut hierarchies: Vec<ResourceHierarchy> = Vec::new();
+
+  match scoped_resource_type {
+
+    AccessPolicyResourceType::ItemConnection => {
+
+      let Some(&scoped_item_id) = scoped_resource_id else {
+
+        return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Item));
+
+      };
+
+      let item_connection = ItemConnection::get_by_id(&scoped_item_id, database_pool).await?;
+
+      let mut inward_hierarchy = get_hierarchy(&AccessPolicyResourceType::Item, Some(&item_connection.inward_item_id), &database_pool).await?;
+      let mut outward_hierarchy = get_hierarchy(&AccessPolicyResourceType::Item, Some(&item_connection.outward_item_id), &database_pool).await?;
+      inward_hierarchy.insert(0, (AccessPolicyResourceType::ItemConnection, Some(scoped_item_id)));
+      outward_hierarchy.insert(0, (AccessPolicyResourceType::ItemConnection, Some(scoped_item_id)));
+      hierarchies.push(inward_hierarchy);
+      hierarchies.push(outward_hierarchy);
+
+    }
+
+    scoped_resource_type => {
+
+      let hierarchy = get_hierarchy(scoped_resource_type, scoped_resource_id, database_pool).await?;
+      hierarchies.push(hierarchy);
+
+    }
+
+  }
+
+  return Ok(hierarchies);
 
 }

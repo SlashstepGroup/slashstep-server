@@ -372,6 +372,66 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "Delete items on a particular scope.".to_string(),
       ..Default::default()
     },
+    InitialActionProperties { 
+      name: "slashstep.itemConnections.get".to_string(),
+      display_name: "Get item connections".to_string(),
+      description: "Get a specific item connection on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnections.list".to_string(),
+      display_name: "List item connections".to_string(),
+      description: "List all item connections on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnections.create".to_string(),
+      display_name: "Create item connections".to_string(),
+      description: "Create new item connections on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnections.update".to_string(),
+      display_name: "Update item connections".to_string(),
+      description: "Update item connections on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnections.delete".to_string(),
+      display_name: "Delete item connections".to_string(),
+      description: "Delete item connections on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnectionTypes.get".to_string(),
+      display_name: "Get item connection types".to_string(),
+      description: "Get a specific item connection type on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnectionTypes.list".to_string(),
+      display_name: "List item connection types".to_string(),
+      description: "List all item connection types on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnectionTypes.create".to_string(),
+      display_name: "Create item connection types".to_string(),
+      description: "Create new item connection types on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnectionTypes.update".to_string(),
+      display_name: "Update item connection types".to_string(),
+      description: "Update item connection types on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.itemConnectionTypes.delete".to_string(),
+      display_name: "Delete item connection types".to_string(),
+      description: "Delete item connection types on a particular scope.".to_string(),
+      ..Default::default()
+    },
     InitialActionProperties {
       name: "slashstep.projects.get".to_string(),
       display_name: "Get projects".to_string(),
