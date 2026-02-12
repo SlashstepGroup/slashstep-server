@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, group_membership::GroupMembership, item::Item, item_connection::ItemConnection, item_connection_type::{ItemConnectionType, ItemConnectionTypeParentResourceType}, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, role_memberships::RoleMembership, session::Session};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, item::Item, item_connection::ItemConnection, item_connection_type::{ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{Membership, MembershipParentResourceType}, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, session::Session};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -435,36 +435,6 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // GroupMembership -> Group
-      AccessPolicyResourceType::GroupMembership => {
-
-        let Some(group_membership_id) = selected_resource_id else {
-
-          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::GroupMembership));
-
-        };
-
-        hierarchy.push((AccessPolicyResourceType::GroupMembership, Some(group_membership_id)));
-
-        let group_membership = match GroupMembership::get_by_id(&group_membership_id, database_pool).await {
-
-          Ok(group_membership) => group_membership,
-
-          Err(error) => match error {
-
-            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::GroupMembership, hierarchy)),
-
-            _ => return Err(ResourceHierarchyError::ResourceError(error))
-
-          }
-
-        };
-
-        selected_resource_type = AccessPolicyResourceType::Group;
-        selected_resource_id = Some(group_membership.group_id);
-
-      },
-
       // HTTPTransaction -> Server
       AccessPolicyResourceType::HTTPTransaction => {
 
@@ -577,6 +547,63 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
         }
 
       },
+
+      // Membership -> (Group | Role)
+      AccessPolicyResourceType::Membership => {
+
+        let Some(role_membership_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Membership));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::Membership, Some(role_membership_id)));
+
+        let membership = match Membership::get_by_id(&role_membership_id, database_pool).await {
+
+          Ok(membership) => membership,
+
+          Err(error) => match error {
+
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::Membership, hierarchy)),
+
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
+
+          }
+
+        };
+
+        match membership.parent_resource_type {
+
+          MembershipParentResourceType::Group => {
+
+            let Some(group_id) = membership.parent_group_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Group));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Group;
+            selected_resource_id = Some(group_id);
+
+          },
+
+          MembershipParentResourceType::Role => {
+
+            let Some(role_id) = membership.parent_role_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Role));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Role;
+            selected_resource_id = Some(role_id);
+
+          }
+
+        }
+
+      }
 
       // Milestone -> (Project | Workspace)
       AccessPolicyResourceType::Milestone => {
@@ -741,36 +768,6 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
         }
 
       },
-
-      // RoleMembership -> Role
-      AccessPolicyResourceType::RoleMembership => {
-
-        let Some(role_membership_id) = selected_resource_id else {
-
-          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::RoleMembership));
-
-        };
-
-        hierarchy.push((AccessPolicyResourceType::RoleMembership, Some(role_membership_id)));
-
-        let role_membership = match RoleMembership::get_by_id(&role_membership_id, database_pool).await {
-
-          Ok(role_membership) => role_membership,
-
-          Err(error) => match error {
-
-            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::RoleMembership, hierarchy)),
-
-            _ => return Err(ResourceHierarchyError::ResourceError(error))
-
-          }
-
-        };
-
-        selected_resource_type = AccessPolicyResourceType::Role;
-        selected_resource_id = Some(role_membership.role_id);
-
-      }
 
       // ServerLogEntry -> Server
       AccessPolicyResourceType::ServerLogEntry => {

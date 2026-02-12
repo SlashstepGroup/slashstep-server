@@ -85,18 +85,17 @@ pub enum ActionLogEntryTargetResourceType {
   Field,
   FieldChoice,
   Group,
-  GroupMembership,
   HTTPTransaction,
   #[default]
   Server,
   Item,
   ItemConnection,
   ItemConnectionType,
+  Membership,
   Milestone,
   OAuthAuthorization,
   Project,
   Role,
-  RoleMembership,
   ServerLogEntry,
   Session,
   User,
@@ -160,9 +159,6 @@ pub struct ActionLogEntry {
   /// The target group ID of the action, if applicable.
   pub target_group_id: Option<Uuid>,
 
-  /// The target group membership ID of the action, if applicable.
-  pub target_group_membership_id: Option<Uuid>,
-
   /// The target HTTP transaction ID of the action, if applicable.
   pub target_http_transaction_id: Option<Uuid>,
 
@@ -175,6 +171,9 @@ pub struct ActionLogEntry {
   /// The target item connection type ID of the action, if applicable.
   pub target_item_connection_type_id: Option<Uuid>,
 
+  /// The target membership ID of the action, if applicable.
+  pub target_membership_id: Option<Uuid>,
+
   /// The target milestone ID of the action, if applicable.
   pub target_milestone_id: Option<Uuid>,
 
@@ -186,9 +185,6 @@ pub struct ActionLogEntry {
 
   /// The target role ID of the action, if applicable.
   pub target_role_id: Option<Uuid>,
-
-  /// The target role membership ID of the action, if applicable.
-  pub target_role_membership_id: Option<Uuid>,
 
   /// The target server log entry ID of the action, if applicable.
   pub target_server_log_entry_id: Option<Uuid>,
@@ -261,9 +257,6 @@ pub struct InitialActionLogEntryProperties {
   /// The target group ID of the action, if applicable.
   pub target_group_id: Option<Uuid>,
 
-  /// The target group membership ID of the action, if applicable.
-  pub target_group_membership_id: Option<Uuid>,
-
   /// The target HTTP transaction ID of the action, if applicable.
   pub target_http_transaction_id: Option<Uuid>,
 
@@ -276,6 +269,9 @@ pub struct InitialActionLogEntryProperties {
   /// The target item connection type ID of the action, if applicable.
   pub target_item_connection_type_id: Option<Uuid>,
 
+  /// The target membership ID of the action, if applicable.
+  pub target_membership_id: Option<Uuid>,
+
   /// The target milestone ID of the action, if applicable.
   pub target_milestone_id: Option<Uuid>,
 
@@ -287,9 +283,6 @@ pub struct InitialActionLogEntryProperties {
 
   /// The target role ID of the action, if applicable.
   pub target_role_id: Option<Uuid>,
-
-  /// The target role membership ID of the action, if applicable.
-  pub target_role_membership_id: Option<Uuid>,
 
   /// The target server log entry ID of the action, if applicable.
   pub target_server_log_entry_id: Option<Uuid>,
@@ -357,16 +350,15 @@ impl ActionLogEntry {
       target_field_id: row.get("target_field_id"),
       target_field_choice_id: row.get("target_field_choice_id"),
       target_group_id: row.get("target_group_id"),
-      target_group_membership_id: row.get("target_group_membership_id"),
       target_http_transaction_id: row.get("target_http_transaction_id"),
       target_item_id: row.get("target_item_id"),
       target_item_connection_id: row.get("target_item_connection_id"),
       target_item_connection_type_id: row.get("target_item_connection_type_id"),
+      target_membership_id: row.get("target_membership_id"),
       target_milestone_id: row.get("target_milestone_id"),
       target_oauth_authorization_id: row.get("target_oauth_authorization_id"),
       target_project_id: row.get("target_project_id"),
       target_role_id: row.get("target_role_id"),
-      target_role_membership_id: row.get("target_role_membership_id"),
       target_server_log_entry_id: row.get("target_server_log_entry_id"),
       target_session_id: row.get("target_session_id"),
       target_user_id: row.get("target_user_id"),
@@ -423,16 +415,15 @@ impl ActionLogEntry {
       &initial_properties.target_field_id,
       &initial_properties.target_field_choice_id,
       &initial_properties.target_group_id,
-      &initial_properties.target_group_membership_id,
       &initial_properties.target_http_transaction_id,
       &initial_properties.target_item_id,
       &initial_properties.target_item_connection_id,
       &initial_properties.target_item_connection_type_id,
+      &initial_properties.target_membership_id,
       &initial_properties.target_milestone_id,
       &initial_properties.target_oauth_authorization_id,
       &initial_properties.target_project_id,
       &initial_properties.target_role_id,
-      &initial_properties.target_role_membership_id,
       &initial_properties.target_server_log_entry_id,
       &initial_properties.target_session_id,
       &initial_properties.target_user_id,

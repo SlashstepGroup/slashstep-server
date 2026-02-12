@@ -19,11 +19,12 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
         SELECT
           variable_principal_user_id as root_principal_user_id,
           variable_principal_app_id as root_principal_app_id,
-          group_memberships.group_id,
+          group_memberships.parent_group_id,
           group_memberships.principal_group_id
         FROM
-          group_memberships
+          memberships group_memberships
         WHERE
+          group_memberships.parent_resource_type = 'Group' AND
           group_memberships.principal_type::TEXT = parameter_principal_type::TEXT AND (
             (
               parameter_principal_type = 'User' AND
@@ -37,12 +38,12 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
           SELECT
             all_group_memberships.root_principal_user_id,
             all_group_memberships.root_principal_app_id,
-            inherited_group_memberships.group_id,
+            inherited_group_memberships.parent_group_id,
             inherited_group_memberships.principal_group_id
           FROM
-            group_memberships inherited_group_memberships
+            memberships inherited_group_memberships
           JOIN
-            all_group_memberships ON all_group_memberships.group_id = inherited_group_memberships.principal_group_id
+            all_group_memberships ON all_group_memberships.parent_group_id = inherited_group_memberships.principal_group_id
       )
       SELECT
         access_policies.*
@@ -57,14 +58,16 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
           all_group_memberships.root_principal_app_id = variable_principal_app_id
         )
       LEFT JOIN
-        role_memberships ON (
-          role_memberships.principal_group_id = all_group_memberships.group_id
-        ) OR (
-          parameter_principal_type = 'User' AND
-          role_memberships.principal_user_id = variable_principal_user_id
-        ) OR (
-          parameter_principal_type = 'App' AND
-          role_memberships.principal_app_id = variable_principal_app_id
+        memberships role_memberships ON (
+          role_memberships.parent_resource_type = 'Role' AND (
+            role_memberships.principal_group_id = all_group_memberships.parent_group_id
+          ) OR (
+            parameter_principal_type = 'User' AND
+            role_memberships.principal_user_id = variable_principal_user_id
+          ) OR (
+            parameter_principal_type = 'App' AND
+            role_memberships.principal_app_id = variable_principal_app_id
+          )
         )
       WHERE
         (
@@ -75,8 +78,8 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
             parameter_principal_type = 'App' AND
             access_policies.principal_app_id = variable_principal_app_id
           ) OR
-          access_policies.principal_group_id = all_group_memberships.group_id OR
-          access_policies.principal_role_id = role_memberships.role_id
+          access_policies.principal_group_id = all_group_memberships.parent_group_id OR
+          access_policies.principal_role_id = role_memberships.parent_role_id
         ) AND
         access_policies.action_id = get_resource_action_id
       ORDER BY

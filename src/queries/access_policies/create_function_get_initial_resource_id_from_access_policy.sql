@@ -26,14 +26,14 @@ CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_pol
         RETURN access_policy_record.scoped_group_membership_id;
       WHEN 'HTTPTransaction' THEN 
         RETURN access_policy_record.scoped_http_transaction_id;
-      WHEN 'Server' THEN 
-        RETURN NULL;
       WHEN 'Item' THEN 
         RETURN access_policy_record.scoped_item_id;
       WHEN 'ItemConnection' THEN 
         RETURN access_policy_record.scoped_item_connection_id;
       WHEN 'ItemConnectionType' THEN 
         RETURN access_policy_record.scoped_item_connection_type_id;
+      WHEN 'Membership' THEN 
+        RETURN access_policy_record.scoped_membership_id;
       WHEN 'Milestone' THEN 
         RETURN access_policy_record.scoped_milestone_id;
       WHEN 'Project' THEN 
@@ -42,6 +42,8 @@ CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_pol
         RETURN access_policy_record.scoped_role_id;
       WHEN 'RoleMembership' THEN 
         RETURN access_policy_record.scoped_role_membership_id;
+      WHEN 'Server' THEN 
+        RETURN NULL;
       WHEN 'ServerLogEntry' THEN 
         RETURN access_policy_record.scoped_server_log_entry_id;
       WHEN 'Session' THEN 

@@ -19,16 +19,15 @@ fn assert_action_log_entry_is_equal_to_initial_properties(action_log_entry: &Act
   assert_eq!(action_log_entry.target_field_id, initial_properties.target_field_id);
   assert_eq!(action_log_entry.target_field_choice_id, initial_properties.target_field_choice_id);
   assert_eq!(action_log_entry.target_group_id, initial_properties.target_group_id);
-  assert_eq!(action_log_entry.target_group_membership_id, initial_properties.target_group_membership_id);
   assert_eq!(action_log_entry.target_http_transaction_id, initial_properties.target_http_transaction_id);
   assert_eq!(action_log_entry.target_item_id, initial_properties.target_item_connection_id);
   assert_eq!(action_log_entry.target_item_connection_id, initial_properties.target_item_connection_id);
   assert_eq!(action_log_entry.target_item_connection_type_id, initial_properties.target_item_connection_type_id);
+  assert_eq!(action_log_entry.target_membership_id, initial_properties.target_membership_id);
   assert_eq!(action_log_entry.target_milestone_id, initial_properties.target_milestone_id);
   assert_eq!(action_log_entry.target_oauth_authorization_id, initial_properties.target_oauth_authorization_id);
   assert_eq!(action_log_entry.target_project_id, initial_properties.target_project_id);
   assert_eq!(action_log_entry.target_role_id, initial_properties.target_role_id);
-  assert_eq!(action_log_entry.target_role_membership_id, initial_properties.target_role_membership_id);
   assert_eq!(action_log_entry.target_server_log_entry_id, initial_properties.target_server_log_entry_id);
   assert_eq!(action_log_entry.target_session_id, initial_properties.target_session_id);
   assert_eq!(action_log_entry.target_user_id, initial_properties.target_user_id);

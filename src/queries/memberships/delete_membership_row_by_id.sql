@@ -1,0 +1,1 @@
+DELETE FROM memberships WHERE id = $1;

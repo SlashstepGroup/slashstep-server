@@ -432,6 +432,30 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "Delete item connection types on a particular scope.".to_string(),
       ..Default::default()
     },
+    InitialActionProperties { 
+      name: "slashstep.memberships.get".to_string(),
+      display_name: "Get memberships".to_string(),
+      description: "Get a specific membership on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.memberships.list".to_string(),
+      display_name: "List memberships".to_string(),
+      description: "List all memberships on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.memberships.create".to_string(),
+      display_name: "Create memberships".to_string(),
+      description: "Create new memberships on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "slashstep.memberships.delete".to_string(),
+      display_name: "Delete memberships".to_string(),
+      description: "Delete memberships on a particular scope.".to_string(),
+      ..Default::default()
+    },
     InitialActionProperties {
       name: "slashstep.projects.get".to_string(),
       display_name: "Get projects".to_string(),

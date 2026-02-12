@@ -4,7 +4,7 @@ use axum::{Extension, body::Body, extract::{Request, State}, http::HeaderMap, mi
 use axum_extra::extract::CookieJar;
 use reqwest::header;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, get_json_web_token_public_key, resources::{ResourceError, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, role::Role, role_memberships::{InitialRoleMembershipProperties, RoleMembership}, server_log_entry::ServerLogEntry, session::{Session, SessionTokenClaims}, user::{InitialUserProperties, User}}, utilities::route_handler_utilities::{get_app_by_id, get_app_credential_by_id}};
+use crate::{AppState, HTTPError, get_json_web_token_public_key, resources::{ResourceError, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::Role, server_log_entry::ServerLogEntry, session::{Session, SessionTokenClaims}, user::{InitialUserProperties, User}}, utilities::route_handler_utilities::{get_app_by_id, get_app_credential_by_id}};
 
 async fn get_jwt_public_key(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<String, HTTPError> {
 
@@ -207,13 +207,13 @@ pub async fn authenticate_user(
 
     };
     ServerLogEntry::trace(&format!("Checking if user {} has the anonymous-users role...", ip_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-    let role_memberships = match RoleMembership::list(&format!("role_id = \"{}\" and principal_type = \"User\" and principal_user_id = \"{}\"", anonymous_users_role.id, ip_user.id), &state.database_pool).await {
+    let memberships = match Membership::list(&format!("parent_role_id = '{}' and principal_type = 'User' and principal_user_id = '{}'", anonymous_users_role.id, ip_user.id), &state.database_pool, None).await {
 
-      Ok(role_memberships) => role_memberships,
+      Ok(memberships) => memberships,
 
       Err(error) => {
 
-        let http_error = HTTPError::InternalServerError(Some(format!("Failed to get role memberships: {:?}", error)));
+        let http_error = HTTPError::InternalServerError(Some(format!("Failed to get memberships: {:?}", error)));
         ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
         return Err(http_error);
 
@@ -221,15 +221,15 @@ pub async fn authenticate_user(
 
     };
 
-    if role_memberships.len() == 0 {
+    if memberships.len() == 0 {
 
       ServerLogEntry::trace("User does not have the anonymous-users role. Creating a new role membership...", Some(&http_transaction.id), &state.database_pool).await.ok();
-      RoleMembership::create(&InitialRoleMembershipProperties {
-        role_id: &anonymous_users_role.id,
-        principal_type: &crate::resources::role_memberships::RoleMembershipPrincipalType::User,
-        principal_user_id: Some(&ip_user.id),
-        principal_app_id: None,
-        principal_group_id: None
+      Membership::create(&InitialMembershipProperties {
+        parent_resource_type: MembershipParentResourceType::Role,
+        parent_role_id: Some(anonymous_users_role.id.clone()),
+        principal_type: MembershipPrincipalType::User,
+        principal_user_id: Some(ip_user.id.clone()),
+        ..Default::default()
       }, &state.database_pool).await.ok();
     
     }

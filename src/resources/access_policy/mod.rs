@@ -49,6 +49,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_item_id",
   "scoped_item_connection_id",
   "scoped_item_connection_type_id",
+  "scoped_membership_id",
   "scoped_milestone_id", 
   "scoped_project_id", 
   "scoped_role_id", 
@@ -79,6 +80,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_item_id",
   "scoped_item_connection_id",
   "scoped_item_connection_type_id",
+  "scoped_membership_id",
   "scoped_milestone_id", 
   "scoped_project_id", 
   "scoped_role_id", 
@@ -141,16 +143,15 @@ pub enum AccessPolicyResourceType {
   Field,
   FieldChoice,
   Group,
-  GroupMembership,
   HTTPTransaction,
   #[default]
   Server,
   Item,
   ItemConnection,
   ItemConnectionType,
+  Membership,
   Project,
   Role,
-  RoleMembership,
   ServerLogEntry,
   Session,
   User,
@@ -171,16 +172,15 @@ impl fmt::Display for AccessPolicyResourceType {
       AccessPolicyResourceType::Field => write!(formatter, "Field"),
       AccessPolicyResourceType::FieldChoice => write!(formatter, "FieldChoice"),
       AccessPolicyResourceType::Group => write!(formatter, "Group"),
-      AccessPolicyResourceType::GroupMembership => write!(formatter, "GroupMembership"),
       AccessPolicyResourceType::HTTPTransaction => write!(formatter, "HTTPTransaction"),
       AccessPolicyResourceType::Server => write!(formatter, "Server"),
       AccessPolicyResourceType::Item => write!(formatter, "Item"),
       AccessPolicyResourceType::ItemConnection => write!(formatter, "ItemConnection"),
       AccessPolicyResourceType::ItemConnectionType => write!(formatter, "ItemConnectionType"),
+      AccessPolicyResourceType::Membership => write!(formatter, "Membership"),
       AccessPolicyResourceType::Milestone => write!(formatter, "Milestone"),
       AccessPolicyResourceType::Project => write!(formatter, "Project"),
       AccessPolicyResourceType::Role => write!(formatter, "Role"),
-      AccessPolicyResourceType::RoleMembership => write!(formatter, "RoleMembership"),
       AccessPolicyResourceType::ServerLogEntry => write!(formatter, "ServerLogEntry"),
       AccessPolicyResourceType::Session => write!(formatter, "Session"),
       AccessPolicyResourceType::User => write!(formatter, "User"),
@@ -206,16 +206,15 @@ impl FromStr for AccessPolicyResourceType {
       "Field" => Ok(AccessPolicyResourceType::Field),
       "FieldChoice" => Ok(AccessPolicyResourceType::FieldChoice),
       "Group" => Ok(AccessPolicyResourceType::Group),
-      "GroupMembership" => Ok(AccessPolicyResourceType::GroupMembership),
       "HTTPTransaction" => Ok(AccessPolicyResourceType::HTTPTransaction),
       "Server" => Ok(AccessPolicyResourceType::Server),
       "Item" => Ok(AccessPolicyResourceType::Item),
       "ItemConnection" => Ok(AccessPolicyResourceType::ItemConnection),
       "ItemConnectionType" => Ok(AccessPolicyResourceType::ItemConnectionType),
+      "Membership" => Ok(AccessPolicyResourceType::Membership),
       "Milestone" => Ok(AccessPolicyResourceType::Milestone),
       "Project" => Ok(AccessPolicyResourceType::Project),
       "Role" => Ok(AccessPolicyResourceType::Role),
-      "RoleMembership" => Ok(AccessPolicyResourceType::RoleMembership),
       "ServerLogEntry" => Ok(AccessPolicyResourceType::ServerLogEntry),
       "Session" => Ok(AccessPolicyResourceType::Session),
       "User" => Ok(AccessPolicyResourceType::User),
@@ -329,8 +328,6 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_group_id: Option<Uuid>,
 
-  pub scoped_group_membership_id: Option<Uuid>,
-
   pub scoped_http_transaction_id: Option<Uuid>,
 
   pub scoped_item_id: Option<Uuid>,
@@ -339,13 +336,13 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_item_connection_type_id: Option<Uuid>,
 
+  pub scoped_membership_id: Option<Uuid>,
+
   pub scoped_milestone_id: Option<Uuid>,
 
   pub scoped_project_id: Option<Uuid>,
 
   pub scoped_role_id: Option<Uuid>,
-
-  pub scoped_role_membership_id: Option<Uuid>,
 
   pub scoped_server_log_entry_id: Option<Uuid>,
 
@@ -433,8 +430,6 @@ pub struct AccessPolicy {
 
   pub scoped_group_id: Option<Uuid>,
 
-  pub scoped_group_membership_id: Option<Uuid>,
-
   pub scoped_http_transaction_id: Option<Uuid>,
 
   pub scoped_item_id: Option<Uuid>,
@@ -443,13 +438,13 @@ pub struct AccessPolicy {
 
   pub scoped_item_connection_type_id: Option<Uuid>,
 
+  pub scoped_membership_id: Option<Uuid>,
+
   pub scoped_milestone_id: Option<Uuid>,
 
   pub scoped_project_id: Option<Uuid>,
 
   pub scoped_role_id: Option<Uuid>,
-
-  pub scoped_role_membership_id: Option<Uuid>,
 
   pub scoped_server_log_entry_id: Option<Uuid>,
 
@@ -514,15 +509,14 @@ impl AccessPolicy {
       &initial_properties.scoped_field_choice_id,
       &initial_properties.scoped_field_value_id,
       &initial_properties.scoped_group_id,
-      &initial_properties.scoped_group_membership_id,
       &initial_properties.scoped_http_transaction_id,
       &initial_properties.scoped_item_id,
       &initial_properties.scoped_item_connection_id,
       &initial_properties.scoped_item_connection_type_id,
+      &initial_properties.scoped_membership_id,
       &initial_properties.scoped_milestone_id,
       &initial_properties.scoped_project_id,
       &initial_properties.scoped_role_id,
-      &initial_properties.scoped_role_membership_id,
       &initial_properties.scoped_server_log_entry_id,
       &initial_properties.scoped_session_id,
       &initial_properties.scoped_user_id,
@@ -602,15 +596,14 @@ impl AccessPolicy {
       scoped_field_choice_id: row.get("scoped_field_choice_id"),
       scoped_field_value_id: row.get("scoped_field_value_id"),
       scoped_group_id: row.get("scoped_group_id"),
-      scoped_group_membership_id: row.get("scoped_group_membership_id"),
       scoped_http_transaction_id: row.get("scoped_http_transaction_id"),
       scoped_item_id: row.get("scoped_item_id"),
       scoped_item_connection_id: row.get("scoped_item_connection_id"),
       scoped_item_connection_type_id: row.get("scoped_item_connection_type_id"),
+      scoped_membership_id: row.get("scoped_membership_id"),
       scoped_milestone_id: row.get("scoped_milestone_id"),
       scoped_project_id: row.get("scoped_project_id"),
       scoped_role_id: row.get("scoped_role_id"),
-      scoped_role_membership_id: row.get("scoped_role_membership_id"),
       scoped_server_log_entry_id: row.get("scoped_server_log_entry_id"),
       scoped_session_id: row.get("scoped_session_id"),
       scoped_user_id: row.get("scoped_user_id"),
@@ -771,16 +764,15 @@ impl AccessPolicy {
             AccessPolicyResourceType::Field => "A field ID must be provided.",
             AccessPolicyResourceType::FieldChoice => "A field choice ID must be provided.",
             AccessPolicyResourceType::Group => "A group ID must be provided.",
-            AccessPolicyResourceType::GroupMembership => "A group membership ID must be provided.",
             AccessPolicyResourceType::HTTPTransaction => "An HTTP transaction ID must be provided.",
             AccessPolicyResourceType::Server => "An server ID must be provided.", // Huh??
             AccessPolicyResourceType::Item => "An item ID must be provided.",
             AccessPolicyResourceType::ItemConnection => "An item connection ID must be provided.",
             AccessPolicyResourceType::ItemConnectionType => "An item connection type ID must be provided.",
+            AccessPolicyResourceType::Membership => "A membership ID must be provided.",
             AccessPolicyResourceType::Milestone => "A milestone ID must be provided.",
             AccessPolicyResourceType::Project => "A project ID must be provided.",
             AccessPolicyResourceType::Role => "A role ID must be provided.",
-            AccessPolicyResourceType::RoleMembership => "A role membership ID must be provided.",
             AccessPolicyResourceType::ServerLogEntry => "A server log entry ID must be provided.",
             AccessPolicyResourceType::Session => "A session ID must be provided.",
             AccessPolicyResourceType::User => "A user ID must be provided.",
@@ -807,18 +799,19 @@ impl AccessPolicy {
         AccessPolicyResourceType::Field => query_clauses.push(format!("scoped_field_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::FieldChoice => query_clauses.push(format!("scoped_field_choice_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Group => query_clauses.push(format!("scoped_group_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::GroupMembership => query_clauses.push(format!("scoped_group_membership_id = {}", resource_id_as_quote_literal)), 
         AccessPolicyResourceType::HTTPTransaction => query_clauses.push(format!("scoped_http_transaction_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Item => query_clauses.push(format!("scoped_item_id = {}", resource_id_as_quote_literal)),
+        AccessPolicyResourceType::ItemConnection => query_clauses.push(format!("scoped_item_connection_id = {}", resource_id_as_quote_literal)),
+        AccessPolicyResourceType::ItemConnectionType => query_clauses.push(format!("scoped_item_connection_type_id = {}", resource_id_as_quote_literal)),
+        AccessPolicyResourceType::Membership => query_clauses.push(format!("scoped_membership_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Milestone => query_clauses.push(format!("scoped_milestone_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Project => query_clauses.push(format!("scoped_project_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Role => query_clauses.push(format!("scoped_role_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::RoleMembership => query_clauses.push(format!("scoped_role_membership_id = {}", resource_id_as_quote_literal)),
+        AccessPolicyResourceType::Server => {},
         AccessPolicyResourceType::ServerLogEntry => query_clauses.push(format!("scoped_server_log_entry_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Session => query_clauses.push(format!("scoped_session_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::User => query_clauses.push(format!("scoped_user_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Workspace => query_clauses.push(format!("scoped_workspace_id = {}", resource_id_as_quote_literal)),
-        _ => {}
+        AccessPolicyResourceType::Workspace => query_clauses.push(format!("scoped_workspace_id = {}", resource_id_as_quote_literal))
 
       }
 
@@ -905,16 +898,15 @@ impl AccessPolicy {
       AccessPolicyResourceType::Field => self.scoped_field_id,
       AccessPolicyResourceType::FieldChoice => self.scoped_field_choice_id,
       AccessPolicyResourceType::Group => self.scoped_group_id,
-      AccessPolicyResourceType::GroupMembership => self.scoped_group_membership_id,
       AccessPolicyResourceType::HTTPTransaction => self.scoped_http_transaction_id,
       AccessPolicyResourceType::Server => None,
       AccessPolicyResourceType::Item => self.scoped_item_id,
       AccessPolicyResourceType::ItemConnection => self.scoped_item_connection_id,
       AccessPolicyResourceType::ItemConnectionType => self.scoped_item_connection_type_id,
+      AccessPolicyResourceType::Membership => self.scoped_membership_id,
       AccessPolicyResourceType::Milestone => self.scoped_milestone_id,
       AccessPolicyResourceType::Project => self.scoped_project_id,
       AccessPolicyResourceType::Role => self.scoped_role_id,
-      AccessPolicyResourceType::RoleMembership => self.scoped_role_membership_id,
       AccessPolicyResourceType::ServerLogEntry => self.scoped_server_log_entry_id,
       AccessPolicyResourceType::Session => self.scoped_session_id,
       AccessPolicyResourceType::User => self.scoped_user_id,

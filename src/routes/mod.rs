@@ -21,6 +21,8 @@ mod http_transactions;
 mod items;
 #[path = "./item-connections/mod.rs"]
 mod item_connections;
+#[path = "./memberships/mod.rs"]
+mod memberships;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
 mod projects;
