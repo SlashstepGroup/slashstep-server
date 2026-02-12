@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -361,6 +361,22 @@ impl TestEnvironment {
     let milestone = Milestone::create(&milestone_properties, &self.database_pool).await?;
 
     return Ok(milestone);
+
+  }
+
+  pub async fn create_random_role(&self) -> Result<Role, TestSlashstepServerError> {
+
+    let role_properties = InitialRoleProperties {
+      name: Uuid::now_v7().to_string(),
+      display_name: Uuid::now_v7().to_string(),
+      description: Some(Uuid::now_v7().to_string()),
+      parent_resource_type: crate::resources::role::RoleParentResourceType::Server,
+      ..Default::default()
+    };
+
+    let role = Role::create(&role_properties, &self.database_pool).await?;
+
+    return Ok(role);
 
   }
 

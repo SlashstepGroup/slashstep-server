@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use colored::Colorize;
 use pg_escape::quote_literal;
 use postgres::error::SqlState;
@@ -462,13 +462,6 @@ pub async fn get_field_value_by_id(field_value_id: &Uuid, http_transaction: &HTT
 
 }
 
-pub async fn get_project_by_id(project_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Project, HTTPError> {
-
-  let project = get_resource_by_id::<Project, _>("project", &project_id, &http_transaction, &database_pool, |project_id, database_pool| Box::new(Project::get_by_id(project_id, database_pool))).await?;
-  return Ok(project);
-
-}
-
 pub async fn get_item_by_id(item_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Item, HTTPError> {
 
   let item = get_resource_by_id::<Item, _>("item", &item_id, &http_transaction, &database_pool, |item_id, database_pool| Box::new(Item::get_by_id(item_id, database_pool))).await?;
@@ -515,6 +508,20 @@ pub async fn get_milestone_by_id(milestone_id: &Uuid, http_transaction: &HTTPTra
 
   let target_milestone = get_resource_by_id::<Milestone, _>("milestone", &milestone_id, &http_transaction, &database_pool, |milestone_id, database_pool| Box::new(Milestone::get_by_id(milestone_id, database_pool))).await?;
   return Ok(target_milestone);
+
+}
+
+pub async fn get_project_by_id(project_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Project, HTTPError> {
+
+  let project = get_resource_by_id::<Project, _>("project", &project_id, &http_transaction, &database_pool, |project_id, database_pool| Box::new(Project::get_by_id(project_id, database_pool))).await?;
+  return Ok(project);
+
+}
+
+pub async fn get_role_by_id(role_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Role, HTTPError> {
+
+  let role = get_resource_by_id::<Role, _>("role", &role_id, &http_transaction, &database_pool, |role_id, database_pool| Box::new(Role::get_by_id(role_id, database_pool))).await?;
+  return Ok(role);
 
 }
 
