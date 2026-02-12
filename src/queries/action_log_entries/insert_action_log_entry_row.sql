@@ -19,6 +19,8 @@ INSERT INTO action_log_entries (
   target_group_membership_id,
   target_http_transaction_id,
   target_item_id,
+  target_item_connection_id,
+  target_item_connection_type_id,
   target_milestone_id,
   target_oauth_authorization_id,
   target_project_id,
@@ -59,5 +61,7 @@ INSERT INTO action_log_entries (
   $27,
   $28,
   $29,
-  $30
+  $30,
+  $31,
+  $32
 ) RETURNING *;

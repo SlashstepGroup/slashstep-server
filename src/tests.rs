@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -293,6 +293,42 @@ impl TestEnvironment {
     let item = Item::create(&item_properties, &self.database_pool).await?;
 
     return Ok(item);
+
+  }
+
+  pub async fn create_random_item_connection(&self) -> Result<ItemConnection, TestSlashstepServerError> {
+
+    let item_connection_type = self.create_random_item_connection_type().await?;
+    let inward_item = self.create_random_item().await?;
+    let outward_item = self.create_random_item().await?;
+
+    let item_connection_properties = InitialItemConnectionProperties {
+      item_connection_type_id: item_connection_type.id,
+      inward_item_id: inward_item.id,
+      outward_item_id: outward_item.id
+    };
+
+    let item_connection = ItemConnection::create(&item_connection_properties, &self.database_pool).await?;
+
+    return Ok(item_connection);
+
+  }
+
+  pub async fn create_random_item_connection_type(&self) -> Result<ItemConnectionType, TestSlashstepServerError> {
+
+    let workspace = self.create_random_workspace().await?;
+    let item_connection_type_properties = InitialItemConnectionTypeProperties {
+      display_name: Uuid::now_v7().to_string(),
+      inward_description: Uuid::now_v7().to_string(),
+      outward_description: Uuid::now_v7().to_string(),
+      parent_resource_type: ItemConnectionTypeParentResourceType::Workspace,
+      parent_workspace_id: Some(workspace.id),
+      ..Default::default()
+    };
+
+    let item_connection_type = ItemConnectionType::create(&item_connection_type_properties, &self.database_pool).await?;
+
+    return Ok(item_connection_type);
 
   }
 

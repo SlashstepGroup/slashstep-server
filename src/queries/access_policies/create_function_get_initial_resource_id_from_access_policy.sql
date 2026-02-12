@@ -30,6 +30,10 @@ CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_pol
         RETURN NULL;
       WHEN 'Item' THEN 
         RETURN access_policy_record.scoped_item_id;
+      WHEN 'ItemConnection' THEN 
+        RETURN access_policy_record.scoped_item_connection_id;
+      WHEN 'ItemConnectionType' THEN 
+        RETURN access_policy_record.scoped_item_connection_type_id;
       WHEN 'Milestone' THEN 
         RETURN access_policy_record.scoped_milestone_id;
       WHEN 'Project' THEN 

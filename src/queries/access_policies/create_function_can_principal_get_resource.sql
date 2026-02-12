@@ -905,7 +905,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'ItemConnection' THEN
 
-                -- ItemConnection -> Inward Item and Outward Item
+                -- ItemConnection -> Item + Item
                 -- Check if the item connection has an associated access policy.
                 SELECT
                     permission_level,
@@ -934,10 +934,11 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 END IF;
 
                 -- Look for the parent resource type.
-                -- Since the item connection is bidirectional, we need to check both the inward and outward item.
-                -- This is possible through an iterative algorithm, but we'll use recursion for now.
+                -- Since item connections are bidirectional, we need to check both the inward and outward item.
+                --
+                -- This is possible through an iterative algorithm, but we'll use recursion for now to save development time.
+                -- If someone comes across this and has a better solution, send a pull request. :)
                 needs_inheritance := TRUE;
-                parent_resource_type := 'Item';
 
                 SELECT
                     inward_item_id
@@ -952,7 +953,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                     can_principal_get_resource(
                         parameter_principal_type, 
                         parameter_principal_id,
-                        parent_resource_type, 
+                        'Item', 
                         selected_resource_parent_id, 
                         get_resource_action_name
                     )
@@ -976,16 +977,104 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 SELECT
                     can_principal_get_resource(
-                        parameter_principal_type, 
+                        parameter_principal_type,
                         parameter_principal_id,
-                        parent_resource_type, 
-                        selected_resource_parent_id, 
+                        'Item',
+                        selected_resource_parent_id,
                         get_resource_action_name
                     )
                 INTO
                     can_principal_get_resource_through_inheritance;
 
                 RETURN can_principal_get_resource_through_inheritance;
+
+            ELSIF selected_resource_type = 'ItemConnectionType' THEN
+
+                -- ItemConnectionType -> (Project | Workspace)
+                -- Check if the item connection type has an associated access policy.
+                SELECT
+                    permission_level,
+                    is_inheritance_enabled
+                INTO
+                    current_permission_Level,
+                    is_inheritance_enabled_on_selected_resource
+                FROM
+                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
+                WHERE
+                    principal_access_policies.scoped_resource_type = 'ItemConnectionType' AND 
+                    principal_access_policies.scoped_item_connection_type_id = selected_resource_id AND (
+                        NOT needs_inheritance OR
+                        principal_access_policies.is_inheritance_enabled
+                    )
+                LIMIT 1;
+
+                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
+
+                RETURN FALSE;
+
+                ELSIF current_permission_Level IS NOT NULL THEN
+
+                    RETURN current_permission_Level >= 'User';
+
+                END IF;
+
+                -- Look for the parent resource type.
+                needs_inheritance := TRUE;
+
+                SELECT
+                    parent_resource_type
+                INTO
+                    selected_resource_parent_type
+                FROM
+                    item_connection_types
+                WHERE
+                    item_connection_types.id = selected_resource_id;
+
+                IF selected_resource_parent_type = 'Project' THEN
+
+                    SELECT
+                        parent_project_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        item_connection_types
+                    WHERE
+                        item_connection_types.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent project for item connection type %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Project';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Workspace' THEN
+
+                    SELECT
+                        parent_workspace_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        item_connection_types
+                    WHERE
+                        item_connection_types.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent workspace for item connection type %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Workspace';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSE
+
+                    RAISE EXCEPTION 'Couldn''t find a parent resource for item connection type %.', selected_resource_id;
+
+                END IF;
 
             ELSIF selected_resource_type = 'Milestone' THEN
 
