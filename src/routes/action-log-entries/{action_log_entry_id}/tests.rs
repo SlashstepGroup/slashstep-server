@@ -79,13 +79,14 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
   assert_eq!(response_action_log_entry.target_app_authorization_credential_id, action_log_entry.target_app_authorization_credential_id);
   assert_eq!(response_action_log_entry.target_app_credential_id, action_log_entry.target_app_credential_id);
   assert_eq!(response_action_log_entry.target_group_id, action_log_entry.target_group_id);
-  assert_eq!(response_action_log_entry.target_group_membership_id, action_log_entry.target_group_membership_id);
   assert_eq!(response_action_log_entry.target_http_transaction_id, action_log_entry.target_http_transaction_id);
   assert_eq!(response_action_log_entry.target_item_id, action_log_entry.target_item_id);
+  assert_eq!(response_action_log_entry.target_item_connection_id, action_log_entry.target_item_connection_id);
+  assert_eq!(response_action_log_entry.target_item_connection_type_id, action_log_entry.target_item_connection_type_id);
+  assert_eq!(response_action_log_entry.target_membership_id, action_log_entry.target_membership_id);
   assert_eq!(response_action_log_entry.target_milestone_id, action_log_entry.target_milestone_id);
   assert_eq!(response_action_log_entry.target_project_id, action_log_entry.target_project_id);
   assert_eq!(response_action_log_entry.target_role_id, action_log_entry.target_role_id);
-  assert_eq!(response_action_log_entry.target_role_membership_id, action_log_entry.target_role_membership_id);
   assert_eq!(response_action_log_entry.target_server_log_entry_id, action_log_entry.target_server_log_entry_id);
   assert_eq!(response_action_log_entry.target_session_id, action_log_entry.target_session_id);
   assert_eq!(response_action_log_entry.target_user_id, action_log_entry.target_user_id);

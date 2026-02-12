@@ -1076,6 +1076,94 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 END IF;
 
+            ELSIF selected_resource_type = 'Membership' THEN
+
+                -- Membership -> (Group | Role)
+                -- Check if the membership has an associated access policy.
+                SELECT
+                    permission_level,
+                    is_inheritance_enabled
+                INTO
+                    current_permission_Level,
+                    is_inheritance_enabled_on_selected_resource
+                FROM
+                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
+                WHERE
+                    principal_access_policies.scoped_resource_type = 'Membership' AND 
+                    principal_access_policies.scoped_membership_id = selected_resource_id AND (
+                        NOT needs_inheritance OR
+                        principal_access_policies.is_inheritance_enabled
+                    )
+                LIMIT 1;
+
+                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
+
+                    RETURN FALSE;
+
+                ELSIF current_permission_Level IS NOT NULL THEN
+
+                    RETURN current_permission_Level >= 'User';
+
+                END IF;
+
+                -- Look for the parent resource type.
+                needs_inheritance := TRUE;
+
+                SELECT
+                    parent_resource_type
+                INTO
+                    selected_resource_parent_type
+                FROM
+                    memberships
+                WHERE
+                    memberships.id = selected_resource_id;
+
+                IF selected_resource_parent_type = 'Group' THEN
+
+                    SELECT
+                        parent_group_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        memberships
+                    WHERE
+                        memberships.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent group for membership %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Group';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Role' THEN
+
+                    SELECT
+                        parent_role_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        memberships
+                    WHERE
+                        memberships.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent role for membership %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Role';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSE
+
+                    RAISE EXCEPTION 'Unknown parent resource type % for membership %.', selected_resource_parent_type, selected_resource_id;
+
+                END IF;
+
             ELSIF selected_resource_type = 'Milestone' THEN
 
                 -- Milestone -> (Project | Workspace)
@@ -1327,57 +1415,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                     RAISE EXCEPTION 'Couldn''t find a parent resource for role %.', selected_resource_id;
 
                 END IF;
-
-            ELSIF selected_resource_type = 'RoleMembership' THEN
-
-                -- RoleMembership -> Role
-                -- Check if the role membership has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'RoleMembership' AND 
-                    principal_access_policies.scoped_role_membership_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
-                SELECT
-                    role_id
-                INTO
-                    selected_resource_parent_id
-                FROM
-                    role_memberships
-                WHERE
-                    role_memberships.id = selected_resource_id;
-
-                IF selected_resource_parent_id IS NULL THEN
-
-                    RAISE EXCEPTION 'Couldn''t find a parent role for role membership %.', selected_resource_id;
-
-                END IF;
-
-                selected_resource_type := 'Role';
-                selected_resource_id := selected_resource_parent_id;
 
             ELSIF selected_resource_type = 'Session' THEN
 

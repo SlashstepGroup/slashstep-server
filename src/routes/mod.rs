@@ -23,6 +23,8 @@ mod items;
 mod item_connections;
 #[path = "./item-connection-types/mod.rs"]
 mod item_connection_types;
+#[path = "./memberships/mod.rs"]
+mod memberships;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
 mod projects;

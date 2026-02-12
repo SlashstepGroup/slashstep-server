@@ -22,16 +22,15 @@ DO $$
         'FieldChoice',
         'FieldValue',
         'Group',
-        'GroupMembership',
         'HTTPTransaction',
         'Server',
         'Item',
         'ItemConnection',
         'ItemConnectionType',
+        'Membership',
         'Milestone',
         'Project',
         'Role',
-        'RoleMembership',
         'ServerLogEntry',
         'Session',
         'User',
@@ -51,16 +50,15 @@ DO $$
         'FieldChoice',
         'FieldValue',
         'Group',
-        'GroupMembership',
         'HTTPTransaction',
         'Server',
         'Item',
         'ItemConnection',
         'ItemConnectionType',
+        'Membership',
         'Milestone',
         'Project',
         'Role',
-        'RoleMembership',
         'ServerLogEntry',
         'Session',
         'User',
@@ -99,15 +97,14 @@ DO $$
       scoped_field_choice_id UUID REFERENCES field_choices(id) ON DELETE CASCADE,
       scoped_field_value_id UUID REFERENCES field_values(id) ON DELETE CASCADE,
       scoped_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-      scoped_group_membership_id UUID REFERENCES group_memberships(id) ON DELETE CASCADE,
       scoped_http_transaction_id UUID REFERENCES http_transactions(id) ON DELETE CASCADE,
       scoped_item_id UUID REFERENCES items(id) ON DELETE CASCADE,
       scoped_item_connection_id UUID REFERENCES item_connections(id) ON DELETE CASCADE,
       scoped_item_connection_type_id UUID REFERENCES item_connection_types(id) ON DELETE CASCADE,
+      scoped_membership_id UUID REFERENCES memberships(id) ON DELETE CASCADE,
       scoped_milestone_id UUID REFERENCES milestones(id) ON DELETE CASCADE,
       scoped_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
       scoped_role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
-      scoped_role_membership_id UUID REFERENCES role_memberships(id) ON DELETE CASCADE,
       scoped_server_log_entry_id UUID REFERENCES server_log_entries(id) ON DELETE CASCADE,
       scoped_session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
       scoped_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -140,15 +137,14 @@ DO $$
           AND scoped_field_choice_id IS NULL
           AND scoped_field_value_id IS NULL
           AND scoped_group_id IS NULL
-          AND scoped_group_membership_id IS NULL
           AND scoped_http_transaction_id IS NULL
           AND scoped_item_id IS NULL
           AND scoped_item_connection_id IS NULL
           AND scoped_item_connection_type_id IS NULL
+          AND scoped_membership_id IS NULL
           AND scoped_milestone_id IS NULL
           AND scoped_project_id IS NULL
           AND scoped_role_id IS NULL
-          AND scoped_role_membership_id IS NULL
           AND scoped_server_log_entry_id IS NULL
           AND scoped_session_id IS NULL
           AND scoped_user_id IS NULL
@@ -164,15 +160,14 @@ DO $$
           (scoped_field_choice_id IS NOT NULL)::INTEGER +
           (scoped_field_value_id IS NOT NULL)::INTEGER +
           (scoped_group_id IS NOT NULL)::INTEGER +
-          (scoped_group_membership_id IS NOT NULL)::INTEGER +
           (scoped_http_transaction_id IS NOT NULL)::INTEGER +
           (scoped_item_id IS NOT NULL)::INTEGER +
           (scoped_item_connection_id IS NOT NULL)::INTEGER +
           (scoped_item_connection_type_id IS NOT NULL)::INTEGER +
+          (scoped_membership_id IS NOT NULL)::INTEGER +
           (scoped_milestone_id IS NOT NULL)::INTEGER +
           (scoped_project_id IS NOT NULL)::INTEGER +
           (scoped_role_id IS NOT NULL)::INTEGER +
-          (scoped_role_membership_id IS NOT NULL)::INTEGER +
           (scoped_server_log_entry_id IS NOT NULL)::INTEGER +
           (scoped_session_id IS NOT NULL)::INTEGER +
           (scoped_user_id IS NOT NULL)::INTEGER +
@@ -193,15 +188,14 @@ DO $$
         OR (scoped_resource_type = 'FieldChoice' AND scoped_field_choice_id IS NOT NULL)
         OR (scoped_resource_type = 'FieldValue' AND scoped_field_value_id IS NOT NULL)
         OR (scoped_resource_type = 'Group' AND scoped_group_id IS NOT NULL)
-        OR (scoped_resource_type = 'GroupMembership' AND scoped_group_membership_id IS NOT NULL)
         OR (scoped_resource_type = 'HTTPTransaction' AND scoped_http_transaction_id IS NOT NULL)
         OR (scoped_resource_type = 'Item' AND scoped_item_id IS NOT NULL)
         OR (scoped_resource_type = 'ItemConnection' AND scoped_item_connection_id IS NOT NULL)
         OR (scoped_resource_type = 'ItemConnectionType' AND scoped_item_connection_type_id IS NOT NULL)
+        OR (scoped_resource_type = 'Membership' AND scoped_membership_id IS NOT NULL)
         OR (scoped_resource_type = 'Milestone' AND scoped_milestone_id IS NOT NULL)
         OR (scoped_resource_type = 'Project' AND scoped_project_id IS NOT NULL)
         OR (scoped_resource_type = 'Role' AND scoped_role_id IS NOT NULL)
-        OR (scoped_resource_type = 'RoleMembership' AND scoped_role_membership_id IS NOT NULL)
         OR (scoped_resource_type = 'ServerLogEntry' AND scoped_server_log_entry_id IS NOT NULL)
         OR (scoped_resource_type = 'Session' AND scoped_session_id IS NOT NULL)
         OR (scoped_resource_type = 'User' AND scoped_user_id IS NOT NULL)

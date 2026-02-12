@@ -1,0 +1,1 @@
+select * from memberships where id = $1 limit 1;

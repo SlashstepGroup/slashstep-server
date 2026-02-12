@@ -18,15 +18,14 @@ INSERT INTO access_policies (
   scoped_field_choice_id,
   scoped_field_value_id,
   scoped_group_id,
-  scoped_group_membership_id,
   scoped_http_transaction_id,
   scoped_item_id,
   scoped_item_connection_id,
   scoped_item_connection_type_id,
+  scoped_membership_id,
   scoped_milestone_id,
   scoped_project_id,
   scoped_role_id,
-  scoped_role_membership_id,
   scoped_server_log_entry_id,
   scoped_session_id,
   scoped_user_id,
@@ -62,6 +61,5 @@ INSERT INTO access_policies (
   $28,
   $29,
   $30,
-  $31,
-  $32
+  $31
 ) RETURNING *;

@@ -1,1 +1,0 @@
-select * from hydrated_role_memberships where id = $1 limit 1;

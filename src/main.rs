@@ -25,7 +25,7 @@ use crate::{
     initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, group_membership::GroupMembership, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, role_memberships::RoleMembership, server_log_entry::ServerLogEntry, session::Session, user::User, workspace::Workspace
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::{Membership}, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, workspace::Workspace
   },
   utilities::resource_hierarchy::ResourceHierarchyError
 };
@@ -129,11 +129,10 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   Session::initialize_resource_table(database_pool).await?;
   Group::initialize_resource_table(database_pool).await?;
   App::initialize_resource_table(database_pool).await?;
-  GroupMembership::initialize_resource_table(database_pool).await?;
   Workspace::initialize_resource_table(database_pool).await?;
   Project::initialize_resource_table(database_pool).await?;
   Role::initialize_resource_table(database_pool).await?;
-  RoleMembership::initialize_resource_table(database_pool).await?;
+  Membership::initialize_resource_table(database_pool).await?;
   Item::initialize_resource_table(database_pool).await?;
   ItemConnectionType::initialize_resource_table(database_pool).await?;
   ItemConnection::initialize_resource_table(database_pool).await?;
