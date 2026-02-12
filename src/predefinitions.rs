@@ -515,6 +515,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       display_name: "Delete projects".to_string(),
       description: "Delete projects on a particular scope.".to_string(),
       ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.roles.get".to_string(),
+      display_name: "Get roles".to_string(),
+      description: "Get roles on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.roles.list".to_string(),
+      display_name: "List roles".to_string(),
+      description: "List roles on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.roles.create".to_string(),
+      display_name: "Create roles".to_string(),
+      description: "Create roles on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.roles.update".to_string(),
+      display_name: "Update roles".to_string(),
+      description: "Update roles on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.roles.delete".to_string(),
+      display_name: "Delete roles".to_string(),
+      description: "Delete roles on a particular scope.".to_string(),
+      ..Default::default()
     }
   ];
 
@@ -585,9 +615,7 @@ pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool
       display_name: "Anonymous Users".to_string(),
       description: Some("Users who have not logged in. Registered users should not be assigned this role.".to_string()),
       parent_resource_type: crate::resources::role::RoleParentResourceType::Server,
-      parent_workspace_id: None,
-      parent_project_id: None,
-      parent_group_id: None
+      ..Default::default()
     }
   ];
 

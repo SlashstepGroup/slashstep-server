@@ -1,0 +1,1 @@
+select * from roles where id = $1 limit 1;

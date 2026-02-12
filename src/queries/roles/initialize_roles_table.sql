@@ -14,12 +14,12 @@ BEGIN
     id UUID DEFAULT uuidv7() PRIMARY KEY,
     name TEXT NOT NULL,
     display_name TEXT NOT NULL,
-    description TEXT NOT NULL,
+    description TEXT,
     parent_resource_type role_parent_resource_type NOT NULL,
     parent_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     parent_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     parent_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-    is_predefined boolean not null default false,
+    is_predefined BOOLEAN NOT NULL,
 
     /* Constraints */
     CONSTRAINT one_parent_type CHECK (
