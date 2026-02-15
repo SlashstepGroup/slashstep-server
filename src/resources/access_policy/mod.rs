@@ -52,7 +52,8 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_membership_id",
   "scoped_milestone_id", 
   "scoped_project_id", 
-  "scoped_role_id", 
+  "scoped_role_id",
+  "scoped_server_log_entry_id",
   "scoped_user_id", 
   "scoped_workspace_id",
   "permission_level",
@@ -83,7 +84,8 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_membership_id",
   "scoped_milestone_id", 
   "scoped_project_id", 
-  "scoped_role_id", 
+  "scoped_role_id",
+  "scoped_server_log_entry_id",
   "scoped_user_id", 
   "scoped_workspace_id"
 ];
@@ -723,7 +725,7 @@ impl AccessPolicy {
     let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "AccessPolicy", "access_policies", "slashstep.accessPolicies.get", false);
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-
+    
     // Execute the query.
     let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
@@ -818,7 +820,7 @@ impl AccessPolicy {
     }
 
     // This will turn the query into something like:
-    // action_id = $1 and (scoped_resource_type = 'Server' or scoped_workspace_id = $2 or scoped_project_id = $3 or scoped_milestone_id = $4 or scoped_item_id = $5)
+    // action_id = $1 AND (scoped_resource_type = 'Server' OR scoped_workspace_id = $2 OR scoped_project_id = $3 OR scoped_milestone_id = $4 OR scoped_item_id = $5)
     let principal_clause = match principal {
 
       Principal::User(user_id) => format!("principal_user_id = '{}'", user_id),

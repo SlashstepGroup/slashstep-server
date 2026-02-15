@@ -1,0 +1,1 @@
+DELETE FROM server_log_entries WHERE id = $1;

@@ -545,6 +545,24 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       display_name: "Delete roles".to_string(),
       description: "Delete roles on a particular scope.".to_string(),
       ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.serverLogEntries.get".to_string(),
+      display_name: "Get server log entries".to_string(),
+      description: "Get a specific server log entry on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.serverLogEntries.list".to_string(),
+      display_name: "List server log entries".to_string(),
+      description: "List all server log entries on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.serverLogEntries.delete".to_string(),
+      display_name: "Delete server log entries".to_string(),
+      description: "Delete server log entries on a particular scope. This can be a dangerous action to grant permissions for, as it can affect auditing.".to_string(),
+      ..Default::default()
     }
   ];
 

@@ -1,6 +1,6 @@
 insert into server_log_entries (
   message,
-  http_request_id,
+  http_transaction_id,
   level
 ) values (
   $1,

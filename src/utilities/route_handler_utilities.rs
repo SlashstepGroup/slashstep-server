@@ -525,6 +525,13 @@ pub async fn get_role_by_id(role_id: &Uuid, http_transaction: &HTTPTransaction, 
 
 }
 
+pub async fn get_server_log_entry_by_id(role_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ServerLogEntry, HTTPError> {
+
+  let server_log_entry = get_resource_by_id::<ServerLogEntry, _>("server log entry", &role_id, &http_transaction, &database_pool, |role_id, database_pool| Box::new(ServerLogEntry::get_by_id(role_id, database_pool))).await?;
+  return Ok(server_log_entry);
+
+}
+
 pub async fn get_resource_by_id<ResourceStruct, GetResourceByIDFunction>(
   resource_type_name_singular: &str, 
   resource_id: &Uuid, 

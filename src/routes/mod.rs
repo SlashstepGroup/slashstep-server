@@ -30,6 +30,8 @@ mod milestones;
 mod oauth_access_tokens;
 mod projects;
 mod roles;
+#[path = "./server-log-entries/mod.rs"]
+mod server_log_entries;
 mod users;
 
 use axum::{Router, response::IntoResponse};
@@ -65,6 +67,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(oauth_access_tokens::get_router(state.clone()))
     .merge(projects::get_router(state.clone()))
     .merge(roles::get_router(state.clone()))
+    .merge(server_log_entries::get_router(state.clone()))
     .merge(users::get_router(state.clone()))
     .fallback(fallback);
   return router;

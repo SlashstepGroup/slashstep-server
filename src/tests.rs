@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRES_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -248,6 +248,40 @@ impl TestEnvironment {
 
   }
 
+  pub async fn create_random_field_choice(&self, field_id: Option<&Uuid>) -> Result<FieldChoice, TestSlashstepServerError> {
+
+    let field_choice_properties = InitialFieldChoiceProperties {
+      field_id: field_id.copied().unwrap_or(self.create_random_field().await?.id),
+      description: Some(Uuid::now_v7().to_string()),
+      value_type: FieldChoiceType::Text,
+      text_value: Some(Uuid::now_v7().to_string()),
+      ..Default::default()
+    };
+
+    let field_choice = FieldChoice::create(&field_choice_properties, &self.database_pool).await?;
+
+    return Ok(field_choice);
+
+  }
+
+  pub async fn create_random_field_value(&self) -> Result<FieldValue, TestSlashstepServerError> {
+
+    let field = self.create_random_field().await?;
+    let field_choice_properties = InitialFieldValueProperties {
+      field_id: field.id,
+      parent_resource_type: FieldValueParentResourceType::Field,
+      parent_field_id: Some(field.id),
+      value_type: FieldValueType::Text,
+      text_value: Some(Uuid::now_v7().to_string()),
+      ..Default::default()
+    };
+
+    let field_choice = FieldValue::create(&field_choice_properties, &self.database_pool).await?;
+
+    return Ok(field_choice);
+
+  }
+
   pub async fn create_random_group(&self) -> Result<Group, TestSlashstepServerError> {
 
     let group_properties = InitialGroupProperties {
@@ -364,6 +398,24 @@ impl TestEnvironment {
 
   }
 
+  pub async fn create_random_project(&self) -> Result<Project, TestSlashstepServerError> {
+
+    let project_properties = InitialProjectProperties {
+      name: Uuid::now_v7().to_string(),
+      display_name: Uuid::now_v7().to_string(),
+      key: Uuid::now_v7().to_string(),
+      description: Some(Uuid::now_v7().to_string()),
+      start_date: Some(Utc::now()),
+      end_date: Some(Utc::now()),
+      workspace_id: self.create_random_workspace().await?.id
+    };
+
+    let project = Project::create(&project_properties, &self.database_pool).await?;
+
+    return Ok(project);
+
+  }
+
   pub async fn create_random_role(&self) -> Result<Role, TestSlashstepServerError> {
 
     let role_properties = InitialRoleProperties {
@@ -380,55 +432,17 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_field_value(&self) -> Result<FieldValue, TestSlashstepServerError> {
+  pub async fn create_random_server_log_entry(&self) -> Result<ServerLogEntry, TestSlashstepServerError> {
 
-    let field = self.create_random_field().await?;
-    let field_choice_properties = InitialFieldValueProperties {
-      field_id: field.id,
-      parent_resource_type: FieldValueParentResourceType::Field,
-      parent_field_id: Some(field.id),
-      value_type: FieldValueType::Text,
-      text_value: Some(Uuid::now_v7().to_string()),
-      ..Default::default()
+    let server_log_entry_properties = InitialServerLogEntryProperties {
+      message: Uuid::now_v7().to_string(),
+      http_transaction_id: None,
+      level: ServerLogEntryLevel::Info
     };
 
-    let field_choice = FieldValue::create(&field_choice_properties, &self.database_pool).await?;
+    let server_log_entry = ServerLogEntry::create(&server_log_entry_properties, &self.database_pool).await?;
 
-    return Ok(field_choice);
-
-  }
-
-  pub async fn create_random_field_choice(&self, field_id: Option<&Uuid>) -> Result<FieldChoice, TestSlashstepServerError> {
-
-    let field_choice_properties = InitialFieldChoiceProperties {
-      field_id: field_id.copied().unwrap_or(self.create_random_field().await?.id),
-      description: Some(Uuid::now_v7().to_string()),
-      value_type: FieldChoiceType::Text,
-      text_value: Some(Uuid::now_v7().to_string()),
-      ..Default::default()
-    };
-
-    let field_choice = FieldChoice::create(&field_choice_properties, &self.database_pool).await?;
-
-    return Ok(field_choice);
-
-  }
-
-  pub async fn create_random_project(&self) -> Result<Project, TestSlashstepServerError> {
-
-    let project_properties = InitialProjectProperties {
-      name: Uuid::now_v7().to_string(),
-      display_name: Uuid::now_v7().to_string(),
-      key: Uuid::now_v7().to_string(),
-      description: Some(Uuid::now_v7().to_string()),
-      start_date: Some(Utc::now()),
-      end_date: Some(Utc::now()),
-      workspace_id: self.create_random_workspace().await?.id
-    };
-
-    let project = Project::create(&project_properties, &self.database_pool).await?;
-
-    return Ok(project);
+    return Ok(server_log_entry);
 
   }
 
