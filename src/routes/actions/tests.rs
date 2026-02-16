@@ -40,7 +40,7 @@ async fn verify_returned_action_list_without_query() -> Result<(), TestSlashstep
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
@@ -113,7 +113,7 @@ async fn verify_returned_action_list_with_query() -> Result<(), TestSlashstepSer
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
@@ -185,7 +185,7 @@ async fn verify_default_action_list_limit() -> Result<(), TestSlashstepServerErr
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
@@ -252,7 +252,7 @@ async fn verify_maximum_action_list_limit() -> Result<(), TestSlashstepServerErr
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
@@ -308,7 +308,7 @@ async fn verify_query_when_listing_actions() -> Result<(), TestSlashstepServerEr
   
   // Grant access to the "slashstep.actions.get" action to the user.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
@@ -422,7 +422,7 @@ async fn verify_permission_when_listing_actions() -> Result<(), TestSlashstepSer
 
   // Create a user and a session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 

@@ -1,1 +1,0 @@
-select * from hydrated_sessions where id = $1;

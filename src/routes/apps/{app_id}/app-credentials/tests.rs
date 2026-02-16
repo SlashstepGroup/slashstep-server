@@ -29,7 +29,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   
   // Give the user access to the "slashstep.appCredentials.get" action.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
@@ -84,7 +84,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   
   // Give the user access to the "slashstep.appCredentials.get" action.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
@@ -142,7 +142,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   
   // Grant access to the "slashstep.appCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
@@ -194,7 +194,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   
   // Grant access to the "slashstep.appCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
@@ -237,7 +237,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   
   // Grant access to the "slashstep.appCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_app_credentials_action = Action::get_by_name("slashstep.appCredentials.get", &test_environment.database_pool).await?;
@@ -341,7 +341,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
 
   // Create a user and a session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
@@ -405,7 +405,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
 
   // Give the user access to the "slashstep.apps.create" action.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let create_app_credentials_action = Action::get_by_name("slashstep.appCredentials.create", &test_environment.database_pool).await?;
@@ -522,7 +522,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
 
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   

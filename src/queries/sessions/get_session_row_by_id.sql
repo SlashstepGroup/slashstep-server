@@ -1,0 +1,1 @@
+SELECT * FROM sessions WHERE id = $1;

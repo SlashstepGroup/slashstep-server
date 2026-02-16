@@ -462,14 +462,14 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_session(&self, user_id: &Uuid) -> Result<Session, TestSlashstepServerError> {
+  pub async fn create_random_session(&self, user_id: Option<&Uuid>) -> Result<Session, TestSlashstepServerError> {
 
     let local_ip = local_ip()?;
-
+    let user_id = user_id.copied().unwrap_or(self.create_random_user().await?.id);
     let session_properties = InitialSessionProperties {
       user_id: user_id,
-      expiration_date: &(Utc::now() + Duration::days(30)),
-      creation_ip_address: &local_ip
+      expiration_date: (Utc::now() + Duration::days(30)),
+      creation_ip_address: local_ip
     };
 
     let session = Session::create(&session_properties, &self.database_pool).await?;
