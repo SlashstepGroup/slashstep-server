@@ -33,7 +33,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   let test_server = TestServer::new(router)?;
   
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
@@ -105,7 +105,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   let test_server = TestServer::new(router)?;
   
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
@@ -175,7 +175,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let test_server = TestServer::new(router)?;
   
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
@@ -251,7 +251,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let test_server = TestServer::new(router)?;
   
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
@@ -307,7 +307,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
   let test_server = TestServer::new(router)?;
   
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
@@ -418,7 +418,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
   let test_server = TestServer::new(router)?;
   
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 

@@ -563,7 +563,31 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       display_name: "Delete server log entries".to_string(),
       description: "Delete server log entries on a particular scope. This can be a dangerous action to grant permissions for, as it can affect auditing.".to_string(),
       ..Default::default()
-    }
+    },
+    InitialActionProperties {
+      name: "slashstep.sessions.get".to_string(),
+      display_name: "Get sessions".to_string(),
+      description: "Get a specific session on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.sessions.list".to_string(),
+      display_name: "List sessions".to_string(),
+      description: "List all sessions on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.sessions.create".to_string(),
+      display_name: "Create sessions".to_string(),
+      description: "Create sessions on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.sessions.delete".to_string(),
+      display_name: "Delete sessions".to_string(),
+      description: "Delete sessions on a particular scope.".to_string(),
+      ..Default::default()
+    },
   ];
 
   let mut actions: Vec<Action> = Vec::new();

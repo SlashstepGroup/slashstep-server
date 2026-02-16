@@ -35,7 +35,7 @@
   
 //   // Grant access to the "slashstep.apps.get" action to the user.
 //   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
+//   let session = test_environment.create_random_session(Some(&user.id)).await?;
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 //   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
@@ -111,7 +111,7 @@
   
 //   // Grant access to the "slashstep.apps.get" action to the user.
 //   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
+//   let session = test_environment.create_random_session(Some(&user.id)).await?;
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 //   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
@@ -190,7 +190,7 @@
   
 //   // Grant access to the "slashstep.apps.get" action to the user.
 //   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
+//   let session = test_environment.create_random_session(Some(&user.id)).await?;
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 //   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
@@ -257,7 +257,7 @@
   
 //   // Grant access to the "slashstep.apps.get" action to the user.
 //   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
+//   let session = test_environment.create_random_session(Some(&user.id)).await?;
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 //   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
@@ -313,7 +313,7 @@
   
 //   // Grant access to the "slashstep.apps.get" action to the user.
 //   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
+//   let session = test_environment.create_random_session(Some(&user.id)).await?;
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 //   let get_actions_action = Action::get_by_name("slashstep.apps.get", &test_environment.database_pool).await?;
@@ -427,7 +427,7 @@
 
 //   // Create a user and a session.
 //   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_session(&user.id).await?;
+//   let session = test_environment.create_random_session(Some(&user.id)).await?;
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 

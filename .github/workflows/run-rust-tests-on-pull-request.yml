@@ -1,0 +1,29 @@
+name: Run Rust tests
+on:
+  pull_request:
+    paths: 
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/run-rust-tests-on-pull-request.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-pull-request:
+    name: Test pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: mkdir secrets
+      - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
+      - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
+      - run: RUSTFLAGS="-Awarnings" cargo test --all-features
+        env:
+          JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
+          JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem

@@ -8,7 +8,8 @@ on:
       - src/**
       - Cargo.toml
       - Cargo.lock
-      - .github/workflows/run-rust-tests.yml
+      - .github/workflows/run-rust-tests-on-development-environment.yml
+      - .github/workflows/run-rust-tests-on-pull-request.yml
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   test:
-    name: cargo test # This needs to be the same name as the one in run-rust-tests.yml.
+    name: Test pull request # This needs to be the same name as the one in run-rust-tests.yml.
     runs-on: ubuntu-latest
     steps:
-      - run: 'echo "No code was changed, so testing is not required."'
+      - run: 'echo "No Rust code or workflows were changed, so testing may not be required."'

@@ -44,7 +44,7 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
   let test_server = TestServer::new(router)?;
   
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.get", &test_environment.database_pool).await?;
@@ -142,7 +142,7 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
 
   // Create the user, the session, and the action.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let action = test_environment.create_random_action(None).await?;
@@ -175,7 +175,7 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashste
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
@@ -208,7 +208,7 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
@@ -316,7 +316,7 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
@@ -350,7 +350,7 @@ async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSla
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
@@ -383,7 +383,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.update", &test_environment.database_pool).await?;
@@ -587,7 +587,7 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
 
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_session(&user.id).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 

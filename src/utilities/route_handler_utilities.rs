@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use colored::Colorize;
 use pg_escape::quote_literal;
 use postgres::error::SqlState;
@@ -525,10 +525,17 @@ pub async fn get_role_by_id(role_id: &Uuid, http_transaction: &HTTPTransaction, 
 
 }
 
-pub async fn get_server_log_entry_by_id(role_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ServerLogEntry, HTTPError> {
+pub async fn get_server_log_entry_by_id(server_log_entry_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ServerLogEntry, HTTPError> {
 
-  let server_log_entry = get_resource_by_id::<ServerLogEntry, _>("server log entry", &role_id, &http_transaction, &database_pool, |role_id, database_pool| Box::new(ServerLogEntry::get_by_id(role_id, database_pool))).await?;
+  let server_log_entry = get_resource_by_id::<ServerLogEntry, _>("server log entry", &server_log_entry_id, &http_transaction, &database_pool, |server_log_entry_id, database_pool| Box::new(ServerLogEntry::get_by_id(server_log_entry_id, database_pool))).await?;
   return Ok(server_log_entry);
+
+}
+
+pub async fn get_session_by_id(session_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Session, HTTPError> {
+
+  let session = get_resource_by_id::<Session, _>("session", &session_id, &http_transaction, &database_pool, |session_id, database_pool| Box::new(Session::get_by_id(session_id, database_pool))).await?;
+  return Ok(session);
 
 }
 

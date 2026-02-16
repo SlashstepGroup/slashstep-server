@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -48,6 +49,9 @@ pub enum ResourceError {
 
   #[error("{0}")]
   ConflictError(String),
+
+  #[error("{0} is an unacceptable date.")]
+  DateError(DateTime<Utc>),
 
   #[error(transparent)]
   UUIDError(#[from] uuid::Error),

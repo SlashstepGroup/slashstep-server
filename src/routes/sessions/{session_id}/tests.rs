@@ -1,6 +1,6 @@
 /**
  * 
- * Any test cases for /server-log-entries/{server_log_entry_id} should be handled here.
+ * Any test cases for /sessions/{session_id} should be handled here.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -19,7 +19,7 @@ use crate::{
     initialize_predefined_actions, 
     initialize_predefined_roles
   }, resources::{
-    access_policy::ActionPermissionLevel, server_log_entry::ServerLogEntry
+    access_policy::ActionPermissionLevel, session::Session,
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -45,22 +45,20 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_server_log_entries_action = Action::get_by_name("slashstep.serverLogEntries.get", &test_environment.database_pool).await?;
+  let get_server_log_entries_action = Action::get_by_name("slashstep.sessions.get", &test_environment.database_pool).await?;
   test_environment.create_instance_access_policy(&user.id, &get_server_log_entries_action.id, &ActionPermissionLevel::User).await?;
-  
-  let server_log_entry = test_environment.create_random_server_log_entry().await?;
 
-  let response = test_server.get(&format!("/server-log-entries/{}", server_log_entry.id))
+  let response = test_server.get(&format!("/sessions/{}", session.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_server_log_entry: ServerLogEntry = response.json();
-  assert_eq!(response_server_log_entry.id, server_log_entry.id);
-  assert_eq!(response_server_log_entry.http_transaction_id, server_log_entry.http_transaction_id);
-  assert_eq!(response_server_log_entry.message, server_log_entry.message);
-  assert_eq!(response_server_log_entry.level, server_log_entry.level);
+  let response_session: Session = response.json();
+  assert_eq!(response_session.id, session.id);
+  assert_eq!(response_session.user_id, session.user_id);
+  assert_eq!(response_session.expiration_date, session.expiration_date);
+  assert_eq!(response_session.creation_ip_address, session.creation_ip_address);
 
   return Ok(());
   
@@ -83,7 +81,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
 
-  let response = test_server.get("/server-log-entries/not-a-uuid")
+  let response = test_server.get("/sessions/not-a-uuid")
     .await;
   
   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -108,9 +106,9 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   
-  let server_log_entry = test_environment.create_random_server_log_entry().await?;
+  let session = test_environment.create_random_session(None).await?;
 
-  let response = test_server.get(&format!("/server-log-entries/{}", server_log_entry.id))
+  let response = test_server.get(&format!("/sessions/{}", session.id))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
@@ -133,7 +131,6 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let server_log_entry = test_environment.create_random_server_log_entry().await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -143,7 +140,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/server-log-entries/{}", server_log_entry.id))
+  let response = test_server.get(&format!("/sessions/{}", session.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
@@ -160,6 +157,8 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -175,7 +174,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
-  let response = test_server.get(&format!("/server-log-entries/{}", uuid::Uuid::now_v7()))
+  let response = test_server.get(&format!("/sessions/{}", uuid::Uuid::now_v7()))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
@@ -200,8 +199,8 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Grant access to the "slashstep.serverLogEntries.delete" action to the user.
-//   let delete_fields_action = Action::get_by_name("slashstep.serverLogEntries.delete", &test_environment.database_pool).await?;
+//   // Grant access to the "slashstep.sessions.delete" action to the user.
+//   let delete_fields_action = Action::get_by_name("slashstep.sessions.delete", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: delete_fields_action.id,
 //     permission_level: ActionPermissionLevel::User,
@@ -213,7 +212,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   }, &test_environment.database_pool).await?;
 
 //   // Set up the server and send the request.
-//   let server_log_entry = test_environment.create_random_server_log_entry().await?;
+//   let session = test_environment.create_random_session().await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -221,13 +220,13 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/server-log-entries/{}", server_log_entry.id))
+//   let response = test_server.delete(&format!("/sessions/{}", session.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
 //   assert_eq!(response.status_code(), 204);
 
-//   match App::get_by_id(&server_log_entry.id, &test_environment.database_pool).await.expect_err("Expected an app not found error.") {
+//   match App::get_by_id(&session.id, &test_environment.database_pool).await.expect_err("Expected an app not found error.") {
 
 //     ResourceError::NotFoundError(_) => {},
 
@@ -256,7 +255,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
 
-//   let response = test_server.delete("/server-log-entries/not-a-uuid")
+//   let response = test_server.delete("/sessions/not-a-uuid")
 //     .await;
   
 //   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -274,7 +273,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
   
 //   // Create a dummy app.
-//   let server_log_entry = test_environment.create_random_server_log_entry().await?;
+//   let session = test_environment.create_random_session().await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -284,7 +283,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/server-log-entries/{}", server_log_entry.id))
+//   let response = test_server.delete(&format!("/sessions/{}", session.id))
 //     .await;
   
 //   // Verify the response.
@@ -309,7 +308,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
 //   // Create a dummy app.
-//   let server_log_entry = test_environment.create_random_server_log_entry().await?;
+//   let session = test_environment.create_random_session().await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -319,7 +318,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/server-log-entries/{}", server_log_entry.id))
+//   let response = test_server.delete(&format!("/sessions/{}", session.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
@@ -350,7 +349,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.delete(&format!("/server-log-entries/{}", uuid::Uuid::now_v7()))
+//   let response = test_server.delete(&format!("/sessions/{}", uuid::Uuid::now_v7()))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
   
@@ -374,7 +373,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let session = test_environment.create_random_session(Some(&user.id)).await?;
 //   let json_web_token_private_key = get_json_web_token_private_key().await?;
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let update_fields_action = Action::get_by_name("slashstep.serverLogEntries.update", &test_environment.database_pool).await?;
+//   let update_fields_action = Action::get_by_name("slashstep.sessions.update", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: update_fields_action.id,
 //     permission_level: ActionPermissionLevel::Editor,
@@ -399,7 +398,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/server-log-entries/{}", original_field.id))
+//   let response = test_server.patch(&format!("/sessions/{}", original_field.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .json(&serde_json::json!({
 //       "name": new_name.clone(),
@@ -443,7 +442,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/server-log-entries/not-a-uuid")
+//   let response = test_server.patch("/sessions/not-a-uuid")
 //     .await;
   
 //   // Verify the response.
@@ -469,7 +468,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/server-log-entries/not-a-uuid")
+//   let response = test_server.patch("/sessions/not-a-uuid")
 //     .add_header("Content-Type", "application/json")
 //     .await;
   
@@ -496,7 +495,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/server-log-entries/{}", uuid::Uuid::now_v7()))
+//   let response = test_server.patch(&format!("/sessions/{}", uuid::Uuid::now_v7()))
 //     .add_header("Content-Type", "application/json")
 //     .json(&serde_json::json!({
 //       "name": "Super Duper Admin",
@@ -526,7 +525,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/server-log-entries/not-a-uuid")
+//   let response = test_server.patch("/sessions/not-a-uuid")
 //     .add_header("Content-Type", "application/json")
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
@@ -548,7 +547,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
   
 //   // Set up the server and send the request.
-//   let server_log_entry = test_environment.create_random_server_log_entry().await?;
+//   let session = test_environment.create_random_session().await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -556,7 +555,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/server-log-entries/{}", server_log_entry.id))
+//   let response = test_server.patch(&format!("/sessions/{}", session.id))
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
 //     }))
@@ -584,7 +583,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
 //   // Set up the server and send the request.
-//   let server_log_entry = test_environment.create_random_server_log_entry().await?;
+//   let session = test_environment.create_random_session().await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -592,7 +591,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/server-log-entries/{}", server_log_entry.id))
+//   let response = test_server.patch(&format!("/sessions/{}", session.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
@@ -623,7 +622,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/server-log-entries/{}", Uuid::now_v7()))
+//   let response = test_server.patch(&format!("/sessions/{}", Uuid::now_v7()))
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
 //     }))
