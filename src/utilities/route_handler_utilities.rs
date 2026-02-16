@@ -217,21 +217,7 @@ pub async fn get_action_by_id(action_id_string: &str, http_transaction: &HTTPTra
 
 }
 
-pub async fn get_user_by_id(user_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<User, HTTPError> {
-
-  let user_id = match Uuid::parse_str(&user_id) {
-
-    Ok(user_id) => user_id,
-
-    Err(_) => {
-
-      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the user ID.".to_string()));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
+pub async fn get_user_by_id(user_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<User, HTTPError> {
 
   let user = match User::get_by_id(&user_id, database_pool).await {
 

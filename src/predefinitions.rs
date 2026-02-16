@@ -588,6 +588,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "Delete sessions on a particular scope.".to_string(),
       ..Default::default()
     },
+    InitialActionProperties {
+      name: "slashstep.users.get".to_string(),
+      display_name: "Get users".to_string(),
+      description: "Get a specific user on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.users.list".to_string(),
+      display_name: "List users".to_string(),
+      description: "List all users on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.users.create".to_string(),
+      display_name: "Create users".to_string(),
+      description: "Create users on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.users.update".to_string(),
+      display_name: "Update users".to_string(),
+      description: "Update users on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.users.delete".to_string(),
+      display_name: "Delete users".to_string(),
+      description: "Delete users on a particular scope.".to_string(),
+      ..Default::default()
+    }
   ];
 
   let mut actions: Vec<Action> = Vec::new();

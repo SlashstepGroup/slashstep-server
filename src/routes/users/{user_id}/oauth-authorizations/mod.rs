@@ -19,7 +19,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::str::FromStr;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_app_by_id, get_authenticated_principal, get_json_web_token_private_key, get_resource_hierarchy, get_user_by_id, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_app_by_id, get_authenticated_principal, get_json_web_token_private_key, get_resource_hierarchy, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}};
 
 
 // /// GET /apps
@@ -206,6 +206,7 @@ async fn handle_create_oauth_authorization_request(
   }
   
   // Make sure the user can create access policies for the target action.
+  let user_id = get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
   let target_user = get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_user, &AccessPolicyResourceType::User, &target_user.id, &http_transaction, &state.database_pool).await?;
   let create_oauth_authorizations_action = get_action_by_name("slashstep.oauthAuthorizations.create", &http_transaction, &state.database_pool).await?;
