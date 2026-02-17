@@ -31,7 +31,7 @@ reqwest = { version = "0.12.24", features = ["json"] }
 tower = "0.5.2"
 ntest = "0.9.3"
 axum-extra = { version = "0.12.2", features = ["cookie", "erased-json"] }
-jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 axum-macros = "0.5.0"
 ed25519-dalek = { version = "2.2.0", features = ["pkcs8", "pem", "rand_core"] }
 rand = "0.9.2"
