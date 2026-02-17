@@ -29,7 +29,7 @@ tokio = { version = "1.49.0", features = ["full"] }
 uuid = { version = "1.18.1", features = ["v7", "serde"] }
 reqwest = { version = "0.12.24", features = ["json"] }
 tower = "0.5.3"
-ntest = "0.9.3"
+ntest = "0.9.5"
 axum-extra = { version = "0.12.2", features = ["cookie", "erased-json"] }
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 axum-macros = "0.5.0"
