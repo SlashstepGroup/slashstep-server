@@ -1,15 +1,27 @@
+#[cfg(test)]
+mod tests;
+
 use postgres_types::ToSql;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
-pub const ALLOWED_QUERY_KEYS: &[&str] = &[];
-pub const UUID_QUERY_KEYS: &[&str] = &[];
+pub const ALLOWED_QUERY_KEYS: &[&str] = &[
+  "id",
+  "name",
+  "display_name",
+  "description"
+];
+pub const UUID_QUERY_KEYS: &[&str] = &[
+  "id"
+];
 pub const RESOURCE_NAME: &str = "Workspace";
 pub const DATABASE_TABLE_NAME: &str = "workspaces";
 pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.workspaces.get";
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitialWorkspaceProperties {
 
   /// The workspace's name.
@@ -23,6 +35,7 @@ pub struct InitialWorkspaceProperties {
 
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Workspace {
 
   /// The workspace's ID.
@@ -66,7 +79,7 @@ impl Workspace {
 
   }
 
-  /// Gets a field by its ID.
+  /// Gets a workspace by its ID.
   pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let database_client = database_pool.get().await?;
@@ -77,7 +90,7 @@ impl Workspace {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(format!("A field value with the ID \"{}\" does not exist.", id)))
+        None => return Err(ResourceError::NotFoundError(format!("A workspace with the ID \"{}\" does not exist.", id)))
 
       },
 
@@ -85,13 +98,13 @@ impl Workspace {
 
     };
 
-    let field = Self::convert_from_row(&row);
+    let workspace = Self::convert_from_row(&row);
 
-    return Ok(field);
+    return Ok(workspace);
 
   }
 
-  /// Converts a row into a field.
+  /// Converts a row into a workspace.
   fn convert_from_row(row: &postgres::Row) -> Self {
 
     return Workspace {
@@ -113,7 +126,7 @@ impl Workspace {
 
   }
 
-  /// Creates a new field.
+  /// Creates a new workspace.
   pub async fn create(initial_properties: &InitialWorkspaceProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let query = include_str!("../../queries/workspaces/insert_workspace_row.sql");
@@ -130,9 +143,9 @@ impl Workspace {
     })?;
 
     // Return the app authorization.
-    let app_credential = Self::convert_from_row(&row);
+    let workspace = Self::convert_from_row(&row);
 
-    return Ok(app_credential);
+    return Ok(workspace);
 
   }
 
@@ -174,8 +187,8 @@ impl Workspace {
     // Execute the query.
     let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
-    let actions = rows.iter().map(Self::convert_from_row).collect();
-    return Ok(actions);
+    let workspaces = rows.iter().map(Self::convert_from_row).collect();
+    return Ok(workspaces);
 
   }
 
@@ -183,7 +196,7 @@ impl Workspace {
 
 impl DeletableResource for Workspace {
 
-  /// Deletes this field.
+  /// Deletes this workspace.
   async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;

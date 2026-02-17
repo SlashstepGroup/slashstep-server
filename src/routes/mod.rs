@@ -34,6 +34,7 @@ mod roles;
 mod server_log_entries;
 mod sessions;
 mod users;
+mod workspaces;
 
 use axum::{Router, response::IntoResponse};
 use crate::{AppState, HTTPError, middleware::http_request_middleware};

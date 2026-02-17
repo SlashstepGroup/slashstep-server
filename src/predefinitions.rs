@@ -617,6 +617,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       display_name: "Delete users".to_string(),
       description: "Delete users on a particular scope.".to_string(),
       ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.workspaces.get".to_string(),
+      display_name: "Get workspaces".to_string(),
+      description: "Get a specific workspace on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.workspaces.list".to_string(),
+      display_name: "List workspaces".to_string(),
+      description: "List all workspaces on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.workspaces.create".to_string(),
+      display_name: "Create workspaces".to_string(),
+      description: "Create new workspaces on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.workspaces.update".to_string(),
+      display_name: "Update workspaces".to_string(),
+      description: "Update workspaces on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.workspaces.delete".to_string(),
+      display_name: "Delete workspaces".to_string(),
+      description: "Delete workspaces on a particular scope.".to_string(),
+      ..Default::default()
     }
   ];
 
