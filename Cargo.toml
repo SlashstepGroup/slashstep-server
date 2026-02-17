@@ -44,4 +44,4 @@ rust_decimal = { version = "1.40.0", features = ["db-postgres", "db-tokio-postgr
 testcontainers = { version = "0.25.2", features = ["blocking"] }
 testcontainers-modules = { version = "0.13.0", features = ["postgres"] }
 axum-test = "18.3.0"
-anyhow = "1.0.100"
+anyhow = "1.0.101"
