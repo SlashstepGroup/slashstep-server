@@ -287,6 +287,22 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
+      // Configuration -> Server
+      AccessPolicyResourceType::Configuration => {
+
+        let Some(configuration_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Configuration));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::Configuration, Some(configuration_id)));
+
+        selected_resource_type = AccessPolicyResourceType::Server;
+        selected_resource_id = None;
+
+      },
+
       // FieldValue -> (Field | Item)
       AccessPolicyResourceType::FieldValue => {
 

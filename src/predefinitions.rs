@@ -193,6 +193,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "slashstep.configurations.get".to_string(),
+      display_name: "Get configurations".to_string(),
+      description: "Get a specific configuration on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.configurations.list".to_string(),
+      display_name: "List configurations".to_string(),
+      description: "List all configurations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.configurations.create".to_string(),
+      display_name: "Create configurations".to_string(),
+      description: "Create new configurations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.configurations.update".to_string(),
+      display_name: "Update configurations".to_string(),
+      description: "Update configurations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.configurations.delete".to_string(),
+      display_name: "Delete configurations".to_string(),
+      description: "Delete configurations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "slashstep.fields.get".to_string(),
       display_name: "Get fields".to_string(),
       description: "Get a specific field on a particular scope.".to_string(),

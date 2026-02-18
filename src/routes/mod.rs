@@ -10,6 +10,7 @@ mod app_authorizations;
 mod app_authorization_credentials;
 #[path = "./app-credentials/mod.rs"]
 mod app_credentials;
+mod configurations;
 mod fields;
 #[path = "./field-choices/mod.rs"]
 mod field_choices;
@@ -56,6 +57,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(app_authorizations::get_router(state.clone()))
     .merge(app_authorization_credentials::get_router(state.clone()))
     .merge(app_credentials::get_router(state.clone()))
+    .merge(configurations::get_router(state.clone()))
     .merge(fields::get_router(state.clone()))
     .merge(field_choices::get_router(state.clone()))
     .merge(field_values::get_router(state.clone()))
@@ -72,6 +74,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(server_log_entries::get_router(state.clone()))
     .merge(sessions::get_router(state.clone()))
     .merge(users::get_router(state.clone()))
+    .merge(workspaces::get_router(state.clone()))
     .fallback(fallback);
   return router;
 

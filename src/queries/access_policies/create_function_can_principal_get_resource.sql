@@ -482,6 +482,41 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 selected_resource_type := 'App';
                 selected_resource_id := selected_resource_parent_id;
 
+            ELSIF selected_resource_type = 'Configuration' THEN
+
+                -- Configuration -> Server
+                -- Check if the configuration has an associated access policy.
+                SELECT
+                    permission_level,
+                    is_inheritance_enabled
+                INTO
+                    current_permission_Level,
+                    is_inheritance_enabled_on_selected_resource
+                FROM
+                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
+                WHERE
+                    principal_access_policies.scoped_resource_type = 'Configuration' AND 
+                    principal_access_policies.scoped_configuration_id = selected_resource_id AND (
+                        NOT needs_inheritance OR
+                        principal_access_policies.is_inheritance_enabled
+                    )
+                LIMIT 1;
+
+                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
+
+                    RETURN FALSE;
+
+                ELSIF current_permission_Level IS NOT NULL THEN
+
+                    RETURN current_permission_Level >= 'User';
+
+                END IF;
+
+                -- Look for the parent resource type.
+                needs_inheritance := TRUE;
+                selected_resource_type := 'Server';
+                selected_resource_id := NULL;
+
             ELSIF selected_resource_type = 'FieldValue' THEN
 
                 -- FieldValue -> (Item | Field)
