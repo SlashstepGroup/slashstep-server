@@ -12,9 +12,10 @@ INSERT INTO action_log_entries (
   target_app_authorization_id,
   target_app_authorization_credential_id,
   target_app_credential_id,
-  target_field_value_id,
+  target_configuration_id,
   target_field_id,
   target_field_choice_id,
+  target_field_value_id,
   target_group_id,
   target_http_transaction_id,
   target_item_id,
@@ -61,5 +62,6 @@ INSERT INTO action_log_entries (
   $28,
   $29,
   $30,
-  $31
+  $31,
+  $32
 ) RETURNING *;

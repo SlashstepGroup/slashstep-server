@@ -25,7 +25,7 @@ use crate::{
     initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::{Membership}, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, workspace::Workspace
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, workspace::Workspace
   },
   utilities::resource_hierarchy::ResourceHierarchyError
 };
@@ -144,8 +144,9 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   AppAuthorization::initialize_resource_table(database_pool).await?;
   AppAuthorizationCredential::initialize_resource_table(database_pool).await?;
   Field::initialize_resource_table(database_pool).await?;
-  FieldValue::initialize_resource_table(database_pool).await?;
   FieldChoice::initialize_resource_table(database_pool).await?;
+  FieldValue::initialize_resource_table(database_pool).await?;
+  Configuration::initialize_resource_table(database_pool).await?;
   AccessPolicy::initialize_resource_table(database_pool).await?;
   DelegationPolicy::initialize_resource_table(database_pool).await?;
 

@@ -1,0 +1,1 @@
+SELECT * FROM configurations WHERE id = $1;
