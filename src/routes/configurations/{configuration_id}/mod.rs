@@ -11,15 +11,14 @@
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
-use reqwest::StatusCode;
 use crate::{
   AppState, 
   HTTPError, 
   middleware::{authentication_middleware, http_request_middleware}, 
   resources::{
-    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, configuration::Configuration, server_log_entry::ServerLogEntry, user::User
+    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, configuration::{Configuration, EditableConfigurationProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_authenticated_principal, get_configuration_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_authenticated_principal, get_configuration_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
 
 // #[path = "./access-policies/mod.rs"]
@@ -78,113 +77,114 @@ async fn handle_get_configuration_request(
 //   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 // ) -> Result<StatusCode, HTTPError> {
 
-//   let configuration_id = get_uuid_from_string(&configuration_id, "app", &http_transaction, &state.database_pool).await?;
+//   let configuration_id = get_uuid_from_string(&configuration_id, "configuration", &http_transaction, &state.database_pool).await?;
 //   let response = delete_resource(
 //     State(state), 
 //     Extension(http_transaction), 
 //     Extension(authenticated_user), 
 //     Extension(authenticated_app), 
 //     Extension(authenticated_app_authorization),
-//     Some(&AccessPolicyResourceType::App),
+//     Some(&AccessPolicyResourceType::Configuration),
 //     &configuration_id, 
-//     "slashstep.apps.delete",
-//     "app",
-//     &ActionLogEntryTargetResourceType::App,
-//     |configuration_id, database_pool| Box::new(App::get_by_id(configuration_id, database_pool))
+//     "slashstep.configurations.delete",
+//     "configuration",
+//     &ActionLogEntryTargetResourceType::Configuration,
+//     |configuration_id, database_pool| Box::new(Configuration::get_by_id(configuration_id, database_pool))
 //   ).await;
 
 //   return response;
 
 // }
 
-// /// PATCH /configurations/{configuration_id}
-// /// 
-// /// Updates an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_patch_app_request(
-//   Path(configuration_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-//   body: Result<Json<EditableAppProperties>, JsonRejection>
-// ) -> Result<Json<App>, HTTPError> {
+/// PATCH /configurations/{configuration_id}
+/// 
+/// Updates a configuration by its ID.
+#[axum::debug_handler]
+async fn handle_patch_configuration_request(
+  Path(configuration_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+  body: Result<Json<EditableConfigurationProperties>, JsonRejection>
+) -> Result<Json<Configuration>, HTTPError> {
 
-//   let http_transaction = http_transaction.clone();
+  let http_transaction = http_transaction.clone();
 
-//   ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &state.database_pool).await.ok();
-//   let updated_app_properties = match body {
+  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &state.database_pool).await.ok();
+  let updated_configuration_properties = match body {
 
-//     Ok(updated_app_properties) => updated_app_properties,
+    Ok(updated_configuration_properties) => updated_configuration_properties,
 
-//     Err(error) => {
+    Err(error) => {
 
-//       let http_error = match error {
+      let http_error = match error {
 
-//         JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
+        JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
 
-//         JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+        JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
 
-//         JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
+        JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
 
-//         JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
+        JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
 
-//         _ => HTTPError::InternalServerError(Some(error.to_string()))
+        _ => HTTPError::InternalServerError(Some(error.to_string()))
 
-//       };
+      };
       
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-//       return Err(http_error);
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
 
-//     }
+    }
 
-//   };
+  };
 
-//   let original_target_field = get_app_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&original_target_field, &AccessPolicyResourceType::App, &original_target_field.id, &http_transaction, &state.database_pool).await?;
-//   let update_access_policy_action = get_action_by_name("slashstep.apps.update", &http_transaction, &state.database_pool).await?;
-//   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-//   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-//   verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let configuration_id = get_uuid_from_string(&configuration_id, "configuration", &http_transaction, &state.database_pool).await?;
+  let original_target_configuration = get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&original_target_configuration, &AccessPolicyResourceType::Configuration, &original_target_configuration  .id, &http_transaction, &state.database_pool).await?;
+  let update_access_policy_action = get_action_by_name("slashstep.configurations.update", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-//   ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-//   let updated_target_action = match original_target_field.update(&updated_app_properties, &state.database_pool).await {
+  ServerLogEntry::trace(&format!("Updating authenticated_configuration {}...", original_target_configuration.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let updated_target_configuration = match original_target_configuration.update(&updated_configuration_properties, &state.database_pool).await {
 
-//     Ok(updated_target_action) => updated_target_action,
+    Ok(updated_target_configuration) => updated_target_configuration,
 
-//     Err(error) => {
+    Err(error) => {
 
-//       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update authenticated_app: {:?}", error)));
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-//       return Err(http_error);
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to update configuration: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
 
-//     }
+    }
 
-//   };
+  };
 
-//   ActionLogEntry::create(&InitialActionLogEntryProperties {
-//     action_id: update_access_policy_action.id,
-//     http_transaction_id: Some(http_transaction.id),
-//     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-//     actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-//     actor_configuration_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-//     target_resource_type: ActionLogEntryTargetResourceType::Action,
-//     target_action_id: Some(updated_target_action.id),
-//     ..Default::default()
-//   }, &state.database_pool).await.ok();
-//   ServerLogEntry::success(&format!("Successfully updated action {}.", updated_target_action.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: update_access_policy_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::Configuration,
+    target_configuration_id: Some(updated_target_configuration.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+  ServerLogEntry::success(&format!("Successfully updated configuration {}.", updated_target_configuration.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 
-//   return Ok(Json(updated_target_action));
+  return Ok(Json(updated_target_configuration));
 
-// }
+}
 
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/configurations/{configuration_id}", axum::routing::get(handle_get_configuration_request))
     // .route("/configurations/{configuration_id}", axum::routing::delete(handle_delete_app_request))
-    // .route("/configurations/{configuration_id}", axum::routing::patch(handle_patch_app_request))
+    .route("/configurations/{configuration_id}", axum::routing::patch(handle_patch_configuration_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));

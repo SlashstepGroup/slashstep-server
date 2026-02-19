@@ -60,8 +60,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  // Create the access policy.
-  let project = test_environment.create_random_project().await?;
+  // Create the configuration.
   let configuration_properties = InitialConfigurationProperties {
     name: Uuid::now_v7().to_string(),
     value_type: ConfigurationValueType::Text,
