@@ -20,6 +20,7 @@
 * **Manage access on all levels:** From the server-level to the field-level, Slashstep Server features multiple levels of access for maximum granularity.
 
 ## Getting started
+* 
 
 ## Contributing
 * **Star this repo:** It's just one click and it's probably the easiest thing to do on this list. Your star goes a long way.
