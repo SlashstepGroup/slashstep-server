@@ -22,8 +22,8 @@ use crate::{
   utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_authenticated_principal, get_configuration_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
 };
 
-// #[path = "./access-policies/mod.rs"]
-// mod access_policies;
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
 #[cfg(test)]
 mod tests;
 
