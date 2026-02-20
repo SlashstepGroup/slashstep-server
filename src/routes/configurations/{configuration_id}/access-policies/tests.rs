@@ -34,59 +34,59 @@ async fn create_configuration_access_policy(database_pool: &deadpool_postgres::P
 
 }
 
-// #[tokio::test]
-// async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepServerError> {
+#[tokio::test]
+async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
 
-//   // Give the user access to the "slashstep.accessPolicies.create" action.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_random_session(Some(&user.id)).await?;
-//   let json_web_token_private_key = get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let create_access_policies_action = Action::get_by_name("slashstep.accessPolicies.create", &test_environment.database_pool).await?;
-//   test_environment.create_instance_access_policy(&user.id, &create_access_policies_action.id, &ActionPermissionLevel::User).await?;
+  // Give the user access to the "slashstep.accessPolicies.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let create_access_policies_action = Action::get_by_name("slashstep.accessPolicies.create", &test_environment.database_pool).await?;
+  test_environment.create_instance_access_policy(&user.id, &create_access_policies_action.id, &ActionPermissionLevel::User).await?;
   
-//   // Create dummy resources.
-//   let dummy_action = test_environment.create_random_action(None).await?;
-//   let dummy_configuration = test_environment.create_random_configuration().await?;
-//   test_environment.create_instance_access_policy(&user.id, &dummy_action.id, &ActionPermissionLevel::Editor).await?;
-//   let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
-//     action_id: dummy_action.id,
-//     permission_level: ActionPermissionLevel::User,
-//     is_inheritance_enabled: true,
-//     principal_type: AccessPolicyPrincipalType::User,
-//     principal_user_id: Some(user.id),
-//     ..Default::default()
-//   };
+  // Create dummy resources.
+  let dummy_action = test_environment.create_random_action(None).await?;
+  let dummy_configuration = test_environment.create_random_configuration().await?;
+  test_environment.create_instance_access_policy(&user.id, &dummy_action.id, &ActionPermissionLevel::Editor).await?;
+  let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
+    action_id: dummy_action.id,
+    permission_level: ActionPermissionLevel::User,
+    is_inheritance_enabled: true,
+    principal_type: AccessPolicyPrincipalType::User,
+    principal_user_id: Some(user.id),
+    ..Default::default()
+  };
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.post(&format!("/configurations/{}/access-policies", dummy_configuration.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .json(&serde_json::json!(initial_access_policy_properties))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post(&format!("/configurations/{}/access-policies", dummy_configuration.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(initial_access_policy_properties))
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::OK);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
-//   let response_access_policy: AccessPolicy = response.json();
-//   assert_eq!(initial_access_policy_properties.action_id, response_access_policy.action_id);
-//   assert_eq!(initial_access_policy_properties.principal_type, response_access_policy.principal_type);
-//   assert_eq!(initial_access_policy_properties.principal_user_id, response_access_policy.principal_user_id);
-//   assert_eq!(initial_access_policy_properties.permission_level, response_access_policy.permission_level);
-//   assert_eq!(initial_access_policy_properties.is_inheritance_enabled, response_access_policy.is_inheritance_enabled);
+  let response_access_policy: AccessPolicy = response.json();
+  assert_eq!(initial_access_policy_properties.action_id, response_access_policy.action_id);
+  assert_eq!(initial_access_policy_properties.principal_type, response_access_policy.principal_type);
+  assert_eq!(initial_access_policy_properties.principal_user_id, response_access_policy.principal_user_id);
+  assert_eq!(initial_access_policy_properties.permission_level, response_access_policy.permission_level);
+  assert_eq!(initial_access_policy_properties.is_inheritance_enabled, response_access_policy.is_inheritance_enabled);
 
-//   return Ok(());
+  return Ok(());
   
-// }
+}
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
