@@ -11,6 +11,7 @@
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
+use reqwest::StatusCode;
 use crate::{
   AppState, 
   HTTPError, 
@@ -18,7 +19,7 @@ use crate::{
   resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, configuration::{Configuration, EditableConfigurationProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_authenticated_principal, get_configuration_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_authenticated_principal, get_configuration_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 // #[path = "./access-policies/mod.rs"]
@@ -64,37 +65,37 @@ async fn handle_get_configuration_request(
 
 }
 
-// /// DELETE /configurations/{configuration_id}
-// /// 
-// /// Deletes an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_delete_app_request(
-//   Path(configuration_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-// ) -> Result<StatusCode, HTTPError> {
+/// DELETE /configurations/{configuration_id}
+/// 
+/// Deletes a configuration by its ID.
+#[axum::debug_handler]
+async fn handle_delete_configuration_request(
+  Path(configuration_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+) -> Result<StatusCode, HTTPError> {
 
-//   let configuration_id = get_uuid_from_string(&configuration_id, "configuration", &http_transaction, &state.database_pool).await?;
-//   let response = delete_resource(
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
-//     Extension(authenticated_app_authorization),
-//     Some(&AccessPolicyResourceType::Configuration),
-//     &configuration_id, 
-//     "slashstep.configurations.delete",
-//     "configuration",
-//     &ActionLogEntryTargetResourceType::Configuration,
-//     |configuration_id, database_pool| Box::new(Configuration::get_by_id(configuration_id, database_pool))
-//   ).await;
+  let configuration_id = get_uuid_from_string(&configuration_id, "configuration", &http_transaction, &state.database_pool).await?;
+  let response = delete_resource(
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
+    Some(&AccessPolicyResourceType::Configuration),
+    &configuration_id, 
+    "slashstep.configurations.delete",
+    "configuration",
+    &ActionLogEntryTargetResourceType::Configuration,
+    |configuration_id, database_pool| Box::new(Configuration::get_by_id(configuration_id, database_pool))
+  ).await;
 
-//   return response;
+  return response;
 
-// }
+}
 
 /// PATCH /configurations/{configuration_id}
 /// 
@@ -183,7 +184,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/configurations/{configuration_id}", axum::routing::get(handle_get_configuration_request))
-    // .route("/configurations/{configuration_id}", axum::routing::delete(handle_delete_app_request))
+    .route("/configurations/{configuration_id}", axum::routing::delete(handle_delete_configuration_request))
     .route("/configurations/{configuration_id}", axum::routing::patch(handle_patch_configuration_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
