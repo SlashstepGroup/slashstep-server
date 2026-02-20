@@ -1,11 +1,11 @@
 [package]
-name = "slashstep_server"
+name = "slashstep-server"
 version = "0.1.0"
 edition = "2024"
 description = "A server for hosting a Slashstep Server instance."
 readme = "README.md"
 homepage = "https://slashstep.com"
-repository = "https://github.com/SlashstepGroup/server"
+repository = "https://github.com/SlashstepGroup/slashstep-server"
 license = "MPL-2.0"
 keywords = ["project management", "problem management", "issue tracking"]
 publish = false
