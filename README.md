@@ -25,7 +25,7 @@
 ## Contributing
 * **Star this repo:** It's just one click and it's probably the easiest thing to do on this list. Your star goes a long way.
 * **Report bugs:** If something wrong happens, let us know! Sometimes we try to proactively find bugs; but odds are, you use the app differently than we do, and see issues we don't initially see. A helpful report can make the app better for everyone. 
-* **Squash bugs and implement features:** Check the [issues](https://github.com/SlashstepGroup/slashstep_server/issues), fork the repo, and bring it home with a pull request. If you like TypeScript more, consider contributing to our [web client](https://github.com/SlashstepGroup/web-client) repository.
+* **Squash bugs and implement features:** Check the [issues](https://github.com/SlashstepGroup/slashstep-server/issues), fork the repo, and bring it home with a pull request. If you like TypeScript more, consider contributing to our [web client](https://github.com/SlashstepGroup/web-client) repository.
 * **Improve the documentation:** If you took a look at our docs and thought a guide could make it better, write that guide! Fix that typo. Fork the repo, and we'll take a look. We appreciate you making the app more concise and understandable for the average person.
 * **Follow us on social media:** We're on [Bluesky](https://bsky.social/profile/beastslash.com) and [Discord](https://discord.gg/7Aekbhp2JS).
 * **Give us feedback:** Let us know how you use Slashstep Server. 

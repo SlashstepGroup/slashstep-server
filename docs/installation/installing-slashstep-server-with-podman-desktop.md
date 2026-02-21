@@ -1,5 +1,5 @@
 # Installing Slashstep Server with Podman Desktop
-You can install Slashstep Server with Podman Desktop. The GitHub Container Registry hosts the [official images](https://github.com/SlashstepGroup/slashstep_server/pkgs/container/slashstep_server).
+You can install Slashstep Server with Podman Desktop. The GitHub Container Registry hosts the [official images](https://github.com/SlashstepGroup/slashstep-server/pkgs/container/slashstep-server).
 
 ## Prerequisites
 * [Podman Desktop](https://podman-desktop.io/)
