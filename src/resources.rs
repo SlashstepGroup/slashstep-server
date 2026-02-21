@@ -26,9 +26,10 @@ pub mod milestone;
 pub mod oauth_authorization;
 pub mod project;
 pub mod role;
-pub mod user;
 pub mod server_log_entry;
 pub mod session;
+pub mod user;
+pub mod view;
 pub mod workspace;
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]

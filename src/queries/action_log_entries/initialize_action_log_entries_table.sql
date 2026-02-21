@@ -35,6 +35,7 @@ DO $$
         'ServerLogEntry',
         'Session',
         'User',
+        'View',
         'Workspace'
       );
     END IF;
@@ -72,6 +73,7 @@ DO $$
       target_server_log_entry_id UUID,
       target_session_id UUID,
       target_user_id UUID,
+      target_view_id UUID,
       target_workspace_id UUID,
       reason TEXT
     );

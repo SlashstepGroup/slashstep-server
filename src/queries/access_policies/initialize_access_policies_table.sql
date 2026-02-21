@@ -35,6 +35,7 @@ DO $$
         'ServerLogEntry',
         'Session',
         'User',
+        'View',
         'Workspace'
       );
     END IF;
@@ -64,6 +65,7 @@ DO $$
         'ServerLogEntry',
         'Session',
         'User',
+        'View',
         'Workspace'
       );
     END IF;
@@ -111,6 +113,7 @@ DO $$
       scoped_server_log_entry_id UUID REFERENCES server_log_entries(id) ON DELETE CASCADE,
       scoped_session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
       scoped_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      scoped_view_id UUID REFERENCES views(id) ON DELETE CASCADE,
       scoped_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
 
       /* Permissions */
@@ -152,6 +155,7 @@ DO $$
           AND scoped_server_log_entry_id IS NULL
           AND scoped_session_id IS NULL
           AND scoped_user_id IS NULL
+          AND scoped_view_id IS NULL
           AND scoped_workspace_id IS NULL
         ) OR (
           (scoped_action_id IS NOT NULL)::INTEGER +
@@ -176,6 +180,7 @@ DO $$
           (scoped_server_log_entry_id IS NOT NULL)::INTEGER +
           (scoped_session_id IS NOT NULL)::INTEGER +
           (scoped_user_id IS NOT NULL)::INTEGER +
+          (scoped_view_id IS NOT NULL)::INTEGER +
           (scoped_workspace_id IS NOT NULL)::INTEGER = 1
         )
       ),
@@ -205,6 +210,7 @@ DO $$
         OR (scoped_resource_type = 'ServerLogEntry' AND scoped_server_log_entry_id IS NOT NULL)
         OR (scoped_resource_type = 'Session' AND scoped_session_id IS NOT NULL)
         OR (scoped_resource_type = 'User' AND scoped_user_id IS NOT NULL)
+        OR (scoped_resource_type = 'View' AND scoped_view_id IS NOT NULL)
         OR (scoped_resource_type = 'Workspace' AND scoped_workspace_id IS NOT NULL)
       )
     );

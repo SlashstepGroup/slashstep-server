@@ -108,6 +108,7 @@ pub enum ActionLogEntryTargetResourceType {
   ServerLogEntry,
   Session,
   User,
+  View,
   Workspace
 }
 
@@ -206,6 +207,9 @@ pub struct ActionLogEntry {
 
   /// The target user ID of the action, if applicable.
   pub target_user_id: Option<Uuid>,
+
+  /// The target view ID of the action, if applicable.
+  pub target_view_id: Option<Uuid>,
 
   /// The target workspace ID of the action, if applicable.
   pub target_workspace_id: Option<Uuid>,
@@ -308,6 +312,9 @@ pub struct InitialActionLogEntryProperties {
   /// The target user ID of the action, if applicable.
   pub target_user_id: Option<Uuid>,
 
+  /// The target view ID of the action, if applicable.
+  pub target_view_id: Option<Uuid>,
+
   /// The target workspace ID of the action, if applicable.
   pub target_workspace_id: Option<Uuid>,
 
@@ -378,6 +385,7 @@ impl ActionLogEntry {
       target_server_log_entry_id: row.get("target_server_log_entry_id"),
       target_session_id: row.get("target_session_id"),
       target_user_id: row.get("target_user_id"),
+      target_view_id: row.get("target_view_id"),
       target_workspace_id: row.get("target_workspace_id"),
       reason: row.get("reason")
     };
@@ -444,6 +452,7 @@ impl ActionLogEntry {
       &initial_properties.target_server_log_entry_id,
       &initial_properties.target_session_id,
       &initial_properties.target_user_id,
+      &initial_properties.target_view_id,
       &initial_properties.target_workspace_id,
       &initial_properties.reason
     ];

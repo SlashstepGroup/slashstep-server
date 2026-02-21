@@ -30,6 +30,7 @@ INSERT INTO access_policies (
   scoped_server_log_entry_id,
   scoped_session_id,
   scoped_user_id,
+  scoped_view_id,
   scoped_workspace_id
 ) VALUES (
   $1,
@@ -63,5 +64,6 @@ INSERT INTO access_policies (
   $29,
   $30,
   $31,
-  $32
+  $32,
+  $33
 ) RETURNING *;

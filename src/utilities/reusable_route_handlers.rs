@@ -115,6 +115,7 @@ pub async fn list_resources<ResourceType: Serialize, CountResourcesFunction, Lis
     target_server_log_entry_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::ServerLogEntry { action_log_entry_target_resource_id.clone() } else { None },
     target_session_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Session { action_log_entry_target_resource_id.clone() } else { None },
     target_user_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::User { action_log_entry_target_resource_id.clone() } else { None },
+    target_view_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::View { action_log_entry_target_resource_id.clone() } else { None },
     target_workspace_id: if action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Workspace { action_log_entry_target_resource_id.clone() } else { None }
   }, &state.database_pool).await.ok();
   let resource_list_length = resources.len();
@@ -206,6 +207,7 @@ pub async fn delete_resource<ResourceStruct, GetResourceByIDFunction>(
     target_server_log_entry_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::ServerLogEntry { Some(resource_id.clone()) } else { None },
     target_session_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Session { Some(resource_id.clone()) } else { None },
     target_user_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::User { Some(resource_id.clone()) } else { None },
+    target_view_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::View { Some(resource_id.clone()) } else { None },
     target_workspace_id: if *action_log_entry_target_resource_type == ActionLogEntryTargetResourceType::Workspace { Some(resource_id.clone()) } else { None }
   }, &state.database_pool).await.ok();
   ServerLogEntry::success(&format!("Successfully deleted {} {}.", resource_type_name_singular, resource_id), Some(&http_transaction.id), &state.database_pool).await.ok();

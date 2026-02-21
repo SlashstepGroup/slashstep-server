@@ -649,6 +649,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "slashstep.views.get".to_string(),
+      display_name: "Get views".to_string(),
+      description: "Get a specific view on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.views.list".to_string(),
+      display_name: "List views".to_string(),
+      description: "List all views on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.views.create".to_string(),
+      display_name: "Create views".to_string(),
+      description: "Create new views on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.views.update".to_string(),
+      display_name: "Update views".to_string(),
+      description: "Update views on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.views.delete".to_string(),
+      display_name: "Delete views".to_string(),
+      description: "Delete views on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "slashstep.workspaces.get".to_string(),
       display_name: "Get workspaces".to_string(),
       description: "Get a specific workspace on a particular scope.".to_string(),

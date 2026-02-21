@@ -29,6 +29,7 @@ INSERT INTO action_log_entries (
   target_server_log_entry_id,
   target_session_id,
   target_user_id,
+  target_view_id,
   target_workspace_id,
   reason
 ) VALUES (
@@ -63,5 +64,6 @@ INSERT INTO action_log_entries (
   $29,
   $30,
   $31,
-  $32
+  $32,
+  $33
 ) RETURNING *;

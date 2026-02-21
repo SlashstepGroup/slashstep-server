@@ -10,6 +10,9 @@
  * 
  */
 
+#[cfg(test)]
+mod tests;
+
 use core::{fmt};
 use std::str::FromStr;
 use pg_escape::quote_literal;
@@ -57,6 +60,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_server_log_entry_id",
   "scoped_session_id",
   "scoped_user_id", 
+  "scoped_view_id",
   "scoped_workspace_id",
   "permission_level",
   "is_inheritance_enabled"
@@ -91,6 +95,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_server_log_entry_id",
   "scoped_session_id",
   "scoped_user_id", 
+  "scoped_view_id",
   "scoped_workspace_id"
 ];
 
@@ -157,12 +162,13 @@ pub enum AccessPolicyResourceType {
   ItemConnection,
   ItemConnectionType,
   Membership,
+  Milestone,
   Project,
   Role,
   ServerLogEntry,
   Session,
   User,
-  Milestone,
+  View,
   Workspace
 }
 
@@ -192,6 +198,7 @@ impl fmt::Display for AccessPolicyResourceType {
       AccessPolicyResourceType::ServerLogEntry => write!(formatter, "ServerLogEntry"),
       AccessPolicyResourceType::Session => write!(formatter, "Session"),
       AccessPolicyResourceType::User => write!(formatter, "User"),
+      AccessPolicyResourceType::View => write!(formatter, "View"),
       AccessPolicyResourceType::Workspace => write!(formatter, "Workspace")
     }
   }
@@ -228,6 +235,7 @@ impl FromStr for AccessPolicyResourceType {
       "Session" => Ok(AccessPolicyResourceType::Session),
       "User" => Ok(AccessPolicyResourceType::User),
       "Workspace" => Ok(AccessPolicyResourceType::Workspace),
+      "View" => Ok(AccessPolicyResourceType::View),
       _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
     }
 
@@ -361,6 +369,8 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_user_id: Option<Uuid>,
 
+  pub scoped_view_id: Option<Uuid>,
+
   pub scoped_workspace_id: Option<Uuid>
 
 }
@@ -465,6 +475,8 @@ pub struct AccessPolicy {
 
   pub scoped_user_id: Option<Uuid>,
 
+  pub scoped_view_id: Option<Uuid>,
+
   pub scoped_workspace_id: Option<Uuid>
 
 }
@@ -534,6 +546,7 @@ impl AccessPolicy {
       &initial_properties.scoped_server_log_entry_id,
       &initial_properties.scoped_session_id,
       &initial_properties.scoped_user_id,
+      &initial_properties.scoped_view_id,
       &initial_properties.scoped_workspace_id
     ];
     let database_client = database_pool.get().await?;
@@ -622,6 +635,7 @@ impl AccessPolicy {
       scoped_server_log_entry_id: row.get("scoped_server_log_entry_id"),
       scoped_session_id: row.get("scoped_session_id"),
       scoped_user_id: row.get("scoped_user_id"),
+      scoped_view_id: row.get("scoped_view_id"),
       scoped_workspace_id: row.get("scoped_workspace_id")
     };
 
@@ -792,6 +806,7 @@ impl AccessPolicy {
             AccessPolicyResourceType::ServerLogEntry => "A server log entry ID must be provided.",
             AccessPolicyResourceType::Session => "A session ID must be provided.",
             AccessPolicyResourceType::User => "A user ID must be provided.",
+            AccessPolicyResourceType::View => "A view ID must be provided.",
             AccessPolicyResourceType::Workspace => "A workspace ID must be provided."
 
           };
@@ -828,6 +843,7 @@ impl AccessPolicy {
         AccessPolicyResourceType::ServerLogEntry => query_clauses.push(format!("scoped_server_log_entry_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Session => query_clauses.push(format!("scoped_session_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::User => query_clauses.push(format!("scoped_user_id = {}", resource_id_as_quote_literal)),
+        AccessPolicyResourceType::View => query_clauses.push(format!("scoped_view_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Workspace => query_clauses.push(format!("scoped_workspace_id = {}", resource_id_as_quote_literal))
 
       }
@@ -928,6 +944,7 @@ impl AccessPolicy {
       AccessPolicyResourceType::ServerLogEntry => self.scoped_server_log_entry_id,
       AccessPolicyResourceType::Session => self.scoped_session_id,
       AccessPolicyResourceType::User => self.scoped_user_id,
+      AccessPolicyResourceType::View => self.scoped_view_id,
       AccessPolicyResourceType::Workspace => self.scoped_workspace_id
 
     };
@@ -951,6 +968,3 @@ impl DeletableResource for AccessPolicy {
   }
 
 }
-
-#[cfg(test)]
-mod tests;

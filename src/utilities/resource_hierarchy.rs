@@ -847,6 +847,63 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
+      // View -> (Project | Workspace)
+      AccessPolicyResourceType::View => {
+
+        let Some(scoped_view_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::View));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::View, Some(scoped_view_id)));
+
+        let view = match crate::resources::view::View::get_by_id(&scoped_view_id, database_pool).await {
+
+          Ok(view) => view,
+
+          Err(error) => match error {
+
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::View, hierarchy)),
+
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
+
+          }
+
+        };
+
+        match view.parent_resource_type {
+
+          crate::resources::view::ViewParentResourceType::Project => {
+
+            let Some(project_id) = view.parent_project_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Project));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Project;
+            selected_resource_id = Some(project_id);
+
+          },
+
+          crate::resources::view::ViewParentResourceType::Workspace => {
+
+            let Some(workspace_id) = view.parent_workspace_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Workspace));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Workspace;
+            selected_resource_id = Some(workspace_id);
+
+          }
+
+        }
+
+      },
+
       // Workspace -> Server
       AccessPolicyResourceType::Workspace => {
 

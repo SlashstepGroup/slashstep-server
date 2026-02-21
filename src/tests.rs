@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -461,6 +461,22 @@ impl TestEnvironment {
 
   }
 
+  pub async fn create_random_session(&self, user_id: Option<&Uuid>) -> Result<Session, TestSlashstepServerError> {
+
+    let local_ip = local_ip()?;
+    let user_id = user_id.copied().unwrap_or(self.create_random_user().await?.id);
+    let session_properties = InitialSessionProperties {
+      user_id: user_id,
+      expiration_date: (Utc::now() + Duration::days(30)),
+      creation_ip_address: local_ip
+    };
+
+    let session = Session::create(&session_properties, &self.database_pool).await?;
+
+    return Ok(session);
+
+  }
+
   pub async fn create_random_user(&self) -> Result<User, TestSlashstepServerError> {
 
     let user_properties = InitialUserProperties {
@@ -477,19 +493,18 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_session(&self, user_id: Option<&Uuid>) -> Result<Session, TestSlashstepServerError> {
+  pub async fn create_random_view(&self) -> Result<View, TestSlashstepServerError> {
 
-    let local_ip = local_ip()?;
-    let user_id = user_id.copied().unwrap_or(self.create_random_user().await?.id);
-    let session_properties = InitialSessionProperties {
-      user_id: user_id,
-      expiration_date: (Utc::now() + Duration::days(30)),
-      creation_ip_address: local_ip
+    let project = self.create_random_project().await?;
+    let view_properties = InitialViewProperties {
+      parent_resource_type: ViewParentResourceType::Project,
+      parent_project_id: Some(project.id),
+      ..Default::default()
     };
 
-    let session = Session::create(&session_properties, &self.database_pool).await?;
+    let view = View::create(&view_properties, &self.database_pool).await?;
 
-    return Ok(session);
+    return Ok(view);
 
   }
 

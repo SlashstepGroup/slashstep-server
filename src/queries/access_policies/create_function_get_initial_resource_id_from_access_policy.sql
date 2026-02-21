@@ -48,6 +48,8 @@ CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_pol
         RETURN access_policy_record.scoped_session_id;
       WHEN 'User' THEN 
         RETURN access_policy_record.scoped_user_id;
+      WHEN 'View' THEN 
+        RETURN access_policy_record.scoped_view_id;
       WHEN 'Workspace' THEN 
         RETURN access_policy_record.scoped_workspace_id;
       ELSE

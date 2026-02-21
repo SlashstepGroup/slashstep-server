@@ -1,0 +1,1 @@
+SELECT * FROM views WHERE id = $1;
