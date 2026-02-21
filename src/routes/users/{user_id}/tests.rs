@@ -46,7 +46,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_users_action = Action::get_by_name("slashstep.users.get", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &get_users_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_users_action.id, &ActionPermissionLevel::User).await?;
   
   let user = test_environment.create_random_user().await?;
 

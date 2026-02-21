@@ -29,9 +29,9 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let create_oauth_authorizations_action = Action::get_by_name("slashstep.oauthAuthorizations.create", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &create_oauth_authorizations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_oauth_authorizations_action.id, &ActionPermissionLevel::User).await?;
   let authorize_app_action = Action::get_by_name("slashstep.apps.authorize", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &authorize_app_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &authorize_app_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a dummy app.
   let dummy_app = test_environment.create_random_app().await?;

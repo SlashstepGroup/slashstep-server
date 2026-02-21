@@ -1,9 +1,12 @@
 #[cfg(test)]
 mod tests;
 
+use std::str::FromStr;
+
 use postgres_types::{FromSql, ToSql};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use strum::EnumIter;
 use uuid::Uuid;
 use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
@@ -12,22 +15,20 @@ pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "name",
-  "display_name",
-  "key",
-  "description",
-  "start_date",
-  "end_date",
-  "workspace_id"
+  "value_type",
+  "text_value",
+  "integer_value",
+  "decimal_value",
+  "boolean_value"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
-  "id",
-  "workspace_id"
+  "id"
 ];
 pub const RESOURCE_NAME: &str = "Configuration";
 pub const DATABASE_TABLE_NAME: &str = "configurations";
 pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.configurations.get";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, ToSql, FromSql)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, ToSql, FromSql, EnumIter)]
 #[postgres(name = "configuration_value_type")]
 pub enum ConfigurationValueType {
   #[default]
@@ -35,6 +36,26 @@ pub enum ConfigurationValueType {
   Integer,
   Decimal,
   Boolean
+}
+
+impl FromStr for ConfigurationValueType {
+
+  type Err = ResourceError;
+
+  fn from_str(input: &str) -> Result<ConfigurationValueType, Self::Err> {
+
+    match input {
+
+      "Text" => Ok(ConfigurationValueType::Text),
+      "Integer" => Ok(ConfigurationValueType::Integer),
+      "Decimal" => Ok(ConfigurationValueType::Decimal),
+      "Boolean" => Ok(ConfigurationValueType::Boolean),
+      _ => Err(ResourceError::UnexpectedEnumVariantError(input.to_string()))
+
+    }
+
+  }
+
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -45,6 +66,29 @@ pub struct InitialConfigurationProperties {
 
   /// The configuration's value type.
   pub value_type: ConfigurationValueType,
+
+  /// The configuration's text value, if applicable.
+  pub text_value: Option<String>,
+
+  /// The configuration's integer value, if applicable.
+  pub integer_value: Option<i32>,
+
+  /// The configuration's decimal value, if applicable.
+  pub decimal_value: Option<Decimal>,
+
+  /// The configuration's boolean value, if applicable.
+  pub boolean_value: Option<bool>
+
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct EditableConfigurationProperties {
+
+  /// The configuration's name.
+  pub name: Option<String>,
+
+  /// The configuration's value type.
+  pub value_type: Option<ConfigurationValueType>,
 
   /// The configuration's text value, if applicable.
   pub text_value: Option<String>,
@@ -88,6 +132,20 @@ pub struct Configuration {
 
 impl Configuration {
 
+  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
+
+    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
+    if let Some(parameter_value) = parameter_value {
+
+      query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
+      parameter_boxes.push(Box::new(parameter_value));
+
+    }
+    
+    return (parameter_boxes, query);
+
+  }
+  
   /// Counts the number of configurations based on a query.
   pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
 
@@ -204,7 +262,28 @@ impl Configuration {
 
     }
 
-    return Ok(Box::new(value));
+    match key {
+
+      "value_type" => {
+
+        let value_type = match ConfigurationValueType::from_str(value) {
+
+          Ok(value_type) => value_type,
+          Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
+
+        };
+        
+        return Ok(Box::new(value_type));
+
+      },
+
+      _ => {
+
+        return Ok(Box::new(value));
+
+      }
+
+    }
 
   }
 
@@ -230,6 +309,33 @@ impl Configuration {
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
+
+  }
+
+  /// Updates this configuration and returns a new instance of the configuration.
+  pub async fn update(&self, properties: &EditableConfigurationProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("update configurations set ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("begin;", &[]).await?;
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", Some(&properties.name));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "value_type", Some(&properties.value_type));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "text_value", Some(&properties.text_value));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "integer_value", Some(&properties.integer_value));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "decimal_value", Some(&properties.decimal_value));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "boolean_value", Some(&properties.boolean_value));
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" where id = ${} returning *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("commit;", &[]).await?;
+
+    let configuration = Self::convert_from_row(&row);
+    return Ok(configuration);
 
   }
 

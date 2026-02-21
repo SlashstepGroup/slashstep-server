@@ -1,7 +1,7 @@
 FROM rust:1.93.1-slim
 LABEL org.opencontainers.image.title="Slashstep Server"
 LABEL org.opencontainers.image.authors="Christian Toney <christian.toney@beastslash.com>"
-LABEL org.opencontainers.image.source="https://github.com/SlashstepGroup/slashstep_server"
+LABEL org.opencontainers.image.source="https://github.com/SlashstepGroup/slashstep-server"
 
 WORKDIR /usr/src/app
 COPY . .
@@ -27,4 +27,4 @@ ARG APP_PORT="3001"
 ENV APP_PORT=${APP_PORT}
 EXPOSE ${APP_PORT}
 
-ENTRYPOINT ["/usr/src/app/target/release/slashstep_server"]
+ENTRYPOINT ["/usr/src/app/target/release/slashstep-server"]

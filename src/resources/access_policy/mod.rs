@@ -210,9 +210,10 @@ impl FromStr for AccessPolicyResourceType {
       "AppAuthorization" => Ok(AccessPolicyResourceType::AppAuthorization),
       "AppAuthorizationCredential" => Ok(AccessPolicyResourceType::AppAuthorizationCredential),
       "AppCredential" => Ok(AccessPolicyResourceType::AppCredential),
-      "FieldValue" => Ok(AccessPolicyResourceType::FieldValue),
+      "Configuration" => Ok(AccessPolicyResourceType::Configuration),
       "Field" => Ok(AccessPolicyResourceType::Field),
       "FieldChoice" => Ok(AccessPolicyResourceType::FieldChoice),
+      "FieldValue" => Ok(AccessPolicyResourceType::FieldValue),
       "Group" => Ok(AccessPolicyResourceType::Group),
       "HTTPTransaction" => Ok(AccessPolicyResourceType::HTTPTransaction),
       "Server" => Ok(AccessPolicyResourceType::Server),
@@ -653,7 +654,7 @@ impl AccessPolicy {
       let uuid = match Uuid::parse_str(value) {
 
         Ok(uuid) => uuid,
-        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\".", value, key)))
+        Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\": {}", value, key, error)))
 
       };
 
@@ -668,7 +669,7 @@ impl AccessPolicy {
           let scoped_resource_type = match AccessPolicyResourceType::from_str(value) {
 
             Ok(scoped_resource_type) => scoped_resource_type,
-            Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
+            Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))
 
           };
 
@@ -681,7 +682,7 @@ impl AccessPolicy {
           let principal_type = match AccessPolicyPrincipalType::from_str(value) {
 
             Ok(principal_type) => principal_type,
-            Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
+            Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))
 
           };
 
@@ -694,7 +695,7 @@ impl AccessPolicy {
           let permission_level = match ActionPermissionLevel::from_str(value) {
 
             Ok(permission_level) => permission_level,
-            Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
+            Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))
 
           };
           

@@ -46,7 +46,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.get", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &get_app_authorizations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_app_authorizations_action.id, &ActionPermissionLevel::User).await?;
   
   let app_authorization_credential = test_environment.create_random_app_authorization_credential(None).await?;
 
@@ -199,7 +199,7 @@ async fn verify_successful_deletion_when_deleting_resource_by_id() -> Result<(),
 
   // Grant access to the "slashstep.appAuthorizationCredentials.delete" action to the user.
   let delete_app_authorizations_action = Action::get_by_name("slashstep.appAuthorizationCredentials.delete", &test_environment.database_pool).await?;
-  test_environment.create_instance_access_policy(&user.id, &delete_app_authorizations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_app_authorizations_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let app_authorization_credential = test_environment.create_random_app_authorization_credential(None).await?;

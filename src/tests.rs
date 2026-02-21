@@ -513,7 +513,7 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_instance_access_policy(&self, user_id: &Uuid, action_id: &Uuid, permission_level: &ActionPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
+  pub async fn create_server_access_policy(&self, user_id: &Uuid, action_id: &Uuid, permission_level: &ActionPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
     let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: action_id.clone(),
