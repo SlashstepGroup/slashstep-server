@@ -9,15 +9,108 @@
  * 
  */
 
-use std::sync::Arc;
-use axum::{Extension, Router, extract::{Query, State}};
-use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
-
 #[path = "./{app_id}/mod.rs"]
 mod app_id;
 #[cfg(test)]
 mod tests;
+
+use std::sync::Arc;
+use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, rand_core::{OsRng, le}}};
+use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
+use axum_extra::response::ErasedJson;
+use rand::{Rng, distr::Alphanumeric};
+use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_APP_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, configuration::Configuration, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, verify_delegate_permissions, verify_principal_permissions}}};
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct InitialAppPropertiesWithoutClientSecretHash {
+  pub name: String,
+  pub display_name: String,
+  pub description: Option<String>,
+  pub client_type: AppClientType,
+  pub parent_resource_type: AppParentResourceType,
+  pub parent_workspace_id: Option<Uuid>,
+  pub parent_user_id: Option<Uuid>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppWithClientSecret {
+  pub id: Uuid,
+  pub name: String,
+  pub display_name: String,
+  pub description: Option<String>,
+  pub client_type: AppClientType,
+  pub client_secret: Option<String>,
+  pub parent_resource_type: AppParentResourceType,
+  pub parent_workspace_id: Option<Uuid>,
+  pub parent_user_id: Option<Uuid>
+}
+
+pub async fn validate_app_name(name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+
+  ServerLogEntry::trace("Getting allowed name regex configuration...", Some(&http_transaction.id), database_pool).await.ok();
+  let allowed_name_regex_configuration = match Configuration::get_by_name("slashstep.apps.allowedNameRegex", database_pool).await {
+
+    Ok(configuration) => configuration,
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::NotFoundError(_) => HTTPError::InternalServerError(Some("Missing configuration for slashstep.apps.allowedNameRegex. It may have been deleted by a user or an app. Restart the server to restore this configuration.".to_string())),
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to get configuration for validating app names: {:?}", error)))
+
+      };
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+      return Err(http_error)
+
+    }
+
+  };
+
+  let allowed_name_regex_string = match allowed_name_regex_configuration.text_value.or(allowed_name_regex_configuration.default_text_value) {
+
+    Some(allowed_name_regex_string) => allowed_name_regex_string,
+
+    None => {
+
+      ServerLogEntry::warning("Missing value and default value for configuration slashstep.apps.allowedNameRegex. Using default regex pattern that allows any non-empty string as an app name. Consider setting a restrictive regex pattern in the configuration for better security.", Some(&http_transaction.id), database_pool).await.ok();
+      return Ok(());
+
+    }
+
+  };
+
+  ServerLogEntry::trace("Creating regex for validating app names...", Some(&http_transaction.id), database_pool).await.ok();
+  let regex = match regex::Regex::new(&allowed_name_regex_string) {
+
+    Ok(regex) => regex,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create regex for validating app names: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+      return Err(http_error)
+
+    }
+
+  };
+
+  ServerLogEntry::trace("Validating app name against regex...", Some(&http_transaction.id), database_pool).await.ok();
+  if !regex.is_match(name) {
+
+    let http_error = HTTPError::UnprocessableEntity(Some(format!("App name must match the allowed pattern: {}", allowed_name_regex_string)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  Ok(())
+
+}
 
 /// GET /apps
 /// 
@@ -55,10 +148,112 @@ async fn handle_list_apps_request(
 
 }
 
+/// POST /apps
+/// 
+/// Creates an app on the server level.
+#[axum::debug_handler]
+async fn handle_create_app_request(
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+  body: Result<Json<InitialAppPropertiesWithoutClientSecretHash>, JsonRejection>
+) -> Result<(StatusCode, Json<AppWithClientSecret>), HTTPError> {
+
+  let http_transaction = http_transaction.clone();
+  let app_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  validate_app_name(&app_properties_json.name, &http_transaction, &state.database_pool).await?;
+
+  // Make sure the authenticated_user can create apps for the target action log entry.
+  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
+  let create_apps_action = get_action_by_name("slashstep.apps.create", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_apps_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &create_apps_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+
+  let mut client_secret_hash = None;
+  let mut client_secret = None;
+  if app_properties_json.client_type == AppClientType::Confidential {
+
+    ServerLogEntry::trace("Generating client secret for confidential app...", Some(&http_transaction.id), &state.database_pool).await.ok();
+    let argon2 = Argon2::default();
+    let salt = SaltString::generate(&mut OsRng);
+    let some_client_secret = rand::rng().sample_iter(&Alphanumeric).take(32).map(char::from).collect::<String>();
+    client_secret = Some(some_client_secret.clone());
+    client_secret_hash = match argon2.hash_password(some_client_secret.as_bytes(), &salt) {
+
+      Ok(hash) => Some(hash.to_string()),
+
+      Err(error) => {
+
+        let http_error = HTTPError::InternalServerError(Some(format!("Failed to hash client secret: {:?}", error)));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(http_error);
+
+      }
+
+    };
+
+  }
+
+  // Create the app.
+  ServerLogEntry::trace("Creating app for server...", Some(&http_transaction.id), &state.database_pool).await.ok();
+  let app = match App::create(&InitialAppProperties {
+    name: app_properties_json.name.clone(),
+    display_name: app_properties_json.display_name.clone(),
+    description: app_properties_json.description.clone(),
+    parent_resource_type: AppParentResourceType::Server,
+    client_type: app_properties_json.client_type.clone(),
+    client_secret_hash,
+    ..Default::default()
+  }, &state.database_pool).await {
+
+    Ok(app) => app,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create app: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error)
+
+    }
+
+  };
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: create_apps_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp,
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::App,
+    target_app_id: Some(app.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+  ServerLogEntry::success(&format!("Successfully created app {}.", app.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+
+  return Ok((StatusCode::CREATED, Json(AppWithClientSecret {
+    id: app.id,
+    name: app.name,
+    display_name: app.display_name,
+    description: app.description,
+    client_type: app.client_type,
+    client_secret,
+    parent_resource_type: app.parent_resource_type,
+    parent_workspace_id: app.parent_workspace_id,
+    parent_user_id: app.parent_user_id
+  })));
+
+}
+
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/apps", axum::routing::get(handle_list_apps_request))
+    .route("/apps", axum::routing::post(handle_create_app_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))

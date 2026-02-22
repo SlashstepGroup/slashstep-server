@@ -73,7 +73,6 @@ async fn verify_returned_app_by_id() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response_app.display_name, app.display_name);
   assert_eq!(response_app.description, app.description);
   assert_eq!(response_app.client_type, app.client_type);
-  assert_eq!(response_app.client_secret_hash, app.client_secret_hash);
   assert_eq!(response_app.parent_resource_type, app.parent_resource_type);
   assert_eq!(response_app.parent_workspace_id, app.parent_workspace_id);
   assert_eq!(response_app.parent_user_id, app.parent_user_id);

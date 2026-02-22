@@ -108,7 +108,7 @@ impl TestEnvironment {
       display_name: Uuid::now_v7().to_string(),
       description: Some(Uuid::now_v7().to_string()),
       client_type: AppClientType::Public,
-      client_secret_hash: Uuid::now_v7().to_string(),
+      client_secret_hash: Some(Uuid::now_v7().to_string()),
       parent_resource_type: AppParentResourceType::Server,
       parent_workspace_id: None,
       parent_user_id: None

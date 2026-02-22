@@ -92,6 +92,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "slashstep.apps.create".to_string(),
+      display_name: "Create apps".to_string(),
+      description: "Create new apps on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "slashstep.apps.update".to_string(),
       display_name: "Update apps".to_string(),
       description: "Update apps on a particular scope.".to_string(),
@@ -864,6 +870,13 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       description: Some("The default maximum lifetime of action log entries in milliseconds. This configuration only has an effect if the \"slashstep.actionLogEntries.shouldExpire\" configuration is set to true.".to_string()),
       value_type: ConfigurationValueType::Number,
       default_number_value: Some(Decimal::from(31536000000 as i64)), // 365 days in milliseconds
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "slashstep.apps.allowedNameRegex".to_string(),
+      description: Some("A regular expression that app names must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
       ..Default::default()
     }
   ];
