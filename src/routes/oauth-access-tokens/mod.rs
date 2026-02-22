@@ -588,11 +588,54 @@ pub async fn create_app_authorization_credential(app_authorization_id: &Uuid, ht
 
   };
 
+  let refresh_token_maximum_lifetime_milliseconds_configuration = match Configuration::get_by_name("slashstep.appAuthorizationCredentials.refreshTokenMaximumLifetimeMilliseconds", database_pool).await {
+
+    Ok(configuration) => configuration,
+
+    Err(error) => {
+
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to get refresh token maximum lifetime configuration: {:?}", error), None, None);
+      let http_error = oauth_error_response.clone().into();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+      return Err(oauth_error_response);
+
+    }
+
+  };
+
+  let refresh_token_maximum_lifetime_milliseconds = match refresh_token_maximum_lifetime_milliseconds_configuration.number_value.or(refresh_token_maximum_lifetime_milliseconds_configuration.default_number_value) {
+
+    Some(refresh_token_maximum_lifetime_milliseconds) => match refresh_token_maximum_lifetime_milliseconds.to_i64() {
+
+      Some(refresh_token_maximum_lifetime_milliseconds) => refresh_token_maximum_lifetime_milliseconds,
+
+      None => {
+
+        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, "Could not convert refresh token maximum lifetime configuration value to i64.", None, None);
+        let http_error = oauth_error_response.clone().into();
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+        return Err(oauth_error_response);
+
+      }
+
+    },
+
+    None => {
+
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, "The slashstep.appAuthorizationCredentials.refreshTokenMaximumLifetimeMilliseconds configuration does not have a value or a default value. Fix this in the server configuration settings.", None, None);
+      let http_error = oauth_error_response.clone().into();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+      return Err(oauth_error_response);
+
+    }
+
+  };
+
   ServerLogEntry::trace(&format!("Creating app authorization credential for app authorization {}...", app_authorization_id), Some(&http_transaction.id), database_pool).await.ok();
   let app_authorization_credential = match AppAuthorizationCredential::create(&InitialAppAuthorizationCredentialProperties {
     app_authorization_id: *app_authorization_id,
     access_token_expiration_date: Utc::now() + Duration::milliseconds(access_token_maximum_lifetime_milliseconds),
-    refresh_token_expiration_date: Utc::now() + Duration::days(30),
+    refresh_token_expiration_date: Utc::now() + Duration::milliseconds(refresh_token_maximum_lifetime_milliseconds),
     refreshed_app_authorization_credential_id: None
   }, &database_pool).await {
 
