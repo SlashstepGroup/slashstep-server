@@ -20,6 +20,7 @@ use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejec
 use axum_extra::response::ErasedJson;
 use rand::{Rng, distr::Alphanumeric};
 use reqwest::StatusCode;
+use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_APP_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, configuration::Configuration, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, verify_delegate_permissions, verify_principal_permissions}}};
@@ -112,6 +113,68 @@ pub async fn validate_app_name(name: &str, http_transaction: &HTTPTransaction, d
 
 }
 
+pub async fn validate_app_name_length(name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+
+  ServerLogEntry::trace("Getting allowed name length configuration...", Some(&http_transaction.id), database_pool).await.ok();
+  let maximum_name_length_configuration = match Configuration::get_by_name("slashstep.apps.maximumNameLength", database_pool).await {
+
+    Ok(configuration) => configuration,
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::NotFoundError(_) => HTTPError::InternalServerError(Some("Missing configuration for slashstep.apps.maximumNameLength. It may have been deleted by a user or an app. Restart the server to restore this configuration.".to_string())),
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to get configuration for validating app names: {:?}", error)))
+
+      };
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+      return Err(http_error)
+
+    }
+
+  };
+
+  let maximum_name_length = match maximum_name_length_configuration.number_value.or(maximum_name_length_configuration.default_number_value) {
+
+    Some(maximum_name_length) => match maximum_name_length.to_usize() {
+
+      Some(maximum_name_length) => maximum_name_length,
+
+      None => {
+
+        let http_error = HTTPError::InternalServerError(Some("Invalid number value for configuration slashstep.apps.maximumNameLength. The value must be a positive integer that can be represented as a usize.".to_string()));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+        return Err(http_error);
+
+      }
+
+    },
+
+    None => {
+
+      ServerLogEntry::warning("Missing value and default value for configuration slashstep.apps.maximumNameLength. This is a security risk. Consider setting a restrictive maximum name length in the configuration.", Some(&http_transaction.id), database_pool).await.ok();
+      return Ok(());
+
+    }
+
+  };
+
+  ServerLogEntry::trace("Validating app name length...", Some(&http_transaction.id), database_pool).await.ok();
+  if name.len() > maximum_name_length {
+
+    let http_error = HTTPError::UnprocessableEntity(Some(format!("App names must be at most {} characters long.", maximum_name_length)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+    return Err(http_error);
+
+  }
+  
+
+  Ok(())
+
+}
+
 /// GET /apps
 /// 
 /// Lists apps.
@@ -164,6 +227,7 @@ async fn handle_create_app_request(
   let http_transaction = http_transaction.clone();
   let app_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
   validate_app_name(&app_properties_json.name, &http_transaction, &state.database_pool).await?;
+  validate_app_name_length(&app_properties_json.name, &http_transaction, &state.database_pool).await?;
 
   // Make sure the authenticated_user can create apps for the target action log entry.
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
