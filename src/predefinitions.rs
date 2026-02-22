@@ -878,6 +878,13 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       value_type: ConfigurationValueType::Text,
       default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
       ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "slashstep.apps.allowedDisplayNameRegex".to_string(),
+      description: Some("A regular expression that app display names must match in order to be allowed.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^.+$".to_string()),
+      ..Default::default()
     }
   ];
 

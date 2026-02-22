@@ -102,7 +102,71 @@ pub async fn validate_app_name(name: &str, http_transaction: &HTTPTransaction, d
   ServerLogEntry::trace("Validating app name against regex...", Some(&http_transaction.id), database_pool).await.ok();
   if !regex.is_match(name) {
 
-    let http_error = HTTPError::UnprocessableEntity(Some(format!("App name must match the allowed pattern: {}", allowed_name_regex_string)));
+    let http_error = HTTPError::UnprocessableEntity(Some(format!("App names must match the allowed pattern: {}", allowed_name_regex_string)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  Ok(())
+
+}
+
+pub async fn validate_app_display_name(name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+
+  ServerLogEntry::trace("Getting allowed app display name regex configuration...", Some(&http_transaction.id), database_pool).await.ok();
+  let allowed_display_name_regex_configuration = match Configuration::get_by_name("slashstep.apps.allowedDisplayNameRegex", database_pool).await {
+
+    Ok(configuration) => configuration,
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::NotFoundError(_) => HTTPError::InternalServerError(Some("Missing configuration for slashstep.apps.allowedDisplayNameRegex. It may have been deleted by a user or an app. Restart the server to restore this configuration.".to_string())),
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to get configuration for validating app display names: {:?}", error)))
+
+      };
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+      return Err(http_error)
+
+    }
+
+  };
+
+  let allowed_display_name_regex_string = match allowed_display_name_regex_configuration.text_value.or(allowed_display_name_regex_configuration.default_text_value) {
+
+    Some(allowed_display_name_regex_string) => allowed_display_name_regex_string,
+
+    None => {
+
+      ServerLogEntry::warning("Missing value and default value for configuration slashstep.apps.allowedDisplayNameRegex. Consider setting a regex pattern in the configuration for better security.", Some(&http_transaction.id), database_pool).await.ok();
+      return Ok(());
+
+    }
+
+  };
+
+  ServerLogEntry::trace("Creating regex for validating app display names...", Some(&http_transaction.id), database_pool).await.ok();
+  let regex = match regex::Regex::new(&allowed_display_name_regex_string) {
+
+    Ok(regex) => regex,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create regex for validating app display names: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+      return Err(http_error)
+
+    }
+
+  };
+
+  ServerLogEntry::trace("Validating app display name against regex...", Some(&http_transaction.id), database_pool).await.ok();
+  if !regex.is_match(name) {
+
+    let http_error = HTTPError::UnprocessableEntity(Some(format!("App display names must match the allowed pattern: {}", allowed_display_name_regex_string)));
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
     return Err(http_error);
 
@@ -164,6 +228,7 @@ async fn handle_create_app_request(
   let http_transaction = http_transaction.clone();
   let app_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
   validate_app_name(&app_properties_json.name, &http_transaction, &state.database_pool).await?;
+  validate_app_display_name(&app_properties_json.display_name, &http_transaction, &state.database_pool).await?;
 
   // Make sure the authenticated_user can create apps for the target action log entry.
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];

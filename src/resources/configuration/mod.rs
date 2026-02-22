@@ -369,7 +369,7 @@ impl Configuration {
     let database_client = database_pool.get().await?;
 
     database_client.query("begin;", &[]).await?;
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", Some(&properties.name));
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", properties.name.as_ref());
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", properties.description.as_ref());
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "text_value", properties.text_value.as_ref());
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "number_value", properties.number_value.as_ref());

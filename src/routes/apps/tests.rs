@@ -21,7 +21,7 @@ use crate::{
   }, resources::{
     access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
-    }, action::Action, app::{App, AppClientType, DEFAULT_APP_LIST_LIMIT, DEFAULT_MAXIMUM_APP_LIST_LIMIT, InitialAppProperties},
+    }, action::Action, app::{App, AppClientType, DEFAULT_APP_LIST_LIMIT, DEFAULT_MAXIMUM_APP_LIST_LIMIT, InitialAppProperties}, configuration::{Configuration, EditableConfigurationProperties},
   }, routes::apps::{AppWithClientSecret, InitialAppPropertiesWithoutClientSecretHash}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
 };
 
@@ -574,8 +574,61 @@ async fn verify_app_name_matches_regex() -> Result<(), TestSlashstepServerError>
   test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
+  let app_name_regex_configuration = Configuration::get_by_name("slashstep.apps.allowedNameRegex", &test_environment.database_pool).await?;
+  app_name_regex_configuration.update(&EditableConfigurationProperties {
+    text_value: Some("^$".to_string()), // This regex pattern doesn't allow any names, so this should cause a validation error.
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
   let initial_app_properties = InitialAppPropertiesWithoutClientSecretHash {
-    name: format!("{} {}", Uuid::now_v7().to_string(), Uuid::now_v7().to_string()), // Spaces aren't allowed in the default regex pattern, so this should cause a validation error.
+    name: Uuid::now_v7().to_string(),
+    display_name: Uuid::now_v7().to_string(),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.post(&format!("/apps"))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(initial_app_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+#[tokio::test]
+async fn verify_app_display_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "slashstep.apps.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let create_apps_action = Action::get_by_name("slashstep.apps.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let app_display_name_regex_configuration = Configuration::get_by_name("slashstep.apps.allowedDisplayNameRegex", &test_environment.database_pool).await?;
+  app_display_name_regex_configuration.update(&EditableConfigurationProperties {
+    text_value: Some("^$".to_string()), // This regex pattern doesn't allow any display names, so this should cause a validation error.
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let initial_app_properties = InitialAppPropertiesWithoutClientSecretHash {
+    name: Uuid::now_v7().to_string(),
     display_name: Uuid::now_v7().to_string(),
     ..Default::default()
   };
