@@ -884,6 +884,12 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       description: Some("The maximum length of app names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
       value_type: ConfigurationValueType::Number,
       default_number_value: Some(Decimal::from(32 as i64)),
+    },
+    InitialConfigurationProperties {
+      name: "slashstep.apps.allowedDisplayNameRegex".to_string(),
+      description: Some("A regular expression that app display names must match in order to be allowed.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^.+$".to_string()),
       ..Default::default()
     }
   ];
