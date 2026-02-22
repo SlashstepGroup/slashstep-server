@@ -885,6 +885,13 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       value_type: ConfigurationValueType::Text,
       default_text_value: Some("^.+$".to_string()),
       ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "slashstep.apps.maximumDisplayNameLength".to_string(),
+      description: Some("The maximum length of app display names. Slashstep Group recommends setting this to a reasonable value to prevent abuse.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(64 as i64)),
+      ..Default::default()
     }
   ];
 
