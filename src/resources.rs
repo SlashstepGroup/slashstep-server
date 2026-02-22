@@ -1,9 +1,3 @@
-use chrono::{DateTime, Utc};
-use postgres_types::{FromSql, ToSql};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::SlashstepQLError};
-
 pub mod access_policy;
 pub mod action;
 pub mod action_log_entry;
@@ -12,7 +6,6 @@ pub mod app_authorization;
 pub mod app_credential;
 pub mod app;
 pub mod configuration;
-pub mod configuration_value;
 pub mod delegation_policy;
 pub mod field;
 pub mod field_choice;
@@ -32,6 +25,12 @@ pub mod session;
 pub mod user;
 pub mod view;
 pub mod workspace;
+
+use chrono::{DateTime, Utc};
+use postgres_types::{FromSql, ToSql};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::SlashstepQLError};
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[postgres(name = "stakeholder_type")]

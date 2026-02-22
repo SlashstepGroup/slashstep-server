@@ -6,7 +6,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, configuration_value::{ConfigurationValue, ConfigurationValueParentResourceType, InitialConfigurationValueProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -108,7 +108,7 @@ impl TestEnvironment {
       display_name: Uuid::now_v7().to_string(),
       description: Some(Uuid::now_v7().to_string()),
       client_type: AppClientType::Public,
-      client_secret_hash: Uuid::now_v7().to_string(),
+      client_secret_hash: Some(Uuid::now_v7().to_string()),
       parent_resource_type: AppParentResourceType::Server,
       parent_workspace_id: None,
       parent_user_id: None
@@ -239,23 +239,6 @@ impl TestEnvironment {
     let configuration = Configuration::create(&configuration_properties, &self.database_pool).await?;
 
     return Ok(configuration);
-
-  }
-
-  pub async fn create_random_configuration_value(&self) -> Result<ConfigurationValue, TestSlashstepServerError> {
-
-    let configuration = self.create_random_configuration().await?;
-    let configuration_value_properties = InitialConfigurationValueProperties {
-      configuration_id: configuration.id,
-      parent_resource_type: ConfigurationValueParentResourceType::Server,
-      value_type: ConfigurationValueType::Text,
-      text_value: Some(Uuid::now_v7().to_string()),
-      ..Default::default()
-    };
-
-    let configuration_value = ConfigurationValue::create(&configuration_value_properties, &self.database_pool).await?;
-
-    return Ok(configuration_value);
 
   }
 

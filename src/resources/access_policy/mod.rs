@@ -45,7 +45,6 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_app_authorization_id",
   "scoped_app_authorization_credential_id",
   "scoped_configuration_id",
-  "scoped_configuration_value_id",
   "scoped_field_id",
   "scoped_field_choice_id",
   "scoped_field_value_id",
@@ -81,7 +80,6 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_app_authorization_credential_id",
   "scoped_app_credential_id",
   "scoped_configuration_id",
-  "scoped_configuration_value_id",
   "scoped_field_id",
   "scoped_field_choice_id",
   "scoped_field_value_id",
@@ -153,7 +151,6 @@ pub enum AccessPolicyResourceType {
   AppAuthorizationCredential,
   AppCredential,
   Configuration,
-  ConfigurationValue,
   FieldValue,
   Field,
   FieldChoice,
@@ -185,7 +182,6 @@ impl fmt::Display for AccessPolicyResourceType {
       AccessPolicyResourceType::AppAuthorizationCredential => write!(formatter, "AppAuthorizationCredential"),
       AccessPolicyResourceType::AppCredential => write!(formatter, "AppCredential"),
       AccessPolicyResourceType::Configuration => write!(formatter, "Configuration"),
-      AccessPolicyResourceType::ConfigurationValue => write!(formatter, "ConfigurationValue"),
       AccessPolicyResourceType::Field => write!(formatter, "Field"),
       AccessPolicyResourceType::FieldChoice => write!(formatter, "FieldChoice"),
       AccessPolicyResourceType::FieldValue => write!(formatter, "FieldValue"),
@@ -222,7 +218,6 @@ impl FromStr for AccessPolicyResourceType {
       "AppAuthorizationCredential" => Ok(AccessPolicyResourceType::AppAuthorizationCredential),
       "AppCredential" => Ok(AccessPolicyResourceType::AppCredential),
       "Configuration" => Ok(AccessPolicyResourceType::Configuration),
-      "ConfigurationValue" => Ok(AccessPolicyResourceType::ConfigurationValue),
       "Field" => Ok(AccessPolicyResourceType::Field),
       "FieldChoice" => Ok(AccessPolicyResourceType::FieldChoice),
       "FieldValue" => Ok(AccessPolicyResourceType::FieldValue),
@@ -344,8 +339,6 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_configuration_id: Option<Uuid>,
 
-  pub scoped_configuration_value_id: Option<Uuid>,
-
   pub scoped_field_id: Option<Uuid>,
 
   pub scoped_field_choice_id: Option<Uuid>,
@@ -452,8 +445,6 @@ pub struct AccessPolicy {
 
   pub scoped_configuration_id: Option<Uuid>,
 
-  pub scoped_configuration_value_id: Option<Uuid>,
-
   pub scoped_field_id: Option<Uuid>,
 
   pub scoped_field_choice_id: Option<Uuid>,
@@ -540,7 +531,6 @@ impl AccessPolicy {
       &initial_properties.scoped_app_authorization_credential_id,
       &initial_properties.scoped_app_credential_id,
       &initial_properties.scoped_configuration_id,
-      &initial_properties.scoped_configuration_value_id,
       &initial_properties.scoped_field_id,
       &initial_properties.scoped_field_choice_id,
       &initial_properties.scoped_field_value_id,
@@ -630,7 +620,6 @@ impl AccessPolicy {
       scoped_app_authorization_credential_id: row.get("scoped_app_authorization_credential_id"),
       scoped_app_credential_id: row.get("scoped_app_credential_id"),
       scoped_configuration_id: row.get("scoped_configuration_id"),
-      scoped_configuration_value_id: row.get("scoped_configuration_value_id"),
       scoped_field_id: row.get("scoped_field_id"),
       scoped_field_choice_id: row.get("scoped_field_choice_id"),
       scoped_field_value_id: row.get("scoped_field_value_id"),
@@ -801,7 +790,6 @@ impl AccessPolicy {
             AccessPolicyResourceType::AppAuthorizationCredential => "An app authorization credential ID must be provided.",
             AccessPolicyResourceType::AppCredential => "An app credential ID must be provided.",
             AccessPolicyResourceType::Configuration => "A configuration ID must be provided.",
-            AccessPolicyResourceType::ConfigurationValue => "A configuration value ID must be provided.",
             AccessPolicyResourceType::Field => "A field ID must be provided.",
             AccessPolicyResourceType::FieldChoice => "A field choice ID must be provided.",
             AccessPolicyResourceType::FieldValue => "A field value ID must be provided.",
@@ -839,7 +827,6 @@ impl AccessPolicy {
         AccessPolicyResourceType::AppAuthorizationCredential => query_clauses.push(format!("scoped_app_authorization_credential_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::AppCredential => query_clauses.push(format!("scoped_app_credential_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Configuration => query_clauses.push(format!("scoped_configuration_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::ConfigurationValue => query_clauses.push(format!("scoped_configuration_value_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Field => query_clauses.push(format!("scoped_field_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::FieldChoice => query_clauses.push(format!("scoped_field_choice_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::FieldValue => query_clauses.push(format!("scoped_field_value_id = {}", resource_id_as_quote_literal)),
@@ -941,7 +928,6 @@ impl AccessPolicy {
       AccessPolicyResourceType::AppAuthorizationCredential => self.scoped_app_authorization_credential_id,
       AccessPolicyResourceType::AppCredential => self.scoped_app_credential_id,
       AccessPolicyResourceType::Configuration => self.scoped_configuration_id,
-      AccessPolicyResourceType::ConfigurationValue => self.scoped_configuration_value_id,
       AccessPolicyResourceType::Field => self.scoped_field_id,
       AccessPolicyResourceType::FieldChoice => self.scoped_field_choice_id,
       AccessPolicyResourceType::FieldValue => self.scoped_field_value_id,

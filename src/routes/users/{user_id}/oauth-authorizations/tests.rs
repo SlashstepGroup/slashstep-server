@@ -12,7 +12,7 @@
 use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configuration_values, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::ActionPermissionLevel, action::Action, oauth_authorization::{InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer},}, routes::users::user_id::oauth_authorizations::CreateOAuthAuthorizationResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::ActionPermissionLevel, action::Action, oauth_authorization::{InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer},}, routes::users::user_id::oauth_authorizations::CreateOAuthAuthorizationResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
@@ -23,7 +23,6 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Give the user access to the "slashstep.apps.create" action.
   let user = test_environment.create_random_user().await?;

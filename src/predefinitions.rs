@@ -1,6 +1,5 @@
-use crate::resources::{ResourceError, action::{Action, InitialActionProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, configuration_value::{ConfigurationValue, ConfigurationValueParentResourceType, InitialConfigurationValueProperties, InitialConfigurationValuePropertiesWithoutConfigurationID}, role::{InitialRoleProperties, Role}};
+use crate::resources::{ResourceError, action::{Action, InitialActionProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, role::{InitialRoleProperties, Role}};
 use colored::Colorize;
-use pg_escape::quote_literal;
 use rust_decimal::Decimal;
 
 pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Pool) -> Result<Vec<Action>, ResourceError> {
@@ -90,6 +89,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       name: "slashstep.apps.list".to_string(),
       display_name: "List apps".to_string(),
       description: "List all apps on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.apps.create".to_string(),
+      display_name: "Create apps".to_string(),
+      description: "Create new apps on a particular scope.".to_string(),
       ..Default::default()
     },
     InitialActionProperties {
@@ -857,12 +862,21 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       name: "slashstep.actionLogEntries.shouldExpire".to_string(),
       description: Some("Whether action log entries should expire after a certain amount of time. If true, action log entries will expire after the amount of time specified in the \"slashstep.actionLogEntries.defaultMaximumLifetimeMilliseconds\" configuration.".to_string()),
       value_type: ConfigurationValueType::Boolean,
+      default_boolean_value: Some(false),
       ..Default::default()
     },
     InitialConfigurationProperties {
       name: "slashstep.actionLogEntries.defaultMaximumLifetimeMilliseconds".to_string(),
       description: Some("The default maximum lifetime of action log entries in milliseconds. This configuration only has an effect if the \"slashstep.actionLogEntries.shouldExpire\" configuration is set to true.".to_string()),
       value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(31536000000 as i64)), // 365 days in milliseconds
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "slashstep.apps.allowedNameRegex".to_string(),
+      description: Some("A regular expression that app names must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
       ..Default::default()
     }
   ];
@@ -891,7 +905,19 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
     }
 
     // Create the configuration, but if it already exists, add it to the list of configurations.
-    let configuration = Configuration::create(&predefined_configuration, database_pool).await?;
+    let configuration = match Configuration::create(&predefined_configuration, database_pool).await {
+
+      Ok(configuration) => configuration,
+
+      Err(error) => match error {
+
+        ResourceError::ConflictError(_) => Configuration::get_by_name(&predefined_configuration.name, database_pool).await?,
+
+        _ => return Err(error)
+
+      }
+
+    };
     configurations.push(configuration);
 
   }
@@ -899,99 +925,5 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
   println!("{}", format!("Successfully initialized {} predefined configurations.", configurations.len()).blue());
 
   return Ok(configurations);
-
-}
-
-pub async fn initialize_predefined_configuration_values<'a>(database_pool: &deadpool_postgres::Pool) -> Result<Vec<ConfigurationValue>, ResourceError> {
-
-  println!("{}", "Initializing predefined configuration values...".dimmed());
-
-  let predefined_configurations: Vec<(&'a str, InitialConfigurationValuePropertiesWithoutConfigurationID)> = vec![
-    (
-      "slashstep.actionLogEntries.shouldExpire", 
-      InitialConfigurationValuePropertiesWithoutConfigurationID {
-        value_type: ConfigurationValueType::Boolean,
-        boolean_value: Some(false),
-        ..Default::default()
-      }
-    ),
-    (
-      "slashstep.actionLogEntries.defaultMaximumLifetimeMilliseconds", 
-      InitialConfigurationValuePropertiesWithoutConfigurationID {
-        value_type: ConfigurationValueType::Number,
-        number_value: Some(Decimal::from(31536000000 as i64)), // 365 days in milliseconds
-        ..Default::default()
-      }
-    )
-  ];
-
-  let mut configuration_values: Vec<ConfigurationValue> = Vec::new();
-
-  for (name, predefined_configuration_value_properties) in predefined_configurations {
-
-    // Make sure we didn't go through this configuration value already.
-    let mut should_continue = false;
-    let configuration = match Configuration::list(&format!("name = {} LIMIT 1", quote_literal(name)), database_pool, None).await {
-
-      Ok(configurations) => match configurations.into_iter().next() {
-
-        Some(configuration) => configuration,
-
-        None => return Err(ResourceError::NotFoundError(format!("Configuration with name \"{}\" not found.", name)))
-
-      },
-
-      Err(error) => return Err(error)
-
-    };
-
-    for configuration_value in configuration_values.iter() {
-
-      if configuration_value.configuration_id == configuration.id {
-
-        println!("{}", format!("Skipping predefined configuration value for configuration \"{}\" because it already exists.", configuration.name).yellow());
-        should_continue = true;
-
-      }
-
-    }
-
-    if should_continue {
-
-      continue;
-
-    }
-
-    // Create the configuration, but if it already exists, add it to the list of configurations.
-    let possible_configuration_value = match ConfigurationValue::list(&format!("configuration_id = {} AND parent_resource_type = {} AND parent_configuration_id = {} LIMIT 1", quote_literal(&configuration.id.to_string()), quote_literal(&ConfigurationValueParentResourceType::Configuration.to_string()), quote_literal(&configuration.id.to_string())), database_pool, None).await {
-
-      Ok(configuration_values) => configuration_values.into_iter().next(),
-
-      Err(error) => return Err(error)
-
-    };
-
-    let Some(configuration_value) = possible_configuration_value else {
-
-      let configuration_value = ConfigurationValue::create(&InitialConfigurationValueProperties {
-        configuration_id: configuration.id,
-        parent_resource_type: ConfigurationValueParentResourceType::Configuration,
-        parent_configuration_id: Some(configuration.id),
-        value_type: predefined_configuration_value_properties.value_type,
-        text_value: predefined_configuration_value_properties.text_value,
-        boolean_value: predefined_configuration_value_properties.boolean_value,
-        number_value: predefined_configuration_value_properties.number_value,
-      }, database_pool).await?;
-      configuration_values.push(configuration_value);
-      continue;
-
-    };
-    configuration_values.push(configuration_value);
-
-  }
-
-  println!("{}", format!("Successfully initialized {} predefined configuration values.", configuration_values.len()).blue());
-
-  return Ok(configuration_values);
 
 }

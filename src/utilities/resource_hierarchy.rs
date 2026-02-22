@@ -303,45 +303,6 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
-      // ConfigurationValue -> (Configuration | Server)
-      AccessPolicyResourceType::ConfigurationValue => {
-
-        let Some(configuration_value_id) = selected_resource_id else {
-
-          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::ConfigurationValue));
-
-        };
-
-        hierarchy.push((AccessPolicyResourceType::ConfigurationValue, Some(configuration_value_id)));
-
-        let configuration_value = match crate::resources::configuration_value::ConfigurationValue::get_by_id(&configuration_value_id, database_pool).await {
-
-          Ok(configuration_value) => configuration_value,
-
-          Err(error) => match error {
-
-            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::ConfigurationValue, hierarchy)),
-
-            _ => return Err(ResourceHierarchyError::ResourceError(error))
-
-          }
-
-        };
-
-        if let Some(configuration_id) = configuration_value.parent_configuration_id {
-
-          selected_resource_type = AccessPolicyResourceType::Configuration;
-          selected_resource_id = Some(configuration_id);
-
-        } else {
-
-          selected_resource_type = AccessPolicyResourceType::Server;
-          selected_resource_id = None;
-
-        }
-
-      },
-
       // FieldValue -> (Field | Item)
       AccessPolicyResourceType::FieldValue => {
 

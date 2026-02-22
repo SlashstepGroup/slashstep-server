@@ -16,7 +16,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use crate::{
   AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configuration_values, initialize_predefined_configurations, 
+    initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
     access_policy::{
@@ -35,7 +35,6 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Grant access to the "slashstep.actionLogEntries.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -128,7 +127,6 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Grant access to the "slashstep.actionLogEntries.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -209,7 +207,6 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Grant access to the "slashstep.actionLogEntries.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -278,7 +275,6 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Grant access to the "slashstep.actionLogEntries.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -336,7 +332,6 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Grant access to the "slashstep.actionLogEntries.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -425,7 +420,6 @@ async fn verify_authentication_when_listing_action_log_entries() -> Result<(), T
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -454,7 +448,6 @@ async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Create a user and a session.
   let user = test_environment.create_random_user().await?;

@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, configuration_value::ConfigurationValue, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -37,57 +37,9 @@ pub async fn get_action_log_entry_expiration_timestamp(http_transaction: &HTTPTr
 
   };
 
-  ServerLogEntry::trace(&format!("Getting configuration value for configuration {}...", should_action_log_entries_expire_configuration.id), Some(&http_transaction.id), database_pool).await.ok();
-  let should_action_log_entries_expire_configuration_value = match ConfigurationValue::list(&format!("configuration_id = {} AND parent_resource_type = {} LIMIT 1", quote_literal(&should_action_log_entries_expire_configuration.id.to_string()), quote_literal("Server")), &database_pool, None).await {
+  let should_action_log_entries_expire = should_action_log_entries_expire_configuration.boolean_value.or(should_action_log_entries_expire_configuration.default_boolean_value);
+  if should_action_log_entries_expire.is_none_or(|value| value == false) {
 
-    Ok(configuration_values) => match configuration_values.into_iter().next() {
-
-      Some(configuration_value) => Some(configuration_value),
-
-      None => match ConfigurationValue::list(&format!("configuration_id = {} AND parent_resource_type = {} AND parent_configuration_id = {} LIMIT 1", quote_literal(&should_action_log_entries_expire_configuration.id.to_string()), quote_literal("Configuration"), quote_literal(&should_action_log_entries_expire_configuration.id.to_string())), &database_pool, None).await {
-
-        Ok(configuration_values) => match configuration_values.into_iter().next() {
-
-          Some(configuration_value) => Some(configuration_value),
-
-          None => None
-
-        }
-
-        Err(error) => {
-
-          let http_error = HTTPError::InternalServerError(Some(format!("Failed to retrieve configuration values: {:?}", error)));
-          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-          return Err(http_error);
-
-        }
-
-      }
-
-    }
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to retrieve configuration values: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  if let Some(should_action_log_entries_expire_configuration_value) = &should_action_log_entries_expire_configuration_value {
-
-    match should_action_log_entries_expire_configuration_value.boolean_value {
-
-      Some(boolean_value) => if !boolean_value { return Ok(None); },
-
-      None => return Ok(None)
-
-    }
-
-  } else {
-    
     return Ok(None);
 
   }
@@ -119,78 +71,9 @@ pub async fn get_action_log_entry_expiration_timestamp(http_transaction: &HTTPTr
 
   };
 
-  ServerLogEntry::trace(&format!("Getting configuration value for configuration {}...", should_action_log_entries_expire_configuration.id), Some(&http_transaction.id), database_pool).await.ok();
-  let action_log_entry_expiration_duration_configuration_value = match ConfigurationValue::list(&format!("configuration_id = {} AND parent_resource_type = {} LIMIT 1", quote_literal(&action_log_entry_expiration_duration_configuration.id.to_string()), quote_literal("Server")), &database_pool, None).await {
-
-    Ok(configuration_values) => match configuration_values.into_iter().next() {
-
-      Some(configuration_value) => Some(configuration_value),
-
-      None => match ConfigurationValue::list(&format!("configuration_id = {} AND parent_resource_type = {} AND parent_configuration_id = {} LIMIT 1", quote_literal(&action_log_entry_expiration_duration_configuration.id.to_string()), quote_literal("Configuration"), quote_literal(&action_log_entry_expiration_duration_configuration.id.to_string())), &database_pool, None).await {
-
-        Ok(configuration_values) => match configuration_values.into_iter().next() {
-
-          Some(configuration_value) => Some(configuration_value),
-
-          None => None
-
-        }
-
-        Err(error) => {
-
-          let http_error = HTTPError::InternalServerError(Some(format!("Failed to retrieve configuration values: {:?}", error)));
-          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-          return Err(http_error);
-
-        }
-
-      }
-
-    }
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to retrieve configuration values: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  let expiration_duration_milliseconds = if let Some(configuration_value) = action_log_entry_expiration_duration_configuration_value {
-
-    match configuration_value.number_value {
-      
-      Some(number_value) => match number_value.to_i64() {
-
-        Some(duration_milliseconds) => Some(duration_milliseconds),
-
-        None => {
-
-          let http_error = HTTPError::InternalServerError(Some(format!("Configuration value {} has a number value that is out of range for an i64.", configuration_value.id)));
-          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-          return Err(http_error);
-
-        }
-
-      }
-
-      None => {
-
-        let http_error = HTTPError::InternalServerError(Some(format!("Expected a number value for configuration value {}.", configuration_value.id)));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-        return Err(http_error);
-
-      }
-
-    }
-
-  } else {
-
-    None
-    
-  };
+  let expiration_duration_milliseconds = action_log_entry_expiration_duration_configuration.number_value
+    .or(action_log_entry_expiration_duration_configuration.default_number_value)
+    .and_then(|decimal| decimal.to_i64());
 
   let expiration_timestamp = expiration_duration_milliseconds.and_then(|duration| Utc::now().checked_add_signed(chrono::Duration::milliseconds(duration)));
 

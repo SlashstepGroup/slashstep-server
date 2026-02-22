@@ -17,7 +17,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configuration_values, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel, IndividualPrincipal}, action::Action, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope},}, routes::apps::app_id::app_credentials::CreateAppCredentialResponseBody, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel, IndividualPrincipal}, action::Action, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope},}, routes::apps::app_id::app_credentials::CreateAppCredentialResponseBody, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -28,7 +28,6 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Give the user access to the "slashstep.appCredentials.get" action.
   let user = test_environment.create_random_user().await?;
@@ -86,7 +85,6 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Give the user access to the "slashstep.appCredentials.get" action.
   let user = test_environment.create_random_user().await?;
@@ -146,7 +144,6 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Grant access to the "slashstep.appCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -200,7 +197,6 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Grant access to the "slashstep.appCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -245,7 +241,6 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Grant access to the "slashstep.appCredentials.get" action to the user.
   let user = test_environment.create_random_user().await?;
@@ -321,7 +316,6 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
@@ -353,7 +347,6 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Create a user and a session.
   let user = test_environment.create_random_user().await?;
@@ -393,7 +386,6 @@ async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(),
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -422,7 +414,6 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Give the user access to the "slashstep.apps.create" action.
   let user = test_environment.create_random_user().await?;
@@ -472,7 +463,6 @@ async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSla
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Create a dummy app.
   let dummy_app = test_environment.create_random_app().await?;
@@ -508,7 +498,6 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Create a dummy app.
   let dummy_app = test_environment.create_random_app().await?;
@@ -545,7 +534,6 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -590,7 +578,6 @@ async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepSe
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   let initial_app_credential_properties = InitialAppCredentialPropertiesForPredefinedScope {
     description: Some(Uuid::now_v7().to_string()),

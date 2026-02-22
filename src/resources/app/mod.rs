@@ -28,16 +28,18 @@ pub const RESOURCE_NAME: &str = "App";
 pub const DATABASE_TABLE_NAME: &str = "apps";
 pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.apps.get";
 
-#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Serialize, Deserialize, Default)]
 #[postgres(name = "app_client_type")]
 pub enum AppClientType {
+  #[default]
   Public,
   Confidential
 }
 
-#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Serialize, Deserialize, Default)]
 #[postgres(name = "app_parent_resource_type")]
 pub enum AppParentResourceType {
+  #[default]
   Server,
   User,
   Workspace
@@ -50,18 +52,19 @@ pub struct App {
   pub display_name: String,
   pub description: Option<String>,
   pub client_type: AppClientType,
-  pub client_secret_hash: Option<String>,
+  client_secret_hash: Option<String>,
   pub parent_resource_type: AppParentResourceType,
   pub parent_workspace_id: Option<Uuid>,
   pub parent_user_id: Option<Uuid>
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct InitialAppProperties {
   pub name: String,
   pub display_name: String,
   pub description: Option<String>,
   pub client_type: AppClientType,
-  pub client_secret_hash: String,
+  pub client_secret_hash: Option<String>,
   pub parent_resource_type: AppParentResourceType,
   pub parent_workspace_id: Option<Uuid>,
   pub parent_user_id: Option<Uuid>
@@ -204,6 +207,13 @@ impl App {
     let app = Self::convert_from_row(&row);
 
     return Ok(app);
+
+  }
+
+  /// Gets this app's client secret hash.
+  pub fn get_client_secret_hash(&self) -> Option<String> {
+
+    return self.client_secret_hash.clone();
 
   }
 

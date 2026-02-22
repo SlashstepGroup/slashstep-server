@@ -21,10 +21,10 @@ use colored::Colorize;
 use thiserror::Error;
 use crate::{
   predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configuration_values, initialize_predefined_configurations, initialize_predefined_roles
+    initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, configuration_value::ConfigurationValue, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace
   },
   utilities::resource_hierarchy::ResourceHierarchyError
 };
@@ -146,7 +146,6 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   FieldChoice::initialize_resource_table(database_pool).await?;
   FieldValue::initialize_resource_table(database_pool).await?;
   Configuration::initialize_resource_table(database_pool).await?;
-  ConfigurationValue::initialize_resource_table(database_pool).await?;
   AccessPolicy::initialize_resource_table(database_pool).await?;
   DelegationPolicy::initialize_resource_table(database_pool).await?;
 
@@ -326,7 +325,6 @@ async fn main() -> Result<(), SlashstepServerError> {
   initialize_predefined_actions(&state.database_pool).await?;
   initialize_predefined_roles(&state.database_pool).await?;
   initialize_predefined_configurations(&state.database_pool).await?;
-  initialize_predefined_configuration_values(&state.database_pool).await?;
 
   let app_port = get_app_port_string();
   let router = routes::get_router(state.clone()).with_state(state);

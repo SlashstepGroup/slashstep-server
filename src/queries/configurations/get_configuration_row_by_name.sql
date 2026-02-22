@@ -1,0 +1,1 @@
+SELECT * FROM configurations WHERE name = $1;

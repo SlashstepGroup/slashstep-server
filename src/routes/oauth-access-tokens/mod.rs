@@ -675,7 +675,7 @@ async fn handle_create_oauth_access_token_request(
 
   if app.client_type == AppClientType::Confidential {
 
-    verify_client_secret(query_parameters.client_secret.as_deref(), app.client_secret_hash.as_deref(), &http_transaction.id, &state.database_pool).await?;
+    verify_client_secret(query_parameters.client_secret.as_deref(), app.get_client_secret_hash().as_deref(), &http_transaction.id, &state.database_pool).await?;
 
   }
 

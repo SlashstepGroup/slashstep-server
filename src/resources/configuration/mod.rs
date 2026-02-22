@@ -4,6 +4,7 @@ mod tests;
 use std::str::FromStr;
 
 use postgres_types::{FromSql, ToSql};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
 use uuid::Uuid;
@@ -62,7 +63,25 @@ pub struct InitialConfigurationProperties {
   pub description: Option<String>,
 
   /// The configuration's value type.
-  pub value_type: ConfigurationValueType
+  pub value_type: ConfigurationValueType,
+
+  /// The configuration's text value, if applicable.
+  pub text_value: Option<String>,
+
+  /// The configuration's number value, if applicable.
+  pub number_value: Option<Decimal>,
+
+  /// The configuration's boolean value, if applicable.
+  pub boolean_value: Option<bool>,
+
+  /// The configuration's default text value, if applicable.
+  pub default_text_value: Option<String>,
+
+  /// The configuration's default number value, if applicable.
+  pub default_number_value: Option<Decimal>,
+
+  /// The configuration's default boolean value, if applicable.
+  pub default_boolean_value: Option<bool>
 
 }
 
@@ -73,7 +92,25 @@ pub struct EditableConfigurationProperties {
   pub name: Option<String>,
 
   /// The configuration's description, if applicable.
-  pub description: Option<String>
+  pub description: Option<String>,
+
+  /// The configuration's text value, if applicable.
+  pub text_value: Option<String>,
+
+  /// The configuration's number value, if applicable.
+  pub number_value: Option<Decimal>,
+
+  /// The configuration's boolean value, if applicable.
+  pub boolean_value: Option<bool>,
+
+  /// The configuration's default text value, if applicable.
+  pub default_text_value: Option<String>,
+
+  /// The configuration's default number value, if applicable.
+  pub default_number_value: Option<Decimal>,
+
+  /// The configuration's default boolean value, if applicable.
+  pub default_boolean_value: Option<bool>
 
 }
 
@@ -90,7 +127,25 @@ pub struct Configuration {
   pub description: Option<String>,
 
   /// The configuration's value type.
-  pub value_type: ConfigurationValueType
+  pub value_type: ConfigurationValueType,
+
+  /// The configuration's text value, if applicable.
+  pub text_value: Option<String>,
+
+  /// The configuration's number value, if applicable.
+  pub number_value: Option<Decimal>,
+
+  /// The configuration's boolean value, if applicable.
+  pub boolean_value: Option<bool>,
+
+  /// The configuration's default text value, if applicable.
+  pub default_text_value: Option<String>,
+
+  /// The configuration's default number value, if applicable.
+  pub default_number_value: Option<Decimal>,
+
+  /// The configuration's default boolean value, if applicable.
+  pub default_boolean_value: Option<bool>
 
 }
 
@@ -160,6 +215,30 @@ impl Configuration {
 
   }
 
+  pub async fn get_by_name(name: &str, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/configurations/get_configuration_row_by_name.sql");
+    let row = match database_client.query_opt(query, &[&name]).await {
+
+      Ok(row) => match row {
+
+        Some(row) => row,
+
+        None => return Err(ResourceError::NotFoundError(format!("A configuration with the name \"{}\" does not exist.", name)))
+
+      },
+
+      Err(error) => return Err(ResourceError::PostgresError(error))
+
+    };
+
+    let configuration = Self::convert_from_row(&row);
+
+    return Ok(configuration);
+
+  }
+
   /// Converts a row into a configuration.
   fn convert_from_row(row: &postgres::Row) -> Self {
 
@@ -167,7 +246,13 @@ impl Configuration {
       id: row.get("id"),
       name: row.get("name"),
       description: row.get("description"),
-      value_type: row.get("value_type")
+      value_type: row.get("value_type"),
+      text_value: row.get("text_value"),
+      number_value: row.get("number_value"),
+      boolean_value: row.get("boolean_value"),
+      default_text_value: row.get("default_text_value"),
+      default_number_value: row.get("default_number_value"),
+      default_boolean_value: row.get("default_boolean_value")
     };
 
   }
@@ -190,7 +275,13 @@ impl Configuration {
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.name,
       &initial_properties.description,
-      &initial_properties.value_type
+      &initial_properties.value_type,
+      &initial_properties.text_value,
+      &initial_properties.number_value,
+      &initial_properties.boolean_value,
+      &initial_properties.default_text_value,
+      &initial_properties.default_number_value,
+      &initial_properties.default_boolean_value
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {
@@ -199,10 +290,10 @@ impl Configuration {
     
     })?;
 
-    // Return the app authorization.
-    let app_credential = Self::convert_from_row(&row);
+    // Return the configuration.
+    let configuration = Self::convert_from_row(&row);
 
-    return Ok(app_credential);
+    return Ok(configuration);
 
   }
 
@@ -280,6 +371,12 @@ impl Configuration {
     database_client.query("begin;", &[]).await?;
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", Some(&properties.name));
     let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "text_value", properties.text_value.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "number_value", properties.number_value.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "boolean_value", properties.boolean_value.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "default_text_value", properties.default_text_value.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "default_number_value", properties.default_number_value.as_ref());
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "default_boolean_value", properties.default_boolean_value.as_ref());
     let (mut parameter_boxes, mut query) = (parameter_boxes, query);
 
     query.push_str(format!(" where id = ${} returning *;", parameter_boxes.len() + 1).as_str());

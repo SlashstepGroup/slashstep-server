@@ -23,7 +23,6 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "target_app_authorization_credential_id",
   "target_app_credential_id",
   "target_configuration_id",
-  "target_configuration_value_id",
   "target_field_id",
   "target_field_choice_id",
   "target_field_value_id",
@@ -56,7 +55,6 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "target_app_authorization_credential_id",
   "target_app_credential_id",
   "target_configuration_id",
-  "target_configuration_value_id",
   "target_field_id",
   "target_field_choice_id",
   "target_field_value_id",
@@ -94,7 +92,6 @@ pub enum ActionLogEntryTargetResourceType {
   AppAuthorizationCredential,
   AppCredential,
   Configuration,
-  ConfigurationValue,
   Field,
   FieldChoice,
   FieldValue,
@@ -167,9 +164,6 @@ pub struct ActionLogEntry {
 
   /// The target configuration ID of the action, if applicable.
   pub target_configuration_id: Option<Uuid>,
-
-  /// The target configuration value ID of the action, if applicable.
-  pub target_configuration_value_id: Option<Uuid>,
 
   /// The target field value ID of the action, if applicable.
   pub target_field_value_id: Option<Uuid>,
@@ -278,9 +272,6 @@ pub struct InitialActionLogEntryProperties {
   /// The target configuration ID of the action, if applicable.
   pub target_configuration_id: Option<Uuid>,
 
-  /// The target configuration value ID of the action, if applicable.
-  pub target_configuration_value_id: Option<Uuid>,
-
   /// The target field value ID of the action, if applicable.
   pub target_field_value_id: Option<Uuid>,
 
@@ -388,7 +379,6 @@ impl ActionLogEntry {
       target_app_authorization_credential_id: row.get("target_app_authorization_credential_id"),
       target_app_credential_id: row.get("target_app_credential_id"),
       target_configuration_id: row.get("target_configuration_id"),
-      target_configuration_value_id: row.get("target_configuration_value_id"),
       target_field_id: row.get("target_field_id"),
       target_field_choice_id: row.get("target_field_choice_id"),
       target_field_value_id: row.get("target_field_value_id"),
@@ -459,7 +449,6 @@ impl ActionLogEntry {
       &initial_properties.target_app_authorization_credential_id,
       &initial_properties.target_app_credential_id,
       &initial_properties.target_configuration_id,
-      &initial_properties.target_configuration_value_id,
       &initial_properties.target_field_id,
       &initial_properties.target_field_choice_id,
       &initial_properties.target_field_value_id,

@@ -16,7 +16,7 @@ use ntest::timeout;
 use uuid::Uuid;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configuration_values, initialize_predefined_configurations, 
+    initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
     ResourceError, access_policy::{
@@ -35,7 +35,6 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -89,7 +88,6 @@ async fn verify_uuid_when_getting_action_by_id() -> Result<(), TestSlashstepServ
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -116,7 +114,6 @@ async fn verify_authentication_when_getting_action_by_id() -> Result<(), TestSla
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -146,7 +143,6 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Create the user, the session, and the action.
   let user = test_environment.create_random_user().await?;
@@ -214,7 +210,6 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -270,7 +265,6 @@ async fn verify_uuid_when_deleting_action_by_id() -> Result<(), TestSlashstepSer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -297,7 +291,6 @@ async fn verify_authentication_when_deleting_action_by_id() -> Result<(), TestSl
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Create a dummy action.
   let action = test_environment.create_random_action(None).await?;
@@ -328,7 +321,6 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -397,7 +389,6 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -461,7 +452,6 @@ async fn verify_content_type_when_patching_action_by_id() -> Result<(), TestSlas
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -489,7 +479,6 @@ async fn verify_request_body_exists_when_patching_action_by_id() -> Result<(), T
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -518,7 +507,6 @@ async fn verify_request_body_json_when_patching_action_by_id() -> Result<(), Tes
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
   let state = AppState {
@@ -552,7 +540,6 @@ async fn verify_uuid_when_patching_action_by_id() -> Result<(), TestSlashstepSer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -581,7 +568,6 @@ async fn verify_authentication_when_patching_action_by_id() -> Result<(), TestSl
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
   let action = test_environment.create_random_action(None).await?;
@@ -613,7 +599,6 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -653,7 +638,6 @@ async fn verify_action_exists_when_patching_action() -> Result<(), TestSlashstep
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-  initialize_predefined_configuration_values(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
