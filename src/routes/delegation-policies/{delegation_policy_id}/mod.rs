@@ -17,7 +17,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_request_middleware}, 
   resources::{
-    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, delegation_policy::{self, DelegationPolicy, EditableDelegationPolicyProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App}, app_authorization::AppAuthorization, delegation_policy::{DelegationPolicy, EditableDelegationPolicyProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_delegation_policy_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
 };
@@ -67,37 +67,37 @@ async fn handle_get_delegation_policy_request(
 
 }
 
-// /// DELETE /delegation_policies/{delegation_policy_id}
-// /// 
-// /// Deletes an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_delete_app_request(
-//   Path(delegation_policy_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-// ) -> Result<StatusCode, HTTPError> {
+/// DELETE /delegation_policies/{delegation_policy_id}
+/// 
+/// Deletes a delegation policy by its ID.
+#[axum::debug_handler]
+async fn handle_delete_delegation_policy_request(
+  Path(delegation_policy_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+) -> Result<StatusCode, HTTPError> {
 
-//   let delegation_policy_id = get_uuid_from_string(&delegation_policy_id, "app", &http_transaction, &state.database_pool).await?;
-//   let response = delete_resource(
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
-//     Extension(authenticated_app_authorization),
-//     Some(&AccessPolicyResourceType::App),
-//     &delegation_policy_id, 
-//     "slashstep.apps.delete",
-//     "app",
-//     &ActionLogEntryTargetResourceType::App,
-//     |delegation_policy_id, database_pool| Box::new(App::get_by_id(delegation_policy_id, database_pool))
-//   ).await;
+  let delegation_policy_id = get_uuid_from_string(&delegation_policy_id, "delegation policy", &http_transaction, &state.database_pool).await?;
+  let response = delete_resource(
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
+    Some(&AccessPolicyResourceType::DelegationPolicy),
+    &delegation_policy_id, 
+    "slashstep.delegationPolicies.delete",
+    "delegation policy",
+    &ActionLogEntryTargetResourceType::DelegationPolicy,
+    |delegation_policy_id, database_pool| Box::new(DelegationPolicy::get_by_id(delegation_policy_id, database_pool))
+  ).await;
 
-//   return response;
+  return response;
 
-// }
+}
 
 /// PATCH /delegation_policies/{delegation_policy_id}
 /// 
@@ -158,7 +158,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/delegation-policies/{delegation_policy_id}", axum::routing::get(handle_get_delegation_policy_request))
-    // .route("/delegation-policies/{delegation_policy_id}", axum::routing::delete(handle_delete_app_request))
+    .route("/delegation-policies/{delegation_policy_id}", axum::routing::delete(handle_delete_delegation_policy_request))
     .route("/delegation-policies/{delegation_policy_id}", axum::routing::patch(handle_patch_delegation_policy_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
