@@ -220,7 +220,7 @@ async fn verify_successful_deletion_when_deleting_resource_by_id() -> Result<(),
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 204);
+  assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
 
   match AppAuthorizationCredential::get_by_id(&app_authorization_credential.id, &test_environment.database_pool).await.expect_err("Expected a not found error.") {
 
