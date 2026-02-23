@@ -140,7 +140,7 @@ async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), 
   let response = test_server.get(&format!("/access-policies/{}", access_policy.id))
     .await;
   
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -174,7 +174,7 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }
@@ -204,7 +204,7 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestS
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }
@@ -310,7 +310,7 @@ async fn verify_authentication_when_deleting_access_policy_by_id() -> Result<(),
   let response = test_server.delete(&format!("/access-policies/{}", access_policy.id))
     .await;
   
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -343,7 +343,7 @@ async fn verify_permission_when_deleting_access_policy_by_id() -> Result<(), Tes
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }
@@ -372,7 +372,7 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id() -> Resu
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }
@@ -419,7 +419,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
     }))
     .await;
   
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_access_policy: AccessPolicy = response.json();
   assert_eq!(response_access_policy.id, access_policy.id);
@@ -600,7 +600,7 @@ async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(),
     }))
     .await;
   
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
   return Ok(());
 
@@ -648,7 +648,7 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
     }))
     .await;
   
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 
   return Ok(());
 
@@ -679,7 +679,7 @@ async fn verify_access_policy_exists_when_patching_access_policy() -> Result<(),
     }))
     .await;
   
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
   return Ok(());
 

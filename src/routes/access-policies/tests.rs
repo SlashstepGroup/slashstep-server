@@ -121,7 +121,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert!(response_access_policies.total_count > 0);
@@ -195,7 +195,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     .add_query_param("query", &query)
     .await;
   
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;

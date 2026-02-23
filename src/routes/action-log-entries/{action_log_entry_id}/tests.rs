@@ -13,6 +13,7 @@ use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
+use reqwest::StatusCode;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles
@@ -64,7 +65,7 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
   let response_action_log_entry: ActionLogEntry = response.json();
   assert_eq!(response_action_log_entry.id, action_log_entry.id);
   assert_eq!(response_action_log_entry.action_id, action_log_entry.action_id);
@@ -148,7 +149,7 @@ async fn verify_authentication_when_getting_action_log_entry_by_id() -> Result<(
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -184,7 +185,7 @@ async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), T
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }
@@ -212,7 +213,7 @@ async fn verify_not_found_when_getting_action_log_entry_by_id() -> Result<(), Te
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }
@@ -323,7 +324,7 @@ async fn verify_authentication_when_deleting_action_log_entry_by_id() -> Result<
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -360,7 +361,7 @@ async fn verify_permission_when_deleting_action_log_entry_by_id() -> Result<(), 
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }
@@ -387,7 +388,7 @@ async fn verify_action_log_entry_exists_when_deleting_action_log_entry_by_id() -
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }

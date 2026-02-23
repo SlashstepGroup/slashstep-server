@@ -69,7 +69,29 @@ pub struct InitialDelegationPolicyProperties {
 
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EditableDelegationPolicyProperties {
+
+  /// The delegation policy's maximum permission level.
+  pub maximum_permission_level: Option<ActionPermissionLevel>
+
+}
+
 impl DelegationPolicy {
+
+  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
+
+    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
+    if let Some(parameter_value) = parameter_value {
+
+      query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
+      parameter_boxes.push(Box::new(parameter_value));
+
+    }
+    
+    return (parameter_boxes, query);
+
+  }
 
   /// Initializes the delegation_policies table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
@@ -226,6 +248,28 @@ impl DelegationPolicy {
     }
 
     return Ok(Box::new(value));
+
+  }
+
+  /// Updates this delegation policy and returns a new instance of the delegation policy.
+  pub async fn update(&self, properties: &EditableDelegationPolicyProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE delegation_policies SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "maximum_permission_level", properties.maximum_permission_level.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let delegation_policy = Self::convert_from_row(&row);
+    return Ok(delegation_policy);
 
   }
 

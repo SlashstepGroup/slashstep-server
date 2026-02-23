@@ -56,7 +56,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_app_authorization: AppAuthorization = response.json();
   assert_eq!(response_app_authorization.id, app_authorization.id);
@@ -119,7 +119,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
   let response = test_server.get(&format!("/app-authorizations/{}", app_authorization.id))
     .await;
   
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -155,7 +155,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }
@@ -183,7 +183,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }
@@ -286,7 +286,7 @@ async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), Test
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -323,7 +323,7 @@ async fn verify_permission_when_deleting_resource_by_id() -> Result<(), TestSlas
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }
@@ -354,7 +354,7 @@ async fn verify_resource_exists_when_deleting_resource_by_id() -> Result<(), Tes
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }

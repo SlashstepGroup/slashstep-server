@@ -80,7 +80,7 @@ async fn verify_returned_action_list_without_query() -> Result<(), TestSlashstep
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_json: ListResourcesResponseBody::<Action> = response.json();
   assert!(response_json.total_count > 0);
@@ -156,7 +156,7 @@ async fn verify_returned_action_list_with_query() -> Result<(), TestSlashstepSer
     .add_query_param("query", &query)
     .await;
   
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_json: ListResourcesResponseBody::<Action> = response.json();
   let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;

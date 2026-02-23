@@ -191,7 +191,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert_eq!(response_access_policies.total_count, 1);
