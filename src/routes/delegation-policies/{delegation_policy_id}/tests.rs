@@ -226,7 +226,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 204);
+  assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
 
   match DelegationPolicy::get_by_id(&delegation_policy.id, &test_environment.database_pool).await.expect_err("Expected a delegation policy not found error.") {
 
