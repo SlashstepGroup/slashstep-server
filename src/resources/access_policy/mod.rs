@@ -894,20 +894,6 @@ impl AccessPolicy {
 
   }
 
-  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
-
-    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
-    if let Some(parameter_value) = parameter_value {
-
-      query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
-      parameter_boxes.push(Box::new(parameter_value));
-
-    }
-    
-    return (parameter_boxes, query);
-
-  }
-
   /// Updates this access policy and returns a new instance of the access policy.
   pub async fn update(&self, properties: &EditableAccessPolicyProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
@@ -916,8 +902,8 @@ impl AccessPolicy {
     let database_client = database_pool.get().await?;
 
     database_client.query("begin;", &[]).await?;
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "permission_level", Some(&properties.permission_level));
-    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "is_inheritance_enabled", Some(&properties.is_inheritance_enabled));
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "permission_level", Some(&properties.permission_level));
+    let (mut parameter_boxes, mut query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "is_inheritance_enabled", Some(&properties.is_inheritance_enabled));
 
     query.push_str(format!(" where id = ${} returning *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));

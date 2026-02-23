@@ -17,9 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_request_middleware}, 
   resources::{
-    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, field::Field, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field::{EditableFieldProperties, Field}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_field_by_id, get_resource_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_field_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 // #[path = "./access-policies/mod.rs"]
@@ -32,7 +32,7 @@ mod tests;
 
 /// GET /fields/{field_id}
 /// 
-/// Gets an app by its ID.
+/// Gets a field by its ID.
 #[axum::debug_handler]
 async fn handle_get_field_request(
   Path(field_id): Path<String>,
@@ -102,94 +102,67 @@ async fn handle_delete_field_request(
 
 }
 
-// /// PATCH /fields/{field_id}
-// /// 
-// /// Updates an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_patch_app_request(
-//   Path(field_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-//   body: Result<Json<EditableAppProperties>, JsonRejection>
-// ) -> Result<Json<App>, HTTPError> {
+// //// PATCH /fields/{field_id}
+/// 
+/// Updates a field by its ID.
+#[axum::debug_handler]
+async fn handle_patch_field_request(
+  Path(field_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+  body: Result<Json<EditableFieldProperties>, JsonRejection>
+) -> Result<Json<Field>, HTTPError> {
 
-//   let http_transaction = http_transaction.clone();
+  let http_transaction = http_transaction.clone();
+  let updated_field_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  let field_id = get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
+  let original_target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&original_target_field, &AccessPolicyResourceType::Field, &original_target_field.id, &http_transaction, &state.database_pool).await?;
+  let update_access_policy_action = get_action_by_name("slashstep.fields.update", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-//   ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &state.database_pool).await.ok();
-//   let updated_app_properties = match body {
+  ServerLogEntry::trace(&format!("Updating field {}...", original_target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let updated_target_field = match original_target_field.update(&updated_field_properties, &state.database_pool).await {
 
-//     Ok(updated_app_properties) => updated_app_properties,
+    Ok(updated_target_field) => updated_target_field,
 
-//     Err(error) => {
+    Err(error) => {
 
-//       let http_error = match error {
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to update field {}: {:?}", original_target_field.id, error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
 
-//         JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
+    }
 
-//         JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+  };
 
-//         JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: update_access_policy_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::Field,
+    target_field_id: Some(updated_target_field.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+  ServerLogEntry::success(&format!("Successfully updated field {}.", updated_target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 
-//         JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
+  return Ok(Json(updated_target_field));
 
-//         _ => HTTPError::InternalServerError(Some(error.to_string()))
-
-//       };
-      
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-//       return Err(http_error);
-
-//     }
-
-//   };
-
-//   let original_target_field = get_app_by_id(&field_id, &http_transaction, &state.database_pool).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&original_target_field, &AccessPolicyResourceType::App, &original_target_field.id, &http_transaction, &state.database_pool).await?;
-//   let update_access_policy_action = get_action_by_name("slashstep.apps.update", &http_transaction, &state.database_pool).await?;
-//   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-//   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-//   verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-
-//   ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-//   let updated_target_action = match original_target_field.update(&updated_app_properties, &state.database_pool).await {
-
-//     Ok(updated_target_action) => updated_target_action,
-
-//     Err(error) => {
-
-//       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update authenticated_app: {:?}", error)));
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-//       return Err(http_error);
-
-//     }
-
-//   };
-
-//   ActionLogEntry::create(&InitialActionLogEntryProperties {
-//     action_id: update_access_policy_action.id,
-//     http_transaction_id: Some(http_transaction.id),
-//     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-//     actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-//     actor_field_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-//     target_resource_type: ActionLogEntryTargetResourceType::Action,
-//     target_action_id: Some(updated_target_action.id),
-//     ..Default::default()
-//   }, &state.database_pool).await.ok();
-//   ServerLogEntry::success(&format!("Successfully updated action {}.", updated_target_action.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-
-//   return Ok(Json(updated_target_action));
-
-// }
+}
 
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/fields/{field_id}", axum::routing::get(handle_get_field_request))
     .route("/fields/{field_id}", axum::routing::delete(handle_delete_field_request))
-    // .route("/fields/{field_id}", axum::routing::patch(handle_patch_app_request))
+    .route("/fields/{field_id}", axum::routing::patch(handle_patch_field_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));

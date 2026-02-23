@@ -99,6 +99,38 @@ pub struct InitialFieldProperties {
 
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSql, FromSql, Default)]
+pub struct EditableFieldProperties {
+
+  /// The field's name.
+  pub name: Option<String>,
+
+  /// The field's display name.
+  pub display_name: Option<String>,
+
+  /// The field's description.
+  pub description: Option<String>,
+
+  /// Whether the field is required.
+  pub is_required: Option<bool>,
+
+  /// The field's minimum value.
+  pub minimum_value: Option<Option<Decimal>>,
+
+  /// The field's maximum value.
+  pub maximum_value: Option<Option<Decimal>>,
+
+  /// The field's minimum choice count.
+  pub minimum_choice_count: Option<Option<i32>>,
+
+  /// The field's maximum choice count.
+  pub maximum_choice_count: Option<Option<i32>>,
+
+  /// Whether the field is a deadline.
+  pub is_deadline: Option<Option<bool>>
+
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSql, FromSql)]
 pub struct Field {
 
@@ -303,6 +335,36 @@ impl Field {
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
+
+  }
+
+  /// Updates this field and returns a new instance of the field.
+  pub async fn update(&self, properties: &EditableFieldProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE fields SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "is_required", properties.is_required.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "minimum_value", properties.minimum_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "maximum_value", properties.maximum_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "minimum_choice_count", properties.minimum_choice_count.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "maximum_choice_count", properties.maximum_choice_count.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "is_deadline", properties.is_deadline.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let configuration = Self::convert_from_row(&row);
+    return Ok(configuration);
 
   }
 

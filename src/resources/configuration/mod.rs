@@ -150,20 +150,6 @@ pub struct Configuration {
 }
 
 impl Configuration {
-
-  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
-
-    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
-    if let Some(parameter_value) = parameter_value {
-
-      query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
-      parameter_boxes.push(Box::new(parameter_value));
-
-    }
-    
-    return (parameter_boxes, query);
-
-  }
   
   /// Counts the number of configurations based on a query.
   pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
@@ -369,14 +355,14 @@ impl Configuration {
     let database_client = database_pool.get().await?;
 
     database_client.query("begin;", &[]).await?;
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", properties.name.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", properties.description.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "text_value", properties.text_value.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "number_value", properties.number_value.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "boolean_value", properties.boolean_value.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "default_text_value", properties.default_text_value.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "default_number_value", properties.default_number_value.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "default_boolean_value", properties.default_boolean_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "text_value", properties.text_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "number_value", properties.number_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "boolean_value", properties.boolean_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "default_text_value", properties.default_text_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "default_number_value", properties.default_number_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "default_boolean_value", properties.default_boolean_value.as_ref());
     let (mut parameter_boxes, mut query) = (parameter_boxes, query);
 
     query.push_str(format!(" where id = ${} returning *;", parameter_boxes.len() + 1).as_str());

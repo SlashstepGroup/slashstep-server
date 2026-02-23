@@ -84,20 +84,6 @@ pub struct EditableAppProperties {
 
 impl App {
 
-  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
-
-    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
-    if let Some(parameter_value) = parameter_value.clone() {
-
-      query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
-      parameter_boxes.push(Box::new(parameter_value));
-
-    }
-    
-    return (parameter_boxes, query);
-
-  }
-
   /// Initializes the apps table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
@@ -268,14 +254,14 @@ impl App {
 
     let database_client = database_pool.get().await?;
     database_client.query("BEGIN;", &[]).await?;
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "name", properties.name.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "display_name", properties.display_name.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "description", properties.description.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "client_type", properties.client_type.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "client_secret_hash", properties.client_secret_hash.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "parent_resource_type", properties.parent_resource_type.as_ref());
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "parent_workspace_id", properties.parent_workspace_id.as_ref());
-    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "parent_user_id", properties.parent_user_id.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "client_type", properties.client_type.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "client_secret_hash", properties.client_secret_hash.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "parent_resource_type", properties.parent_resource_type.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "parent_workspace_id", properties.parent_workspace_id.as_ref());
+    let (mut parameter_boxes, mut query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "parent_user_id", properties.parent_user_id.as_ref());
 
     query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));

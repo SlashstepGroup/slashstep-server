@@ -294,6 +294,20 @@ impl SlashstepQLFilterSanitizer {
   
 }
 
+pub fn add_parameter_to_query<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
+
+  let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
+  if let Some(parameter_value) = parameter_value {
+
+    query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(parameter_value));
+
+  }
+  
+  return (parameter_boxes, query);
+
+}
+
 pub fn parse_parameters<'a>(
   slashstepql_parameters: &'a Vec<(String, SlashstepQLParameterType)>, 
   string_parser: impl Fn(&'a str, &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError>

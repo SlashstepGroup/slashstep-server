@@ -79,20 +79,6 @@ pub struct EditableDelegationPolicyProperties {
 
 impl DelegationPolicy {
 
-  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
-
-    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
-    if let Some(parameter_value) = parameter_value {
-
-      query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
-      parameter_boxes.push(Box::new(parameter_value));
-
-    }
-    
-    return (parameter_boxes, query);
-
-  }
-
   /// Initializes the delegation_policies table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
@@ -259,7 +245,7 @@ impl DelegationPolicy {
     let database_client = database_pool.get().await?;
 
     database_client.query("BEGIN;", &[]).await?;
-    let (parameter_boxes, query) = Self::add_parameter(parameter_boxes, query, "maximum_permission_level", properties.maximum_permission_level.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "maximum_permission_level", properties.maximum_permission_level.as_ref());
     let (mut parameter_boxes, mut query) = (parameter_boxes, query);
 
     query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());

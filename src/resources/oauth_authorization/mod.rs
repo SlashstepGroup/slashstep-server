@@ -125,20 +125,6 @@ pub struct OAuthAuthorizationClaims {
 
 impl OAuthAuthorization {
 
-  fn add_parameter<T: ToSql + Sync + Clone + Send + 'static>(mut parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>>, mut query: String, key: &str, parameter_value: Option<&T>) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
-
-    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
-    if let Some(parameter_value) = parameter_value.clone() {
-
-      query.push_str(format!("{}{} = ${}", if parameter_boxes.len() > 0 { ", " } else { "" }, key, parameter_boxes.len() + 1).as_str());
-      parameter_boxes.push(Box::new(parameter_value));
-
-    }
-    
-    return (parameter_boxes, query);
-
-  }
-
   /// Initializes the oauth_authorizations table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
@@ -307,7 +293,7 @@ impl OAuthAuthorization {
     let database_client = database_pool.get().await?;
 
     database_client.query("BEGIN;", &[]).await?;
-    let (mut parameter_boxes, mut query) = Self::add_parameter(parameter_boxes, query, "usage_date", Some(&properties.usage_date));
+    let (mut parameter_boxes, mut query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "usage_date", Some(&properties.usage_date));
 
     query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
     parameter_boxes.push(Box::new(&self.id));
