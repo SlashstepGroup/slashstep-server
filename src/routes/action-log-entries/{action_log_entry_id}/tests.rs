@@ -259,7 +259,7 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 204);
+  assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
 
   match ActionLogEntry::get_by_id(&action_log_entry.id, &test_environment.database_pool).await.expect_err("Expected an action log entry not found error.") {
 
