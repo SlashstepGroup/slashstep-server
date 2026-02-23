@@ -303,6 +303,36 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
+      // DelegationPolicy -> User
+      AccessPolicyResourceType::DelegationPolicy => {
+
+        let Some(delegation_policy_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::DelegationPolicy));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::DelegationPolicy, Some(delegation_policy_id)));
+
+        let delegation_policy = match crate::resources::delegation_policy::DelegationPolicy::get_by_id(&delegation_policy_id, database_pool).await {
+
+          Ok(delegation_policy) => delegation_policy,
+
+          Err(error) => match error {
+
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::DelegationPolicy, hierarchy)),
+
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
+
+          }
+
+        };
+
+        selected_resource_type = AccessPolicyResourceType::User;
+        selected_resource_id = Some(delegation_policy.principal_user_id);
+
+      },
+
       // FieldValue -> (Field | Item)
       AccessPolicyResourceType::FieldValue => {
 

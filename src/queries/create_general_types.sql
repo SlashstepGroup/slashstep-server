@@ -19,5 +19,14 @@ BEGIN
     );
   END IF;
 
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'permission_level') THEN
+    CREATE TYPE permission_level AS ENUM (
+      'None',
+      'User',
+      'Editor',
+      'Admin'
+    );
+  END IF;
+
 END
 $$ LANGUAGE plpgsql;

@@ -260,6 +260,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "slashstep.delegationPolicies.get".to_string(),
+      display_name: "Get delegation policies".to_string(),
+      description: "Get a specific delegation policy on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.delegationPolicies.list".to_string(),
+      display_name: "List delegation policies".to_string(),
+      description: "List all delegation policies on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.delegationPolicies.create".to_string(),
+      display_name: "Create delegation policies".to_string(),
+      description: "Create new delegation policies on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.delegationPolicies.update".to_string(),
+      display_name: "Update delegation policies".to_string(),
+      description: "Update delegation policies on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "slashstep.delegationPolicies.delete".to_string(),
+      display_name: "Delete delegation policies".to_string(),
+      description: "Delete delegation policies on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "slashstep.fields.get".to_string(),
       display_name: "Get fields".to_string(),
       description: "Get a specific field on a particular scope.".to_string(),

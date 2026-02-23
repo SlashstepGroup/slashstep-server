@@ -622,6 +622,13 @@ pub async fn get_workspace_by_id(workspace_id: &Uuid, http_transaction: &HTTPTra
 
 }
 
+pub async fn get_delegation_policy_by_id(delegation_policy_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<DelegationPolicy, HTTPError> {
+
+  let delegation_policy = get_resource_by_id::<DelegationPolicy, _>("delegation policy", &delegation_policy_id, &http_transaction, &database_pool, |delegation_policy_id, database_pool| Box::new(DelegationPolicy::get_by_id(delegation_policy_id, database_pool))).await?;
+  return Ok(delegation_policy);
+
+}
+
 pub async fn get_resource_by_id<ResourceStruct, GetResourceByIDFunction>(
   resource_type_name_singular: &str, 
   resource_id: &Uuid, 

@@ -15,6 +15,7 @@ INSERT INTO access_policies (
   scoped_app_authorization_credential_id,
   scoped_app_credential_id,
   scoped_configuration_id,
+  scoped_delegation_policy_id,
   scoped_field_id,
   scoped_field_choice_id,
   scoped_field_value_id,
@@ -65,5 +66,6 @@ INSERT INTO access_policies (
   $30,
   $31,
   $32,
-  $33
+  $33,
+  $34
 ) RETURNING *;

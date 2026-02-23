@@ -146,8 +146,8 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   FieldChoice::initialize_resource_table(database_pool).await?;
   FieldValue::initialize_resource_table(database_pool).await?;
   Configuration::initialize_resource_table(database_pool).await?;
-  AccessPolicy::initialize_resource_table(database_pool).await?;
   DelegationPolicy::initialize_resource_table(database_pool).await?;
+  AccessPolicy::initialize_resource_table(database_pool).await?;
 
   println!("{}", "Successfully initialized all tables.".blue());
 

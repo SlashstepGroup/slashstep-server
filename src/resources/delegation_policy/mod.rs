@@ -1,3 +1,8 @@
+#[cfg(test)]
+mod tests;
+
+use std::str::FromStr;
+
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -5,8 +10,19 @@ use crate::{resources::{DeletableResource, ResourceError, access_policy::{Action
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
-pub const ALLOWED_QUERY_KEYS: &[&str] = &[];
-pub const UUID_QUERY_KEYS: &[&str] = &[];
+pub const ALLOWED_QUERY_KEYS: &[&str] = &[
+  "id",
+  "action_id",
+  "maximum_permission_level",
+  "delegate_app_authorization_id",
+  "principal_user_id"
+];
+pub const UUID_QUERY_KEYS: &[&str] = &[
+  "id",
+  "action_id",
+  "delegate_app_authorization_id",
+  "principal_user_id"
+];
 pub const RESOURCE_NAME: &str = "DelegationPolicy";
 pub const DATABASE_TABLE_NAME: &str = "delegation_policies";
 pub const GET_RESOURCE_ACTION_NAME: &str = "slashstep.delegationPolicies.get";
@@ -36,6 +52,7 @@ pub struct DelegationPolicy {
 
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct InitialDelegationPolicyProperties {
 
   /// The delegation policy's action ID.
@@ -48,7 +65,7 @@ pub struct InitialDelegationPolicyProperties {
   pub delegate_app_authorization_id: Uuid,
 
   /// The delegation policy's principal user ID.
-  pub principal_user_id: Option<Uuid>
+  pub principal_user_id: Uuid
 
 }
 
@@ -186,6 +203,25 @@ impl DelegationPolicy {
       };
 
       return Ok(Box::new(uuid));
+
+    }
+
+    match key {
+
+      "maximum_permission_level" => {
+
+        let permission_level = match ActionPermissionLevel::from_str(value) {
+
+          Ok(permission_level) => permission_level,
+          Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse ActionPermissionLevel from \"{}\" for key \"{}\".", value, key)))
+
+        };
+
+        return Ok(Box::new(permission_level));
+
+      },
+
+      _ => {}
 
     }
 
