@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App}, app_authorization::AppAuthorization, delegation_policy::{DEFAULT_RESOURCE_LIST_LIMIT, DelegationPolicy}, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::AppAuthorization, delegation_policy::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DelegationPolicy}, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
 
 #[path = "./{delegation_policy_id}/mod.rs"]
 mod delegation_policy_id;
@@ -46,7 +46,7 @@ async fn handle_list_delegation_policies_request(
     |query, database_pool, individual_principal| Box::new(DelegationPolicy::count(query, database_pool, individual_principal)),
     |query, database_pool, individual_principal| Box::new(DelegationPolicy::list(query, database_pool, individual_principal)),
     "slashstep.delegationPolicies.list", 
-    DEFAULT_RESOURCE_LIST_LIMIT,
+    DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
     "delegation policies",
     "delegation policy"
   ).await;
