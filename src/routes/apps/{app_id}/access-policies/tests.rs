@@ -74,7 +74,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert_eq!(response_access_policies.total_count, 1);
@@ -136,7 +136,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert_eq!(response_access_policies.total_count, 1);
@@ -552,7 +552,7 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -642,7 +642,7 @@ async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepSe
     .json(&serde_json::json!(initial_access_policy_properties))
     .await;
   
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }

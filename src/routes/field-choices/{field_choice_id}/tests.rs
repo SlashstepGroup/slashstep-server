@@ -58,7 +58,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_field: FieldChoice = response.json();
   assert_eq!(response_field.id, field_choice.id);
@@ -365,7 +365,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .await;
   
 //   // Verify the response.
-//   assert_eq!(response.status_code(), 404);
+//   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 //   return Ok(());
 
 // }
@@ -420,7 +420,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .await;
   
 //   // Verify the response.
-//   assert_eq!(response.status_code(), 200);
+//   assert_eq!(response.status_code(), StatusCode::OK);
 
 //   let updated_app: Field = response.json();
 //   assert_eq!(original_field.id, updated_field.id);
@@ -640,7 +640,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .await;
   
 //   // Verify the response.
-//   assert_eq!(response.status_code(), 404);
+//   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
 //   return Ok(());
 

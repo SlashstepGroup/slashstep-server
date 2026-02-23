@@ -119,7 +119,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
   let response = test_server.get(&format!("/app-credentials/{}", app_credential.id))
     .await;
   
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -155,7 +155,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }

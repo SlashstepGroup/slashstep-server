@@ -365,7 +365,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .await;
   
 //   // Verify the response.
-//   assert_eq!(response.status_code(), 404);
+//   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 //   return Ok(());
 
 // }
@@ -420,7 +420,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .await;
   
 //   // Verify the response.
-//   assert_eq!(response.status_code(), 200);
+//   assert_eq!(response.status_code(), StatusCode::OK);
 
 //   let updated_app: Field = response.json();
 //   assert_eq!(original_field.id, updated_field.id);
@@ -640,7 +640,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     .await;
   
 //   // Verify the response.
-//   assert_eq!(response.status_code(), 404);
+//   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
 //   return Ok(());
 

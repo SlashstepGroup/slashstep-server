@@ -80,7 +80,7 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_json: ListActionLogEntryResponseBody = response.json();
   assert!(response_json.total_count > 0);
@@ -174,7 +174,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_json: ListActionLogEntryResponseBody = response.json();
   assert!(response_json.total_count > 0);

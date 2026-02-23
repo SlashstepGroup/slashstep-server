@@ -77,7 +77,7 @@
 //     .await;
   
 //   // Verify the response.
-//   assert_eq!(response.status_code(), 200);
+//   assert_eq!(response.status_code(), StatusCode::OK);
 
 //   let response_json: ListResourcesResponseBody::<App> = response.json();
 //   assert!(response_json.total_count > 0);
@@ -156,7 +156,7 @@
 //     .await;
   
 //   // Verify the response.
-//   assert_eq!(response.status_code(), 200);
+//   assert_eq!(response.status_code(), StatusCode::OK);
 
 //   let response_json: ListResourcesResponseBody::<App> = response.json();
 //   assert!(response_json.total_count > 0);

@@ -127,7 +127,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_json: ListResourcesResponseBody::<DelegationPolicy> = response.json();
   assert!(response_json.total_count > 0);

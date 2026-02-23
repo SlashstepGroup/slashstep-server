@@ -13,6 +13,7 @@ use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
+use reqwest::StatusCode;
 use uuid::Uuid;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
@@ -66,7 +67,7 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_action: Action = response.json();
   assert_eq!(response_action.id, action.id);
@@ -128,7 +129,7 @@ async fn verify_authentication_when_getting_action_by_id() -> Result<(), TestSla
   let response = test_server.get(&format!("/actions/{}", action.id))
     .await;
   
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -164,7 +165,7 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }
@@ -196,7 +197,7 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashste
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }
@@ -307,7 +308,7 @@ async fn verify_authentication_when_deleting_action_by_id() -> Result<(), TestSl
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
   return Ok(());
 
 }
@@ -344,7 +345,7 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
   return Ok(());
 
 }
@@ -375,7 +376,7 @@ async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSla
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
   return Ok(());
 
 }
@@ -429,7 +430,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 200);
+  assert_eq!(response.status_code(), StatusCode::OK);
 
   let updated_action: Action = response.json();
   assert_eq!(original_action.id, updated_action.id);
@@ -584,7 +585,7 @@ async fn verify_authentication_when_patching_action_by_id() -> Result<(), TestSl
     }))
     .await;
   
-  assert_eq!(response.status_code(), 401);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
   return Ok(());
 
@@ -623,7 +624,7 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 403);
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 
   return Ok(());
 
@@ -654,7 +655,7 @@ async fn verify_action_exists_when_patching_action() -> Result<(), TestSlashstep
     .await;
   
   // Verify the response.
-  assert_eq!(response.status_code(), 404);
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
   return Ok(());
 
