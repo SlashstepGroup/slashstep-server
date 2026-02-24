@@ -402,7 +402,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
 
   // Set up the server and send the request.
   let original_action = test_environment.create_random_action(None).await?;
-  let new_name = format!("slashstep.{}.{}", Uuid::now_v7().to_string(), Uuid::now_v7().to_string());
+  let new_name = format!("{}.{}", Uuid::now_v7().to_string(), Uuid::now_v7().to_string());
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Uuid::now_v7().to_string();
 

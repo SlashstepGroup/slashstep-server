@@ -43,12 +43,12 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  // Give the user access to the "slashstep.accessPolicies.create" action.
+  // Give the user access to the "accessPolicies.create" action.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let create_access_policies_action = Action::get_by_name("slashstep.accessPolicies.create", &test_environment.database_pool).await?;
+  let create_access_policies_action = Action::get_by_name("accessPolicies.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_access_policies_action.id, &ActionPermissionLevel::User).await?;
   
   // Give the user editor access to a dummy action.
@@ -100,16 +100,16 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Give the user access to the "slashstep.accessPolicies.get" action.
+  // Give the user access to the "accessPolicies.get" action.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
-  // Give the user access to the "slashstep.accessPolicies.list" action.
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  // Give the user access to the "accessPolicies.list" action.
+  let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
@@ -158,16 +158,16 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Give the user access to the "slashstep.accessPolicies.get" action.
+  // Give the user access to the "accessPolicies.get" action.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
-  // Give the user access to the "slashstep.accessPolicies.list" action.
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  // Give the user access to the "accessPolicies.list" action.
+  let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
@@ -220,16 +220,16 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Give the user access to the "slashstep.accessPolicies.get" action.
+  // Give the user access to the "accessPolicies.get" action.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
-  // Give the user access to the "slashstep.accessPolicies.list" action.
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  // Give the user access to the "accessPolicies.list" action.
+  let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy access policies.
@@ -277,9 +277,9 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_access_policies_action.id, &ActionPermissionLevel::User).await?;
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
@@ -320,10 +320,10 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let get_access_policies_action = Action::get_by_name("slashstep.accessPolicies.get", &test_environment.database_pool).await?;
+  let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
-  let list_access_policies_action = Action::get_by_name("slashstep.accessPolicies.list", &test_environment.database_pool).await?;
+  let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
