@@ -16,7 +16,7 @@ chrono = { version = "0.4.43", features = ["serde"] }
 colored = "3.1.1"
 deadpool-postgres = { version = "0.14.1", features = ["serde"] }
 dotenvy = "0.15.7"
-local-ip-address = "0.6.5"
+local-ip-address = "0.6.10"
 pg_escape = "0.1.1"
 postgres = { version = "0.19.12", features = ["with-uuid-1", "with-chrono-0_4"] }
 postgres-types = { version = "0.2.12", features = ["derive"] }
