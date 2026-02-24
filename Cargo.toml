@@ -11,7 +11,7 @@ keywords = ["project management", "problem management", "issue tracking"]
 publish = false
 
 [dependencies]
-axum = { version = "0.8.7", features = ["macros"] }
+axum = { version = "0.8.8", features = ["macros"] }
 chrono = { version = "0.4.43", features = ["serde"] }
 colored = "3.1.1"
 deadpool-postgres = { version = "0.14.1", features = ["serde"] }
