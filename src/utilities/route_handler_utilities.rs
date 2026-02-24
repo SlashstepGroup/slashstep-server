@@ -918,3 +918,45 @@ pub async fn validate_action_name_length(name: &str, http_transaction: &HTTPTran
   Ok(())
 
 }
+
+pub async fn validate_action_display_name_length(name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+
+  let maximum_name_length_configuration = get_configuration_by_name("slashstep.actions.maximumDisplayNameLength", http_transaction, database_pool).await?;
+  let maximum_name_length = match maximum_name_length_configuration.number_value.or(maximum_name_length_configuration.default_number_value) {
+
+    Some(maximum_name_length) => match maximum_name_length.to_usize() {
+
+      Some(maximum_name_length) => maximum_name_length,
+
+      None => {
+
+        let http_error = HTTPError::InternalServerError(Some("Invalid number value for configuration slashstep.actions.maximumDisplayNameLength. The value must be a positive integer that can be represented as a usize.".to_string()));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+        return Err(http_error);
+
+      }
+
+    },
+
+    None => {
+
+      ServerLogEntry::warning("Missing value and default value for configuration slashstep.actions.maximumDisplayNameLength. This is a security risk. Consider setting a restrictive maximum display name length in the configuration.", Some(&http_transaction.id), database_pool).await.ok();
+      return Ok(());
+
+    }
+
+  };
+
+  ServerLogEntry::trace("Validating action display name length...", Some(&http_transaction.id), database_pool).await.ok();
+  if name.len() > maximum_name_length {
+
+    let http_error = HTTPError::UnprocessableEntity(Some(format!("Action display names must be at most {} characters long.", maximum_name_length)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+    return Err(http_error);
+
+  }
+  
+
+  Ok(())
+
+}
