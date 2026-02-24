@@ -8,6 +8,8 @@ on:
       - Cargo.lock
       - .github/workflows/run-rust-tests-on-pull-request.yml
   workflow_dispatch:
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
