@@ -896,6 +896,13 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       ..Default::default()
     },
     InitialConfigurationProperties {
+      name: "actions.allowedDisplayNameRegex".to_string(),
+      description: Some("A regular expression that action display names must match in order to be allowed.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^.+$".to_string()),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
       name: "actions.maximumNameLength".to_string(),
       description: Some("The maximum length of action names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
       value_type: ConfigurationValueType::Number,
