@@ -18,7 +18,7 @@ use std::sync::Arc;
 use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, rand_core::{OsRng, le}}};
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
 use axum_extra::response::ErasedJson;
-use rand::{Rng, distr::Alphanumeric};
+use rand::{Rng, RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
