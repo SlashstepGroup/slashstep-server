@@ -12,7 +12,7 @@ publish = false
 
 [dependencies]
 axum = { version = "0.8.8", features = ["macros"] }
-chrono = { version = "0.4.43", features = ["serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 colored = "3.1.1"
 deadpool-postgres = { version = "0.14.1", features = ["serde"] }
 dotenvy = "0.15.7"
