@@ -398,15 +398,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   let get_actions_action = Action::get_by_name("slashstep.actions.update", &test_environment.database_pool).await?;
-  AccessPolicy::create(&InitialAccessPolicyProperties {
-    action_id: get_actions_action.id,
-    permission_level: ActionPermissionLevel::Editor,
-    is_inheritance_enabled: true,
-    principal_type: AccessPolicyPrincipalType::User,
-    principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_actions_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_action = test_environment.create_random_action(None).await?;

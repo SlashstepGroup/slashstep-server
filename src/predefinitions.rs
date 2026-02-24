@@ -892,7 +892,7 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       name: "slashstep.actions.maximumNameLength".to_string(),
       description: Some("The maximum length of action names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
       value_type: ConfigurationValueType::Number,
-      default_number_value: Some(Decimal::from(64 as i64)),
+      default_number_value: Some(Decimal::from(128 as i64)),
       ..Default::default()
     },
     InitialConfigurationProperties {
