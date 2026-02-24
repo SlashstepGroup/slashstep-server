@@ -1,6 +1,7 @@
 name: Run Rust tests
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths: 
       - src/**
       - Cargo.toml
