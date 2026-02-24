@@ -23,7 +23,7 @@ use crate::{
   }, resources::{
     ResourceError, access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
-    }, configuration::{Configuration, EditableConfigurationProperties},
+    }, action::EditableActionProperties, configuration::{Configuration, EditableConfigurationProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -737,6 +737,53 @@ async fn verify_display_name_is_under_maximum_length() -> Result<(), TestSlashst
     .json(&serde_json::json!({
       "display_name": "a"
     }))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+#[tokio::test]
+async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "actions.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let create_actions_action = Action::get_by_name("actions.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_actions_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let action_name_regex_configuration = Configuration::get_by_name("actions.allowedNameRegex", &test_environment.database_pool).await?;
+  action_name_regex_configuration.update(&EditableConfigurationProperties {
+    text_value: Some("^$".to_string()), // This regex pattern doesn't allow any action names, so this should cause a validation error.
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let dummy_action = test_environment.create_random_action(None).await?;
+  let editable_action_properties = EditableActionProperties {
+    name: Some(Uuid::now_v7().to_string()),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/actions/{}", dummy_action.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(editable_action_properties))
     .await;
   
   // Verify the response.

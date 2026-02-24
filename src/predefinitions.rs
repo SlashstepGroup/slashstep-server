@@ -889,6 +889,13 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
 
   let predefined_configurations: Vec<InitialConfigurationProperties> = vec![
     InitialConfigurationProperties {
+      name: "actions.allowedNameRegex".to_string(),
+      description: Some("A regular expression that action names must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
       name: "actions.maximumNameLength".to_string(),
       description: Some("The maximum length of action names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
       value_type: ConfigurationValueType::Number,

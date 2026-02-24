@@ -96,7 +96,7 @@ pub struct InitialActionProperties {
 }
 
 /// A repreentation of editable action properties.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct EditableActionProperties {
 
   /// The action's name.
