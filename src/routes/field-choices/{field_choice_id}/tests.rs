@@ -22,7 +22,7 @@ use crate::{
   }, resources::{
     ResourceError, access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
-    }, app::{App, AppClientType}, field::Field, field_choice::{EditableFieldChoiceProperties, FieldChoice},
+    }, app::App, field_choice::{EditableFieldChoiceProperties, FieldChoice},
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
