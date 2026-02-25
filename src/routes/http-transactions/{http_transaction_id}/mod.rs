@@ -11,6 +11,7 @@
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State}};
+use reqwest::StatusCode;
 use crate::{
   AppState, 
   HTTPError, 
@@ -18,7 +19,7 @@ use crate::{
   resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_http_transaction_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_http_transaction_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 // #[path = "./access-policies/mod.rs"]
@@ -69,37 +70,37 @@ async fn handle_get_http_transaction_request(
 
 }
 
-// /// DELETE /http-transactions/{http_transaction_id}
-// /// 
-// /// Deletes an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_delete_app_request(
-//   Path(http_transaction_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-// ) -> Result<StatusCode, HTTPError> {
+/// DELETE /http-transactions/{http_transaction_id}
+/// 
+/// Deletes a HTTP transaction by its ID.
+#[axum::debug_handler]
+async fn handle_delete_http_transaction_request(
+  Path(http_transaction_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+) -> Result<StatusCode, HTTPError> {
 
-//   let http_transaction_id = get_uuid_from_string(&http_transaction_id, "app", &http_transaction, &state.database_pool).await?;
-//   let response = delete_resource(
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
-//     Extension(authenticated_app_authorization),
-//     Some(&AccessPolicyResourceType::App),
-//     &http_transaction_id, 
-//     "apps.delete",
-//     "app",
-//     &ActionLogEntryTargetResourceType::App,
-//     |http_transaction_id, database_pool| Box::new(App::get_by_id(http_transaction_id, database_pool))
-//   ).await;
+  let http_transaction_id = get_uuid_from_string(&http_transaction_id, "HTTP transaction", &http_transaction, &state.database_pool).await?;
+  let response = delete_resource(
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
+    Some(&AccessPolicyResourceType::HTTPTransaction),
+    &http_transaction_id, 
+    "httpTransactions.delete",
+    "HTTP transaction",
+    &ActionLogEntryTargetResourceType::HTTPTransaction,
+    |http_transaction_id, database_pool| Box::new(HTTPTransaction::get_by_id(http_transaction_id, database_pool))
+  ).await;
 
-//   return response;
+  return response;
 
-// }
+}
 
 // /// PATCH /http-transactions/{http_transaction_id}
 // /// 
@@ -187,7 +188,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/http-transactions/{http_transaction_id}", axum::routing::get(handle_get_http_transaction_request))
-    // .route("/http-transactions/{http_transaction_id}", axum::routing::delete(handle_delete_app_request))
+    .route("/http-transactions/{http_transaction_id}", axum::routing::delete(handle_delete_http_transaction_request))
     // .route("/http-transactions/{http_transaction_id}", axum::routing::patch(handle_patch_app_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
