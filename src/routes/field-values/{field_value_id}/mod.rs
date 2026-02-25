@@ -22,8 +22,8 @@ use crate::{
   utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_field_value_by_id, get_resource_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
 };
 
-// #[path = "./access-policies/mod.rs"]
-// mod access_policies;
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
 #[cfg(test)]
 mod tests;
 
@@ -189,7 +189,8 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     // .route("/field-values/{field_value_id}", axum::routing::patch(handle_patch_app_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .merge(access_policies::get_router(state.clone()));
   return router;
 
 }
