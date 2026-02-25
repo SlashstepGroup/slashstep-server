@@ -1,3 +1,14 @@
+/**
+ * 
+ * This module defines the implementation and types of a field choice.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
+
 #[cfg(test)]
 mod tests;
 
@@ -17,11 +28,18 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "value_type",
   "text_value",
   "number_value",
-  "timestamp_value"
+  "timestamp_value",
+  "stakeholder_type",
+  "stakeholder_user_id",
+  "stakeholder_group_id",
+  "stakeholder_app_id"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "field_id"
+  "field_id",
+  "stakeholder_user_id",
+  "stakeholder_group_id",
+  "stakeholder_app_id"
 ];
 pub const RESOURCE_NAME: &str = "FieldChoice";
 pub const DATABASE_TABLE_NAME: &str = "field_choices";
@@ -69,6 +87,35 @@ pub struct InitialFieldChoiceProperties {
 
   /// The field choice's stakeholder app ID, if applicable.
   pub stakeholder_app_id: Option<Uuid>
+
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EditableFieldChoiceProperties {
+
+  /// The field choice's description, if applicable.
+  pub description: Option<Option<String>>,
+
+  /// The field choice's text value, if applicable.
+  pub text_value: Option<Option<String>>,
+
+  /// The field choice's number value, if applicable.
+  pub number_value: Option<Option<Decimal>>,
+
+  /// The field choice's date time value, if applicable.
+  pub timestamp_value: Option<Option<DateTime<Utc>>>,
+
+  /// The field choice's stakeholder type, if applicable.
+  pub stakeholder_type: Option<Option<StakeholderType>>,
+
+  /// The field choice's stakeholder user ID, if applicable.
+  pub stakeholder_user_id: Option<Option<Uuid>>,
+
+  /// The field choice's stakeholder group ID, if applicable.
+  pub stakeholder_group_id: Option<Option<Uuid>>,
+
+  /// The field choice's stakeholder app ID, if applicable.
+  pub stakeholder_app_id: Option<Option<Uuid>>
 
 }
 
@@ -261,6 +308,35 @@ impl FieldChoice {
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
+
+  }
+
+  /// Updates this field and returns a new instance of the field.
+  pub async fn update(&self, properties: &EditableFieldChoiceProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE field_choices SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "text_value", properties.text_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "number_value", properties.number_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "timestamp_value", properties.timestamp_value.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "stakeholder_type", properties.stakeholder_type.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "stakeholder_user_id", properties.stakeholder_user_id.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "stakeholder_group_id", properties.stakeholder_group_id.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "stakeholder_app_id", properties.stakeholder_app_id.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let configuration = Self::convert_from_row(&row);
+    return Ok(configuration);
 
   }
 
