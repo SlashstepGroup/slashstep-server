@@ -411,7 +411,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
 
   // Set up the server and send the request.
   let original_app = test_environment.create_random_app().await?;
-  let new_name = Uuid::now_v7().to_string();
+  let new_name = Uuid::now_v7().to_string().replace("-", ""); // Replacing dashes to comply with the default 32-character length limit.
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Some(Uuid::now_v7().to_string());
   let new_client_type = AppClientType::Confidential;

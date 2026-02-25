@@ -14,6 +14,7 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
+use rust_decimal::Decimal;
 use uuid::Uuid;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
@@ -22,7 +23,7 @@ use crate::{
   }, resources::{
     ResourceError, access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
-    }, app::{App}, configuration::{Configuration, EditableConfigurationProperties}, field::{EditableFieldProperties, Field}
+    }, app::App, configuration::{Configuration, EditableConfigurationProperties}, field::{EditableFieldProperties, Field, InitialFieldProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -710,6 +711,104 @@ async fn verify_field_name_matches_regex() -> Result<(), TestSlashstepServerErro
   let response = test_server.patch(&format!("/fields/{}", dummy_field.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(editable_field_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the field display name is over the maximum length.
+#[tokio::test]
+async fn verify_field_display_name_is_under_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "fields.update" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let update_fields_action = Action::get_by_name("fields.update", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let maximum_field_display_name_length_configuration = Configuration::get_by_name("fields.maximumDisplayNameLength", &test_environment.database_pool).await?;
+  maximum_field_display_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let dummy_field = test_environment.create_random_field().await?;
+  let updated_field_properties = EditableFieldProperties {
+    display_name: Some(Uuid::now_v7().to_string()),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/fields/{}", dummy_field.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_field_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the field name is over the maximum length.
+#[tokio::test]
+async fn verify_field_name_is_under_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "fields.update" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let update_fields_action = Action::get_by_name("fields.update", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let maximum_field_name_length_configuration = Configuration::get_by_name("fields.maximumNameLength", &test_environment.database_pool).await?;
+  maximum_field_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let dummy_field = test_environment.create_random_field().await?;
+  let updated_field_properties = EditableFieldProperties {
+    name: Some(Uuid::now_v7().to_string()),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/fields/{}", dummy_field.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_field_properties))
     .await;
   
   // Verify the response.

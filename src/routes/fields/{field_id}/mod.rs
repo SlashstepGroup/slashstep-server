@@ -26,7 +26,7 @@ use crate::{
   resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field::{EditableFieldProperties, Field}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_field_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_field_name, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_field_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_field_name, validate_resource_display_name_length, validate_resource_name_length, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 /// GET /fields/{field_id}
@@ -117,7 +117,17 @@ async fn handle_patch_field_request(
 
   let http_transaction = http_transaction.clone();
   let updated_field_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
-  if let Some(field_name) = &updated_field_properties.name { validate_field_name(field_name, &http_transaction, &state.database_pool).await?; };
+  if let Some(field_name) = &updated_field_properties.name { 
+    
+    validate_field_name(field_name, &http_transaction, &state.database_pool).await?;
+    validate_resource_name_length(field_name, "fields.maximumNameLength", "Field", &http_transaction, &state.database_pool).await?;
+  
+  };
+  if let Some(field_display_name) = &updated_field_properties.display_name { 
+    
+    validate_resource_display_name_length(field_display_name, "fields.maximumDisplayNameLength", "Field", &http_transaction, &state.database_pool).await?; 
+  
+  };
   let field_id = get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
   let original_target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&original_target_field, &AccessPolicyResourceType::Field, &original_target_field.id, &http_transaction, &state.database_pool).await?;

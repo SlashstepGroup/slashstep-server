@@ -527,7 +527,7 @@ async fn verify_successful_app_creation_with_confidential_client() -> Result<(),
 
   // Set up the server and send the request.
   let initial_app_properties = InitialAppPropertiesWithoutClientSecretHash {
-    name: (&Uuid::now_v7().to_string()[..31]).to_string(),
+    name: Uuid::now_v7().to_string().replace("-", ""), // Remove dashes to ensure the name is under the 32 character limit.
     display_name: Uuid::now_v7().to_string(),
     client_type: AppClientType::Confidential,
     ..Default::default()

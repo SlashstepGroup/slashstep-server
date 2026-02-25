@@ -19,7 +19,7 @@ use crate::{
   resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_resource_display_name_length, validate_resource_name_length, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -116,33 +116,16 @@ async fn handle_patch_app_request(
 ) -> Result<Json<App>, HTTPError> {
 
   let http_transaction = http_transaction.clone();
+  let updated_app_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  if let Some(updated_app_name) = &updated_app_properties.name { 
+    
+    validate_resource_name_length(updated_app_name, "apps.maximumNameLength", "App", &http_transaction, &state.database_pool).await?;
+  
+  };
+  if let Some(updated_app_display_name) = &updated_app_properties.display_name { 
 
-  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &state.database_pool).await.ok();
-  let updated_app_properties = match body {
-
-    Ok(updated_app_properties) => updated_app_properties,
-
-    Err(error) => {
-
-      let http_error = match error {
-
-        JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
-
-        JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
-
-        JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
-
-        JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
-
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
-
-      };
-      
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
+    validate_resource_display_name_length(updated_app_display_name, "apps.maximumDisplayNameLength", "App", &http_transaction, &state.database_pool).await?;
+  
   };
 
   let original_target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;

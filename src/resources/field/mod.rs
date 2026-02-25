@@ -55,7 +55,7 @@ pub enum FieldParentResourceType {
   Workspace
 }
 
-#[derive(Debug, Clone, ToSql, FromSql, Default)]
+#[derive(Debug, Clone, ToSql, FromSql, Default, Serialize, Deserialize)]
 pub struct InitialFieldProperties {
 
   /// The field's name.
