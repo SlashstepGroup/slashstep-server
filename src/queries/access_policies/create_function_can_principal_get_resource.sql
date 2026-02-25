@@ -797,7 +797,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'Group' THEN
 
-                -- Group -> (Group | Server)
+                -- Group -> Server
                 -- Check if the group has an associated access policy.
                 SELECT
                     permission_level,
@@ -827,46 +827,8 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 -- Use the parent resource type.
                 needs_inheritance := TRUE;
-
-                SELECT
-                    parent_resource_type
-                INTO
-                    selected_resource_parent_type
-                FROM
-                    groups
-                WHERE
-                    groups.id = selected_resource_id;
-
-                IF selected_resource_parent_type = 'Group' THEN
-
-                    SELECT
-                        parent_group_id
-                    INTO
-                        selected_resource_parent_id
-                    FROM
-                        groups
-                    WHERE
-                        groups.id = selected_resource_id;
-
-                    IF selected_resource_parent_id IS NULL THEN
-
-                        RAISE EXCEPTION 'Couldn''t find a parent group for group %.', selected_resource_id;
-
-                    END IF;
-
-                    selected_resource_type := 'Group';
-                    selected_resource_id := selected_resource_parent_id;
-                
-                ELSIF selected_resource_parent_type = 'Server' THEN
-
-                    selected_resource_type := 'Server';
-                    selected_resource_id := NULL;
-
-                ELSE
-
-                    RAISE EXCEPTION 'Unknown parent resource type % for group %.', selected_resource_parent_type, selected_resource_id;
-
-                END IF;
+                selected_resource_type := 'Server';
+                selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'HTTPTransaction' THEN
 

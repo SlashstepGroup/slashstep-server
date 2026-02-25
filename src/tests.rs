@@ -320,9 +320,7 @@ impl TestEnvironment {
     let group_properties = InitialGroupProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
-      description: Some(Uuid::now_v7().to_string()),
-      parent_resource_type: GroupParentResourceType::Server,
-      parent_group_id: None
+      description: Some(Uuid::now_v7().to_string())
     };
 
     let group = Group::create(&group_properties, &self.database_pool).await?;
