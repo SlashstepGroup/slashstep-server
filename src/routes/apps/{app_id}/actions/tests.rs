@@ -25,6 +25,8 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "apps.create" action.
   let user = test_environment.create_random_user().await?;

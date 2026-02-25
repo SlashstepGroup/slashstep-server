@@ -1006,7 +1006,21 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       value_type: ConfigurationValueType::Number,
       default_number_value: Some(Decimal::from(256 as i64)),
       ..Default::default()
-    }
+    },
+    InitialConfigurationProperties {
+      name: "httpTransactions.shouldExpire".to_string(),
+      description: Some("Whether HTTP transactions should expire after a certain amount of time. If true, HTTP transactions will expire after the amount of time specified in the \"httpTransactions.defaultMaximumLifetimeMilliseconds\" configuration.".to_string()),
+      value_type: ConfigurationValueType::Boolean,
+      default_boolean_value: Some(true),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "httpTransactions.defaultMaximumLifetimeMilliseconds".to_string(),
+      description: Some("The default maximum lifetime of HTTP transactions in milliseconds. This configuration only has an effect if the \"httpTransactions.shouldExpire\" configuration is set to true.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(31536000000 as i64)), // 365 days in milliseconds
+      ..Default::default()
+    },
   ];
 
   let mut configurations: Vec<Configuration> = Vec::new();

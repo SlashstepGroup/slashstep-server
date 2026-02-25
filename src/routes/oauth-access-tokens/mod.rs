@@ -23,7 +23,7 @@ use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware::get_decoding_key, http_request_middleware}, resources::{DeletableResource, ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialClaims, InitialAppAuthorizationCredentialProperties}, configuration::Configuration, http_transaction::HTTPTransaction, oauth_authorization::{EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims}, server_log_entry::ServerLogEntry}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_json_web_token_private_key, get_json_web_token_public_key}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware::get_decoding_key, http_transaction_middleware}, resources::{DeletableResource, ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialClaims, InitialAppAuthorizationCredentialProperties}, configuration::Configuration, http_transaction::HTTPTransaction, oauth_authorization::{EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims}, server_log_entry::ServerLogEntry}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_json_web_token_private_key, get_json_web_token_public_key}};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct CreateOAuthAccessTokenQueryParameters {
@@ -1105,7 +1105,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/oauth-access-tokens", axum::routing::post(handle_create_oauth_access_token_request))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));
   return router;
 
 }

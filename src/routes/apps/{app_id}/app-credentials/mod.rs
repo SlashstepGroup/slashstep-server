@@ -21,7 +21,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, app_credential::{AppCredential, DEFAULT_MAXIMUM_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_resource_hierarchy, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, app_credential::{AppCredential, DEFAULT_MAXIMUM_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_resource_hierarchy, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateAppCredentialResponseBody {
@@ -224,7 +224,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/apps/{app_id}/app-credentials", axum::routing::post(handle_create_app_credential_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request));
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));
   return router;
 
 }

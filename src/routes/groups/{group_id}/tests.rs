@@ -79,6 +79,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+  
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -167,7 +168,10 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -515,6 +519,8 @@ async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerErro
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -540,7 +546,8 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   // Set up the server and send the request.
   let group = test_environment.create_random_group().await?;
   let state = AppState {
@@ -568,6 +575,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -604,6 +612,7 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {

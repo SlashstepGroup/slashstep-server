@@ -37,8 +37,8 @@ pub async fn get_action_log_entry_expiration_timestamp(http_transaction: &HTTPTr
 
   };
 
-  let should_action_log_entries_expire = should_action_log_entries_expire_configuration.boolean_value.or(should_action_log_entries_expire_configuration.default_boolean_value);
-  if should_action_log_entries_expire.is_none_or(|value| value == false) {
+  let should_action_log_entries_expire = should_action_log_entries_expire_configuration.boolean_value.or(should_action_log_entries_expire_configuration.default_boolean_value).unwrap_or(false);
+  if !should_action_log_entries_expire {
 
     return Ok(None);
 

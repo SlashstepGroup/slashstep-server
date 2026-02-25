@@ -15,7 +15,7 @@ use reqwest::StatusCode;
 use crate::{
   AppState, 
   HTTPError, 
-  middleware::{authentication_middleware, http_request_middleware}, 
+  middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, field_value::{EditableFieldValueProperties, FieldValue}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
@@ -162,7 +162,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/field-values/{field_value_id}", axum::routing::patch(handle_patch_field_value_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
     .merge(access_policies::get_router(state.clone()));
   return router;
 

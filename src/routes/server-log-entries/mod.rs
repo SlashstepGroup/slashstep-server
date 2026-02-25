@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
 
 #[path = "./{server_log_entry_id}/mod.rs"]
 mod server_log_entry_id;
@@ -61,7 +61,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     // .route("/server-log-entries", axum::routing::get(handle_list_apps_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
     .merge(server_log_entry_id::get_router(state.clone()));
   return router;
 

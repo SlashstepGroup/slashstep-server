@@ -337,7 +337,7 @@ impl TestEnvironment {
       ip_address: local_ip()?,
       headers: Uuid::now_v7().to_string(),
       status_code: Some(200),
-      expiration_date: Some(Utc::now() + Duration::days(30)),
+      expiration_timestamp: Some(Utc::now() + Duration::days(30)),
     };
 
     let http_transaction = HTTPTransaction::create(&http_transaction_properties, &self.database_pool).await?;
