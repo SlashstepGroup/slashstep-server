@@ -12,13 +12,10 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "name",
   "display_name",
-  "description",
-  "parent_resource_type",
-  "parent_group_id"
+  "description"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
-  "id",
-  "parent_group_id"
+  "id"
 ];
 pub const RESOURCE_NAME: &str = "Group";
 pub const DATABASE_TABLE_NAME: &str = "groups";
@@ -42,13 +39,21 @@ pub struct InitialGroupProperties {
   pub display_name: String,
 
   /// The group's description, if applicable.
-  pub description: Option<String>,
+  pub description: Option<String>
 
-  /// The group's parent resource type.
-  pub parent_resource_type: GroupParentResourceType,
+}
 
-  /// The group's parent group ID, if applicable.
-  pub parent_group_id: Option<Uuid>
+#[derive(Debug, Clone, ToSql, FromSql, Default, Serialize, Deserialize)]
+pub struct EditableGroupProperties {
+
+  /// The group's name.
+  pub name: Option<String>,
+
+  /// The group's display name.
+  pub display_name: Option<String>,
+
+  /// The group's description, if applicable.
+  pub description: Option<Option<String>>
 
 }
 
@@ -65,13 +70,7 @@ pub struct Group {
   pub display_name: String,
 
   /// The group's description, if applicable.
-  pub description: Option<String>,
-
-  /// The group's parent resource type.
-  pub parent_resource_type: GroupParentResourceType,
-
-  /// The group's parent group ID, if applicable.
-  pub parent_group_id: Option<Uuid>
+  pub description: Option<String>
 
 }
 
@@ -134,9 +133,7 @@ impl Group {
       id: row.get("id"),
       name: row.get("name"),
       display_name: row.get("display_name"),
-      description: row.get("description"),
-      parent_resource_type: row.get("parent_resource_type"),
-      parent_group_id: row.get("parent_group_id")
+      description: row.get("description")
     };
 
   }
@@ -158,9 +155,7 @@ impl Group {
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.name,
       &initial_properties.display_name,
-      &initial_properties.description,
-      &initial_properties.parent_resource_type,
-      &initial_properties.parent_group_id
+      &initial_properties.description
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {
@@ -216,6 +211,30 @@ impl Group {
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
+
+  }
+
+  /// Updates this group and returns a new instance of the group.
+  pub async fn update(&self, properties: &EditableGroupProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE groups SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let group = Self::convert_from_row(&row);
+    return Ok(group);
 
   }
 

@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, initialize_predefined_configurations, resources::{
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
     DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
-    }, group::GroupParentResourceType
+    }
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 use super::{DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, Group, InitialGroupProperties};
@@ -15,8 +15,6 @@ fn assert_groups_are_equal(group_1: &Group, group_2: &Group) {
   assert_eq!(group_1.name, group_2.name);
   assert_eq!(group_1.display_name, group_2.display_name);
   assert_eq!(group_1.description, group_2.description);
-  assert_eq!(group_1.parent_resource_type, group_2.parent_resource_type);
-  assert_eq!(group_1.parent_group_id, group_2.parent_group_id);
 
 }
 
@@ -25,8 +23,6 @@ fn assert_group_is_equal_to_initial_properties(group: &Group, initial_properties
   assert_eq!(group.name, initial_properties.name);
   assert_eq!(group.display_name, initial_properties.display_name);
   assert_eq!(group.description, initial_properties.description);
-  assert_eq!(group.parent_resource_type, initial_properties.parent_resource_type);
-  assert_eq!(group.parent_group_id, initial_properties.parent_group_id);
 
 }
 
@@ -62,9 +58,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let group_properties = InitialGroupProperties {
     name: Uuid::now_v7().to_string(),
     display_name: Uuid::now_v7().to_string(),
-    description: Some(Uuid::now_v7().to_string()),
-    parent_resource_type: GroupParentResourceType::Server,
-    parent_group_id: None
+    description: Some(Uuid::now_v7().to_string())
   };
   let group = Group::create(&group_properties, &test_environment.database_pool).await?;
 
