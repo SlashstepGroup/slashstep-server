@@ -67,7 +67,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   assert_eq!(response_http_transaction.ip_address, http_transaction.ip_address);
   assert_eq!(response_http_transaction.headers, http_transaction.headers);
   assert_eq!(response_http_transaction.status_code, http_transaction.status_code);
-  assert_eq!(response_http_transaction.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())), http_transaction.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())));
+  assert_eq!(response_http_transaction.expiration_timestamp.and_then(|expiration_timestamp| DateTime::from_timestamp_millis(expiration_timestamp.timestamp_millis())), http_transaction.expiration_timestamp.and_then(|expiration_timestamp| DateTime::from_timestamp_millis(expiration_timestamp.timestamp_millis())));
 
   return Ok(());
   
@@ -170,6 +170,9 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;

@@ -178,6 +178,9 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashste
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -267,6 +270,7 @@ async fn verify_uuid_when_deleting_action_by_id() -> Result<(), TestSlashstepSer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -357,6 +361,9 @@ async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSla
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -707,6 +714,7 @@ async fn verify_display_name_is_under_maximum_length() -> Result<(), TestSlashst
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "actions.update" action.
@@ -752,6 +760,7 @@ async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerErr
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "actions.create" action.
@@ -799,6 +808,7 @@ async fn verify_action_display_name_matches_regex() -> Result<(), TestSlashstepS
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "actions.create" action.

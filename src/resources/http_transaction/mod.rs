@@ -17,7 +17,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "ip_address",
   "headers",
   "status_code",
-  "expiration_date"
+  "expiration_timestamp"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id"
@@ -44,8 +44,31 @@ pub struct InitialHTTPTransactionProperties {
   /// The status code of the HTTP request.
   pub status_code: Option<i32>,
 
-  /// The expiration date of the HTTP request.
-  pub expiration_date: Option<DateTime<Utc>>
+  /// The expiration timestamp of the HTTP request.
+  pub expiration_timestamp: Option<DateTime<Utc>>
+
+}
+
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct EditableHTTPTransactionProperties {
+
+  /// The HTTP method of the HTTP request.
+  pub method: Option<String>,
+
+  /// The URL of the HTTP request.
+  pub url: Option<String>,
+
+  /// The IP address of the HTTP request.
+  pub ip_address: Option<IpAddr>,
+
+  /// The headers of the HTTP request.
+  pub headers: Option<String>,
+
+  /// The status code of the HTTP request.
+  pub status_code: Option<Option<i32>>,
+
+  /// The expiration timestamp of the HTTP request.
+  pub expiration_timestamp: Option<Option<DateTime<Utc>>>
 
 }
 
@@ -70,8 +93,8 @@ pub struct HTTPTransaction {
   /// The status code of the HTTP request.
   pub status_code: Option<i32>,
 
-  /// The expiration date of the HTTP request.
-  pub expiration_date: Option<DateTime<Utc>>
+  /// The expiration timestamp of the HTTP request.
+  pub expiration_timestamp: Option<DateTime<Utc>>
 
 }
 
@@ -79,6 +102,8 @@ impl HTTPTransaction {
 
   /// Counts the number of http_transactions based on a query.
   pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+
+    Self::delete_expired_http_transactions(database_pool).await?;
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -102,10 +127,20 @@ impl HTTPTransaction {
 
   }
 
+  pub async fn delete_expired_http_transactions(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/http_transactions/delete_expired_http_transaction_rows.sql");
+    database_client.execute(query, &[]).await?;
+    return Ok(());
+
+  }
+
   /// Gets a field by its ID.
   pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let database_client = database_pool.get().await?;
+    Self::delete_expired_http_transactions(database_pool).await?;
     let query = include_str!("../../queries/http_transactions/get_http_transaction_row_by_id.sql");
     let row = match database_client.query_opt(query, &[&id]).await {
 
@@ -113,7 +148,7 @@ impl HTTPTransaction {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(format!("A field value with the ID \"{}\" does not exist.", id)))
+        None => return Err(ResourceError::NotFoundError(format!("An HTTP transaction with the ID \"{}\" does not exist.", id)))
 
       },
 
@@ -121,9 +156,9 @@ impl HTTPTransaction {
 
     };
 
-    let field = Self::convert_from_row(&row);
+    let http_transaction = Self::convert_from_row(&row);
 
-    return Ok(field);
+    return Ok(http_transaction);
 
   }
 
@@ -137,7 +172,7 @@ impl HTTPTransaction {
       ip_address: row.get("ip_address"),
       headers: row.get("headers"),
       status_code: row.get("status_code"),
-      expiration_date: row.get("expiration_date")
+      expiration_timestamp: row.get("expiration_timestamp")
     };
 
   }
@@ -162,9 +197,10 @@ impl HTTPTransaction {
       &initial_properties.ip_address,
       &initial_properties.headers,
       &initial_properties.status_code,
-      &initial_properties.expiration_date
+      &initial_properties.expiration_timestamp
     ];
     let database_client = database_pool.get().await?;
+    Self::delete_expired_http_transactions(database_pool).await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {
 
       return ResourceError::PostgresError(error)
@@ -199,6 +235,8 @@ impl HTTPTransaction {
   /// Returns a list of http_transactions based on a query.
   pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
 
+    Self::delete_expired_http_transactions(database_pool).await?;
+    
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
@@ -216,8 +254,35 @@ impl HTTPTransaction {
     // Execute the query.
     let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
-    let actions = rows.iter().map(Self::convert_from_row).collect();
-    return Ok(actions);
+    let http_transactions = rows.iter().map(Self::convert_from_row).collect();
+    return Ok(http_transactions);
+
+  }
+
+  /// Updates this HTTP transaction and returns a new instance of the HTTP transaction.
+  pub async fn update(&self, properties: &EditableHTTPTransactionProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE http_transactions SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "method", properties.method.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "url", properties.url.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "ip_address", properties.ip_address.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "headers", properties.headers.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "status_code", properties.status_code.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "expiration_timestamp", properties.expiration_timestamp.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let http_transaction = Self::convert_from_row(&row);
+    return Ok(http_transaction);
 
   }
 
@@ -229,6 +294,7 @@ impl DeletableResource for HTTPTransaction {
   async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
+    Self::delete_expired_http_transactions(database_pool).await?;
     let query = include_str!("../../queries/http_transactions/delete_http_transaction_row_by_id.sql");
     database_client.execute(query, &[&self.id]).await?;
     return Ok(());

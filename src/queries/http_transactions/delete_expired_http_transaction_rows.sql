@@ -1,0 +1,1 @@
+DELETE FROM http_transactions WHERE expiration_timestamp <= now();

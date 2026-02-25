@@ -33,6 +33,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -78,6 +79,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -104,6 +106,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -243,6 +246,7 @@ async fn verify_uuid_when_deleting_resource_by_id() -> Result<(), TestSlashstepS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -333,6 +337,9 @@ async fn verify_resource_exists_when_deleting_resource_by_id() -> Result<(), Tes
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;

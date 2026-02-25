@@ -18,7 +18,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use reqwest::StatusCode;
 use crate::{
-  AppState, HTTPError, middleware::{authentication_middleware, http_request_middleware}, resources::{
+  AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, app_credential::AppCredential, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{
     AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_credential_by_id, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions
@@ -103,7 +103,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/app-credentials/{app_credential_id}", axum::routing::delete(handle_delete_app_credential_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_request_middleware::create_http_request))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
     .merge(access_policies::get_router(state.clone()));
   return router;
 

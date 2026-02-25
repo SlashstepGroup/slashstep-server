@@ -19,7 +19,7 @@ fn assert_http_transactions_are_equal(http_transaction_1: &HTTPTransaction, http
   assert_eq!(http_transaction_1.ip_address, http_transaction_2.ip_address);
   assert_eq!(http_transaction_1.headers, http_transaction_2.headers);
   assert_eq!(http_transaction_1.status_code, http_transaction_2.status_code);
-  assert_eq!(http_transaction_1.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())), http_transaction_2.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())));
+  assert_eq!(http_transaction_1.expiration_timestamp.and_then(|expiration_timestamp| DateTime::from_timestamp_millis(expiration_timestamp.timestamp_millis())), http_transaction_2.expiration_timestamp.and_then(|expiration_timestamp| DateTime::from_timestamp_millis(expiration_timestamp.timestamp_millis())));
 
 }
 
@@ -30,7 +30,7 @@ fn assert_http_transaction_is_equal_to_initial_properties(http_transaction: &HTT
   assert_eq!(http_transaction.ip_address, initial_properties.ip_address);
   assert_eq!(http_transaction.headers, initial_properties.headers);
   assert_eq!(http_transaction.status_code, initial_properties.status_code);
-  assert_eq!(http_transaction.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())), initial_properties.expiration_date.and_then(|expiration_date| DateTime::from_timestamp_millis(expiration_date.timestamp_millis())));
+  assert_eq!(http_transaction.expiration_timestamp.and_then(|expiration_timestamp| DateTime::from_timestamp_millis(expiration_timestamp.timestamp_millis())), initial_properties.expiration_timestamp.and_then(|expiration_timestamp| DateTime::from_timestamp_millis(expiration_timestamp.timestamp_millis())));
 
 }
 
@@ -68,7 +68,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
     ip_address: local_ip()?,
     headers: Uuid::now_v7().to_string(),
     status_code: Some(200),
-    expiration_date: Some(Utc::now() + Duration::days(30))
+    expiration_timestamp: Some(Utc::now() + Duration::days(30))
   };
   let http_transaction = HTTPTransaction::create(&http_transaction_properties, &test_environment.database_pool).await?;
   assert_http_transaction_is_equal_to_initial_properties(&http_transaction, &http_transaction_properties);
@@ -273,6 +273,44 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let retrieved_resource = &retrieved_resources.iter().find(|action| action.id == allowed_resource.id).expect("Expected a retrieved resource with the same ID.");
 
     assert_http_transactions_are_equal(&allowed_resource, retrieved_resource);
+
+  }
+
+  return Ok(());
+
+}
+
+/// Verifies that the struct can delete HTTP transactions that have expired.
+#[tokio::test]
+async fn verify_deletion_of_expired_http_transactions() -> Result<(), TestSlashstepServerError> {
+
+  // Create the access policy.
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  
+  let created_http_transaction = HTTPTransaction::create(&InitialHTTPTransactionProperties {
+    method: "GET".to_string(),
+    url: Uuid::now_v7().to_string(),
+    ip_address: local_ip()?,
+    headers: Uuid::now_v7().to_string(),
+    status_code: None,
+    expiration_timestamp: Some(Utc::now())
+  }, &test_environment.database_pool).await?;
+
+  HTTPTransaction::delete_expired_http_transactions(&test_environment.database_pool).await?;
+
+  // Ensure that the access policy is no longer in the database.
+  match HTTPTransaction::get_by_id(&created_http_transaction.id, &test_environment.database_pool).await {
+
+    Ok(_) => panic!("Expected an HTTP transaction not found error."),
+
+    Err(error) => match error {
+
+      ResourceError::NotFoundError(_) => {},
+
+      error => return Err(TestSlashstepServerError::ResourceError(error))
+
+    }
 
   }
 

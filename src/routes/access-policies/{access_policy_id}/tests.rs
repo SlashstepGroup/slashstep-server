@@ -36,6 +36,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+  
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -100,6 +101,7 @@ async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), TestSlashs
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -126,6 +128,7 @@ async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), 
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -155,6 +158,7 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -186,6 +190,10 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestS
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -324,6 +332,7 @@ async fn verify_permission_when_deleting_access_policy_by_id() -> Result<(), Tes
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -354,6 +363,10 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id() -> Resu
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -386,6 +399,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };

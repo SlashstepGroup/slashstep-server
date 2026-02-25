@@ -4,7 +4,7 @@ INSERT INTO http_transactions (
   ip_address,
   headers,
   status_code,
-  expiration_date
+  expiration_timestamp
 ) VALUES (
   $1,
   $2,
