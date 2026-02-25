@@ -22,7 +22,7 @@ use crate::{
   }, resources::{
     ResourceError, access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
-    }, app::{App, AppClientType}, field::{EditableFieldProperties, Field},
+    }, app::{App}, configuration::{Configuration, EditableConfigurationProperties}, field::{EditableFieldProperties, Field}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -398,6 +398,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -460,6 +461,7 @@ async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepSe
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -486,6 +488,7 @@ async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlas
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -513,6 +516,7 @@ async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashs
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
   let state = AppState {
@@ -545,6 +549,8 @@ async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerErro
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -572,6 +578,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
   let field = test_environment.create_random_field().await?;
@@ -602,6 +609,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
@@ -640,6 +648,7 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -657,6 +666,54 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+
+  return Ok(());
+
+}
+
+#[tokio::test]
+async fn verify_field_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "fields.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let create_fields_action = Action::get_by_name("fields.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let field_name_regex_configuration = Configuration::get_by_name("fields.allowedNameRegex", &test_environment.database_pool).await?;
+  field_name_regex_configuration.update(&EditableConfigurationProperties {
+    text_value: Some("^$".to_string()), // This regex pattern doesn't allow any field names, so this should cause a validation error.
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let dummy_field = test_environment.create_random_field().await?;
+  let editable_field_properties = EditableFieldProperties {
+    name: Some(Uuid::now_v7().to_string()),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/fields/{}", dummy_field.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(editable_field_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
   return Ok(());
 

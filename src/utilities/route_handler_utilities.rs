@@ -1048,3 +1048,47 @@ pub async fn validate_action_display_name(name: &str, http_transaction: &HTTPTra
   Ok(())
 
 }
+
+pub async fn validate_field_name(name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+
+  let allowed_field_name_regex_configuration = get_configuration_by_name("fields.allowedNameRegex", http_transaction, database_pool).await?;
+  let allowed_field_name_regex_string = match allowed_field_name_regex_configuration.text_value.or(allowed_field_name_regex_configuration.default_text_value) {
+
+    Some(allowed_field_name_regex_string) => allowed_field_name_regex_string,
+
+    None => {
+
+      ServerLogEntry::warning("Missing value and default value for configuration fields.allowedNameRegex. Consider setting a regex pattern in the configuration for better security.", Some(&http_transaction.id), database_pool).await.ok();
+      return Ok(());
+
+    }
+
+  };
+
+  ServerLogEntry::trace("Creating regex for validating field names...", Some(&http_transaction.id), database_pool).await.ok();
+  let regex = match regex::Regex::new(&allowed_field_name_regex_string) {
+
+    Ok(regex) => regex,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create regex for validating field names: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+      return Err(http_error)
+
+    }
+
+  };
+
+  ServerLogEntry::trace("Validating field name against regex...", Some(&http_transaction.id), database_pool).await.ok();
+  if !regex.is_match(name) {
+
+    let http_error = HTTPError::UnprocessableEntity(Some(format!("Field names must match the allowed pattern: {}", allowed_field_name_regex_string)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  Ok(())
+
+}

@@ -971,7 +971,14 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       value_type: ConfigurationValueType::Number,
       default_number_value: Some(Decimal::from(2592000000 as i64)), // 30 days in milliseconds
       ..Default::default()
-    }
+    },
+    InitialConfigurationProperties {
+      name: "fields.allowedNameRegex".to_string(),
+      description: Some("A regular expression that field names must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
+      ..Default::default()
+    },
   ];
 
   let mut configurations: Vec<Configuration> = Vec::new();
