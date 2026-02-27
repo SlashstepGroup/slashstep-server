@@ -1015,6 +1015,13 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       ..Default::default()
     },
     InitialConfigurationProperties {
+      name: "fieldValues.maximumTextValueLength".to_string(),
+      description: Some("The maximum length of field value text values in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(32768 as i64)),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
       name: "httpTransactions.shouldExpire".to_string(),
       description: Some("Whether HTTP transactions should expire after a certain amount of time. If true, HTTP transactions will expire after the amount of time specified in the \"httpTransactions.defaultMaximumLifetimeMilliseconds\" configuration.".to_string()),
       value_type: ConfigurationValueType::Boolean,

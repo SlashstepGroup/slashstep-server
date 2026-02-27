@@ -722,7 +722,7 @@ async fn verify_field_name_matches_regex() -> Result<(), TestSlashstepServerErro
 
 /// Verifies that the server returns a 422 status code when the field display name is over the maximum length.
 #[tokio::test]
-async fn verify_field_display_name_is_under_maximum_length() -> Result<(), TestSlashstepServerError> {
+async fn verify_field_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -771,7 +771,7 @@ async fn verify_field_display_name_is_under_maximum_length() -> Result<(), TestS
 
 /// Verifies that the server returns a 422 status code when the field name is over the maximum length.
 #[tokio::test]
-async fn verify_field_name_is_under_maximum_length() -> Result<(), TestSlashstepServerError> {
+async fn verify_field_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;

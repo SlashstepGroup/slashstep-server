@@ -19,7 +19,7 @@ use crate::{
   resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, field_value::{EditableFieldValueProperties, FieldValue}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_field_value_by_id, get_request_body_without_json_rejection, get_resource_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_field_value_by_id, get_request_body_without_json_rejection, get_resource_by_id, get_resource_hierarchy, get_uuid_from_string, validate_field_length, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -113,6 +113,11 @@ async fn handle_patch_field_value_request(
 ) -> Result<Json<FieldValue>, HTTPError> {
 
   let updated_field_value_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  if let Some(Some(field_value_text_value)) = &updated_field_value_properties.text_value { 
+
+    validate_field_length(field_value_text_value, "fieldValues.maximumTextValueLength", "text_value", &http_transaction, &state.database_pool).await?;
+
+  }
   let field_value_id = get_uuid_from_string(&field_value_id, "field value", &http_transaction, &state.database_pool).await?;
   let original_target_field_value = get_field_value_by_id(&field_value_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&original_target_field_value, &AccessPolicyResourceType::FieldValue, &original_target_field_value.id, &http_transaction, &state.database_pool).await?;

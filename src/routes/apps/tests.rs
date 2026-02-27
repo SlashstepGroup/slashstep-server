@@ -654,7 +654,7 @@ async fn verify_app_display_name_matches_regex() -> Result<(), TestSlashstepServ
 
 /// Verifies that the server returns a 422 status code when the app display name is over the maximum length.
 #[tokio::test]
-async fn verify_app_display_name_is_under_maximum_length() -> Result<(), TestSlashstepServerError> {
+async fn verify_app_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -702,7 +702,7 @@ async fn verify_app_display_name_is_under_maximum_length() -> Result<(), TestSla
 
 /// Verifies that the server returns a 422 status code when the app name is over the maximum length.
 #[tokio::test]
-async fn verify_app_name_is_under_maximum_length() -> Result<(), TestSlashstepServerError> {
+async fn verify_app_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;

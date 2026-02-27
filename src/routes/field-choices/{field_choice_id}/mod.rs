@@ -22,9 +22,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App}, app_authorization::AppAuthorization, field_choice::{EditableFieldChoiceProperties, FieldChoice}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_choice::{EditableFieldChoiceProperties, FieldChoice}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_field_choice_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_field_choice_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_field_length, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 /// GET /field-choices/{field_choice_id}
@@ -113,6 +113,11 @@ async fn handle_patch_field_choice_request(
 ) -> Result<Json<FieldChoice>, HTTPError> {
 
   let updated_field_choice_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  if let Some(Some(field_choice_text_value)) = &updated_field_choice_properties.text_value { 
+
+    validate_field_length(field_choice_text_value, "fieldValues.maximumTextValueLength", "text_value", &http_transaction, &state.database_pool).await?;
+
+  }
   let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
   let original_target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&original_target_field_choice, &AccessPolicyResourceType::FieldChoice, &original_target_field_choice.id, &http_transaction, &state.database_pool).await?;
