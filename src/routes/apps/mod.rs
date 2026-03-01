@@ -15,7 +15,7 @@ mod app_id;
 mod tests;
 
 use std::sync::Arc;
-use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, rand_core::{OsRng, le}}};
+use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, rand_core::{OsRng}}};
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
 use axum_extra::response::ErasedJson;
 use rand::{RngExt, distr::Alphanumeric};

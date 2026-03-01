@@ -19,7 +19,7 @@ use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejec
 use axum_extra::response::ErasedJson;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{DeletableResource, access_policy::{AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{DeletableResource, access_policy::{AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}}};
 
 /// GET /groups
 /// 
@@ -126,11 +126,10 @@ async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTr
     "memberships.renounce",
     "memberships.get",
     "memberships.list",
-    // "membershipInvitations.get",
-    // "membershipInvitations.list",
-    // "membershipInvitations.create",
-    // "membershipInvitations.update",
-    // "membershipInvitations.delete"
+    "membershipInvitations.get",
+    "membershipInvitations.list",
+    "membershipInvitations.create",
+    "membershipInvitations.delete",
     "roles.get",
     "roles.list",
     "roles.create",
@@ -258,6 +257,14 @@ async fn handle_create_group_request(
 
   // TODO: Add configurations to verify inputs.
   let initial_group_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  validate_resource_name(&initial_group_properties.name, "groups.allowedNameRegex", "group", &http_transaction, &state.database_pool).await?;
+  validate_field_length(&initial_group_properties.name, "groups.maximumNameLength", "name", &http_transaction, &state.database_pool).await?;
+  validate_field_length(&initial_group_properties.display_name, "groups.maximumDisplayNameLength", "display name", &http_transaction, &state.database_pool).await?;
+  if let Some(field_description) = &initial_group_properties.description {
+
+    validate_field_length(field_description, "groups.maximumDescriptionLength", "description", &http_transaction, &state.database_pool).await?;
+
+  }
 
   // Make sure the authenticated_user can create apps for the target action log entry.
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];

@@ -22,7 +22,7 @@ use crate::{
   }, resources::{
     access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
-    }, action::Action, app::{App, AppClientType, DEFAULT_APP_LIST_LIMIT, DEFAULT_MAXIMUM_APP_LIST_LIMIT, InitialAppProperties}, configuration::{Configuration, EditableConfigurationProperties},
+    }, action::Action, app::{App, AppClientType, DEFAULT_APP_LIST_LIMIT, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, configuration::{Configuration, EditableConfigurationProperties},
   }, routes::apps::{AppWithClientSecret, InitialAppPropertiesWithoutClientSecretHash}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
 };
 

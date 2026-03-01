@@ -19,7 +19,7 @@ use crate::{
   resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{EditableGroupProperties, Group}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_group_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_group_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -116,8 +116,24 @@ async fn handle_patch_group_request(
   body: Result<Json<EditableGroupProperties>, JsonRejection>
 ) -> Result<Json<Group>, HTTPError> {
 
-  let updated_group_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
   let group_id = get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
+  let updated_group_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  if let Some(updated_group_name) = &updated_group_properties.name {
+    
+    validate_resource_name(updated_group_name, "groups.allowedNameRegex", "group", &http_transaction, &state.database_pool).await?;
+    validate_field_length(updated_group_name, "groups.maximumNameLength", "name", &http_transaction, &state.database_pool).await?;
+
+  }
+  if let Some(updated_group_display_name) = &updated_group_properties.display_name {
+
+    validate_field_length(updated_group_display_name, "groups.maximumDisplayNameLength", "display name", &http_transaction, &state.database_pool).await?;
+
+  }
+  if let Some(Some(updated_group_description)) = &updated_group_properties.description {
+
+    validate_field_length(updated_group_description, "groups.maximumDescriptionLength", "description", &http_transaction, &state.database_pool).await?;
+
+  }
   let original_target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&original_target_group, &AccessPolicyResourceType::Group, &original_target_group.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("groups.update", &http_transaction, &state.database_pool).await?;

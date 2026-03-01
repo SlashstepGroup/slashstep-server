@@ -318,7 +318,7 @@ impl TestEnvironment {
   pub async fn create_random_group(&self) -> Result<Group, TestSlashstepServerError> {
 
     let group_properties = InitialGroupProperties {
-      name: Uuid::now_v7().to_string(),
+      name: Uuid::now_v7().to_string().replace("-", ""),
       display_name: Uuid::now_v7().to_string(),
       description: Some(Uuid::now_v7().to_string())
     };
