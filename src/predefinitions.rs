@@ -1091,7 +1091,6 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       default_number_value: Some(Decimal::from(i64::MIN)),
       ..Default::default()
     },
-    
     InitialConfigurationProperties {
       name: "groups.allowedNameRegex".to_string(),
       description: Some("A regular expression that group names must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
@@ -1141,6 +1140,20 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       default_boolean_value: Some(true),
       ..Default::default()
     },
+    InitialConfigurationProperties {
+      name: "itemConnectionTypes.maximumDisplayNameLength".to_string(),
+      description: Some("The maximum length of item connection type display names. Slashstep Group recommends setting this to a reasonable value to prevent abuse.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "itemConnectionTypes.maximumDescriptionLength".to_string(),
+      description: Some("The maximum length of item connection type descriptions in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(8))),
+      ..Default::default()
+    }
   ];
 
   let mut configurations: Vec<Configuration> = Vec::new();
