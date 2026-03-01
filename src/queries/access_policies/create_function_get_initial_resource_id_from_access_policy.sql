@@ -36,6 +36,8 @@ CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_pol
         RETURN access_policy_record.scoped_item_connection_type_id;
       WHEN 'Membership' THEN 
         RETURN access_policy_record.scoped_membership_id;
+      WHEN 'MembershipInvitation' THEN 
+        RETURN access_policy_record.scoped_membership_invitation_id;
       WHEN 'Milestone' THEN 
         RETURN access_policy_record.scoped_milestone_id;
       WHEN 'Project' THEN 

@@ -12,6 +12,7 @@ pub mod field_choice;
 pub mod field_value;
 pub mod group;
 pub mod membership;
+pub mod membership_invitation;
 pub mod http_transaction;
 pub mod item;
 pub mod item_connection;

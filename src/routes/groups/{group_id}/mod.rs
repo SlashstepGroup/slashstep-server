@@ -24,6 +24,8 @@ use crate::{
 
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
+#[path = "./membership-invitations/mod.rs"]
+mod membership_invitations;
 mod memberships;
 mod roles;
 #[cfg(test)]
@@ -164,6 +166,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
     .merge(access_policies::get_router(state.clone()))
+    .merge(membership_invitations::get_router(state.clone()))
     .merge(memberships::get_router(state.clone()))
     .merge(roles::get_router(state.clone()));
   return router;

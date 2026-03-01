@@ -6,7 +6,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
-use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal, membership::{MembershipParentResourceType, MembershipPrincipalType}}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -15,66 +15,45 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "parent_resource_type",
   "parent_group_id",
   "parent_role_id",
-  "principal_type",
-  "principal_user_id",
-  "principal_group_id",
-  "principal_app_id"
+  "invitee_principal_type",
+  "invitee_principal_user_id",
+  "invitee_principal_group_id",
+  "invitee_principal_app_id",
+  "inviter_principal_type",
+  "inviter_principal_user_id",
+  "inviter_principal_app_id"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
   "parent_group_id",
   "parent_role_id",
-  "principal_user_id",
-  "principal_group_id",
-  "principal_app_id"
+  "invitee_principal_user_id",
+  "invitee_principal_group_id",
+  "invitee_principal_app_id",
+  "inviter_principal_user_id",
+  "inviter_principal_app_id"
 ];
-pub const RESOURCE_NAME: &str = "Membership";
-pub const DATABASE_TABLE_NAME: &str = "memberships";
-pub const GET_RESOURCE_ACTION_NAME: &str = "memberships.get";
+pub const RESOURCE_NAME: &str = "MembershipInvitation";
+pub const DATABASE_TABLE_NAME: &str = "membership_invitations";
+pub const GET_RESOURCE_ACTION_NAME: &str = "membershipInvitations.get";
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default, Copy)]
-#[postgres(name = "membership_parent_resource_type")]
-pub enum MembershipParentResourceType {
-  #[default]
-  Group,
-  Role
-}
-
-impl FromStr for MembershipParentResourceType {
-
-  type Err = ResourceError;
-
-  fn from_str(string: &str) -> Result<Self, Self::Err> {
-
-    match string {
-      "Group" => Ok(MembershipParentResourceType::Group),
-      "Role" => Ok(MembershipParentResourceType::Role),
-      _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
-    }
-    
-  }
-
-}
-
-#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[postgres(name = "membership_principal_type")]
-pub enum MembershipPrincipalType {
+#[postgres(name = "membership_invitation_invitee_principal_type")]
+pub enum MembershipInvitationInviteePrincipalType {
   #[default]
   User,
-  Group,
   App
 }
 
-impl FromStr for MembershipPrincipalType {
+impl FromStr for MembershipInvitationInviteePrincipalType {
 
   type Err = ResourceError;
 
   fn from_str(string: &str) -> Result<Self, Self::Err> {
 
     match string {
-      "User" => Ok(MembershipPrincipalType::User),
-      "Group" => Ok(MembershipPrincipalType::Group),
-      "App" => Ok(MembershipPrincipalType::App),
+      "User" => Ok(MembershipInvitationInviteePrincipalType::User),
+      "App" => Ok(MembershipInvitationInviteePrincipalType::App),
       _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
     }
     
@@ -83,78 +62,96 @@ impl FromStr for MembershipPrincipalType {
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct InitialMembershipProperties {
+pub struct InitialMembershipInvitationProperties {
 
-  /// The membership's parent resource type.
+  /// The membership invitation's parent resource type.
   pub parent_resource_type: MembershipParentResourceType,
 
-  /// The membership's parent group ID, if applicable.
+  /// The membership invitation's parent group ID, if applicable.
   pub parent_group_id: Option<Uuid>,
 
-  /// The membership's parent role ID, if applicable.
+  /// The membership invitation's parent role ID, if applicable.
   pub parent_role_id: Option<Uuid>,
 
-  /// The membership's principal type.
-  pub principal_type: MembershipPrincipalType,
+  /// The membership invitation's invitee principal type.
+  pub invitee_principal_type: MembershipInvitationInviteePrincipalType,
 
-  /// The membership's principal user ID, if applicable.
-  pub principal_user_id: Option<Uuid>,
+  /// The membership invitation's invitee principal user ID, if applicable.
+  pub invitee_principal_user_id: Option<Uuid>,
 
-  /// The membership's principal group ID, if applicable.
-  pub principal_group_id: Option<Uuid>,
+  /// The membership invitation's invitee principal group ID, if applicable.
+  pub invitee_principal_group_id: Option<Uuid>,
 
-  /// The membership's principal app ID, if applicable.
-  pub principal_app_id: Option<Uuid>
+  /// The membership invitation's invitee principal app ID, if applicable.
+  pub invitee_principal_app_id: Option<Uuid>,
+
+  /// The membership invitation's inviter principal type.
+  pub inviter_principal_type: MembershipPrincipalType,
+
+  /// The membership invitation's inviter principal user ID, if applicable.
+  pub inviter_principal_user_id: Option<Uuid>,
+
+  /// The membership invitation's inviter principal app ID, if applicable.
+  pub inviter_principal_app_id: Option<Uuid>,
 
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct InitialMembershipPropertiesWithPredefinedParent {
+pub struct InitialMembershipInvitationPropertiesWithPredefinedParentAndInviter {
 
-  /// The membership's principal type.
-  pub principal_type: MembershipPrincipalType,
+  /// The membership invitation's invitee principal type.
+  pub invitee_principal_type: MembershipInvitationInviteePrincipalType,
 
-  /// The membership's principal user ID, if applicable.
-  pub principal_user_id: Option<Uuid>,
+  /// The membership invitation's invitee principal user ID, if applicable.
+  pub invitee_principal_user_id: Option<Uuid>,
 
-  /// The membership's principal group ID, if applicable.
-  pub principal_group_id: Option<Uuid>,
+  /// The membership invitation's invitee principal group ID, if applicable.
+  pub invitee_principal_group_id: Option<Uuid>,
 
-  /// The membership's principal app ID, if applicable.
-  pub principal_app_id: Option<Uuid>
+  /// The membership invitation's invitee principal app ID, if applicable.
+  pub invitee_principal_app_id: Option<Uuid>,
 
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Membership {
+pub struct MembershipInvitation {
 
-  /// The membership's ID.
+  /// The membership invitation's ID.
   pub id: Uuid,
 
-  /// The membership's parent resource type.
+  /// The membership invitation's parent resource type.
   pub parent_resource_type: MembershipParentResourceType,
 
-  /// The membership's parent group ID, if applicable.
+  /// The membership invitation's parent group ID, if applicable.
   pub parent_group_id: Option<Uuid>,
 
-  /// The membership's parent role ID, if applicable.
+  /// The membership invitation's parent role ID, if applicable.
   pub parent_role_id: Option<Uuid>,
 
-  /// The membership's principal type.
-  pub principal_type: MembershipPrincipalType,
+  /// The membership invitation's invitee principal type.
+  pub invitee_principal_type: MembershipInvitationInviteePrincipalType,
 
-  /// The membership's principal user ID, if applicable.
-  pub principal_user_id: Option<Uuid>,
+  /// The membership invitation's invitee principal user ID, if applicable.
+  pub invitee_principal_user_id: Option<Uuid>,
 
-  /// The membership's principal group ID, if applicable.
-  pub principal_group_id: Option<Uuid>,
+  /// The membership invitation's invitee principal group ID, if applicable.
+  pub invitee_principal_group_id: Option<Uuid>,
 
-  /// The membership's principal app ID, if applicable.
-  pub principal_app_id: Option<Uuid>
+  /// The membership invitation's invitee principal app ID, if applicable.
+  pub invitee_principal_app_id: Option<Uuid>,
+
+  /// The membership invitation's inviter principal type.
+  pub inviter_principal_type: MembershipPrincipalType,
+
+  /// The membership invitation's inviter principal user ID, if applicable.
+  pub inviter_principal_user_id: Option<Uuid>,
+
+  /// The membership invitation's inviter principal app ID, if applicable.
+  pub inviter_principal_app_id: Option<Uuid>
 
 }
 
-impl Membership {
+impl MembershipInvitation {
 
   /// Counts the number of item connection types based on a query.
   pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
@@ -185,14 +182,14 @@ impl Membership {
   pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/memberships/get_membership_row_by_id.sql");
+    let query = include_str!("../../queries/membership_invitations/get_membership_invitation_row_by_id.sql");
     let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(format!("A membership with the ID \"{}\" does not exist.", id)))
+        None => return Err(ResourceError::NotFoundError(format!("A membership invitation with the ID \"{}\" does not exist.", id)))
 
       },
 
@@ -209,15 +206,18 @@ impl Membership {
   /// Converts a row into a field.
   fn convert_from_row(row: &postgres::Row) -> Self {
 
-    return Membership {
+    return Self {
       id: row.get("id"),
       parent_resource_type: row.get("parent_resource_type"),
       parent_group_id: row.get("parent_group_id"),
       parent_role_id: row.get("parent_role_id"),
-      principal_type: row.get("principal_type"),
-      principal_user_id: row.get("principal_user_id"),
-      principal_group_id: row.get("principal_group_id"),
-      principal_app_id: row.get("principal_app_id")
+      invitee_principal_type: row.get("invitee_principal_type"),
+      invitee_principal_user_id: row.get("invitee_principal_user_id"),
+      invitee_principal_group_id: row.get("invitee_principal_group_id"),
+      invitee_principal_app_id: row.get("invitee_principal_app_id"),
+      inviter_principal_type: row.get("inviter_principal_type"),
+      inviter_principal_user_id: row.get("inviter_principal_user_id"),
+      inviter_principal_app_id: row.get("inviter_principal_app_id")
     };
 
   }
@@ -226,24 +226,27 @@ impl Membership {
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/memberships/initialize_memberships_table.sql");
+    let query = include_str!("../../queries/membership_invitations/initialize_membership_invitations_table.sql");
     database_client.execute(query, &[]).await?;
     return Ok(());
 
   }
 
   /// Creates a new field.
-  pub async fn create(initial_properties: &InitialMembershipProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialMembershipInvitationProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
-    let query = include_str!("../../queries/memberships/insert_membership_row.sql");
+    let query = include_str!("../../queries/membership_invitations/insert_membership_invitation_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.parent_resource_type,
       &initial_properties.parent_group_id,
       &initial_properties.parent_role_id,
-      &initial_properties.principal_type,
-      &initial_properties.principal_user_id,
-      &initial_properties.principal_group_id,
-      &initial_properties.principal_app_id
+      &initial_properties.invitee_principal_type,
+      &initial_properties.invitee_principal_user_id,
+      &initial_properties.invitee_principal_group_id,
+      &initial_properties.invitee_principal_app_id,
+      &initial_properties.inviter_principal_type,
+      &initial_properties.inviter_principal_user_id,
+      &initial_properties.inviter_principal_app_id
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {
@@ -286,14 +289,25 @@ impl Membership {
 
       },
 
-      "principal_type" => {
+      "invitee_principal_type" => {
 
-        let principal_type = match MembershipPrincipalType::from_str(value) {
+        let principal_type = match MembershipInvitationInviteePrincipalType::from_str(value) {
           Ok(principal_type) => principal_type,
           Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
         };
 
         return Ok(Box::new(principal_type));
+
+      },
+
+      "inviter_principal_type" => {
+
+        let inviter_principal_type = match MembershipPrincipalType::from_str(value) {
+          Ok(inviter_principal_type) => inviter_principal_type,
+          Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\".", value, key)))
+        };
+
+        return Ok(Box::new(inviter_principal_type));
 
       },
 
@@ -330,13 +344,13 @@ impl Membership {
 
 }
 
-impl DeletableResource for Membership {
+impl DeletableResource for MembershipInvitation {
 
   /// Deletes this field.
   async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/memberships/delete_membership_row_by_id.sql");
+    let query = include_str!("../../queries/membership_invitations/delete_membership_invitation_row_by_id.sql");
     database_client.execute(query, &[&self.id]).await?;
     return Ok(());
 

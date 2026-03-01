@@ -55,6 +55,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_item_connection_id",
   "scoped_item_connection_type_id",
   "scoped_membership_id",
+  "scoped_membership_invitation_id",
   "scoped_milestone_id", 
   "scoped_project_id", 
   "scoped_role_id",
@@ -91,6 +92,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_item_connection_id",
   "scoped_item_connection_type_id",
   "scoped_membership_id",
+  "scoped_membership_invitation_id",
   "scoped_milestone_id", 
   "scoped_project_id", 
   "scoped_role_id",
@@ -165,6 +167,7 @@ pub enum AccessPolicyResourceType {
   ItemConnection,
   ItemConnectionType,
   Membership,
+  MembershipInvitation,
   Milestone,
   Project,
   Role,
@@ -196,6 +199,7 @@ impl fmt::Display for AccessPolicyResourceType {
       AccessPolicyResourceType::ItemConnection => write!(formatter, "ItemConnection"),
       AccessPolicyResourceType::ItemConnectionType => write!(formatter, "ItemConnectionType"),
       AccessPolicyResourceType::Membership => write!(formatter, "Membership"),
+      AccessPolicyResourceType::MembershipInvitation => write!(formatter, "MembershipInvitation"),
       AccessPolicyResourceType::Milestone => write!(formatter, "Milestone"),
       AccessPolicyResourceType::Project => write!(formatter, "Project"),
       AccessPolicyResourceType::Role => write!(formatter, "Role"),
@@ -233,6 +237,7 @@ impl FromStr for AccessPolicyResourceType {
       "ItemConnection" => Ok(AccessPolicyResourceType::ItemConnection),
       "ItemConnectionType" => Ok(AccessPolicyResourceType::ItemConnectionType),
       "Membership" => Ok(AccessPolicyResourceType::Membership),
+      "MembershipInvitation" => Ok(AccessPolicyResourceType::MembershipInvitation),
       "Milestone" => Ok(AccessPolicyResourceType::Milestone),
       "Project" => Ok(AccessPolicyResourceType::Project),
       "Role" => Ok(AccessPolicyResourceType::Role),
@@ -364,6 +369,8 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_membership_id: Option<Uuid>,
 
+  pub scoped_membership_invitation_id: Option<Uuid>,
+
   pub scoped_milestone_id: Option<Uuid>,
 
   pub scoped_project_id: Option<Uuid>,
@@ -472,6 +479,8 @@ pub struct AccessPolicy {
 
   pub scoped_membership_id: Option<Uuid>,
 
+  pub scoped_membership_invitation_id: Option<Uuid>,
+
   pub scoped_milestone_id: Option<Uuid>,
 
   pub scoped_project_id: Option<Uuid>,
@@ -550,6 +559,7 @@ impl AccessPolicy {
       &initial_properties.scoped_item_connection_id,
       &initial_properties.scoped_item_connection_type_id,
       &initial_properties.scoped_membership_id,
+      &initial_properties.scoped_membership_invitation_id,
       &initial_properties.scoped_milestone_id,
       &initial_properties.scoped_project_id,
       &initial_properties.scoped_role_id,
@@ -640,6 +650,7 @@ impl AccessPolicy {
       scoped_item_connection_id: row.get("scoped_item_connection_id"),
       scoped_item_connection_type_id: row.get("scoped_item_connection_type_id"),
       scoped_membership_id: row.get("scoped_membership_id"),
+      scoped_membership_invitation_id: row.get("scoped_membership_invitation_id"),
       scoped_milestone_id: row.get("scoped_milestone_id"),
       scoped_project_id: row.get("scoped_project_id"),
       scoped_role_id: row.get("scoped_role_id"),
@@ -812,6 +823,7 @@ impl AccessPolicy {
             AccessPolicyResourceType::ItemConnection => "An item connection ID must be provided.",
             AccessPolicyResourceType::ItemConnectionType => "An item connection type ID must be provided.",
             AccessPolicyResourceType::Membership => "A membership ID must be provided.",
+            AccessPolicyResourceType::MembershipInvitation => "A membership invitation ID must be provided.",
             AccessPolicyResourceType::Milestone => "A milestone ID must be provided.",
             AccessPolicyResourceType::Project => "A project ID must be provided.",
             AccessPolicyResourceType::Role => "A role ID must be provided.",
@@ -849,6 +861,7 @@ impl AccessPolicy {
         AccessPolicyResourceType::ItemConnection => query_clauses.push(format!("scoped_item_connection_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::ItemConnectionType => query_clauses.push(format!("scoped_item_connection_type_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Membership => query_clauses.push(format!("scoped_membership_id = {}", resource_id_as_quote_literal)),
+        AccessPolicyResourceType::MembershipInvitation => query_clauses.push(format!("scoped_membership_invitation_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Milestone => query_clauses.push(format!("scoped_milestone_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Project => query_clauses.push(format!("scoped_project_id = {}", resource_id_as_quote_literal)),
         AccessPolicyResourceType::Role => query_clauses.push(format!("scoped_role_id = {}", resource_id_as_quote_literal)),
@@ -938,6 +951,7 @@ impl AccessPolicy {
       AccessPolicyResourceType::ItemConnection => self.scoped_item_connection_id,
       AccessPolicyResourceType::ItemConnectionType => self.scoped_item_connection_type_id,
       AccessPolicyResourceType::Membership => self.scoped_membership_id,
+      AccessPolicyResourceType::MembershipInvitation => self.scoped_membership_invitation_id,
       AccessPolicyResourceType::Milestone => self.scoped_milestone_id,
       AccessPolicyResourceType::Project => self.scoped_project_id,
       AccessPolicyResourceType::Role => self.scoped_role_id,

@@ -1,0 +1,1 @@
+DELETE FROM membership_invitations WHERE id = $1;
