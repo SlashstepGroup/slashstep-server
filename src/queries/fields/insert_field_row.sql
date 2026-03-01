@@ -8,9 +8,7 @@ INSERT INTO fields (
   maximum_value,
   minimum_choice_count,
   maximum_choice_count,
-  parent_resource_type,
   parent_project_id,
-  parent_workspace_id,
   is_deadline
 ) VALUES (
   $1,
@@ -23,7 +21,5 @@ INSERT INTO fields (
   $8,
   $9,
   $10,
-  $11,
-  $12,
-  $13
+  $11
 ) RETURNING *;

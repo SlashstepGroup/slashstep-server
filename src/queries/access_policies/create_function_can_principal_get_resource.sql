@@ -658,7 +658,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
             ELSIF selected_resource_type = 'Field' THEN
 
-                -- Field -> Workspace | Project
+                -- Field -> Project
                 -- Check if the field has an associated access policy.
                 SELECT
                     permission_level,
@@ -690,59 +690,22 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 needs_inheritance := TRUE;
 
                 SELECT
-                    parent_resource_type
+                    parent_project_id
                 INTO
-                    selected_resource_parent_type
+                    selected_resource_parent_id
                 FROM
                     fields
                 WHERE
                     fields.id = selected_resource_id;
 
-                IF selected_resource_parent_type = 'Workspace' THEN
+                IF selected_resource_parent_id IS NULL THEN
 
-                    SELECT
-                        parent_workspace_id
-                    INTO
-                        selected_resource_parent_id
-                    FROM
-                        fields
-                    WHERE
-                        fields.id = selected_resource_id;
-
-                    IF selected_resource_parent_id IS NULL THEN
-
-                        RAISE EXCEPTION 'Couldn''t find a parent workspace for field %.', selected_resource_id;
-
-                    END IF;
-
-                    selected_resource_type := 'Workspace';
-                    selected_resource_id := selected_resource_parent_id;
-
-                ELSIF selected_resource_parent_type = 'Project' THEN
-
-                    SELECT
-                        project_id
-                    INTO
-                        selected_resource_parent_id
-                    FROM
-                        fields
-                    WHERE
-                        fields.id = selected_resource_id;
-
-                    IF selected_resource_parent_id IS NULL THEN
-
-                        RAISE EXCEPTION 'Couldn''t find a parent project for field %.', selected_resource_id;
-
-                    END IF;
-
-                    selected_resource_type := 'Project';
-                    selected_resource_id := selected_resource_parent_id;
-
-                ELSE
-
-                    RAISE EXCEPTION 'Unknown parent resource type % for field %.', selected_resource_parent_type, selected_resource_id;
+                    RAISE EXCEPTION 'Couldn''t find a parent project for field %.', selected_resource_id;
 
                 END IF;
+
+                selected_resource_type := 'Project';
+                selected_resource_id := selected_resource_parent_id;
 
             ELSIF selected_resource_type = 'FieldChoice' THEN
 
@@ -934,7 +897,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 needs_inheritance := TRUE;
 
                 SELECT
-                    project_id
+                    parent_project_id
                 INTO
                     selected_resource_parent_id
                 FROM

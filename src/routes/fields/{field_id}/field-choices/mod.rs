@@ -22,7 +22,7 @@ use reqwest::StatusCode;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{StakeholderType, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_choice::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_field_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{StakeholderType, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_choice::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_field_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct InitialFieldChoicePropertiesWithPredefinedFieldID {
@@ -120,9 +120,18 @@ async fn handle_create_field_choice_request(
   body: Result<Json<InitialFieldChoicePropertiesWithPredefinedFieldID>, JsonRejection>
 ) -> Result<(StatusCode, Json<FieldChoice>), HTTPError> {
 
-  let field_choice_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
-
   let field_id = get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
+  let field_choice_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  if let Some(field_choice_text_value) = &field_choice_properties_json.text_value { 
+
+    validate_field_length(field_choice_text_value, "fieldValues.maximumTextValueLength", "text_value", &http_transaction, &state.database_pool).await?;
+
+  }
+  if let Some(field_choice_number_value) = &field_choice_properties_json.number_value {
+
+    validate_decimal_is_within_range(field_choice_number_value, "fieldValues.minimumNumberValue", "fieldValues.maximumNumberValue", "number_value", &http_transaction, &state.database_pool).await?;
+
+  }
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_field, &AccessPolicyResourceType::Field, &target_field.id, &http_transaction, &state.database_pool).await?;
   let create_field_choices_action = get_action_by_name("fieldChoices.create", &http_transaction, &state.database_pool).await?;

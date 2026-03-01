@@ -73,9 +73,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   assert_eq!(response_field.maximum_value, field.maximum_value);
   assert_eq!(response_field.minimum_choice_count, field.minimum_choice_count);
   assert_eq!(response_field.maximum_choice_count, field.maximum_choice_count);
-  assert_eq!(response_field.parent_resource_type, field.parent_resource_type);
   assert_eq!(response_field.parent_project_id, field.parent_project_id);
-  assert_eq!(response_field.parent_workspace_id, field.parent_workspace_id);
 
   return Ok(());
   
@@ -445,9 +443,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   assert_eq!(updated_app.maximum_value, original_field.maximum_value);
   assert_eq!(updated_app.minimum_choice_count, original_field.minimum_choice_count);
   assert_eq!(updated_app.maximum_choice_count, original_field.maximum_choice_count);
-  assert_eq!(updated_app.parent_resource_type, original_field.parent_resource_type);
   assert_eq!(updated_app.parent_project_id, original_field.parent_project_id);
-  assert_eq!(updated_app.parent_workspace_id, original_field.parent_workspace_id);
   assert_eq!(updated_app.is_deadline, original_field.is_deadline);
 
   return Ok(());

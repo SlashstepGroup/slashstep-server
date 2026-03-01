@@ -403,35 +403,8 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
         };
 
-        match field.parent_resource_type {
-
-          FieldParentResourceType::Workspace => {
-
-            let Some(workspace_id) = field.parent_workspace_id else {
-
-              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Workspace));
-
-            };
-
-            selected_resource_type = AccessPolicyResourceType::Workspace;
-            selected_resource_id = Some(workspace_id);
-
-          },
-
-          FieldParentResourceType::Project => {
-
-            let Some(project_id) = field.parent_project_id else {
-
-              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Project));
-
-            };
-
-            selected_resource_type = AccessPolicyResourceType::Project;
-            selected_resource_id = Some(project_id);
-
-          }
-
-        }
+        selected_resource_type = AccessPolicyResourceType::Project;
+        selected_resource_id = Some(field.parent_project_id);
 
       },
 
@@ -526,7 +499,7 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
         };
 
         selected_resource_type = AccessPolicyResourceType::Project;
-        selected_resource_id = Some(item.project_id);
+        selected_resource_id = Some(item.parent_project_id);
 
       },
 

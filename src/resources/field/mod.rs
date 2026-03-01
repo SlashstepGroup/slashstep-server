@@ -20,23 +20,18 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "maximum_value",
   "minimum_choice_count",
   "maximum_choice_count",
-  "parent_resource_type",
   "parent_project_id",
-  "parent_workspace_id",
-  "parent_user_id",
   "is_deadline"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "parent_project_id",
-  "parent_workspace_id",
-  "parent_user_id"
+  "parent_project_id"
 ];
 pub const RESOURCE_NAME: &str = "Field";
 pub const DATABASE_TABLE_NAME: &str = "fields";
 pub const GET_RESOURCE_ACTION_NAME: &str = "fields.get";
 
-#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default, Copy)]
 #[postgres(name = "field_value_type")]
 pub enum FieldValueType {
   #[default]
@@ -47,7 +42,7 @@ pub enum FieldValueType {
   Stakeholder
 }
 
-#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default, Copy)]
 #[postgres(name = "field_parent_resource_type")]
 pub enum FieldParentResourceType {
   #[default]
@@ -85,14 +80,8 @@ pub struct InitialFieldProperties {
   /// The field's maximum choice count.
   pub maximum_choice_count: Option<i32>,
 
-  /// The field's parent resource type.
-  pub parent_resource_type: FieldParentResourceType,
-
   /// The field's parent project ID.
-  pub parent_project_id: Option<Uuid>,
-
-  /// The field's parent workspace ID.
-  pub parent_workspace_id: Option<Uuid>,
+  pub parent_project_id: Uuid,
 
   /// Whether the field is a deadline.
   pub is_deadline: Option<bool>
@@ -164,14 +153,8 @@ pub struct Field {
   /// The field's maximum choice count.
   pub maximum_choice_count: Option<i32>,
 
-  /// The field's parent resource type.
-  pub parent_resource_type: FieldParentResourceType,
-
   /// The field's parent project ID.
-  pub parent_project_id: Option<Uuid>,
-
-  /// The field's parent workspace ID.
-  pub parent_workspace_id: Option<Uuid>,
+  pub parent_project_id: Uuid,
 
   /// Whether the field is a deadline.
   pub is_deadline: Option<bool>
@@ -244,9 +227,7 @@ impl Field {
       maximum_value: row.get("maximum_value"),
       minimum_choice_count: row.get("minimum_choice_count"),
       maximum_choice_count: row.get("maximum_choice_count"),
-      parent_resource_type: row.get("parent_resource_type"),
       parent_project_id: row.get("parent_project_id"),
-      parent_workspace_id: row.get("parent_workspace_id"),
       is_deadline: row.get("is_deadline")
     };
 
@@ -276,9 +257,7 @@ impl Field {
       &initial_properties.maximum_value,
       &initial_properties.minimum_choice_count,
       &initial_properties.maximum_choice_count,
-      &initial_properties.parent_resource_type,
       &initial_properties.parent_project_id,
-      &initial_properties.parent_workspace_id,
       &initial_properties.is_deadline
     ];
     let database_client = database_pool.get().await?;
