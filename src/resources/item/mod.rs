@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests;
 
-use chrono::{DateTime, Utc};
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -11,17 +10,13 @@ pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
-  "name",
-  "display_name",
-  "key",
-  "description",
-  "start_date",
-  "end_date",
-  "workspace_id"
+  "summary",
+  "project_id",
+  "number"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "workspace_id"
+  "project_id"
 ];
 pub const RESOURCE_NAME: &str = "Item";
 pub const DATABASE_TABLE_NAME: &str = "items";
@@ -32,9 +27,6 @@ pub struct InitialItemProperties {
 
   /// The item's summary.
   pub summary: String,
-
-  /// The item's description, if applicable.
-  pub description: Option<String>,
 
   /// The item's project ID.
   pub project_id: Uuid
@@ -49,9 +41,6 @@ pub struct Item {
 
   /// The item's summary.
   pub summary: String,
-
-  /// The item's description, if applicable.
-  pub description: Option<String>,
 
   /// The item's project ID.
   pub project_id: Uuid,
@@ -119,7 +108,6 @@ impl Item {
     return Item {
       id: row.get("id"),
       summary: row.get("summary"),
-      description: row.get("description"),
       project_id: row.get("project_id"),
       number: row.get("number")
     };
@@ -143,7 +131,6 @@ impl Item {
     let query = include_str!("../../queries/items/insert_item_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.summary,
-      &initial_properties.description,
       &initial_properties.project_id,
       &initial_properties.project_id.to_string() // Number isn't included because it's auto-incremented by the database based on the project ID.
     ];
