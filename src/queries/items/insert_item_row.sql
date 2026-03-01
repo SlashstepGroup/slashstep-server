@@ -1,11 +1,9 @@
 insert into items (
   summary, 
-  description, 
   project_id, 
   number
 ) values (
   $1, 
   $2, 
-  $3, 
-  nextval('project_sequence_' || $4)
+  nextval('project_sequence_' || $3)
 ) returning *;

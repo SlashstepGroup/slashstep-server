@@ -12,7 +12,6 @@
 use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
-use chrono::DateTime;
 use ntest::timeout;
 use reqwest::StatusCode;
 use crate::{
@@ -63,7 +62,6 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let response_item: Item = response.json();
   assert_eq!(response_item.id, item.id);
   assert_eq!(response_item.summary, item.summary);
-  assert_eq!(response_item.description, item.description);
   assert_eq!(response_item.project_id, item.project_id);
   assert_eq!(response_item.number, item.number);
   

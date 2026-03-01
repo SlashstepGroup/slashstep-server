@@ -350,7 +350,6 @@ impl TestEnvironment {
 
     let item_properties = InitialItemProperties {
       summary: Uuid::now_v7().to_string(),
-      description: Some(Uuid::now_v7().to_string()),
       project_id: self.create_random_project().await?.id,
       ..Default::default()
     };
