@@ -1441,7 +1441,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 ELSIF selected_resource_parent_type = 'Group' THEN
 
                     SELECT
-                        group_id
+                        parent_group_id
                     INTO
                         selected_resource_parent_id
                     FROM
