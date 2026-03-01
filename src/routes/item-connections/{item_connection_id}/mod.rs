@@ -11,6 +11,7 @@
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State}};
+use reqwest::StatusCode;
 use crate::{
   AppState, 
   HTTPError, 
@@ -18,7 +19,7 @@ use crate::{
   resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection::ItemConnection, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_all_resource_hierarchies, get_authenticated_principal, get_item_connection_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
+  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_all_resource_hierarchies, get_authenticated_principal, get_item_connection_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
 };
 
 // #[path = "./access-policies/mod.rs"]
@@ -87,37 +88,37 @@ async fn handle_get_item_connection_request(
 
 }
 
-// /// DELETE /item-connections/{item_connection_id}
-// /// 
-// /// Deletes an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_delete_app_request(
-//   Path(item_connection_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-// ) -> Result<StatusCode, HTTPError> {
+/// DELETE /item-connections/{item_connection_id}
+/// 
+/// Deletes an item connection by its ID.
+#[axum::debug_handler]
+async fn handle_delete_item_connection_request(
+  Path(item_connection_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+) -> Result<StatusCode, HTTPError> {
 
-//   let item_connection_id = get_uuid_from_string(&item_connection_id, "app", &http_transaction, &state.database_pool).await?;
-//   let response = delete_resource(
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
-//     Extension(authenticated_app_authorization),
-//     Some(&AccessPolicyResourceType::App),
-//     &item_connection_id, 
-//     "apps.delete",
-//     "app",
-//     &ActionLogEntryTargetResourceType::App,
-//     |item_connection_id, database_pool| Box::new(App::get_by_id(item_connection_id, database_pool))
-//   ).await;
+  let item_connection_id = get_uuid_from_string(&item_connection_id, "item connection", &http_transaction, &state.database_pool).await?;
+  let response = delete_resource(
+    State(state), 
+    Extension(http_transaction), 
+    Extension(authenticated_user), 
+    Extension(authenticated_app), 
+    Extension(authenticated_app_authorization),
+    Some(&AccessPolicyResourceType::ItemConnection),
+    &item_connection_id, 
+    "itemConnections.delete",
+    "item connection",
+    &ActionLogEntryTargetResourceType::ItemConnection,
+    |item_connection_id, database_pool| Box::new(ItemConnection::get_by_id(item_connection_id, database_pool))
+  ).await;
 
-//   return response;
+  return response;
 
-// }
+}
 
 // /// PATCH /item-connections/{item_connection_id}
 // /// 
@@ -205,8 +206,8 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/item-connections/{item_connection_id}", axum::routing::get(handle_get_item_connection_request))
-    // .route("/item-connections/{item_connection_id}", axum::routing::delete(handle_delete_app_request))
-    // .route("/item-connections/{item_connection_id}", axum::routing::patch(handle_patch_app_request))
+    .route("/item-connections/{item_connection_id}", axum::routing::delete(handle_delete_item_connection_request))
+    // .route("/item-connections/{item_connection_id}", axum::routing::patch(handle_patch_item_connection_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));
