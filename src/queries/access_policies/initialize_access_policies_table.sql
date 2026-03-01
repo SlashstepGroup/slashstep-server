@@ -22,6 +22,7 @@ DO $$
         'ItemConnection',
         'ItemConnectionType',
         'Membership',
+        'MembershipInvitation',
         'Milestone',
         'Project',
         'Role',
@@ -53,6 +54,7 @@ DO $$
         'ItemConnection',
         'ItemConnectionType',
         'Membership',
+        'MembershipInvitation',
         'Milestone',
         'Project',
         'Role',
@@ -102,6 +104,7 @@ DO $$
       scoped_item_connection_id UUID REFERENCES item_connections(id) ON DELETE CASCADE,
       scoped_item_connection_type_id UUID REFERENCES item_connection_types(id) ON DELETE CASCADE,
       scoped_membership_id UUID REFERENCES memberships(id) ON DELETE CASCADE,
+      scoped_membership_invitation_id UUID REFERENCES membership_invitations(id) ON DELETE CASCADE,
       scoped_milestone_id UUID REFERENCES milestones(id) ON DELETE CASCADE,
       scoped_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
       scoped_role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
@@ -145,6 +148,7 @@ DO $$
           AND scoped_item_connection_id IS NULL
           AND scoped_item_connection_type_id IS NULL
           AND scoped_membership_id IS NULL
+          AND scoped_membership_invitation_id IS NULL
           AND scoped_milestone_id IS NULL
           AND scoped_project_id IS NULL
           AND scoped_role_id IS NULL
@@ -171,6 +175,7 @@ DO $$
           (scoped_item_connection_id IS NOT NULL)::INTEGER +
           (scoped_item_connection_type_id IS NOT NULL)::INTEGER +
           (scoped_membership_id IS NOT NULL)::INTEGER +
+          (scoped_membership_invitation_id IS NOT NULL)::INTEGER +
           (scoped_milestone_id IS NOT NULL)::INTEGER +
           (scoped_project_id IS NOT NULL)::INTEGER +
           (scoped_role_id IS NOT NULL)::INTEGER +
@@ -202,6 +207,7 @@ DO $$
         OR (scoped_resource_type = 'ItemConnection' AND scoped_item_connection_id IS NOT NULL)
         OR (scoped_resource_type = 'ItemConnectionType' AND scoped_item_connection_type_id IS NOT NULL)
         OR (scoped_resource_type = 'Membership' AND scoped_membership_id IS NOT NULL)
+        OR (scoped_resource_type = 'MembershipInvitation' AND scoped_membership_invitation_id IS NOT NULL)
         OR (scoped_resource_type = 'Milestone' AND scoped_milestone_id IS NOT NULL)
         OR (scoped_resource_type = 'Project' AND scoped_project_id IS NOT NULL)
         OR (scoped_resource_type = 'Role' AND scoped_role_id IS NOT NULL)

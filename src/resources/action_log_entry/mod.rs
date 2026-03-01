@@ -28,9 +28,10 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "target_field_choice_id",
   "target_field_value_id",
   "target_group_id",
-  "target_group_membership_id",
   "target_http_transaction_id",
   "target_item_id",
+  "target_membership_id",
+  "target_membership_invitation_id",
   "target_milestone_id",
   "target_project_id",
   "target_role_id",
@@ -61,9 +62,10 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "target_field_choice_id",
   "target_field_value_id",
   "target_group_id",
-  "target_group_membership_id",
   "target_http_transaction_id",
   "target_item_id",
+  "target_membership_id",
+  "target_membership_invitation_id",
   "target_milestone_id",
   "target_project_id",
   "target_role_id",
@@ -106,6 +108,7 @@ pub enum ActionLogEntryTargetResourceType {
   ItemConnection,
   ItemConnectionType,
   Membership,
+  MembershipInvitation,
   Milestone,
   OAuthAuthorization,
   Project,
@@ -197,6 +200,9 @@ pub struct ActionLogEntry {
 
   /// The target membership ID of the action, if applicable.
   pub target_membership_id: Option<Uuid>,
+
+  /// The target membership invitation ID of the action, if applicable.
+  pub target_membership_invitation_id: Option<Uuid>,
 
   /// The target milestone ID of the action, if applicable.
   pub target_milestone_id: Option<Uuid>,
@@ -308,6 +314,9 @@ pub struct InitialActionLogEntryProperties {
   /// The target membership ID of the action, if applicable.
   pub target_membership_id: Option<Uuid>,
 
+  /// The target membership invitation ID of the action, if applicable.
+  pub target_membership_invitation_id: Option<Uuid>,
+
   /// The target milestone ID of the action, if applicable.
   pub target_milestone_id: Option<Uuid>,
 
@@ -398,6 +407,7 @@ impl ActionLogEntry {
       target_item_connection_id: row.get("target_item_connection_id"),
       target_item_connection_type_id: row.get("target_item_connection_type_id"),
       target_membership_id: row.get("target_membership_id"),
+      target_membership_invitation_id: row.get("target_membership_invitation_id"),
       target_milestone_id: row.get("target_milestone_id"),
       target_oauth_authorization_id: row.get("target_oauth_authorization_id"),
       target_project_id: row.get("target_project_id"),
@@ -469,6 +479,7 @@ impl ActionLogEntry {
       &initial_properties.target_item_connection_id,
       &initial_properties.target_item_connection_type_id,
       &initial_properties.target_membership_id,
+      &initial_properties.target_membership_invitation_id,
       &initial_properties.target_milestone_id,
       &initial_properties.target_oauth_authorization_id,
       &initial_properties.target_project_id,

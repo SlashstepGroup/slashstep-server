@@ -1,7 +1,7 @@
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, item::Item, item_connection::ItemConnection, item_connection_type::{ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{Membership, MembershipParentResourceType}, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, session::Session};
+use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, item::Item, item_connection::ItemConnection, item_connection_type::{ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{Membership, MembershipParentResourceType}, membership_invitation::MembershipInvitation, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, session::Session};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
@@ -650,6 +650,63 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
         }
 
       }
+
+      // MembershipInvitation -> (Group | Role)
+      AccessPolicyResourceType::MembershipInvitation => {
+
+        let Some(membership_invitation_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::MembershipInvitation));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::MembershipInvitation, Some(membership_invitation_id)));
+
+        let membership_invitation = match MembershipInvitation::get_by_id(&membership_invitation_id, database_pool).await {
+
+          Ok(membership_invitation) => membership_invitation,
+
+          Err(error) => match error {
+
+            ResourceError::NotFoundError(_) => return Err(ResourceHierarchyError::OrphanedResourceError(AccessPolicyResourceType::MembershipInvitation, hierarchy)),
+
+            _ => return Err(ResourceHierarchyError::ResourceError(error))
+
+          }
+
+        };
+
+        match membership_invitation.parent_resource_type {
+
+          MembershipParentResourceType::Group => {
+
+            let Some(group_id) = membership_invitation.parent_group_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Group));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Group;
+            selected_resource_id = Some(group_id);
+
+          },
+
+          MembershipParentResourceType::Role => {
+
+            let Some(role_id) = membership_invitation.parent_role_id else {
+
+              return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::Role));
+
+            };
+
+            selected_resource_type = AccessPolicyResourceType::Role;
+            selected_resource_id = Some(role_id);
+
+          }
+
+        }
+
+      },
 
       // Milestone -> (Project | Workspace)
       AccessPolicyResourceType::Milestone => {

@@ -560,6 +560,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "membershipInvitations.get".to_string(),
+      display_name: "Get membership invitations".to_string(),
+      description: "Get a specific membership invitation on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "membershipInvitations.list".to_string(),
+      display_name: "List membership invitations".to_string(),
+      description: "List all membership invitations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "membershipInvitations.create".to_string(),
+      display_name: "Create membership invitations".to_string(),
+      description: "Create new membership invitations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "membershipInvitations.delete".to_string(),
+      display_name: "Delete membership invitations".to_string(),
+      description: "Delete membership invitations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "membershipInvitations.accept".to_string(),
+      display_name: "Accept membership invitations".to_string(),
+      description: "Accept membership invitations on a particular scope. This action allows principals to accept invitations to join groups or roles.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "milestones.get".to_string(),
       display_name: "Get milestones".to_string(),
       description: "Get a specific milestone on a particular scope.".to_string(),
