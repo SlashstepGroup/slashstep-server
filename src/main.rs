@@ -8,9 +8,10 @@ mod predefinitions;
 #[cfg(test)]
 mod tests;
 
-use std::{fmt};
-use axum::{body::Body, response::{IntoResponse, Response}};
+use std::{fmt, io::Write, net::SocketAddr};
+use axum::{ServiceExt, body::Body, response::{IntoResponse, Response}};
 use axum_extra::response::ErasedJson;
+use axum_server::tls_rustls::RustlsConfig;
 use deadpool_postgres::{Pool, tokio_postgres};
 use local_ip_address::local_ip;
 use postgres::NoTls;
@@ -24,7 +25,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::{Configuration, EditableConfigurationProperties}, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::{InitialUserProperties, User}, view::View, workspace::Workspace
   },
   utilities::resource_hierarchy::ResourceHierarchyError
 };
@@ -255,9 +256,13 @@ pub fn handle_pool_error(error: deadpool_postgres::PoolError) -> Response<Body> 
 
 fn get_environment_variable(variable_name: &str) -> Result<String, SlashstepServerError> {
 
+  println!("Getting environment variable {}...", variable_name);
   let variable_value = match std::env::var(variable_name) {
+
     Ok(variable_value) => variable_value,
+
     Err(_) => return Err(SlashstepServerError::EnvironmentVariableNotSet(variable_name.to_string()))
+
   };
 
   return Ok(variable_value);
@@ -269,8 +274,21 @@ async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServ
   let host = get_environment_variable("POSTGRESQL_HOST")?;
   let username = get_environment_variable("POSTGRESQL_USERNAME")?;
   let database_name = get_environment_variable("POSTGRESQL_DATABASE_NAME")?;
-  let password_path = get_environment_variable("POSTGRESQL_PASSWORD_PATH")?;
-  let password = std::fs::read_to_string(password_path)?;
+  let password_path = get_environment_variable("POSTGRESQL_PASSWORD_FILE_PATH")?;
+
+  println!("Attempting to read PostgreSQL password from file at {}...", &password_path);
+  let password = match std::fs::read_to_string(&password_path) {
+
+    Ok(password) => password,
+    Err(error) => match error.kind() {
+
+      std::io::ErrorKind::NotFound => panic!("The PostgreSQL password file was not found at {}. Please make sure it exists and is readable by the application.", &password_path),
+
+      _ => panic!("An error occurred while trying to read the PostgreSQL password file: {}", error)
+
+    }
+
+  };
 
   let mut postgres_config = tokio_postgres::Config::new();
   postgres_config.host(host);
@@ -295,6 +313,7 @@ async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServ
   };
   let maximum_postgres_connection_count = maximum_postgres_connection_count_string.parse::<usize>()?;
 
+  println!("Connecting to the PostgreSQL server...");
   let pool = Pool::builder(manager).max_size(maximum_postgres_connection_count).build()?;
   return Ok(pool);
 
@@ -310,30 +329,215 @@ pub fn import_env_file() {
 
 }
 
+pub async fn setup_admin_user_if_necessary(postgres_pool: &deadpool_postgres::Pool) -> Result<(), SlashstepServerError> {
+
+  let postgres_pool = postgres_pool.clone();
+  let should_setup_admin_user_configuration = Configuration::get_by_name("users.shouldSetupAdminUser", &postgres_pool).await?;
+  if !should_setup_admin_user_configuration.boolean_value.unwrap_or(true) {
+
+    return Ok(());
+
+  }
+
+  let mut slashstep_admin_username = get_environment_variable("SLASHSTEP_ADMIN_USERNAME").unwrap_or("".to_string());
+  let mut slashstep_admin_password = match get_environment_variable("SLASHSTEP_ADMIN_PASSWORD_FILE_PATH") {
+
+    Ok(slashstep_admin_password_file_path) => {
+
+      let slashstep_admin_password = std::fs::read_to_string(&slashstep_admin_password_file_path)?;
+      slashstep_admin_password
+
+    }
+
+    Err(error) => match error {
+
+      SlashstepServerError::EnvironmentVariableNotSet(_) => "".to_string(),
+
+      _ => return Err(error)
+
+    }
+
+  };
+
+  println!("\nIt looks like this is your first time running the Slashstep Server, so let's set up an admin user.");
+  println!("If you can't use the console, please set SLASHSTEP_ADMIN_USERNAME and SLASHSTEP_ADMIN_PASSWORD_FILE_PATH environment variables and restart the server. After creating the admin user, you can remove those environment variables if you want.");
+  println!("\nWhat username should the admin user have?");
+  loop {
+
+    if slashstep_admin_username.is_empty() {
+      
+      while slashstep_admin_username.is_empty() {
+
+        std::io::stdin().read_line(&mut slashstep_admin_username)?;
+
+        if slashstep_admin_username.trim().is_empty() {
+
+          println!("{}", "Username cannot be empty. Please enter a valid username.".red());
+          slashstep_admin_username = "".to_string();
+
+        }
+
+      }
+
+    } else {
+
+      println!("{}", "(pre-filled from SLASHSTEP_ADMIN_USERNAME environment variable)".dimmed());
+
+    }
+
+    slashstep_admin_username = slashstep_admin_username.trim().to_string();
+
+    println!("What password should the admin user have?");
+    if slashstep_admin_password.is_empty() {
+      
+      while slashstep_admin_password.is_empty() {
+
+        slashstep_admin_password = match rpassword::read_password() {
+
+          Ok(password) => {
+
+            if password.trim().is_empty() {
+
+              println!("{}", "Password cannot be empty. Please enter a valid password.".red());
+              continue;
+
+            } else {
+
+              password.trim().to_string()
+
+            }
+
+          },
+          Err(error) => panic!("An error occurred while trying to read the password: {}", error)
+
+        };
+
+        println!("Please re-enter the password to confirm.");
+        let confirmation_password = match rpassword::read_password() {
+
+          Ok(confirmation_password) => confirmation_password.trim().to_string(),
+          Err(error) => panic!("An error occurred while trying to read the password confirmation: {}", error)
+
+        };
+
+        if slashstep_admin_password != confirmation_password {
+
+          println!("{}", "The passwords do not match.".red());
+          println!("Let's try again. What password should the admin user have?");
+          slashstep_admin_password = "".to_string();
+
+        }
+
+      }
+
+    } else {
+
+      println!("{}", "(pre-filled from file set in the SLASHSTEP_ADMIN_PASSWORD_FILE_PATH environment variable)".dimmed());
+
+    }
+
+    println!("Setting up admin user...");
+    let admin_user = match User::create(&InitialUserProperties {
+      username: Some(slashstep_admin_username.clone()),
+      display_name: Some(slashstep_admin_username.clone()),
+      hashed_password: Some(User::hash_password(&slashstep_admin_password)?),
+      ..Default::default()
+    }, &postgres_pool).await {
+
+      Ok(admin_user) => admin_user,
+
+      Err(error) => match error {
+
+        ResourceError::ConflictError(_) => {
+
+          println!("{}", "A user with that username already exists. Please choose a different username.".red());
+          slashstep_admin_username = "".to_string();
+          slashstep_admin_password = "".to_string();
+          continue;
+
+        },
+
+        error => return Err(SlashstepServerError::ResourceError(error))
+
+      }
+
+    };
+
+    let server_admin_role = Role::get_by_name("server-admins", &postgres_pool).await?;
+
+    Membership::create(&InitialMembershipProperties {
+      parent_resource_type: MembershipParentResourceType::Role,
+      parent_role_id: Some(server_admin_role.id),
+      principal_type: MembershipPrincipalType::User,
+      principal_user_id: Some(admin_user.id),
+      ..Default::default()
+    }, &postgres_pool).await?;
+
+    println!("{}", "All done! The admin user has been set up, and you can use it to sign in using a Slashstep client.".blue());
+    println!("Thanks for using Slashstep Server. ✌️\n");
+
+    should_setup_admin_user_configuration.update(&EditableConfigurationProperties {
+      boolean_value: Some(false),
+      ..Default::default()
+    }, &postgres_pool).await?;
+
+    break;
+
+  }
+
+  return Ok(());
+
+}
+
 #[tokio::main]
 async fn main() -> Result<(), SlashstepServerError> {
 
   println!("Slashstep Server v{}", env!("CARGO_PKG_VERSION"));
 
   import_env_file();
-  let pool = create_database_pool().await?;
   let state = AppState {
-    database_pool: pool,
+    database_pool: create_database_pool().await?
   };
 
   initialize_required_tables(&state.database_pool).await?;
   initialize_predefined_actions(&state.database_pool).await?;
   initialize_predefined_roles(&state.database_pool).await?;
   initialize_predefined_configurations(&state.database_pool).await?;
+  setup_admin_user_if_necessary(&state.database_pool).await?;
 
   let app_port = get_app_port_string();
   let router = routes::get_router(state.clone()).with_state(state);
-  let listener = TcpListener::bind(format!("0.0.0.0:{}", app_port)).await?;
   let app_ip = local_ip()?;
-  println!("{}", format!("Slashstep Server is now listening on port {}. You can access it on your machine at http://localhost:{}, or your local network at http://{}:{}.", app_port, app_port, app_ip, app_port).green());
-  axum::serve(listener, router)
-    .with_graceful_shutdown(gracefully_shutdown())
-    .await?;
+
+  if get_environment_variable("SHOULD_USE_SELF_SIGNED_TLS_CERTIFICATE").unwrap_or("FALSE".to_string()) == "TRUE" {
+
+    let certificate_path = get_environment_variable("SELF_SIGNED_TLS_CERTIFICATE_PATH")?;
+    let private_key_path = get_environment_variable("SELF_SIGNED_TLS_PRIVATE_KEY_PATH")?;
+    let rustls_config = RustlsConfig::from_pem_file(certificate_path, private_key_path).await?;
+    let address = SocketAddr::from(([0, 0, 0, 0], app_port.parse::<u16>()?));
+    let handle = axum_server::Handle::new();
+    let tokio_handle = handle.clone();
+    tokio::spawn(
+      async move {
+        gracefully_shutdown().await;
+        tokio_handle.graceful_shutdown(None);
+      }
+    );
+    println!("{}", format!("Slashstep Server is now listening on port {}. You can access it on your machine at https://localhost:{}, or your local network at https://{}:{}.", app_port, app_port, app_ip, app_port).green());
+    axum_server::bind_rustls(address, rustls_config)
+      .handle(handle)
+      .serve(router.into_make_service_with_connect_info::<SocketAddr>())
+      .await?;
+
+  } else {
+
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", app_port)).await?;
+    println!("{}", format!("Slashstep Server is now listening on port {}. You can access it on your machine at http://localhost:{}, or your local network at http://{}:{}.", app_port, app_port, app_ip, app_port).green());
+    axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
+      .with_graceful_shutdown(gracefully_shutdown())
+      .await?;
+
+  }
 
   return Ok(());
 

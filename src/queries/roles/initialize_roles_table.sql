@@ -9,11 +9,12 @@ BEGIN
     );
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'protected_role_type') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'protected_role_type') THEN
     CREATE TYPE protected_role_type AS ENUM (
       'AnonymousUsers',
       'GroupAdmins',
-      'GroupMembers'
+      'GroupMembers',
+      'ServerAdmins'
     );
   END IF;
 
@@ -41,6 +42,7 @@ BEGIN
   CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_group ON roles (UPPER(name), parent_group_id, parent_resource_type);
   CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_workspace ON roles (UPPER(name), parent_workspace_id, parent_resource_type);
   CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_project ON roles (UPPER(name), parent_project_id, parent_resource_type);
+  CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_server ON roles (UPPER(name), parent_resource_type) WHERE parent_resource_type = 'Server';
 
 END
 $$ LANGUAGE plpgsql;

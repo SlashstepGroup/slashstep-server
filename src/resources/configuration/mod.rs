@@ -3,6 +3,7 @@ mod tests;
 
 use std::str::FromStr;
 
+use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -270,9 +271,21 @@ impl Configuration {
       &initial_properties.default_boolean_value
     ];
     let database_client = database_pool.get().await?;
-    let row = database_client.query_one(query, parameters).await.map_err(|error| {
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
-      return ResourceError::PostgresError(error)
+      Some(db_error) => {
+
+        match db_error.code() {
+
+          &SqlState::UNIQUE_VIOLATION => ResourceError::ConflictError("A configuration with the same name already exists.".to_string()),
+          
+          _ => ResourceError::PostgresError(error)
+
+        }
+
+      },
+
+      None => ResourceError::PostgresError(error)
     
     })?;
 

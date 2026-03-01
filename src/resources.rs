@@ -77,7 +77,11 @@ pub enum ResourceError {
   IOError(#[from] std::io::Error),
 
   #[error(transparent)]
-  JSONWebTokenError(#[from] jsonwebtoken::errors::Error)
+  JSONWebTokenError(#[from] jsonwebtoken::errors::Error),
+
+  // Can't use the #[from] attribute for this error for some reason.
+  #[error("An error occurred while hashing the password using Argon2.")]
+  Argon2PasswordHashError(argon2::password_hash::Error)
 }
 
 pub trait SearchableResource<ResourceStruct> {

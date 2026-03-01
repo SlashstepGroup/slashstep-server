@@ -2,7 +2,7 @@ use crate::resources::{ResourceError, action::{Action, InitialActionProperties},
 use colored::Colorize;
 use rust_decimal::Decimal;
 
-pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Pool) -> Result<Vec<Action>, ResourceError> {
+pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
   println!("{}", "Initializing predefined actions...".dimmed());
 
@@ -784,6 +784,7 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
   ];
 
   let mut actions: Vec<Action> = Vec::new();
+  let mut skipped_action_count = 0;
 
   for predefined_action in predefined_actions {
 
@@ -817,9 +818,8 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
 
           ResourceError::ConflictError(_) => {
 
-            let action = Action::get_by_name(&predefined_action.name, database_pool).await?;
-
-            action
+            skipped_action_count += 1;
+            continue;
 
           },
 
@@ -834,28 +834,37 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
 
   }
 
-  println!("{}", format!("Successfully initialized {} predefined actions.", actions.len()).blue());
+  println!("{}", format!("Successfully initialized {} predefined actions. {} actions were skipped because they already existed.", actions.len(), skipped_action_count).blue());
 
-  return Ok(actions);
+  return Ok(());
 
 }
 
-pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool) -> Result<Vec<Role>, ResourceError> {
+pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
   println!("{}", "Initializing predefined roles...".dimmed());
 
   let predefined_roles: Vec<InitialRoleProperties> = vec![
     InitialRoleProperties {
       name: "anonymous-users".to_string(),
-      display_name: "Anonymous Users".to_string(),
+      display_name: "Anonymous users".to_string(),
       description: Some("Users who have not logged in. Registered users should not be assigned this role.".to_string()),
       parent_resource_type: crate::resources::role::RoleParentResourceType::Server,
       protected_role_type: Some(ProtectedRoleType::AnonymousUsers),
+      ..Default::default()
+    },
+    InitialRoleProperties {
+      name: "server-admins".to_string(),
+      display_name: "Server admins".to_string(),
+      description: Some("Users who have full access to all resources on the server. This role should be assigned to trusted users only.".to_string()),
+      parent_resource_type: crate::resources::role::RoleParentResourceType::Server,
+      protected_role_type: Some(ProtectedRoleType::ServerAdmins),
       ..Default::default()
     }
   ];
 
   let mut roles: Vec<Role> = Vec::new();
+  let mut skipped_role_count = 0;
 
   for predefined_role in predefined_roles {
 
@@ -865,7 +874,7 @@ pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool
 
       if role.name == predefined_role.name {
 
-        println!("{}", format!("Skipping predefined role \"{}\" because it already exists.", predefined_role.name).yellow());
+        println!("{}", format!("Skipping predefined role \"{}\" because that was already checked.", predefined_role.name).yellow());
         should_continue = true;
 
       }
@@ -879,18 +888,35 @@ pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool
     }
 
     // Create the role, but if it already exists, add it to the list of roles.
-    let role = Role::create(&predefined_role, database_pool).await?;
+    let role = match Role::create(&predefined_role, database_pool).await {
+
+      Ok(role) => role,
+
+      Err(error) => match error {
+
+        ResourceError::ConflictError(_) => {
+          
+          skipped_role_count += 1;
+          continue;
+
+        },
+
+        _ => return Err(error)
+
+      }
+
+    };
     roles.push(role);
 
   }
 
-  println!("{}", format!("Successfully initialized {} predefined roles.", roles.len()).blue());
+  println!("{}", format!("Successfully initialized {} predefined roles. {} roles were skipped because they already existed.", roles.len(), skipped_role_count).blue());
 
-  return Ok(roles);
+  return Ok(());
 
 }
 
-pub async fn initialize_predefined_configurations(database_pool: &deadpool_postgres::Pool) -> Result<Vec<Configuration>, ResourceError> {
+pub async fn initialize_predefined_configurations(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
   println!("{}", "Initializing predefined configurations...".dimmed());
 
@@ -1049,9 +1075,17 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       default_number_value: Some(Decimal::from(31536000000_i64)), // 365 days in milliseconds
       ..Default::default()
     },
+    InitialConfigurationProperties {
+      name: "users.shouldSetupAdminUser".to_string(),
+      description: Some("Whether the first admin user should be set up automatically. If true, the console will prompt the user to set up an admin user prior to starting the server.".to_string()),
+      value_type: ConfigurationValueType::Boolean,
+      default_boolean_value: Some(true),
+      ..Default::default()
+    },
   ];
 
   let mut configurations: Vec<Configuration> = Vec::new();
+  let mut skipped_configuration_count = 0;
 
   for predefined_configuration in predefined_configurations {
 
@@ -1081,7 +1115,12 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
 
       Err(error) => match error {
 
-        ResourceError::ConflictError(_) => Configuration::get_by_name(&predefined_configuration.name, database_pool).await?,
+        ResourceError::ConflictError(_) => {
+
+          skipped_configuration_count += 1;
+          continue;
+
+        },
 
         _ => return Err(error)
 
@@ -1092,8 +1131,8 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
 
   }
 
-  println!("{}", format!("Successfully initialized {} predefined configurations.", configurations.len()).blue());
+  println!("{}", format!("Successfully initialized {} predefined configurations. {} configurations were skipped because they already existed.", configurations.len(), skipped_configuration_count).blue());
 
-  return Ok(configurations);
+  return Ok(());
 
 }

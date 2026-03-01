@@ -27,6 +27,21 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install mkcert
+        run: |
+          MKCERT_VERSION="v1.4.4"
+          wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64
+          chmod +x mkcert
+          sudo mv mkcert /usr/local/bin/mkcert
+      - name: Install mkcert CA
+        run: |
+          mkcert -install
+      - name: Generate SSL certificates
+        run: |
+          mkdir tls
+          cd tls
+          mkcert localhost 127.0.0.1 ::1
+          cd ..
       - run: mkdir secrets
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem

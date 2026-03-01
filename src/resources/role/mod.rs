@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -54,7 +55,7 @@ pub enum ProtectedRoleType {
   /// 
   /// This role is automatically created when a group is created.
   /// 
-  /// This role should be protected from deletion in case there is an update to
+  /// This role should be protected from deletion to ease the transition in case there is an update to
   /// the default permissions.
   GroupAdmins,
 
@@ -62,9 +63,17 @@ pub enum ProtectedRoleType {
   /// 
   /// This role is automatically created when a group is created.
   /// 
-  /// This role should be protected from deletion in case there is an update to
+  /// This role should be protected from deletion to ease the transition in case there is an update to
   /// the default permissions.
-  GroupMembers
+  GroupMembers,
+
+
+  /// A role intended for server admins.
+  /// 
+  /// This role is automatically created when Slashstep Server is initialized.
+  /// 
+  /// This role should be protected from deletion to ease the transition in case there is an update to the default permissions.
+  ServerAdmins
 
 }
 
@@ -265,9 +274,21 @@ impl Role {
       &initial_properties.protected_role_type
     ];
     let database_client = database_pool.get().await?;
-    let row = database_client.query_one(query, parameters).await.map_err(|error| {
+    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
 
-      return ResourceError::PostgresError(error)
+      Some(db_error) => {
+
+        match db_error.code() {
+
+          &SqlState::UNIQUE_VIOLATION => ResourceError::ConflictError("A role with the same name and parent resource type already exists.".to_string()),
+          
+          _ => ResourceError::PostgresError(error)
+
+        }
+
+      },
+
+      None => ResourceError::PostgresError(error)
     
     })?;
 
