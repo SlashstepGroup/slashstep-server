@@ -14,13 +14,14 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
+use uuid::Uuid;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
     ResourceError, access_policy::
-      ActionPermissionLevel, item::Item
+      ActionPermissionLevel, item::{EditableItemProperties, Item}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -369,278 +370,266 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 
 }
 
-// /// Verifies that the router can return a 200 status code if the resource is successfully patched.
-// #[tokio::test]
-// async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 200 status code if the resource is successfully patched.
+#[tokio::test]
+async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_random_session(Some(&user.id)).await?;
-//   let json_web_token_private_key = get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let update_fields_action = Action::get_by_name("items.update", &test_environment.database_pool).await?;
-//   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: update_fields_action.id,
-//     permission_level: ActionPermissionLevel::Editor,
-//     is_inheritance_enabled: true,
-//     principal_type: AccessPolicyPrincipalType::User,
-//     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
-//     ..Default::default()
-//   }, &test_environment.database_pool).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let update_items_action = Action::get_by_name("items.update", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &update_items_action.id, &ActionPermissionLevel::User).await?;
 
-//   // Set up the server and send the request.
-//   let original_app = test_environment.create_random_app().await?;
-//   let new_name = Uuid::now_v7().to_string();
-//   let new_display_name = Uuid::now_v7().to_string();
-//   let new_description = Some(Uuid::now_v7().to_string());
-//   let new_client_type = AppClientType::Confidential;
+  // Set up the server and send the request.
+  let original_item = test_environment.create_random_item().await?;
+  let updated_item_properties = EditableItemProperties {
+    summary: Some(Uuid::now_v7().to_string())
+  };
 
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/items/{}", original_field.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .json(&serde_json::json!({
-//       "name": new_name.clone(),
-//       "display_name": new_display_name.clone(),
-//       "description": new_description.clone(),
-//       "client_type": new_client_type.clone()
-//     }))
-//     .await;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/items/{}", original_item.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_item_properties))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::OK);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::OK);
 
-//   let updated_app: Field = response.json();
-//   assert_eq!(original_field.id, updated_field.id);
-//   assert_eq!(updated_app.name, new_name);
-//   assert_eq!(updated_app.display_name, new_display_name);
-//   assert_eq!(updated_app.description, new_description);
-//   assert_eq!(updated_app.client_type, new_client_type);
-//   assert_eq!(original_app.parent_resource_type, updated_app.parent_resource_type);
-//   assert_eq!(original_app.parent_workspace_id, updated_app.parent_workspace_id);
-//   assert_eq!(original_app.parent_user_id, updated_app.parent_user_id);
+  let updated_item: Item = response.json();
+  assert_eq!(updated_item.id, original_item.id);
+  assert_eq!(updated_item.summary, updated_item_properties.summary.expect("Expected an updated summary."));
+  assert_eq!(updated_item.project_id, original_item.project_id);
+  assert_eq!(updated_item.number, original_item.number);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 400 status code if the request doesn't have a valid content type.
-// #[tokio::test]
-// async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the request doesn't have a valid content type.
+#[tokio::test]
+async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/items/not-a-uuid")
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch("/items/not-a-uuid")
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 400 status code if the request body is not valid JSON.
-// #[tokio::test]
-// async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the request body is not valid JSON.
+#[tokio::test]
+async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/items/not-a-uuid")
-//     .add_header("Content-Type", "application/json")
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch("/items/not-a-uuid")
+    .add_header("Content-Type", "application/json")
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 400 status code if the request body includes unwanted data.
-// #[tokio::test]
-// async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the request body includes unwanted data.
+#[tokio::test]
+async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/items/{}", uuid::Uuid::now_v7()))
-//     .add_header("Content-Type", "application/json")
-//     .json(&serde_json::json!({
-//       "name": "Super Duper Admin",
-//       "display_name": "true",
-//       "description": true,
-//     }))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/items/{}", uuid::Uuid::now_v7()))
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!({
+      "summary": true
+    }))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
-// #[tokio::test]
-// async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch("/items/not-a-uuid")
-//     .add_header("Content-Type", "application/json")
-//     .json(&serde_json::json!({
-//       "display_name": Uuid::now_v7().to_string()
-//     }))
-//     .await;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch("/items/not-a-uuid")
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!({
+      "summary": Some(Uuid::now_v7().to_string())
+    }))
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 401 status code if the user needs authentication.
-// #[tokio::test]
-// async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   // Set up the server and send the request.
-//   let item = test_environment.create_random_item().await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/items/{}", item.id))
-//     .json(&serde_json::json!({
-//       "display_name": Uuid::now_v7().to_string()
-//     }))
-//     .await;
+  // Set up the server and send the request.
+  let item = test_environment.create_random_item().await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/items/{}", item.id))
+    .json(&serde_json::json!({
+      "summary": Some(Uuid::now_v7().to_string())
+    }))
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 403 status code if the user does not have permission to patch the resource.
-// #[tokio::test]
-// async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 403 status code if the user does not have permission to patch the resource.
+#[tokio::test]
+async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_random_session(Some(&user.id)).await?;
-//   let json_web_token_private_key = get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Set up the server and send the request.
-//   let item = test_environment.create_random_item().await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/items/{}", item.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .json(&serde_json::json!({
-//       "display_name": Uuid::now_v7().to_string()
-//     }))
-//     .await;
+  // Set up the server and send the request.
+  let item = test_environment.create_random_item().await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/items/{}", item.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!({
+      "summary": Some(Uuid::now_v7().to_string())
+    }))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 404 status code if the resource does not exist.
-// #[tokio::test]
-// async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 404 status code if the resource does not exist.
+#[tokio::test]
+async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
-//   let response = test_server.patch(&format!("/items/{}", Uuid::now_v7()))
-//     .json(&serde_json::json!({
-//       "display_name": Uuid::now_v7().to_string()
-//     }))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router)?;
+  let response = test_server.patch(&format!("/items/{}", Uuid::now_v7()))
+    .json(&serde_json::json!({
+      "summary": Some(Uuid::now_v7().to_string())
+    }))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
