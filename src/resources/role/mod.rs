@@ -40,7 +40,7 @@ pub enum RoleParentResourceType {
   Group
 }
 
-#[derive(Debug, Clone, Serialize, ToSql, FromSql, Deserialize)]
+#[derive(Debug, Clone, Serialize, ToSql, FromSql, Deserialize, PartialEq, Eq)]
 #[postgres(name = "protected_role_type")]
 pub enum ProtectedRoleType {
   
@@ -113,6 +113,20 @@ pub struct InitialRoleProperties {
   /// or even break the server.
   pub protected_role_type: Option<ProtectedRoleType>
   
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct InitialRolePropertiesWithPredefinedParent {
+
+  /// The role's name.
+  pub name: String,
+
+  /// The role's display name.
+  pub display_name: String,
+
+  /// The role's description.
+  pub description: Option<String>
+
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
