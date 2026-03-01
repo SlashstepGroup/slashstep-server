@@ -1,6 +1,0 @@
-services:
-  slashstepserver:
-    image: slashstepserver
-    build:
-      context: .
-      dockerfile: ./Containerfile

@@ -39,6 +39,8 @@ argon2 = "0.5.3"
 sha2 = "0.10.9"
 base64 = "0.22.1"
 rust_decimal = { version = "1.40.0", features = ["rand", "db-postgres", "db-tokio-postgres"] }
+axum-server = { version = "0.8.0", features = ["tls-rustls"] }
+rpassword = "7.4.0"
 
 [dev-dependencies]
 testcontainers = { version = "0.26.3", features = ["blocking"] }

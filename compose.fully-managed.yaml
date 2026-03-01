@@ -1,0 +1,65 @@
+# This is a Compose file to deploy Slashstep Server and PostgreSQL in a pod.
+name: slashstep-server
+
+# Adjust these values as needed for your environment.
+#
+# You or your secret manager needs to create these secrets in the appropriate
+# directory before deploying this pod.
+secrets:
+  postgresql-password:
+    file: ./secrets/postgresql-password.txt
+  jwt-public-key:
+    file: ./secrets/jwt-public-key.pem
+  jwt-private-key:
+    file: ./secrets/jwt-private-key.pem
+  slashstep-admin-password:
+    file: ./secrets/slashstep-admin-password.txt
+
+services:
+
+  slashstep-server:
+    image: slashstep-server
+    build:
+      context: .
+      dockerfile: ./Containerfile
+    ports:
+      - "3001:3001"
+    expose:
+      - "3001"
+    environment:
+      APP_PORT: "3001"
+      POSTGRESQL_HOST: postgresql-server
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_DATABASE_NAME: slashstep
+      POSTGRESQL_USERNAME: slashstep
+      POSTGRESQL_PASSWORD_FILE_PATH: /run/secrets/postgresql-password
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt-public-key
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private-key
+      MAXIMUM_POSTGRESQL_CONNECTION_COUNT: 20
+      SLASHSTEP_ADMIN_USERNAME: Admin
+      SLASHSTEP_ADMIN_PASSWORD_FILE_PATH: /run/secrets/slashstep-admin-password
+    secrets:
+      - postgresql-password
+      - jwt-public-key
+      - jwt-private-key
+      - slashstep-admin-password
+    depends_on:
+      - postgresql-server
+
+  postgresql-server:
+    image: postgres:18.3
+    ports:
+      - "5432:5432"
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_USER: slashstep
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgresql-password
+      POSTGRES_DB: slashstep
+    volumes:
+      - postgresql-data:/var/lib/postgresql
+    secrets:
+      - postgresql-password
+
+volumes:
+  postgresql-data:

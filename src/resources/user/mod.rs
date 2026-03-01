@@ -11,8 +11,10 @@
 mod tests;
 
 use std::net::IpAddr;
+use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, rand_core::OsRng}};
 use postgres::error::SqlState;
 use postgres_types::ToSql;
+use rand::{RngExt, distr::Alphanumeric};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
@@ -56,6 +58,7 @@ pub struct User {
 
 }
 
+#[derive(Debug, Clone, Default)]
 pub struct InitialUserProperties {
 
   /// The user's username, if applicable. Only non-anonymous users have a username.
@@ -245,6 +248,21 @@ impl User {
 
     let hashed_password = self.hashed_password.as_ref().expect("User does not have a hashed password.");
     return &hashed_password;
+
+  }
+
+  pub fn hash_password(plain_text_password: &str) -> Result<String, ResourceError> {
+
+    let argon2 = Argon2::default();
+    let salt = SaltString::generate(&mut OsRng);
+    let hashed_password = match argon2.hash_password(plain_text_password.as_bytes(), &salt) {
+
+      Ok(hashed_password) => hashed_password.to_string(),
+      Err(error) => return Err(ResourceError::Argon2PasswordHashError(error))
+
+    };
+
+    return Ok(hashed_password);
 
   }
 
