@@ -4,7 +4,7 @@ use axum_extra::response::ErasedJson;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_resource_by_id, get_resource_hierarchy, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_all_resource_hierarchies, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_resource_by_id, get_resource_hierarchy, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListResourcesResponseBody<ResourceStruct> {
@@ -149,18 +149,47 @@ pub async fn delete_resource<ResourceStruct, GetResourceByIDFunction>(
 {
 
   let target_resource = get_resource_by_id::<ResourceStruct, GetResourceByIDFunction>(&resource_type_name_singular, &resource_id, &http_transaction, &state.database_pool, get_resource_by_id_function).await?;
-  let resource_hierarchy = match resource_type {
+  let resource_hierarchies = match resource_type {
     
-    Some(resource_type) => get_resource_hierarchy(&target_resource, &resource_type, &resource_id, &http_transaction, &state.database_pool).await?,
+    Some(AccessPolicyResourceType::ItemConnection) => get_all_resource_hierarchies(&target_resource, &AccessPolicyResourceType::ItemConnection, &resource_id, &http_transaction, &state.database_pool).await?,
+
+    Some(resource_type) => match get_resource_hierarchy(&target_resource, &resource_type, &resource_id, &http_transaction, &state.database_pool).await {
+
+      Ok(resource_hierarchy) => vec![resource_hierarchy],
+
+      Err(error) => return Err(error)
+
+    } 
 
     // Access policies currently lack a resource hierarchy, so we'll just return the server.
-    None => vec![(AccessPolicyResourceType::Server, None)]
+    None => vec![vec![(AccessPolicyResourceType::Server, None)]],
 
   };
   let delete_resources_action = get_action_by_name(&delete_resources_action_name, &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&authenticated_principal, &delete_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  for index in 0..resource_hierarchies.len() {
+
+    let resource_hierarchy = &resource_hierarchies[index];
+    match verify_principal_permissions(&authenticated_principal, &delete_resources_action, resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await {
+
+      Ok(_) => break,
+
+      Err(error) => {
+
+        if index < resource_hierarchies.len() - 1 {
+
+          continue;
+
+        }
+
+        return Err(error);
+
+      }
+
+    }
+
+  }
 
   match target_resource.delete(&state.database_pool).await {
 
