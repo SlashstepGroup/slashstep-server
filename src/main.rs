@@ -436,7 +436,7 @@ pub async fn setup_admin_user_if_necessary(postgres_pool: &deadpool_postgres::Po
 
     }
 
-    println!("Setting up admin user...", &slashstep_admin_username);
+    println!("Setting up admin user...");
     let admin_user = match User::create(&InitialUserProperties {
       username: Some(slashstep_admin_username.clone()),
       display_name: Some(slashstep_admin_username.clone()),
