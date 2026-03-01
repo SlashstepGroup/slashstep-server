@@ -10,15 +10,17 @@ pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
-  "item_connection_type_id",
-  "inward_item_id",
-  "outward_item_id"
+  "display_name",
+  "inward_description",
+  "outward_description",
+  "parent_resource_type",
+  "parent_project_id",
+  "parent_workspace_id"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "item_connection_type_id",
-  "inward_item_id",
-  "outward_item_id"
+  "parent_project_id",
+  "parent_workspace_id"
 ];
 pub const RESOURCE_NAME: &str = "ItemConnectionType";
 pub const DATABASE_TABLE_NAME: &str = "item_connection_types";
