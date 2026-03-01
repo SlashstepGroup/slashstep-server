@@ -1,6 +1,6 @@
 insert into items (
   summary, 
-  project_id, 
+  parent_project_id, 
   number
 ) values (
   $1, 

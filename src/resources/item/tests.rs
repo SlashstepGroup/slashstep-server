@@ -13,7 +13,7 @@ fn assert_fields_are_equal(item_1: &Item, item_2: &Item) {
 
   assert_eq!(item_1.id, item_2.id);
   assert_eq!(item_1.summary, item_2.summary);
-  assert_eq!(item_1.project_id, item_2.project_id);
+  assert_eq!(item_1.parent_project_id, item_2.parent_project_id);
   assert_eq!(item_1.number, item_2.number);
 
 }
@@ -21,7 +21,7 @@ fn assert_fields_are_equal(item_1: &Item, item_2: &Item) {
 fn assert_field_is_equal_to_initial_properties(item: &Item, initial_properties: &InitialItemProperties) {
 
   assert_eq!(item.summary, initial_properties.summary);
-  assert_eq!(item.project_id, initial_properties.project_id);
+  assert_eq!(item.parent_project_id, initial_properties.parent_project_id);
 
 }
 
@@ -57,7 +57,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let project = test_environment.create_random_project().await?;
   let field_properties = InitialItemProperties {
     summary: Uuid::now_v7().to_string(),
-    project_id: project.id,
+    parent_project_id: project.id,
     ..Default::default()
   };
   let item = Item::create(&field_properties, &test_environment.database_pool).await?;

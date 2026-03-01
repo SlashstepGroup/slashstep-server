@@ -263,15 +263,14 @@ impl TestEnvironment {
 
   pub async fn create_random_field(&self) -> Result<Field, TestSlashstepServerError> {
 
-    let parent_workspace = self.create_random_workspace().await?;
+    let parent_project = self.create_random_project().await?;
     let field_properties = InitialFieldProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
       description: Uuid::now_v7().to_string(),
       is_required: true,
       field_value_type: FieldValueType::Text,
-      parent_resource_type: FieldParentResourceType::Workspace,
-      parent_workspace_id: Some(parent_workspace.id),
+      parent_project_id: parent_project.id,
       ..Default::default()
     };
 
@@ -350,7 +349,7 @@ impl TestEnvironment {
 
     let item_properties = InitialItemProperties {
       summary: Uuid::now_v7().to_string(),
-      project_id: self.create_random_project().await?.id,
+      parent_project_id: self.create_random_project().await?.id,
       ..Default::default()
     };
 

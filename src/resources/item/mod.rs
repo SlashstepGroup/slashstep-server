@@ -11,12 +11,12 @@ pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "summary",
-  "project_id",
+  "parent_project_id",
   "number"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "project_id"
+  "parent_project_id"
 ];
 pub const RESOURCE_NAME: &str = "Item";
 pub const DATABASE_TABLE_NAME: &str = "items";
@@ -29,7 +29,7 @@ pub struct InitialItemProperties {
   pub summary: String,
 
   /// The item's project ID.
-  pub project_id: Uuid
+  pub parent_project_id: Uuid
 
 }
 
@@ -51,7 +51,7 @@ pub struct Item {
   pub summary: String,
 
   /// The item's project ID.
-  pub project_id: Uuid,
+  pub parent_project_id: Uuid,
 
   /// The item's number.
   pub number: i64
@@ -116,7 +116,7 @@ impl Item {
     return Item {
       id: row.get("id"),
       summary: row.get("summary"),
-      project_id: row.get("project_id"),
+      parent_project_id: row.get("parent_project_id"),
       number: row.get("number")
     };
 
@@ -139,8 +139,8 @@ impl Item {
     let query = include_str!("../../queries/items/insert_item_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.summary,
-      &initial_properties.project_id,
-      &initial_properties.project_id.to_string() // Number isn't included because it's auto-incremented by the database based on the project ID.
+      &initial_properties.parent_project_id,
+      &initial_properties.parent_project_id.to_string() // Number isn't included because it's auto-incremented by the database based on the project ID.
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {

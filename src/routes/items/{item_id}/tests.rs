@@ -62,7 +62,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let response_item: Item = response.json();
   assert_eq!(response_item.id, item.id);
   assert_eq!(response_item.summary, item.summary);
-  assert_eq!(response_item.project_id, item.project_id);
+  assert_eq!(response_item.parent_project_id, item.parent_project_id);
   assert_eq!(response_item.number, item.number);
   
 
@@ -412,7 +412,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let updated_item: Item = response.json();
   assert_eq!(updated_item.id, original_item.id);
   assert_eq!(updated_item.summary, updated_item_properties.summary.expect("Expected an updated summary."));
-  assert_eq!(updated_item.project_id, original_item.project_id);
+  assert_eq!(updated_item.parent_project_id, original_item.parent_project_id);
   assert_eq!(updated_item.number, original_item.number);
 
   return Ok(());

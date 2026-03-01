@@ -1,10 +1,10 @@
 use uuid::Uuid;
 
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, initialize_predefined_configurations, resources::{
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
     DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
-    }, field::{DEFAULT_RESOURCE_LIST_LIMIT, Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}
+    }, field::{DEFAULT_RESOURCE_LIST_LIMIT, Field, FieldValueType, InitialFieldProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -20,9 +20,7 @@ fn assert_fields_are_equal(field_1: &Field, field_2: &Field) {
   assert_eq!(field_1.maximum_value, field_2.maximum_value);
   assert_eq!(field_1.minimum_choice_count, field_2.minimum_choice_count);
   assert_eq!(field_1.maximum_choice_count, field_2.maximum_choice_count);
-  assert_eq!(field_1.parent_resource_type, field_2.parent_resource_type);
   assert_eq!(field_1.parent_project_id, field_2.parent_project_id);
-  assert_eq!(field_1.parent_workspace_id, field_2.parent_workspace_id);
 
 }
 
@@ -37,9 +35,7 @@ fn assert_field_is_equal_to_initial_properties(field: &Field, initial_properties
   assert_eq!(field.maximum_value, initial_properties.maximum_value);
   assert_eq!(field.minimum_choice_count, initial_properties.minimum_choice_count);
   assert_eq!(field.maximum_choice_count, initial_properties.maximum_choice_count);
-  assert_eq!(field.parent_resource_type, initial_properties.parent_resource_type);
   assert_eq!(field.parent_project_id, initial_properties.parent_project_id);
-  assert_eq!(field.parent_workspace_id, initial_properties.parent_workspace_id);
 
 }
 
@@ -72,15 +68,14 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
 
   // Create the access policy.
-  let workspace = test_environment.create_random_workspace().await?;
+  let project = test_environment.create_random_project().await?;
   let field_properties = InitialFieldProperties {
     name: Uuid::now_v7().to_string(),
     display_name: Uuid::now_v7().to_string(),
     description: Uuid::now_v7().to_string(),
     is_required: true,
     field_value_type: FieldValueType::Text,
-    parent_resource_type: FieldParentResourceType::Workspace,
-    parent_workspace_id: Some(workspace.id),
+    parent_project_id: project.id,
     ..Default::default()
   };
   let field = Field::create(&field_properties, &test_environment.database_pool).await?;

@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests;
 
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -47,6 +49,24 @@ pub enum FieldValueParentResourceType {
   Item
 }
 
+impl FromStr for FieldValueParentResourceType {
+
+  type Err = ResourceError;
+
+  fn from_str(string: &str) -> Result<Self, Self::Err> {
+
+    match string {
+
+      "Field" => Ok(Self::Field),
+      "Item" => Ok(Self::Item),
+      _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
+
+    }
+
+  }
+
+}
+
 #[derive(Debug, Clone, ToSql, FromSql, Default)]
 pub struct InitialFieldValueProperties {
 
@@ -61,6 +81,41 @@ pub struct InitialFieldValueProperties {
 
   /// The field choice's parent item ID, if applicable.
   pub parent_item_id: Option<Uuid>,
+
+  /// The field choice's type.
+  pub value_type: FieldValueType,
+
+  /// The field choice's text value, if applicable.
+  pub text_value: Option<String>,
+
+  /// The field choice's number value, if applicable.
+  pub number_value: Option<Decimal>,
+
+  /// The field choice's boolean value, if applicable.
+  pub boolean_value: Option<bool>,
+
+  /// The field choice's date time value, if applicable.
+  pub timestamp_value: Option<DateTime<Utc>>,
+
+  /// The field choice's stakeholder type, if applicable.
+  pub stakeholder_type: Option<StakeholderType>,
+
+  /// The field choice's stakeholder user ID, if applicable.
+  pub stakeholder_user_id: Option<Uuid>,
+
+  /// The field choice's stakeholder group ID, if applicable.
+  pub stakeholder_group_id: Option<Uuid>,
+
+  /// The field choice's stakeholder app ID, if applicable.
+  pub stakeholder_app_id: Option<Uuid>
+
+}
+
+#[derive(Debug, Clone, ToSql, FromSql, Default, Serialize, Deserialize)]
+pub struct InitialFieldValuePropertiesWithPredefinedParent {
+
+  /// The field choice's field ID.
+  pub field_id: Uuid,
 
   /// The field choice's type.
   pub value_type: FieldValueType,
@@ -295,6 +350,20 @@ impl FieldValue {
       };
 
       return Ok(Box::new(uuid));
+
+    }
+
+    match key {
+
+      "parent_resource_type" => match FieldValueParentResourceType::from_str(value) {
+
+        Ok(parent_resource_type) => return Ok(Box::new(parent_resource_type)),
+
+        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse FieldValueParentResourceType from \"{}\" for key \"{}\".", value, key)))
+
+      }
+
+      _ => {}
 
     }
 

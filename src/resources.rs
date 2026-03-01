@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::SlashstepQLError};
 
-#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default, Copy)]
 #[postgres(name = "stakeholder_type")]
 pub enum StakeholderType {
   #[default]
