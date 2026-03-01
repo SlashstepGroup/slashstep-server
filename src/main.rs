@@ -381,7 +381,7 @@ pub async fn setup_admin_user_if_necessary(postgres_pool: &deadpool_postgres::Po
 
     } else {
 
-      println!("{} {}", slashstep_admin_username, "(pre-filled from SLASHSTEP_ADMIN_USERNAME environment variable)".dimmed());
+      println!("{}", "(pre-filled from SLASHSTEP_ADMIN_USERNAME environment variable)".dimmed());
 
     }
 
@@ -432,11 +432,11 @@ pub async fn setup_admin_user_if_necessary(postgres_pool: &deadpool_postgres::Po
 
     } else {
 
-      println!("*** {}", "(pre-filled from file set in the SLASHSTEP_ADMIN_PASSWORD_FILE_PATH environment variable)".dimmed());
+      println!("{}", "(pre-filled from file set in the SLASHSTEP_ADMIN_PASSWORD_FILE_PATH environment variable)".dimmed());
 
     }
 
-    println!("Setting up admin user with username \"{}\"...", &slashstep_admin_username);
+    println!("Setting up admin user...", &slashstep_admin_username);
     let admin_user = match User::create(&InitialUserProperties {
       username: Some(slashstep_admin_username.clone()),
       display_name: Some(slashstep_admin_username.clone()),
