@@ -108,6 +108,23 @@ pub struct InitialMembershipProperties {
 
 }
 
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct InitialMembershipPropertiesWithPredefinedParent {
+
+  /// The membership's principal type.
+  pub principal_type: MembershipPrincipalType,
+
+  /// The membership's principal user ID, if applicable.
+  pub principal_user_id: Option<Uuid>,
+
+  /// The membership's principal group ID, if applicable.
+  pub principal_group_id: Option<Uuid>,
+
+  /// The membership's principal app ID, if applicable.
+  pub principal_app_id: Option<Uuid>
+
+}
+
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Membership {
 
