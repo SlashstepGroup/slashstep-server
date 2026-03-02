@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{resource_hierarchy::{self, PrincipalWithID, ResourceHierarchy, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{resource_hierarchy::{self, PrincipalWithID, ResourceHierarchy, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -252,43 +252,16 @@ pub async fn verify_principal_permissions(authenticated_principal: &Authenticate
 
 }
 
-pub async fn get_action_by_id(action_id_string: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Action, HTTPError> {
+pub async fn get_access_policy_by_id(access_policy_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AccessPolicy, HTTPError> {
 
-  let action_id = match Uuid::parse_str(&action_id_string) {
+  let access_policy = get_resource_by_id::<AccessPolicy, _>("access policy", &access_policy_id, &http_transaction, &database_pool, |access_policy_id, database_pool| Box::new(AccessPolicy::get_by_id(access_policy_id, database_pool))).await?;
+  return Ok(access_policy);
 
-    Ok(access_policy_id) => access_policy_id,
+}
 
-    Err(_) => {
+pub async fn get_action_by_id(action_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Action, HTTPError> {
 
-      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the action ID.".to_string()));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  ServerLogEntry::trace(&format!("Getting action {}...", action_id), Some(&http_transaction.id), database_pool).await.ok();
-  let action = match Action::get_by_id(&action_id, database_pool).await {
-
-    Ok(action) => action,
-
-    Err(error) => {
-
-      let http_error = match error {
-        
-        ResourceError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
-
-        error => HTTPError::InternalServerError(Some(format!("Failed to get action {}: {:?}", action_id, error)))
-
-      };
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
+  let action = get_resource_by_id::<Action, _>("action", &action_id, &http_transaction, &database_pool, |action_id, database_pool| Box::new(Action::get_by_id(action_id, database_pool))).await?;
   return Ok(action);
 
 }
