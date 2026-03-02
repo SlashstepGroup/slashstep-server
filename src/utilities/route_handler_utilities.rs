@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, Principal, ResourceHierarchy}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{principal_permission_verifier::{PrincipalPermissionVerifier, PrincipalPermissionVerifierError}, resource_hierarchy::{self, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal}, action::Action, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{resource_hierarchy::{self, PrincipalWithID, ResourceHierarchy, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -216,11 +216,11 @@ pub async fn verify_principal_permissions(authenticated_principal: &Authenticate
   ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
 
   let principal = match authenticated_principal {
-    AuthenticatedPrincipal::User(user) => Principal::User(user.id),
-    AuthenticatedPrincipal::App(app) => Principal::App(app.id)
+    AuthenticatedPrincipal::User(user) => PrincipalWithID::User(user.id),
+    AuthenticatedPrincipal::App(app) => PrincipalWithID::App(app.id)
   };
 
-  match PrincipalPermissionVerifier::verify_permissions(&principal, &action.id, &resource_hierarchy, &minimum_permission_level, &database_pool).await {
+  match resource_hierarchy::verify_permissions(&principal, &action.id, &resource_hierarchy, &minimum_permission_level, &database_pool).await {
 
     Ok(_) => {},
 
@@ -228,7 +228,7 @@ pub async fn verify_principal_permissions(authenticated_principal: &Authenticate
 
       let http_error = match error {
 
-        PrincipalPermissionVerifierError::ForbiddenError { .. } => {
+        ResourceHierarchyError::ForbiddenError { .. } => {
           
           let message = format!("You need at least {} permission to the \"{}\" action.", minimum_permission_level.to_string(), action.name);
           match authenticated_principal {
@@ -753,7 +753,7 @@ pub async fn get_all_resource_hierarchies<T: DeletableResource>(deletable_resour
 
 }
 
-pub fn match_slashstepql_error(error: &SlashstepQLError, maximum_limit: &i64, resource_type: &str) -> HTTPError {
+pub fn match_slashstepql_error(error: &SlashstepQLError, maximum_limit: &i64, resource_type_plural: &str) -> HTTPError {
 
   let http_error = match error {
 
@@ -763,7 +763,7 @@ pub fn match_slashstepql_error(error: &SlashstepQLError, maximum_limit: &i64, re
 
     SlashstepQLError::InvalidQueryError(()) => HTTPError::BadRequestError(Some(format!("The provided query is invalid."))),
 
-    _ => HTTPError::InternalServerError(Some(format!("Failed to list {}: {:?}", resource_type, error)))
+    _ => HTTPError::InternalServerError(Some(format!("Failed to list {}: {:?}", resource_type_plural, error)))
 
   };
 

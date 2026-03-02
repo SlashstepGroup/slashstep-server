@@ -26,6 +26,8 @@ use crate::{
 mod access_policies;
 #[path = "./field-values/mod.rs"]
 mod field_values;
+#[path = "./item-connections/mod.rs"]
+mod item_connections;
 #[cfg(test)]
 mod tests;
 

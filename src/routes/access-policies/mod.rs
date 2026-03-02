@@ -11,9 +11,8 @@
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
-use axum_extra::response::ErasedJson;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, reusable_route_handlers::{ListResourcesResponseBody, ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[path = "./{access_policy_id}/mod.rs"]
 mod access_policy_id;
@@ -29,28 +28,74 @@ async fn handle_list_access_policies_request(
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-) -> Result<ErasedJson, HTTPError> {
+) -> Result<(StatusCode, Json<ListResourcesResponseBody<AccessPolicy>>), HTTPError> {
 
+  let list_resources_action = get_action_by_name("accessPolicies.list", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
-  let response = list_resources(
-    Query(query_parameters), 
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app), 
-    Extension(authenticated_app_authorization),
-    resource_hierarchy, 
-    ActionLogEntryTargetResourceType::Server, 
-    None, 
-    |query, database_pool, individual_principal| Box::new(AccessPolicy::count(query, database_pool, individual_principal)),
-    |query, database_pool, individual_principal| Box::new(AccessPolicy::list(query, database_pool, individual_principal)),
-    "accessPolicies.list", 
-    DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT,
-    "access policies",
-    "access policy"
-  ).await;
+  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
+  let query = query_parameters.query.unwrap_or("".to_string());
+  let queried_access_policies = match AccessPolicy::list(&query, &state.database_pool, Some(&individual_principal)).await {
+
+    Ok(queried_access_policies) => queried_access_policies,
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT, "access policy"),
+
+        ResourceError::PostgresError(error) => match_db_error(&error, "access policies"),
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to list access policies: {:?}", error)))
+
+      };
+
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  ServerLogEntry::trace(&format!("Counting access policies..."), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let resource_count = match AccessPolicy::count(&query, &state.database_pool, Some(&individual_principal)).await {
+
+    Ok(resource_count) => resource_count,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count access policies: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: list_resources_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::Server,
+    ..Default::default()
+  }, &state.database_pool).await.ok();
   
-  return response;
+  let queried_access_policy_list_length = queried_access_policies.len();
+  ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_access_policy_list_length, if queried_access_policy_list_length == 1 { "access policy" } else { "access policies" }), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let response_body = ListResourcesResponseBody::<AccessPolicy> {
+    resources: queried_access_policies,
+    total_count: resource_count
+  };
+  
+  return Ok((StatusCode::OK, Json(response_body)));
 
 }
 

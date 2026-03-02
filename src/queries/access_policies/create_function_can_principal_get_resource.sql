@@ -3,7 +3,7 @@
 CREATE OR REPLACE FUNCTION can_principal_get_resource(
     parameter_principal_type principal_type, 
     parameter_principal_id UUID,
-    initial_resource_type resource_type, 
+    initial_resource_type access_policy_resource_type, 
     initial_resource_id UUID, 
     get_resource_action_name TEXT
 ) RETURNS BOOLEAN AS $$
@@ -12,11 +12,11 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
         get_resource_action_id UUID;
         current_permission_Level permission_level;
         is_inheritance_enabled_on_selected_resource BOOLEAN;
-        selected_resource_type access_policy_resource_type;
-        selected_resource_id UUID;
+        selected_resource_type access_policy_resource_type := initial_resource_type;
+        selected_resource_id UUID := initial_resource_id;
         selected_resource_parent_type access_policy_resource_type;
         selected_resource_parent_id UUID;
-        initial_access_policy access_policies%ROWTYPE;
+        selected_access_policy access_policies%ROWTYPE;
         needs_inheritance BOOLEAN := FALSE;
         can_principal_get_resource_through_inheritance BOOLEAN := FALSE;
         bidirectional_resource_type access_policy_resource_type;
@@ -34,95 +34,145 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 name = get_resource_action_name
         );
 
-        IF initial_resource_type = 'AccessPolicy' THEN
-
-            SELECT
-                scoped_resource_type
-            INTO
-                selected_resource_type
-            FROM
-                access_policies
-            WHERE
-                id = initial_resource_id
-            LIMIT 1;
-
-            SELECT
-                *
-            INTO
-                initial_access_policy
-            FROM
-                access_policies
-            WHERE
-                id = initial_resource_id;
-
-        ELSE
-
-            selected_resource_type := initial_resource_type;
-
-        END IF;
-
-        selected_resource_id := 
-            CASE
-                WHEN initial_resource_type = 'AccessPolicy' THEN
-                    get_initial_resource_id_from_access_policy(initial_access_policy)
-                ELSE
-                    initial_resource_id
-            END;
-
         LOOP
 
-            IF selected_resource_type = 'Server' THEN
+            SELECT
+                permission_level,
+                is_inheritance_enabled
+            INTO
+                current_permission_Level,
+                is_inheritance_enabled_on_selected_resource
+            FROM
+                get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
+            WHERE
+                (
+                    (
+                        principal_access_policies.scoped_resource_type = 'AccessPolicy' AND 
+                        principal_access_policies.scoped_access_policy_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Action' AND 
+                        principal_access_policies.scoped_action_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'ActionLogEntry' AND 
+                        principal_access_policies.scoped_action_log_entry_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'App' AND 
+                        principal_access_policies.scoped_app_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'AppAuthorization' AND 
+                        principal_access_policies.scoped_app_authorization_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'AppAuthorizationCredential' AND 
+                        principal_access_policies.scoped_app_authorization_credential_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'AppCredential' AND 
+                        principal_access_policies.scoped_app_credential_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Configuration' AND 
+                        principal_access_policies.scoped_configuration_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'DelegationPolicy' AND 
+                        principal_access_policies.scoped_delegation_policy_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Field' AND 
+                        principal_access_policies.scoped_field_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'FieldChoice' AND 
+                        principal_access_policies.scoped_field_choice_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'FieldValue' AND 
+                        principal_access_policies.scoped_field_value_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Group' AND 
+                        principal_access_policies.scoped_group_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'HTTPTransaction' AND 
+                        principal_access_policies.scoped_http_transaction_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Item' AND 
+                        principal_access_policies.scoped_item_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'ItemConnection' AND 
+                        principal_access_policies.scoped_item_connection_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'ItemConnectionType' AND
+                        principal_access_policies.scoped_item_connection_type_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Membership' AND 
+                        principal_access_policies.scoped_membership_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'MembershipInvitation' AND 
+                        principal_access_policies.scoped_membership_invitation_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Milestone' AND 
+                        principal_access_policies.scoped_milestone_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'OAuthAuthorization' AND 
+                        principal_access_policies.scoped_app_authorization_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Project' AND 
+                        principal_access_policies.scoped_project_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Role' AND 
+                        principal_access_policies.scoped_role_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'ServerLogEntry' AND 
+                        principal_access_policies.scoped_server_log_entry_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Session' AND 
+                        principal_access_policies.scoped_session_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'User' AND 
+                        principal_access_policies.scoped_user_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'View' AND 
+                        principal_access_policies.scoped_view_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Workspace' AND 
+                        principal_access_policies.scoped_workspace_id = selected_resource_id
+                    )
+                ) AND (
+                    NOT needs_inheritance OR 
+                    principal_access_policies.is_inheritance_enabled
+                )
+            LIMIT 1;
+
+            IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
+
+                RETURN FALSE;
+
+            ELSIF current_permission_Level IS NOT NULL THEN
+
+                RETURN current_permission_Level >= 'User';
+
+            END IF;
+
+            -- Look for the parent resource type.
+            needs_inheritance := TRUE;
+
+            IF selected_resource_type = 'AccessPolicy' THEN
+
+                -- AccessPolicy -> (AccessPolicy | Action | ActionLogEntry | App | AppAuthorization | AppAuthorizationCredential | AppCredential | Configuration | DelegationPolicy | Field | FieldChoice | FieldValue | Group | HTTPTransaction | Item | ItemConnection | ItemConnectionType | Membership | MembershipInvitation | Milestone | OAuthAuthorization | Project | Role | ServerLogEntry | Session | User | View | Workspace)
+                SELECT
+                    *
+                INTO
+                    selected_access_policy
+                FROM
+                    access_policies
+                WHERE
+                    access_policies.id = selected_resource_id;
+
+                selected_resource_type := selected_access_policy.scoped_resource_type;
+                selected_resource_id := get_scoped_resource_id_from_access_policy(selected_access_policy);
+            
+            ELSIF selected_resource_type = 'Server' THEN
 
                 -- Server
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Server' AND (
-                        NOT needs_inheritance OR 
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
                 RETURN current_permission_Level IS NOT NULL AND current_permission_Level >= 'User';
 
             ELSIF selected_resource_type = 'Action' THEN
 
                 -- Action -> (App | Server)
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Action' AND 
-                    principal_access_policies.scoped_action_id = selected_resource_id AND (
-                        NOT needs_inheritance OR 
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_resource_type
                 INTO
@@ -166,70 +216,12 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'ActionLogEntry' THEN
 
                 -- ActionLogEntry -> Server
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'ActionLogEntry' AND 
-                    principal_access_policies.scoped_action_log_entry_id = selected_resource_id AND (
-                        NOT needs_inheritance OR 
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Use the parent resource type.
-                needs_inheritance := TRUE;
                 selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'App' THEN
 
                 -- App -> (Workspace | User | Server)
-                -- Check if the app has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'App' AND 
-                    principal_access_policies.scoped_app_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_workspace_id
                 INTO
@@ -270,36 +262,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'AppAuthorization' THEN
 
                 -- AppAuthorization -> (User | Project | Workspace | Server)
-                -- Check if the app authorization has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'AppAuthorization' AND 
-                    principal_access_policies.scoped_app_authorization_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     authorizing_resource_type
                 INTO
@@ -383,36 +345,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'AppAuthorizationCredential' THEN
 
                 -- AppAuthorizationCredential -> AppAuthorization
-                -- Check if the app authorization credential has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'AppAuthorizationCredential' AND 
-                    principal_access_policies.scoped_app_authorization_credential_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     app_authorization_id
                 INTO
@@ -434,37 +366,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'AppCredential' THEN
 
                 -- AppCredential -> App
-                -- Check if the app credential has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'AppCredential' AND 
-                    principal_access_policies.scoped_app_credential_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
-                SELECT
+                 SELECT
                     app_id
                 INTO
                     selected_resource_parent_id
@@ -485,71 +387,12 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Configuration' THEN
 
                 -- Configuration -> Server
-                -- Check if the configuration has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Configuration' AND 
-                    principal_access_policies.scoped_configuration_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
                 selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'DelegationPolicy' THEN
 
                 -- DelegationPolicy -> User
-                -- Check if the delegation policy has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'DelegationPolicy' AND 
-                    principal_access_policies.scoped_delegation_policy_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     principal_user_id
                 INTO
@@ -571,36 +414,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'FieldValue' THEN
 
                 -- FieldValue -> (Item | Field)
-                -- Check if the field value has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'FieldValue' AND 
-                    principal_access_policies.scoped_field_value_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_resource_type
                 INTO
@@ -659,36 +472,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Field' THEN
 
                 -- Field -> Project
-                -- Check if the field has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Field' AND 
-                    principal_access_policies.scoped_field_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_project_id
                 INTO
@@ -710,36 +493,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'FieldChoice' THEN
 
                 -- FieldChoice -> Field
-                -- Check if the field choice has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'FieldChoice' AND 
-                    principal_access_policies.scoped_field_choice_id = selected_resource_id AND (
-                        NOT needs_inheritance OR 
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     field_id
                 INTO
@@ -761,141 +514,24 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Group' THEN
 
                 -- Group -> Server
-                -- Check if the group has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Group' AND 
-                    principal_access_policies.scoped_group_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Use the parent resource type.
-                needs_inheritance := TRUE;
                 selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'HTTPTransaction' THEN
 
                 -- HTTPTransaction -> Server
-                -- Check if the HTTP transaction has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'HTTPTransaction' AND 
-                    principal_access_policies.scoped_http_transaction_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Use the parent resource type.
-                needs_inheritance := TRUE;
                 selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'ServerLogEntry' THEN
 
                 -- ServerLogEntry -> Server
-                -- Check if the HTTP transaction log entry has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'ServerLogEntry' AND 
-                    principal_access_policies.scoped_server_log_entry_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Use the parent resource type.
-                needs_inheritance := TRUE;
                 selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'Item' THEN
 
                 -- Item -> Project
-                -- Check if the item has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Item' AND 
-                    principal_access_policies.scoped_item_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_project_id
                 INTO
@@ -917,40 +553,10 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'ItemConnection' THEN
 
                 -- ItemConnection -> Item + Item
-                -- Check if the item connection has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'ItemConnection' AND 
-                    principal_access_policies.scoped_item_connection_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
                 -- Since item connections are bidirectional, we need to check both the inward and outward item.
                 --
                 -- This is possible through an iterative algorithm, but we'll use recursion for now to save development time.
                 -- If someone comes across this and has a better solution, send a pull request. :)
-                needs_inheritance := TRUE;
-
                 SELECT
                     inward_item_id
                 INTO
@@ -1002,36 +608,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'ItemConnectionType' THEN
 
                 -- ItemConnectionType -> (Project | Workspace)
-                -- Check if the item connection type has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'ItemConnectionType' AND 
-                    principal_access_policies.scoped_item_connection_type_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_resource_type
                 INTO
@@ -1090,36 +666,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Membership' THEN
 
                 -- Membership -> (Group | Role)
-                -- Check if the membership has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Membership' AND 
-                    principal_access_policies.scoped_membership_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_resource_type
                 INTO
@@ -1178,36 +724,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'MembershipInvitation' THEN
 
                 -- MembershipInvitation -> (Group | Role)
-                -- Check if the membership invitation has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'MembershipInvitation' AND 
-                    principal_access_policies.scoped_membership_invitation_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-                
                 SELECT
                     parent_resource_type
                 INTO
@@ -1266,36 +782,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Milestone' THEN
 
                 -- Milestone -> (Project | Workspace)
-                -- Check if the milestone has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Milestone' AND 
-                    principal_access_policies.scoped_milestone_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_resource_type
                 INTO
@@ -1351,39 +837,15 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 END IF;
 
+            ELSIF selected_resource_type = 'OAuthAuthorization' THEN
+
+                -- OAuthAuthorization -> Server
+                selected_resource_type := 'Server';
+                selected_resource_id := NULL;
+
             ELSIF selected_resource_type = 'Project' THEN
 
                 -- Project -> Workspace
-                -- Check if the project has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Project' AND 
-                    principal_access_policies.scoped_project_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Use the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     workspace_id
                 INTO
@@ -1405,36 +867,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Role' THEN
 
                 -- Role -> (Project | Workspace | Group | Server)
-                -- Check if the role has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Role' AND 
-                    principal_access_policies.scoped_role_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_resource_type
                 INTO
@@ -1518,36 +950,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Session' THEN
 
                 -- Session -> User
-                -- Check if the session has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Session' AND 
-                    principal_access_policies.scoped_session_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     user_id
                 INTO
@@ -1569,71 +971,12 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'User' THEN
 
                 -- User -> Server
-                -- Check if the user has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'User' AND 
-                    principal_access_policies.scoped_user_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
                 selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 
             ELSIF selected_resource_type = 'View' THEN
 
                 -- View -> (Project | Workspace)
-                -- Check if the view has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'View' AND 
-                    principal_access_policies.scoped_view_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Look for the parent resource type.
-                needs_inheritance := TRUE;
-
                 SELECT
                     parent_resource_type
                 INTO
@@ -1692,35 +1035,6 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Workspace' THEN
 
                 -- Workspace -> Server
-                -- Check if the workspace has an associated access policy.
-                SELECT
-                    permission_level,
-                    is_inheritance_enabled
-                INTO
-                    current_permission_Level,
-                    is_inheritance_enabled_on_selected_resource
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-                WHERE
-                    principal_access_policies.scoped_resource_type = 'Workspace' AND 
-                    principal_access_policies.scoped_workspace_id = selected_resource_id AND (
-                        NOT needs_inheritance OR
-                        principal_access_policies.is_inheritance_enabled
-                    )
-                LIMIT 1;
-
-                IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
-
-                    RETURN FALSE;
-
-                ELSIF current_permission_Level IS NOT NULL THEN
-
-                    RETURN current_permission_Level >= 'User';
-
-                END IF;
-
-                -- Use the parent resource type.
-                needs_inheritance := TRUE;
                 selected_resource_type := 'Server';
                 selected_resource_id := NULL;
 

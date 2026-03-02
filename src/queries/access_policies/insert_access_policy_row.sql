@@ -8,6 +8,7 @@ INSERT INTO access_policies (
   principal_role_id,
   principal_app_id,
   scoped_resource_type,
+  scoped_access_policy_id,
   scoped_action_id,
   scoped_action_log_entry_id,
   scoped_app_id,

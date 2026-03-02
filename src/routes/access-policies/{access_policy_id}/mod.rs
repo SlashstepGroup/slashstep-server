@@ -13,45 +13,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, EditableAccessPolicyProperties, ResourceHierarchy}, action::Action, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::{self, ResourceHierarchyError}, reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}};
-
-async fn get_resource_hierarchy(access_policy: &AccessPolicy, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ResourceHierarchy, HTTPError> {
-
-  ServerLogEntry::trace(&format!("Getting resource hierarchy for access policy {}...", access_policy.id), Some(&http_transaction.id), &database_pool).await.ok();
-  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&access_policy.scoped_resource_type, access_policy.get_scoped_resource_id().as_ref(), &database_pool).await {
-
-    Ok(resource_hierarchy) => resource_hierarchy,
-
-    Err(error) => {
-
-      let http_error = match error {
-        ResourceHierarchyError::ScopedResourceIDMissingError(scoped_resource_type) => {
-
-          ServerLogEntry::trace(&format!("Deleting orphaned access policy {}...", access_policy.id), Some(&http_transaction.id), &database_pool).await.ok();
-          let http_error = match access_policy.delete(&database_pool).await {
-
-            Ok(_) => HTTPError::GoneError(Some(format!("The {} resource has been deleted because it was orphaned.", scoped_resource_type))),
-
-            Err(error) => HTTPError::InternalServerError(Some(format!("Failed to delete orphaned access policy: {:?}", error)))
-
-          };
-          
-          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-          return Err(http_error);
-
-        },
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
-      };
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  return Ok(resource_hierarchy);
-
-}
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, EditableAccessPolicyProperties, ResourceHierarchy}, action::Action, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::{self, ResourceHierarchyError}, reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}};
 
 async fn get_access_policy(access_policy_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AccessPolicy, HTTPError> {
 
@@ -143,7 +105,7 @@ async fn handle_get_access_policy_request(
   // Make sure the delegate and principal have access to the resource.
   let action = get_action_by_name("accessPolicies.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&access_policy, &AccessPolicyResourceType::AccessPolicy, &access_policy.id, &http_transaction, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
@@ -186,7 +148,7 @@ async fn handle_patch_access_policy_request(
 
   // Make sure the delegate and principal have access to the resource.
   let access_policy = get_access_policy(&access_policy_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&access_policy, &AccessPolicyResourceType::AccessPolicy, &access_policy.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("accessPolicies.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
