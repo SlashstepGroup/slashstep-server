@@ -101,14 +101,35 @@ async fn handle_delete_item_connection_request(
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<StatusCode, HTTPError> {
 
-  let item_connection_ = get_uuid_from_string(&item_connection_id, "item connection", &http_transaction, &state.database_pool).await?;
-  let target_item_connection = get_item_connection_by_id(&item_connection_, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_item_connection, &AccessPolicyResourceType::ItemConnection, &target_item_connection.id, &http_transaction, &state.database_pool).await?;
+  let item_connection_id = get_uuid_from_string(&item_connection_id, "item connection", &http_transaction, &state.database_pool).await?;
+  let target_item_connection = get_item_connection_by_id(&item_connection_id, &http_transaction, &state.database_pool).await?;
   let delete_item_connections_action = get_action_by_name("itemConnections.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_item_connections_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let resource_hierarchies = get_all_resource_hierarchies(&target_item_connection, &AccessPolicyResourceType::ItemConnection, &target_item_connection.id, &http_transaction, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&authenticated_principal, &delete_item_connections_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  for index in 0..resource_hierarchies.len() {
 
+    let resource_hierarchy = &resource_hierarchies[index];
+    match verify_principal_permissions(&authenticated_principal, &delete_item_connections_action, resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await {
+
+      Ok(_) => break,
+
+      Err(error) => {
+
+        if index < resource_hierarchies.len() - 1 {
+
+          continue;
+
+        }
+
+        return Err(error);
+
+      }
+
+    }
+
+  }
+  
   if let Err(error) = target_item_connection.delete(&state.database_pool).await {
 
     let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete item connection: {:?}", error)));

@@ -162,7 +162,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
   // Create dummy access policies.
   const MAXIMUM_ACTION_COUNT: i32 = 25;
-  let mut created_access_policies: Vec<Box<AccessPolicy>> = Vec::new();
+  let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = cmp::max(MAXIMUM_ACTION_COUNT, 2);
   let denied_access_policy_count = remaining_action_count / 2;
   while remaining_action_count > 0 {
@@ -175,13 +175,14 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
       principal_user_id: Some(user.id),
       scoped_resource_type: AccessPolicyResourceType::Action,
       scoped_action_id: Some(dummy_action.id),
+      is_inheritance_enabled: true,
       ..Default::default()
     };
 
-    let access_policy = Box::new(AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?);
+    let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
     if access_policy.permission_level == ActionPermissionLevel::User {
 
-      created_access_policies.push(access_policy.clone());
+      created_access_policies.push(access_policy);
 
     }
     remaining_action_count -= 1;

@@ -77,7 +77,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
     .json(&serde_json::json!(initial_access_policy_properties))
     .await;
   
-  assert_eq!(response.status_code(), StatusCode::OK);
+  assert_eq!(response.status_code(), StatusCode::CREATED);
 
   let response_access_policy: AccessPolicy = response.json();
   assert_eq!(initial_access_policy_properties.action_id, response_access_policy.action_id);

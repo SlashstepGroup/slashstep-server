@@ -43,8 +43,9 @@ async fn handle_list_item_connections_request(
   let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
 
   let query = format!(
-    "parent_item_id = {}{}", 
+    "(outward_item_id = {} OR inward_item_id = {}){}", 
     quote_literal(&item_id.to_string()), 
+    quote_literal(&item_id.to_string()),
     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
   );
   let queried_resources = match ItemConnection::list(&query, &state.database_pool, Some(&individual_principal)).await {
