@@ -17,9 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection::ItemConnection, server_log_entry::ServerLogEntry, user::User
+    DeletableResource, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection::ItemConnection, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_all_resource_hierarchies, get_authenticated_principal, get_item_connection_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_all_resource_hierarchies, get_authenticated_principal, get_item_connection_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
 
 // #[path = "./access-policies/mod.rs"]
@@ -101,22 +101,38 @@ async fn handle_delete_item_connection_request(
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<StatusCode, HTTPError> {
 
-  let item_connection_id = get_uuid_from_string(&item_connection_id, "item connection", &http_transaction, &state.database_pool).await?;
-  let response = delete_resource(
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app), 
-    Extension(authenticated_app_authorization),
-    Some(&AccessPolicyResourceType::ItemConnection),
-    &item_connection_id, 
-    "itemConnections.delete",
-    "item connection",
-    &ActionLogEntryTargetResourceType::ItemConnection,
-    |item_connection_id, database_pool| Box::new(ItemConnection::get_by_id(item_connection_id, database_pool))
-  ).await;
+  let item_connection_ = get_uuid_from_string(&item_connection_id, "item connection", &http_transaction, &state.database_pool).await?;
+  let target_item_connection = get_item_connection_by_id(&item_connection_, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_item_connection, &AccessPolicyResourceType::ItemConnection, &target_item_connection.id, &http_transaction, &state.database_pool).await?;
+  let delete_item_connections_action = get_action_by_name("itemConnections.delete", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_item_connections_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &delete_item_connections_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-  return response;
+  if let Err(error) = target_item_connection.delete(&state.database_pool).await {
+
+    let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete item connection: {:?}", error)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: delete_item_connections_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::ItemConnection,
+    target_item_connection_id: Some(target_item_connection.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+
+  ServerLogEntry::success(&format!("Successfully deleted item connection {}.", target_item_connection.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  return Ok(StatusCode::NO_CONTENT);
 
 }
 

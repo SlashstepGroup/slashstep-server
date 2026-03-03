@@ -13,7 +13,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State}};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, reusable_route_handlers::ListResourcesResponseBody, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::ListResourcesResponseBody, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[path = "./{action_log_entry_id}/mod.rs"]
 mod action_log_entry_id;
@@ -51,8 +51,10 @@ async fn handle_list_action_log_entries_request(
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
   verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
+
+  ServerLogEntry::trace("Listing action log entries...", Some(&http_transaction.id), &state.database_pool).await.ok();
   let query = query_parameters.query.unwrap_or("".to_string());
-  let queried_action_log_entries = match ActionLogEntry::list(&query, &state.database_pool, Some(&individual_principal)).await {
+  let queried_resources = match ActionLogEntry::list(&query, &state.database_pool, Some(&individual_principal)).await {
 
     Ok(queried_action_log_entries) => queried_action_log_entries,
 
@@ -103,10 +105,10 @@ async fn handle_list_action_log_entries_request(
     ..Default::default()
   }, &state.database_pool).await.ok();
   
-  let queried_action_log_entry_list_length = queried_action_log_entries.len();
+  let queried_action_log_entry_list_length = queried_resources.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_action_log_entry_list_length, if queried_action_log_entry_list_length == 1 { "action log entry" } else { "action log entries" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<ActionLogEntry> {
-    resources: queried_action_log_entries,
+    resources: queried_resources,
     total_count: resource_count
   };
   

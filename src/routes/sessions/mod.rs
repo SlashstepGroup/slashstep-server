@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}};
 
 #[path = "./{session_id}/mod.rs"]
 mod session_id;
@@ -46,7 +46,7 @@ mod tests;
 //     |query, database_pool, individual_principal| Box::new(App::count(query, database_pool, individual_principal)),
 //     |query, database_pool, individual_principal| Box::new(App::list(query, database_pool, individual_principal)),
 //     "apps.list", 
-//     DEFAULT_MAXIMUM_APP_LIST_LIMIT,
+//     DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
 //     "apps",
 //     "app"
 //   ).await;

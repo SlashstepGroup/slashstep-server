@@ -22,7 +22,7 @@ use crate::{
       ActionPermissionLevel,
       IndividualPrincipal
     }, action::Action, app_authorization_credential::{AppAuthorizationCredential, DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT},
-  }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
+  }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
 
 /// Verifies that the router can return a 200 status code and the requested resource list.

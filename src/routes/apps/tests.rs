@@ -22,8 +22,8 @@ use crate::{
   }, resources::{
     access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
-    }, action::Action, app::{App, AppClientType, DEFAULT_APP_LIST_LIMIT, DEFAULT_MAXIMUM_APP_LIST_LIMIT}, configuration::{Configuration, EditableConfigurationProperties},
-  }, routes::apps::{AppWithClientSecret, InitialAppPropertiesWithoutClientSecretHash}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
+    }, action::Action, app::{App, AppClientType, DEFAULT_RESOURCE_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, configuration::{Configuration, EditableConfigurationProperties},
+  }, routes::apps::{AppWithClientSecret, InitialAppPropertiesWithoutClientSecretHash}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
 
 /// Verifies that the router can return a 200 status code and the requested list.
@@ -223,7 +223,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 
   // Create dummy actions.
   let app_count = App::count("", &test_environment.database_pool, None).await?;
-  for _ in 0..(DEFAULT_APP_LIST_LIMIT - app_count + 1) {
+  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - app_count + 1) {
 
     test_environment.create_random_app().await?;
 
@@ -245,7 +245,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<App> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_APP_LIST_LIMIT as usize);
+  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 
@@ -298,7 +298,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   let response = test_server.get(&format!("/apps"))
-    .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_APP_LIST_LIMIT + 1))
+    .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   

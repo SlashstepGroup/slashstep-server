@@ -148,17 +148,11 @@ async fn handle_delete_access_policy_request(
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &delete_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-  match target_access_policy.delete(&state.database_pool).await {
+  if let Err(error) = target_access_policy.delete(&state.database_pool).await {
 
-    Ok(_) => {},
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete access policy {}: {:?}", target_access_policy.id, error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
-
-    }
+    let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete access policy {}: {:?}", target_access_policy.id, error)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
 
   }
 

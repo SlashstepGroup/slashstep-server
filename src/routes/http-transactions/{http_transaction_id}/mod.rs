@@ -26,9 +26,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    DeletableResource, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_http_transaction_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_http_transaction_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
 
 /// GET /http-transactions/{http_transaction_id}
@@ -84,21 +84,37 @@ async fn handle_delete_http_transaction_request(
 ) -> Result<StatusCode, HTTPError> {
 
   let http_transaction_id = get_uuid_from_string(&http_transaction_id, "HTTP transaction", &http_transaction, &state.database_pool).await?;
-  let response = delete_resource(
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app), 
-    Extension(authenticated_app_authorization),
-    Some(&AccessPolicyResourceType::HTTPTransaction),
-    &http_transaction_id, 
-    "httpTransactions.delete",
-    "HTTP transaction",
-    &ActionLogEntryTargetResourceType::HTTPTransaction,
-    |http_transaction_id, database_pool| Box::new(HTTPTransaction::get_by_id(http_transaction_id, database_pool))
-  ).await;
+  let target_http_transaction = get_http_transaction_by_id(&http_transaction_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_http_transaction, &AccessPolicyResourceType::HTTPTransaction, &target_http_transaction.id, &http_transaction, &state.database_pool).await?;
+  let delete_http_transactions_action = get_action_by_name("HTTPTransactions.delete", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_http_transactions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &delete_http_transactions_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-  return response;
+  if let Err(error) = target_http_transaction.delete(&state.database_pool).await {
+
+    let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete HTTP transaction: {:?}", error)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: delete_http_transactions_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::HTTPTransaction,
+    target_http_transaction_id: Some(target_http_transaction.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+
+  ServerLogEntry::success(&format!("Successfully deleted HTTP transaction {}.", target_http_transaction.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  return Ok(StatusCode::NO_CONTENT);
 
 }
 

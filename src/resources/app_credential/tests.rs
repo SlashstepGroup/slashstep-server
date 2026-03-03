@@ -7,7 +7,7 @@ use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, initialize_predefined_configurations, resources::{
     DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
-    }, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialProperties}
+    }, app_credential::{AppCredential, DEFAULT_RESOURCE_LIST_LIMIT, InitialAppCredentialProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -37,7 +37,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_APP_CREDENTIAL_LIST_LIMIT + 1;
+  const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
 
@@ -140,7 +140,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_APP_CREDENTIAL_LIST_LIMIT + 1;
+  const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
 
