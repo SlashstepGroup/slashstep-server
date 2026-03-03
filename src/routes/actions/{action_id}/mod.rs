@@ -43,6 +43,7 @@ async fn handle_get_action_request(
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<Json<Action>, HTTPError> {
 
+  let action_id = get_uuid_from_string(&action_id, "action", &http_transaction, &state.database_pool).await?;
   let target_action = get_action_by_id(&action_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_action, &AccessPolicyResourceType::Action, &target_action.id, &http_transaction, &state.database_pool).await?;
   let get_actions_action = get_action_by_name("actions.get", &http_transaction, &state.database_pool).await?;
@@ -82,6 +83,7 @@ async fn handle_patch_action_request(
   body: Result<Json<EditableActionProperties>, JsonRejection>
 ) -> Result<Json<Action>, HTTPError> {
 
+  let action_id = get_uuid_from_string(&action_id, "action", &http_transaction, &state.database_pool).await?;
   let updated_action_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
   if let Some(updated_action_name) = &updated_action_properties.name { 
     
@@ -91,7 +93,7 @@ async fn handle_patch_action_request(
   };
   if let Some(updated_action_display_name) = &updated_action_properties.display_name { 
     
-    validate_field_length(updated_action_display_name, "actions.maximumDisplayNameLength", "name", &http_transaction, &state.database_pool).await?;
+    validate_field_length(updated_action_display_name, "actions.maximumDisplayNameLength", "display_name", &http_transaction, &state.database_pool).await?;
     validate_resource_display_name(updated_action_display_name, "actions.allowedDisplayNameRegex", "Action", &http_transaction, &state.database_pool).await?;
   
   };
