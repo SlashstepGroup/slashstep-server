@@ -11,10 +11,9 @@
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State}};
-use axum_extra::response::ErasedJson;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, ResourceHierarchy}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::ListResourcesResponseBody, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::ResourceHierarchy, reusable_route_handlers::ListResourcesResponseBody, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[path = "./{action_log_entry_id}/mod.rs"]
 mod action_log_entry_id;
@@ -61,7 +60,7 @@ async fn handle_list_action_log_entries_request(
 
       let http_error = match error {
 
-        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT, "action log entries"),
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "action log entries"),
 
         ResourceError::PostgresError(error) => match_db_error(&error, "action log entries"),
 

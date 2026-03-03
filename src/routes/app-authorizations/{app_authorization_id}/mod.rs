@@ -20,7 +20,7 @@ use reqwest::StatusCode;
 use crate::{
   AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{
     access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
-  }, utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{
+  }, utilities::{route_handler_utilities::{
     AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_authorization_by_id, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions
   }}
 };

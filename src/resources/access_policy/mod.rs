@@ -15,7 +15,6 @@ mod tests;
 
 use core::{fmt};
 use std::str::FromStr;
-use pg_escape::quote_literal;
 use postgres::{
   error::SqlState, 
   types::ToSql
@@ -108,7 +107,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
 ];
 
 pub const DEFAULT_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
-pub const DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
+pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default, PartialOrd)]
 #[postgres(name = "permission_level")]
@@ -766,7 +765,7 @@ impl AccessPolicy {
       filter: query.to_string(),
       allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: Some(DEFAULT_ACCESS_POLICY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      maximum_limit: Some(DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       should_ignore_limit: false,
       should_ignore_offset: false
     };

@@ -17,7 +17,7 @@ mod tests;
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::{AppAuthorization, DEFAULT_MAXIMUM_APP_AUTHORIZATION_LIST_LIMIT}, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::{AppAuthorization, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
 
 /// GET /app-authorizations
 /// 
@@ -46,7 +46,7 @@ async fn handle_list_app_authorizations_request(
     |query, database_pool, individual_principal| Box::new(AppAuthorization::count(query, database_pool, individual_principal)),
     |query, database_pool, individual_principal| Box::new(AppAuthorization::list(query, database_pool, individual_principal)),
     "appAuthorizations.list", 
-    DEFAULT_MAXIMUM_APP_AUTHORIZATION_LIST_LIMIT,
+    DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
     "app authorizations",
     "app authorization"
   ).await;

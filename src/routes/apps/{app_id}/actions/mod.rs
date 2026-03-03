@@ -14,7 +14,7 @@ use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::Jso
 use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action::{Action, ActionParentResourceType, DEFAULT_MAXIMUM_ACTION_LIST_LIMIT, InitialActionProperties, InitialActionPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_app_by_id, get_authenticated_principal, get_resource_hierarchy, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action::{Action, ActionParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialActionProperties, InitialActionPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_app_by_id, get_authenticated_principal, get_resource_hierarchy, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[axum::debug_handler]
 async fn handle_list_actions_request(
@@ -53,7 +53,7 @@ async fn handle_list_actions_request(
     |query, database_pool, individual_principal| Box::new(Action::count(query, database_pool, individual_principal)),
     |query, database_pool, individual_principal| Box::new(Action::list(query, database_pool, individual_principal)),
     "actions.list", 
-    DEFAULT_MAXIMUM_ACTION_LIST_LIMIT,
+    DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
     "apps",
     "app"
   ).await;

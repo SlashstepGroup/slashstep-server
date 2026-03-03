@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::AppAuthorization, app_authorization_credential::{AppAuthorizationCredential, DEFAULT_MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT}, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::AppAuthorization, app_authorization_credential::{AppAuthorizationCredential, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, http_transaction::HTTPTransaction, user::User}, utilities::reusable_route_handlers::{ResourceListQueryParameters, list_resources}};
 
 /// GET /app-authorization-credentials
 /// 
@@ -47,7 +47,7 @@ async fn handle_list_app_authorization_credentials_request(
     |query, database_pool, individual_principal| Box::new(AppAuthorizationCredential::count(query, database_pool, individual_principal)),
     |query, database_pool, individual_principal| Box::new(AppAuthorizationCredential::list(query, database_pool, individual_principal)),
     "appAuthorizationCredentials.list", 
-    DEFAULT_MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT,
+    DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
     "app authorization credentials",
     "app authorization credential"
   ).await;

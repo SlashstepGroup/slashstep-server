@@ -12,8 +12,8 @@
 use std::cmp;
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{DeletableResource, access_policy::{
-    AccessPolicy, ActionPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties, Principal
-  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::resource_hierarchy
+    AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties
+  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::resource_hierarchy::{self, PrincipalWithID}
 };
 
 fn assert_access_policy_is_equal_to_initial_properties(access_policy: &AccessPolicy, initial_properties: &InitialAccessPolicyProperties) {
@@ -335,7 +335,7 @@ async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerEr
   let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &test_environment.database_pool).await?;
   let access_policy_hierarchy = resource_hierarchy::get_hierarchy(&instance_access_policy.scoped_resource_type, instance_access_policy.get_scoped_resource_id().as_ref(), &test_environment.database_pool).await?;
 
-  let retrieved_access_policies = AccessPolicy::list_by_hierarchy(&Principal::User(user.id), &action.id, &access_policy_hierarchy, &test_environment.database_pool).await?;
+  let retrieved_access_policies = resource_hierarchy::list_access_policies_by_hierarchy(&PrincipalWithID::User(user.id), &action.id, &access_policy_hierarchy, &test_environment.database_pool).await?;
 
   assert_eq!(retrieved_access_policies.len(), access_policy_hierarchy.len());
   

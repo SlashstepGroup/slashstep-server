@@ -370,7 +370,7 @@ pub async fn authenticate_app(
     
   };
 
-  let app_credential = match get_app_credential_by_id(&app_credential_id.to_string(), &http_transaction, &state.database_pool).await {
+  let app_credential = match get_app_credential_by_id(&app_credential_id, &http_transaction, &state.database_pool).await {
 
     Ok(app_credential) => app_credential,
 
@@ -390,7 +390,7 @@ pub async fn authenticate_app(
 
   };
 
-  let app = match get_app_by_id(&app_credential.app_id.to_string(), &http_transaction, &state.database_pool).await {
+  let app = match get_app_by_id(&app_credential.app_id, &http_transaction, &state.database_pool).await {
 
     Ok(app) => app,
 

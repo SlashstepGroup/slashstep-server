@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action::{Action, DEFAULT_MAXIMUM_ACTION_LIST_LIMIT}, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{get_action_by_name, get_authenticated_principal, verify_delegate_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action::{Action, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}, utilities::{reusable_route_handlers::{ResourceListQueryParameters, list_resources}, route_handler_utilities::{get_action_by_name, get_authenticated_principal, verify_delegate_permissions}}};
 
 #[path = "./{action_id}/mod.rs"]
 pub mod action_id;
@@ -49,7 +49,7 @@ async fn handle_list_actions_request(
 
       let http_error = match error {
 
-        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_ACTION_LOG_ENTRY_LIST_LIMIT, "action log entries"),
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "action log entries"),
 
         ResourceError::PostgresError(error) => match_db_error(&error, "action log entries"),
 
