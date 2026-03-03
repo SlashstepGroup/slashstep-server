@@ -22,7 +22,7 @@ use crate::{
     access_policy::{
       ActionPermissionLevel, IndividualPrincipal
     }, action::Action, item_connection::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, ItemConnection},
-  }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
+  }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
 
 /// Verifies that the router can return a 200 status code and the requested list.

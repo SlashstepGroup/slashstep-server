@@ -41,7 +41,19 @@ mod views;
 mod workspaces;
 
 use axum::{Router, response::IntoResponse};
+use serde::{Deserialize, Serialize};
 use crate::{AppState, HTTPError, middleware::http_transaction_middleware};
+
+#[derive(Debug, Deserialize)]
+pub struct ResourceListQueryParameters {
+  pub query: Option<String>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListResourcesResponseBody<ResourceStruct> {
+  pub resources: Vec<ResourceStruct>,
+  pub total_count: i64
+}
 
 async fn fallback() -> impl IntoResponse {
 

@@ -1,7 +1,9 @@
-CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_policy_record access_policies) RETURNS UUID AS $$
+CREATE OR REPLACE FUNCTION get_scoped_resource_id_from_access_policy(access_policy_record access_policies) RETURNS UUID AS $$
   BEGIN
 
     CASE access_policy_record.scoped_resource_type
+      WHEN 'AccessPolicy' THEN 
+        RETURN access_policy_record.scoped_access_policy_id;
       WHEN 'Action' THEN 
         RETURN access_policy_record.scoped_action_id;
       WHEN 'ActionLogEntry' THEN 
@@ -40,6 +42,8 @@ CREATE OR REPLACE FUNCTION get_initial_resource_id_from_access_policy(access_pol
         RETURN access_policy_record.scoped_membership_invitation_id;
       WHEN 'Milestone' THEN 
         RETURN access_policy_record.scoped_milestone_id;
+      WHEN 'OAuthAuthorization' THEN 
+        RETURN access_policy_record.scoped_app_authorization_id;
       WHEN 'Project' THEN 
         RETURN access_policy_record.scoped_project_id;
       WHEN 'Role' THEN 

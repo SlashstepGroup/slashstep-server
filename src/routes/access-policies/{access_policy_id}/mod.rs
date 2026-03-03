@@ -12,117 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
-use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, EditableAccessPolicyProperties, ResourceHierarchy}, action::Action, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{resource_hierarchy::{self, ResourceHierarchyError}, reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}};
-
-async fn get_resource_hierarchy(access_policy: &AccessPolicy, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ResourceHierarchy, HTTPError> {
-
-  ServerLogEntry::trace(&format!("Getting resource hierarchy for access policy {}...", access_policy.id), Some(&http_transaction.id), &database_pool).await.ok();
-  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&access_policy.scoped_resource_type, access_policy.get_scoped_resource_id().as_ref(), &database_pool).await {
-
-    Ok(resource_hierarchy) => resource_hierarchy,
-
-    Err(error) => {
-
-      let http_error = match error {
-        ResourceHierarchyError::ScopedResourceIDMissingError(scoped_resource_type) => {
-
-          ServerLogEntry::trace(&format!("Deleting orphaned access policy {}...", access_policy.id), Some(&http_transaction.id), &database_pool).await.ok();
-          let http_error = match access_policy.delete(&database_pool).await {
-
-            Ok(_) => HTTPError::GoneError(Some(format!("The {} resource has been deleted because it was orphaned.", scoped_resource_type))),
-
-            Err(error) => HTTPError::InternalServerError(Some(format!("Failed to delete orphaned access policy: {:?}", error)))
-
-          };
-          
-          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-          return Err(http_error);
-
-        },
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
-      };
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  return Ok(resource_hierarchy);
-
-}
-
-async fn get_access_policy(access_policy_id: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<AccessPolicy, HTTPError> {
-
-  let access_policy_id = match Uuid::parse_str(&access_policy_id) {
-
-    Ok(access_policy_id) => access_policy_id,
-
-    Err(_) => {
-
-      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the access policy ID.".to_string()));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  ServerLogEntry::trace(&format!("Getting access policy {}...", access_policy_id), Some(&http_transaction.id), &database_pool).await.ok();
-  
-  let access_policy = match AccessPolicy::get_by_id(&access_policy_id, &database_pool).await {
-
-    Ok(access_policy) => access_policy,
-
-    Err(error) => {
-
-      let http_error = match error {
-        ResourceError::NotFoundError(_) => HTTPError::NotFoundError(Some(error.to_string())),
-        ResourceError::PostgresError(error) => {
-
-          match error.as_db_error() {
-
-            Some(error) => HTTPError::InternalServerError(Some(error.to_string())),
-            None => HTTPError::InternalServerError(Some(error.to_string()))
-
-          }
-
-        }
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
-      };
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-
-      return Err(http_error);
-
-    }
-
-  };
-
-  return Ok(access_policy);
-
-}
-
-async fn get_action_by_id(action_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Action, HTTPError> {
-
-  ServerLogEntry::trace(&format!("Getting action {}...", action_id), Some(&http_transaction.id), database_pool).await.ok();
-  let action = match Action::get_by_id(action_id, database_pool).await {
-
-    Ok(action) => action,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to get action {}: {:?}", action_id, error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  return Ok(action);
-
-}
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{DeletableResource, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, EditableAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{route_handler_utilities::{AuthenticatedPrincipal, get_access_policy_by_id, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}}};
 
 /// GET /access-policies/{access_policy_id}
 /// 
@@ -138,12 +28,13 @@ async fn handle_get_access_policy_request(
 ) -> Result<Json<AccessPolicy>, HTTPError> {
 
   // Make sure the access policy exists.
-  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &state.database_pool).await?;
+  let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy", &http_transaction, &state.database_pool).await?;
+  let access_policy = get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
 
   // Make sure the delegate and principal have access to the resource.
   let action = get_action_by_name("accessPolicies.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&access_policy, &AccessPolicyResourceType::AccessPolicy, &access_policy.id, &http_transaction, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
@@ -181,12 +72,12 @@ async fn handle_patch_access_policy_request(
   body: Result<Json<EditableAccessPolicyProperties>, JsonRejection>
 ) -> Result<Json<AccessPolicy>, HTTPError> {
 
-
+  let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy", &http_transaction, &state.database_pool).await?;
   let updated_access_policy_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
 
   // Make sure the delegate and principal have access to the resource.
-  let access_policy = get_access_policy(&access_policy_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&access_policy, &http_transaction, &state.database_pool).await?;
+  let access_policy = get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&access_policy, &AccessPolicyResourceType::AccessPolicy, &access_policy.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("accessPolicies.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -250,21 +141,37 @@ async fn handle_delete_access_policy_request(
 ) -> Result<StatusCode, HTTPError> {
 
   let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy", &http_transaction, &state.database_pool).await?;
-  let response = delete_resource(
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app),
-    Extension(authenticated_app_authorization),
-    None,
-    &access_policy_id, 
-    "accessPolicies.delete",
-    "access policy", 
-    &ActionLogEntryTargetResourceType::AccessPolicy,
-    |app_authorization_credential_id, database_pool| Box::new(AccessPolicy::get_by_id(app_authorization_credential_id, database_pool))
-  ).await;
+  let target_access_policy = get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_access_policy, &AccessPolicyResourceType::AccessPolicy, &target_access_policy.id, &http_transaction, &state.database_pool).await?;
+  let delete_resources_action = get_action_by_name("accessPolicies.delete", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &delete_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-  return response;
+  if let Err(error) = target_access_policy.delete(&state.database_pool).await {
+
+    let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete access policy {}: {:?}", target_access_policy.id, error)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: delete_resources_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::AccessPolicy,
+    target_access_policy_id: Some(target_access_policy.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+  ServerLogEntry::success(&format!("Successfully deleted access policy {}.", target_access_policy.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+
+  return Ok(StatusCode::NO_CONTENT);
 
 }
 

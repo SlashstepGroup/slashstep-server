@@ -1,8 +1,8 @@
 DO $$
   BEGIN
 
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'resource_type') THEN
-      CREATE TYPE resource_type AS ENUM (
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'access_policy_resource_type') THEN
+      CREATE TYPE access_policy_resource_type AS ENUM (
         'AccessPolicy',
         'Action',
         'ActionLogEntry',
@@ -24,38 +24,7 @@ DO $$
         'Membership',
         'MembershipInvitation',
         'Milestone',
-        'Project',
-        'Role',
-        'ServerLogEntry',
-        'Session',
-        'User',
-        'View',
-        'Workspace'
-      );
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'access_policy_resource_type') THEN
-      CREATE TYPE access_policy_resource_type AS ENUM (
-        'Action',
-        'ActionLogEntry',
-        'App',
-        'AppAuthorization',
-        'AppAuthorizationCredential',
-        'AppCredential',
-        'Configuration',
-        'DelegationPolicy',
-        'Field',
-        'FieldChoice',
-        'FieldValue',
-        'Group',
-        'HTTPTransaction',
-        'Server',
-        'Item',
-        'ItemConnection',
-        'ItemConnectionType',
-        'Membership',
-        'MembershipInvitation',
-        'Milestone',
+        'OAuthAuthorization',
         'Project',
         'Role',
         'ServerLogEntry',
@@ -87,6 +56,7 @@ DO $$
 
       /* Scopes */
       scoped_resource_type access_policy_resource_type NOT NULL,
+      scoped_access_policy_id UUID REFERENCES access_policies(id) ON DELETE CASCADE,
       scoped_action_id UUID REFERENCES actions(id) ON DELETE CASCADE,
       scoped_action_log_entry_id UUID REFERENCES action_log_entries(id) ON DELETE CASCADE,
       scoped_app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
@@ -106,6 +76,7 @@ DO $$
       scoped_membership_id UUID REFERENCES memberships(id) ON DELETE CASCADE,
       scoped_membership_invitation_id UUID REFERENCES membership_invitations(id) ON DELETE CASCADE,
       scoped_milestone_id UUID REFERENCES milestones(id) ON DELETE CASCADE,
+      scoped_oauth_authorization_id UUID REFERENCES oauth_authorizations(id) ON DELETE CASCADE,
       scoped_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
       scoped_role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
       scoped_server_log_entry_id UUID REFERENCES server_log_entries(id) ON DELETE CASCADE,

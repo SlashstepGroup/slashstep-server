@@ -1,9 +1,23 @@
+use pg_escape::quote_literal;
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::resources::{ResourceError, access_policy::AccessPolicyResourceType, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::{Field, FieldParentResourceType}, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, item::Item, item_connection::ItemConnection, item_connection_type::{ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{Membership, MembershipParentResourceType}, membership_invitation::MembershipInvitation, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, session::Session};
+use crate::resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel}, action::Action, app::{App, AppParentResourceType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType}, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, field::Field, field_choice::FieldChoice, field_value::{FieldValue, FieldValueParentResourceType}, item::Item, item_connection::ItemConnection, item_connection_type::{ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{Membership, MembershipParentResourceType}, membership_invitation::MembershipInvitation, milestone::{Milestone, MilestoneParentResourceType}, project::Project, role::{Role, RoleParentResourceType}, session::Session};
 
 pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
+
+#[derive(Debug, Clone)]
+pub enum PrincipalWithID {
+
+  User(Uuid),
+
+  Group(Uuid),
+
+  Role(Uuid),
+
+  App(Uuid)
+
+}
 
 #[derive(Debug, Error)]
 pub enum ResourceHierarchyError {
@@ -15,6 +29,14 @@ pub enum ResourceHierarchyError {
 
   #[error("{0} resources have multiple owners. Use the get_all_hierarchies() function to get all the resource hierarchies.")]
   MultipleOwnersError(AccessPolicyResourceType),
+
+  #[error("The principal does not have the required permissions to perform the action \"{action_id}\".")]
+  ForbiddenError {
+    principal: PrincipalWithID,
+    action_id: String,
+    minimum_permission_level: ActionPermissionLevel,
+    actual_permission_level: ActionPermissionLevel
+  },
 
   #[error(transparent)]
   ResourceError(#[from] ResourceError)
@@ -30,6 +52,55 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
   loop {
 
     match selected_resource_type {
+
+      // AccessPolicy -> (AccessPolicy | Action | ActionLogEntry | App | AppAuthorization | AppAuthorizationCredential | AppCredential | Configuration | DelegationPolicy | Field | FieldChoice | FieldValue | Group | HTTPTransaction | Item | ItemConnection | ItemConnectionType | Membership | MembershipInvitation | Milestone | OAuthAuthorization | Project | Role | ServerLogEntry | Session | User | View | Workspace)
+      AccessPolicyResourceType::AccessPolicy => {
+
+        let Some(access_policy_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::AccessPolicy));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::AccessPolicy, Some(access_policy_id)));
+
+        let access_policy = AccessPolicy::get_by_id(&access_policy_id, database_pool).await?;
+        selected_resource_type = access_policy.scoped_resource_type;
+        selected_resource_id = match access_policy.scoped_resource_type {
+        
+          AccessPolicyResourceType::AccessPolicy => access_policy.scoped_access_policy_id,
+          AccessPolicyResourceType::Action => access_policy.scoped_action_id,
+          AccessPolicyResourceType::ActionLogEntry => access_policy.scoped_action_log_entry_id,
+          AccessPolicyResourceType::App => access_policy.scoped_app_id,
+          AccessPolicyResourceType::AppAuthorization => access_policy.scoped_app_authorization_id,
+          AccessPolicyResourceType::AppAuthorizationCredential => access_policy.scoped_app_authorization_credential_id,
+          AccessPolicyResourceType::AppCredential => access_policy.scoped_app_credential_id,
+          AccessPolicyResourceType::Configuration => access_policy.scoped_configuration_id,
+          AccessPolicyResourceType::DelegationPolicy => access_policy.scoped_delegation_policy_id,
+          AccessPolicyResourceType::Field => access_policy.scoped_field_id,
+          AccessPolicyResourceType::FieldChoice => access_policy.scoped_field_choice_id,
+          AccessPolicyResourceType::FieldValue => access_policy.scoped_field_value_id,
+          AccessPolicyResourceType::Group => access_policy.scoped_group_id,
+          AccessPolicyResourceType::HTTPTransaction => access_policy.scoped_http_transaction_id,
+          AccessPolicyResourceType::Item => access_policy.scoped_item_id,
+          AccessPolicyResourceType::ItemConnection => access_policy.scoped_item_connection_id,
+          AccessPolicyResourceType::ItemConnectionType => access_policy.scoped_item_connection_type_id,
+          AccessPolicyResourceType::Membership => access_policy.scoped_membership_id,
+          AccessPolicyResourceType::MembershipInvitation => access_policy.scoped_membership_invitation_id,
+          AccessPolicyResourceType::Milestone => access_policy.scoped_milestone_id,
+          AccessPolicyResourceType::OAuthAuthorization => access_policy.scoped_oauth_authorization_id,
+          AccessPolicyResourceType::Project => access_policy.scoped_project_id,
+          AccessPolicyResourceType::Role => access_policy.scoped_role_id,
+          AccessPolicyResourceType::Server => None,
+          AccessPolicyResourceType::ServerLogEntry => access_policy.scoped_server_log_entry_id,
+          AccessPolicyResourceType::Session => access_policy.scoped_session_id,
+          AccessPolicyResourceType::User => access_policy.scoped_user_id,
+          AccessPolicyResourceType::View => access_policy.scoped_view_id,
+          AccessPolicyResourceType::Workspace => access_policy.scoped_workspace_id,
+
+        }
+
+      },
 
       // Action -> (App | Server)
       AccessPolicyResourceType::Action => {
@@ -738,6 +809,22 @@ pub async fn get_hierarchy(scoped_resource_type: &AccessPolicyResourceType, scop
 
       },
 
+      // OAuthAuthorization -> Server
+      AccessPolicyResourceType::OAuthAuthorization => {
+
+        let Some(oauth_authorization_id) = selected_resource_id else {
+
+          return Err(ResourceHierarchyError::ScopedResourceIDMissingError(AccessPolicyResourceType::OAuthAuthorization));
+
+        };
+
+        hierarchy.push((AccessPolicyResourceType::OAuthAuthorization, Some(oauth_authorization_id)));
+
+        selected_resource_type = AccessPolicyResourceType::Server;
+        selected_resource_id = None;
+
+      },
+
       // Project -> Workspace
       AccessPolicyResourceType::Project => {
 
@@ -1025,5 +1112,164 @@ pub async fn get_all_hierarchies(scoped_resource_type: &AccessPolicyResourceType
   }
 
   return Ok(hierarchies);
+
+}
+
+/// Returns a list of access policies based on a hierarchy.
+pub async fn list_access_policies_by_hierarchy(principal: &PrincipalWithID, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, database_pool: &deadpool_postgres::Pool) -> Result<Vec<AccessPolicy>, ResourceError> {
+
+  let mut query_clauses: Vec<String> = Vec::new();
+
+  for (resource_type, resource_id) in resource_hierarchy {
+
+    if *resource_type == AccessPolicyResourceType::Server {
+
+      query_clauses.push(format!("scoped_resource_type = 'Server'"));
+      continue;
+
+    }
+
+    let resource_id = match resource_id {
+
+      Some(resource_id) => resource_id,
+
+      None => {
+        
+        let error_string = match resource_type {
+
+          AccessPolicyResourceType::AccessPolicy => "An access policy ID must be provided.",
+          AccessPolicyResourceType::Action => "An action ID must be provided.",
+          AccessPolicyResourceType::ActionLogEntry => "An action log entry ID must be provided.",
+          AccessPolicyResourceType::App => "An app ID must be provided.",
+          AccessPolicyResourceType::AppAuthorization => "An app authorization ID must be provided.",
+          AccessPolicyResourceType::AppAuthorizationCredential => "An app authorization credential ID must be provided.",
+          AccessPolicyResourceType::AppCredential => "An app credential ID must be provided.",
+          AccessPolicyResourceType::Configuration => "A configuration ID must be provided.",
+          AccessPolicyResourceType::DelegationPolicy => "A delegation policy ID must be provided.",
+          AccessPolicyResourceType::Field => "A field ID must be provided.",
+          AccessPolicyResourceType::FieldChoice => "A field choice ID must be provided.",
+          AccessPolicyResourceType::FieldValue => "A field value ID must be provided.",
+          AccessPolicyResourceType::Group => "A group ID must be provided.",
+          AccessPolicyResourceType::HTTPTransaction => "An HTTP transaction ID must be provided.",
+          AccessPolicyResourceType::Server => "An server ID must be provided.", // Huh??
+          AccessPolicyResourceType::Item => "An item ID must be provided.",
+          AccessPolicyResourceType::ItemConnection => "An item connection ID must be provided.",
+          AccessPolicyResourceType::ItemConnectionType => "An item connection type ID must be provided.",
+          AccessPolicyResourceType::Membership => "A membership ID must be provided.",
+          AccessPolicyResourceType::MembershipInvitation => "A membership invitation ID must be provided.",
+          AccessPolicyResourceType::Milestone => "A milestone ID must be provided.",
+          AccessPolicyResourceType::OAuthAuthorization => "An OAuth authorization ID must be provided.",
+          AccessPolicyResourceType::Project => "A project ID must be provided.",
+          AccessPolicyResourceType::Role => "A role ID must be provided.",
+          AccessPolicyResourceType::ServerLogEntry => "A server log entry ID must be provided.",
+          AccessPolicyResourceType::Session => "A session ID must be provided.",
+          AccessPolicyResourceType::User => "A user ID must be provided.",
+          AccessPolicyResourceType::View => "A view ID must be provided.",
+          AccessPolicyResourceType::Workspace => "A workspace ID must be provided."
+
+        };
+
+        return Err(ResourceError::HierarchyResourceIDMissingError(error_string.to_string()));
+
+      }
+
+    };
+
+    let resource_id_as_quote_literal = quote_literal(&format!("{}", resource_id));
+    match resource_type {
+
+      AccessPolicyResourceType::AccessPolicy => query_clauses.push(format!("scoped_access_policy_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Action => query_clauses.push(format!("scoped_action_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::ActionLogEntry => query_clauses.push(format!("scoped_action_log_entry_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::App => query_clauses.push(format!("scoped_app_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::AppAuthorization => query_clauses.push(format!("scoped_app_authorization_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::AppAuthorizationCredential => query_clauses.push(format!("scoped_app_authorization_credential_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::AppCredential => query_clauses.push(format!("scoped_app_credential_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Configuration => query_clauses.push(format!("scoped_configuration_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::DelegationPolicy => query_clauses.push(format!("scoped_delegation_policy_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Field => query_clauses.push(format!("scoped_field_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::FieldChoice => query_clauses.push(format!("scoped_field_choice_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::FieldValue => query_clauses.push(format!("scoped_field_value_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Group => query_clauses.push(format!("scoped_group_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::HTTPTransaction => query_clauses.push(format!("scoped_http_transaction_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Item => query_clauses.push(format!("scoped_item_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::ItemConnection => query_clauses.push(format!("scoped_item_connection_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::ItemConnectionType => query_clauses.push(format!("scoped_item_connection_type_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Membership => query_clauses.push(format!("scoped_membership_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::MembershipInvitation => query_clauses.push(format!("scoped_membership_invitation_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Milestone => query_clauses.push(format!("scoped_milestone_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::OAuthAuthorization => query_clauses.push(format!("scoped_oauth_authorization_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Project => query_clauses.push(format!("scoped_project_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Role => query_clauses.push(format!("scoped_role_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Server => {},
+      AccessPolicyResourceType::ServerLogEntry => query_clauses.push(format!("scoped_server_log_entry_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Session => query_clauses.push(format!("scoped_session_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::User => query_clauses.push(format!("scoped_user_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::View => query_clauses.push(format!("scoped_view_id = {}", resource_id_as_quote_literal)),
+      AccessPolicyResourceType::Workspace => query_clauses.push(format!("scoped_workspace_id = {}", resource_id_as_quote_literal))
+
+    }
+
+  }
+
+  // This will turn the query into something like:
+  // action_id = $1 AND (scoped_resource_type = 'Server' OR scoped_workspace_id = $2 OR scoped_project_id = $3 OR scoped_milestone_id = $4 OR scoped_item_id = $5)
+  let principal_clause = match principal {
+
+    PrincipalWithID::User(user_id) => format!("principal_user_id = '{}'", user_id),
+    PrincipalWithID::Group(group_id) => format!("principal_group_id = '{}'", group_id),
+    PrincipalWithID::Role(role_id) => format!("principal_role_id = '{}'", role_id),
+    PrincipalWithID::App(app_id) => format!("principal_app_id = '{}'", app_id)
+
+  };
+  let mut query_filter = String::new();
+  query_filter.push_str(format!("{} AND action_id = {} AND (", principal_clause, quote_literal(&action_id.to_string())).as_str());
+  for i in 0..query_clauses.len() {
+
+    if i > 0 {
+
+      query_filter.push_str(" OR ");
+
+    }
+
+    query_filter.push_str(&query_clauses[i]);
+
+  }
+  query_filter.push_str(")");
+  
+  let access_policies = AccessPolicy::list(&query_filter, database_pool, None).await?;
+
+  return Ok(access_policies);
+
+}
+
+pub async fn verify_permissions(principal: &PrincipalWithID, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceHierarchyError> {
+
+  let relevant_access_policies = list_access_policies_by_hierarchy(principal, action_id, resource_hierarchy, database_pool).await?;
+  let deepest_access_policy = match relevant_access_policies.first() {
+
+    Some(access_policy) => access_policy,
+
+    None => return Err(ResourceHierarchyError::ForbiddenError {
+      principal: principal.clone(),
+      action_id: action_id.to_string(),
+      minimum_permission_level: minimum_permission_level.clone(),
+      actual_permission_level: ActionPermissionLevel::None
+    })
+
+  };
+
+  if &deepest_access_policy.permission_level < minimum_permission_level {
+
+    return Err(ResourceHierarchyError::ForbiddenError {
+      principal: principal.clone(),
+      action_id: action_id.to_string(),
+      minimum_permission_level: minimum_permission_level.clone(),
+      actual_permission_level: deepest_access_policy.permission_level
+    });
+
+  }
+
+  return Ok(());
 
 }

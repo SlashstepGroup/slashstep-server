@@ -23,7 +23,7 @@ use crate::{
       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
     }, 
     action::Action, action_log_entry::{ActionLogEntry, DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT},
-  }, routes::action_log_entries::ListActionLogEntryResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
+  }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested action log entry list.
@@ -82,21 +82,21 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_json: ListActionLogEntryResponseBody = response.json();
+  let response_json: ListResourcesResponseBody<ActionLogEntry> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.action_log_entries.len() > 0);
+  assert!(response_json.resources.len() > 0);
 
   const LIST_OFFSET: i64 = 1;
   let actual_action_count = ActionLogEntry::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_json.total_count + LIST_OFFSET, actual_action_count);
 
   let actual_action_log_entries = ActionLogEntry::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.action_log_entries.len() + LIST_OFFSET as usize, actual_action_log_entries.len());
+  assert_eq!(response_json.resources.len() + LIST_OFFSET as usize, actual_action_log_entries.len());
 
   let mut remaining_list_offset = LIST_OFFSET;
   for actual_action_log_entry in actual_action_log_entries {
 
-    let found_access_policy = response_json.action_log_entries.iter().find(|action_log_entry| action_log_entry.id == actual_action_log_entry.id);
+    let found_access_policy = response_json.resources.iter().find(|action_log_entry| action_log_entry.id == actual_action_log_entry.id);
     
     if !found_access_policy.is_some() {
 
@@ -176,19 +176,19 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_json: ListActionLogEntryResponseBody = response.json();
+  let response_json: ListResourcesResponseBody<ActionLogEntry> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.action_log_entries.len() > 0);
+  assert!(response_json.resources.len() > 0);
 
   let actual_action_count = ActionLogEntry::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
   assert_eq!(response_json.total_count, actual_action_count);
 
   let actual_action_log_entries = ActionLogEntry::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
-  assert_eq!(response_json.action_log_entries.len(), actual_action_log_entries.len());
+  assert_eq!(response_json.resources.len(), actual_action_log_entries.len());
 
   for actual_action_log_entry in actual_action_log_entries {
 
-    let found_access_policy = response_json.action_log_entries.iter().find(|action_log_entry| action_log_entry.id == actual_action_log_entry.id);
+    let found_access_policy = response_json.resources.iter().find(|action_log_entry| action_log_entry.id == actual_action_log_entry.id);
     
     assert!(found_access_policy.is_some(), "Couldn't find action log entry with ID {}.", actual_action_log_entry.id);
 
@@ -259,8 +259,8 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListActionLogEntryResponseBody = response.json();
-  assert_eq!(response_body.action_log_entries.len(), DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT as usize);
+  let response_body: ListResourcesResponseBody<ActionLogEntry> = response.json();
+  assert_eq!(response_body.resources.len(), DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT as usize);
 
   return Ok(());
 

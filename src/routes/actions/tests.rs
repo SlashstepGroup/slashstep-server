@@ -26,7 +26,7 @@ use crate::{
       DEFAULT_ACTION_LIST_LIMIT
     }, 
    
-  }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
+  }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
 
 /// Verifies that the router can return a 200 status code and the requested action list.

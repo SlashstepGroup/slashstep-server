@@ -15,7 +15,6 @@ mod tests;
 
 use core::{fmt};
 use std::str::FromStr;
-use pg_escape::quote_literal;
 use postgres::{
   error::SqlState, 
   types::ToSql
@@ -37,7 +36,8 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "principal_group_id", 
   "principal_role_id", 
   "principal_app_id",
-  "scoped_resource_type", 
+  "scoped_resource_type",
+  "scoped_access_policy_id",
   "scoped_action_id",
   "scoped_action_log_entry_id", 
   "scoped_app_id",
@@ -57,6 +57,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_membership_id",
   "scoped_membership_invitation_id",
   "scoped_milestone_id", 
+  "scoped_oauth_authorization_id",
   "scoped_project_id", 
   "scoped_role_id",
   "scoped_server_log_entry_id",
@@ -75,6 +76,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "principal_group_id", 
   "principal_role_id", 
   "principal_app_id",
+  "scoped_access_policy_id",
   "scoped_action_id", 
   "scoped_action_log_entry_id",
   "scoped_app_id",
@@ -94,6 +96,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_membership_id",
   "scoped_membership_invitation_id",
   "scoped_milestone_id", 
+  "scoped_oauth_authorization_id",
   "scoped_project_id", 
   "scoped_role_id",
   "scoped_server_log_entry_id",
@@ -104,7 +107,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
 ];
 
 pub const DEFAULT_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
-pub const DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT: i64 = 1000;
+pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default, PartialOrd)]
 #[postgres(name = "permission_level")]
@@ -145,9 +148,10 @@ impl FromStr for ActionPermissionLevel {
 
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize, Default, Copy)]
 #[postgres(name = "access_policy_resource_type")]
 pub enum AccessPolicyResourceType {
+  AccessPolicy,
   Action,
   ActionLogEntry,
   App,
@@ -169,6 +173,7 @@ pub enum AccessPolicyResourceType {
   Membership,
   MembershipInvitation,
   Milestone,
+  OAuthAuthorization,
   Project,
   Role,
   ServerLogEntry,
@@ -181,6 +186,7 @@ pub enum AccessPolicyResourceType {
 impl fmt::Display for AccessPolicyResourceType {
   fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
     match self {
+      AccessPolicyResourceType::AccessPolicy => write!(formatter, "AccessPolicy"),
       AccessPolicyResourceType::Action => write!(formatter, "Action"),
       AccessPolicyResourceType::ActionLogEntry => write!(formatter, "ActionLogEntry"),
       AccessPolicyResourceType::App => write!(formatter, "App"),
@@ -201,6 +207,7 @@ impl fmt::Display for AccessPolicyResourceType {
       AccessPolicyResourceType::Membership => write!(formatter, "Membership"),
       AccessPolicyResourceType::MembershipInvitation => write!(formatter, "MembershipInvitation"),
       AccessPolicyResourceType::Milestone => write!(formatter, "Milestone"),
+      AccessPolicyResourceType::OAuthAuthorization => write!(formatter, "OAuthAuthorization"),
       AccessPolicyResourceType::Project => write!(formatter, "Project"),
       AccessPolicyResourceType::Role => write!(formatter, "Role"),
       AccessPolicyResourceType::ServerLogEntry => write!(formatter, "ServerLogEntry"),
@@ -219,6 +226,7 @@ impl FromStr for AccessPolicyResourceType {
   fn from_str(string: &str) -> Result<Self, Self::Err> {
 
     match string {
+      "AccessPolicy" => Ok(AccessPolicyResourceType::AccessPolicy),
       "Action" => Ok(AccessPolicyResourceType::Action),
       "ActionLogEntry" => Ok(AccessPolicyResourceType::ActionLogEntry),
       "App" => Ok(AccessPolicyResourceType::App),
@@ -239,6 +247,7 @@ impl FromStr for AccessPolicyResourceType {
       "Membership" => Ok(AccessPolicyResourceType::Membership),
       "MembershipInvitation" => Ok(AccessPolicyResourceType::MembershipInvitation),
       "Milestone" => Ok(AccessPolicyResourceType::Milestone),
+      "OAuthAuthorization" => Ok(AccessPolicyResourceType::OAuthAuthorization),
       "Project" => Ok(AccessPolicyResourceType::Project),
       "Role" => Ok(AccessPolicyResourceType::Role),
       "ServerLogEntry" => Ok(AccessPolicyResourceType::ServerLogEntry),
@@ -301,19 +310,6 @@ impl FromStr for AccessPolicyPrincipalType {
 
 }
 
-#[derive(Debug, Clone)]
-pub enum Principal {
-
-  User(Uuid),
-
-  Group(Uuid),
-
-  Role(Uuid),
-
-  App(Uuid)
-
-}
-
 #[derive(Debug, Deserialize, Default)]
 pub struct InitialAccessPolicyProperties {
 
@@ -334,6 +330,8 @@ pub struct InitialAccessPolicyProperties {
   pub principal_app_id: Option<Uuid>,
 
   pub scoped_resource_type: AccessPolicyResourceType,
+
+  pub scoped_access_policy_id: Option<Uuid>,
 
   pub scoped_action_id: Option<Uuid>,
 
@@ -373,6 +371,8 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_milestone_id: Option<Uuid>,
 
+  pub scoped_oauth_authorization_id: Option<Uuid>,
+
   pub scoped_project_id: Option<Uuid>,
 
   pub scoped_role_id: Option<Uuid>,
@@ -398,8 +398,6 @@ pub struct EditableAccessPolicyProperties {
   pub is_inheritance_enabled: Option<bool>,
 
 }
-
-pub type ResourceHierarchy = Vec<(AccessPolicyResourceType, Option<Uuid>)>;
 
 #[derive(Debug, Clone)]
 pub enum IndividualPrincipal {
@@ -445,6 +443,8 @@ pub struct AccessPolicy {
 
   pub scoped_resource_type: AccessPolicyResourceType,
 
+  pub scoped_access_policy_id: Option<Uuid>,
+
   pub scoped_action_id: Option<Uuid>,
 
   pub scoped_action_log_entry_id: Option<Uuid>,
@@ -482,6 +482,8 @@ pub struct AccessPolicy {
   pub scoped_membership_invitation_id: Option<Uuid>,
 
   pub scoped_milestone_id: Option<Uuid>,
+
+  pub scoped_oauth_authorization_id: Option<Uuid>,
 
   pub scoped_project_id: Option<Uuid>,
 
@@ -542,6 +544,7 @@ impl AccessPolicy {
       &initial_properties.principal_role_id,
       &initial_properties.principal_app_id,
       &initial_properties.scoped_resource_type,
+      &initial_properties.scoped_access_policy_id,
       &initial_properties.scoped_action_id,
       &initial_properties.scoped_action_log_entry_id,
       &initial_properties.scoped_app_id,
@@ -561,6 +564,7 @@ impl AccessPolicy {
       &initial_properties.scoped_membership_id,
       &initial_properties.scoped_membership_invitation_id,
       &initial_properties.scoped_milestone_id,
+      &initial_properties.scoped_oauth_authorization_id,
       &initial_properties.scoped_project_id,
       &initial_properties.scoped_role_id,
       &initial_properties.scoped_server_log_entry_id,
@@ -633,6 +637,7 @@ impl AccessPolicy {
       principal_role_id: row.get("principal_role_id"),
       principal_app_id: row.get("principal_app_id"),
       scoped_resource_type: row.get("scoped_resource_type"),
+      scoped_access_policy_id: row.get("scoped_access_policy_id"),
       scoped_action_id: row.get("scoped_action_id"),
       scoped_action_log_entry_id: row.get("scoped_action_log_entry_id"),
       scoped_app_id: row.get("scoped_app_id"),
@@ -652,6 +657,7 @@ impl AccessPolicy {
       scoped_membership_id: row.get("scoped_membership_id"),
       scoped_membership_invitation_id: row.get("scoped_membership_invitation_id"),
       scoped_milestone_id: row.get("scoped_milestone_id"),
+      scoped_oauth_authorization_id: row.get("scoped_oauth_authorization_id"),
       scoped_project_id: row.get("scoped_project_id"),
       scoped_role_id: row.get("scoped_role_id"),
       scoped_server_log_entry_id: row.get("scoped_server_log_entry_id"),
@@ -676,8 +682,8 @@ impl AccessPolicy {
     let can_principal_get_access_policy_function = include_str!("../../queries/access_policies/create_function_can_principal_get_resource.sql");
     database_client.execute(can_principal_get_access_policy_function, &[]).await?;
 
-    let get_initial_resource_id_from_access_policy_function = include_str!("../../queries/access_policies/create_function_get_initial_resource_id_from_access_policy.sql");
-    database_client.execute(get_initial_resource_id_from_access_policy_function, &[]).await?;
+    let get_scoped_resource_id_from_access_policy_function = include_str!("../../queries/access_policies/create_function_get_scoped_resource_id_from_access_policy.sql");
+    database_client.execute(get_scoped_resource_id_from_access_policy_function, &[]).await?;
 
     return Ok(());
 
@@ -759,7 +765,7 @@ impl AccessPolicy {
       filter: query.to_string(),
       allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: Some(DEFAULT_ACCESS_POLICY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      maximum_limit: Some(DEFAULT_MAXIMUM_ACCESS_POLICY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       should_ignore_limit: false,
       should_ignore_offset: false
     };
@@ -779,130 +785,6 @@ impl AccessPolicy {
     let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
     let access_policies = rows.iter().map(AccessPolicy::convert_from_row).collect();
-    return Ok(access_policies);
-
-  }
-
-  /// Returns a list of access policies based on a hierarchy.
-  pub async fn list_by_hierarchy(principal: &Principal, action_id: &Uuid, resource_hierarchy: &ResourceHierarchy, database_pool: &deadpool_postgres::Pool) -> Result<Vec<Self>, ResourceError> {
-
-    let mut query_clauses: Vec<String> = Vec::new();
-
-    for (resource_type, resource_id) in resource_hierarchy {
-
-      if *resource_type == AccessPolicyResourceType::Server {
-
-        query_clauses.push(format!("scoped_resource_type = 'Server'"));
-        continue;
-
-      }
-
-      let resource_id = match resource_id {
-
-        Some(resource_id) => resource_id,
-
-        None => {
-          
-          let error_string = match resource_type {
-            
-            AccessPolicyResourceType::Action => "An action ID must be provided.",
-            AccessPolicyResourceType::ActionLogEntry => "An action log entry ID must be provided.",
-            AccessPolicyResourceType::App => "An app ID must be provided.",
-            AccessPolicyResourceType::AppAuthorization => "An app authorization ID must be provided.",
-            AccessPolicyResourceType::AppAuthorizationCredential => "An app authorization credential ID must be provided.",
-            AccessPolicyResourceType::AppCredential => "An app credential ID must be provided.",
-            AccessPolicyResourceType::Configuration => "A configuration ID must be provided.",
-            AccessPolicyResourceType::DelegationPolicy => "A delegation policy ID must be provided.",
-            AccessPolicyResourceType::Field => "A field ID must be provided.",
-            AccessPolicyResourceType::FieldChoice => "A field choice ID must be provided.",
-            AccessPolicyResourceType::FieldValue => "A field value ID must be provided.",
-            AccessPolicyResourceType::Group => "A group ID must be provided.",
-            AccessPolicyResourceType::HTTPTransaction => "An HTTP transaction ID must be provided.",
-            AccessPolicyResourceType::Server => "An server ID must be provided.", // Huh??
-            AccessPolicyResourceType::Item => "An item ID must be provided.",
-            AccessPolicyResourceType::ItemConnection => "An item connection ID must be provided.",
-            AccessPolicyResourceType::ItemConnectionType => "An item connection type ID must be provided.",
-            AccessPolicyResourceType::Membership => "A membership ID must be provided.",
-            AccessPolicyResourceType::MembershipInvitation => "A membership invitation ID must be provided.",
-            AccessPolicyResourceType::Milestone => "A milestone ID must be provided.",
-            AccessPolicyResourceType::Project => "A project ID must be provided.",
-            AccessPolicyResourceType::Role => "A role ID must be provided.",
-            AccessPolicyResourceType::ServerLogEntry => "A server log entry ID must be provided.",
-            AccessPolicyResourceType::Session => "A session ID must be provided.",
-            AccessPolicyResourceType::User => "A user ID must be provided.",
-            AccessPolicyResourceType::View => "A view ID must be provided.",
-            AccessPolicyResourceType::Workspace => "A workspace ID must be provided."
-
-          };
-
-          return Err(ResourceError::HierarchyResourceIDMissingError(error_string.to_string()));
-
-        }
-
-      };
-
-      let resource_id_as_quote_literal = quote_literal(&format!("{}", resource_id));
-      match resource_type {
-
-        AccessPolicyResourceType::Action => query_clauses.push(format!("scoped_action_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::ActionLogEntry => query_clauses.push(format!("scoped_action_log_entry_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::App => query_clauses.push(format!("scoped_app_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::AppAuthorization => query_clauses.push(format!("scoped_app_authorization_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::AppAuthorizationCredential => query_clauses.push(format!("scoped_app_authorization_credential_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::AppCredential => query_clauses.push(format!("scoped_app_credential_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Configuration => query_clauses.push(format!("scoped_configuration_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::DelegationPolicy => query_clauses.push(format!("scoped_delegation_policy_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Field => query_clauses.push(format!("scoped_field_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::FieldChoice => query_clauses.push(format!("scoped_field_choice_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::FieldValue => query_clauses.push(format!("scoped_field_value_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Group => query_clauses.push(format!("scoped_group_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::HTTPTransaction => query_clauses.push(format!("scoped_http_transaction_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Item => query_clauses.push(format!("scoped_item_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::ItemConnection => query_clauses.push(format!("scoped_item_connection_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::ItemConnectionType => query_clauses.push(format!("scoped_item_connection_type_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Membership => query_clauses.push(format!("scoped_membership_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::MembershipInvitation => query_clauses.push(format!("scoped_membership_invitation_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Milestone => query_clauses.push(format!("scoped_milestone_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Project => query_clauses.push(format!("scoped_project_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Role => query_clauses.push(format!("scoped_role_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Server => {},
-        AccessPolicyResourceType::ServerLogEntry => query_clauses.push(format!("scoped_server_log_entry_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Session => query_clauses.push(format!("scoped_session_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::User => query_clauses.push(format!("scoped_user_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::View => query_clauses.push(format!("scoped_view_id = {}", resource_id_as_quote_literal)),
-        AccessPolicyResourceType::Workspace => query_clauses.push(format!("scoped_workspace_id = {}", resource_id_as_quote_literal))
-
-      }
-
-    }
-
-    // This will turn the query into something like:
-    // action_id = $1 AND (scoped_resource_type = 'Server' OR scoped_workspace_id = $2 OR scoped_project_id = $3 OR scoped_milestone_id = $4 OR scoped_item_id = $5)
-    let principal_clause = match principal {
-
-      Principal::User(user_id) => format!("principal_user_id = '{}'", user_id),
-      Principal::Group(group_id) => format!("principal_group_id = '{}'", group_id),
-      Principal::Role(role_id) => format!("principal_role_id = '{}'", role_id),
-      Principal::App(app_id) => format!("principal_app_id = '{}'", app_id)
-
-    };
-    let mut query_filter = String::new();
-    query_filter.push_str(format!("{} AND action_id = {} AND (", principal_clause, quote_literal(&action_id.to_string())).as_str());
-    for i in 0..query_clauses.len() {
-
-      if i > 0 {
-
-        query_filter.push_str(" OR ");
-
-      }
-
-      query_filter.push_str(&query_clauses[i]);
-
-    }
-    query_filter.push_str(")");
-    
-    let access_policies = AccessPolicy::list(&query_filter, database_pool, None).await?;
-
     return Ok(access_policies);
 
   }
@@ -933,6 +815,7 @@ impl AccessPolicy {
 
     let scoped_resource_id = match self.scoped_resource_type {
 
+      AccessPolicyResourceType::AccessPolicy => self.scoped_access_policy_id,
       AccessPolicyResourceType::Action => self.scoped_action_id,
       AccessPolicyResourceType::ActionLogEntry => self.scoped_action_log_entry_id,
       AccessPolicyResourceType::App => self.scoped_app_id,
@@ -953,6 +836,7 @@ impl AccessPolicy {
       AccessPolicyResourceType::Membership => self.scoped_membership_id,
       AccessPolicyResourceType::MembershipInvitation => self.scoped_membership_invitation_id,
       AccessPolicyResourceType::Milestone => self.scoped_milestone_id,
+      AccessPolicyResourceType::OAuthAuthorization => self.scoped_oauth_authorization_id,
       AccessPolicyResourceType::Project => self.scoped_project_id,
       AccessPolicyResourceType::Role => self.scoped_role_id,
       AccessPolicyResourceType::ServerLogEntry => self.scoped_server_log_entry_id,

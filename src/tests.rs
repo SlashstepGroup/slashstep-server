@@ -1,13 +1,17 @@
+use std::sync::{Arc, Mutex, OnceLock, Weak};
+
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
 use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePublicKey, spki::der::pem::LineEnding}};
 use local_ip_address::local_ip;
 use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
-use testcontainers::{ImageExt};
+use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldParentResourceType, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
 use thiserror::Error;
+
+static POSTGRES_CONTAINER_LOCK: OnceLock<Mutex<Weak<ContainerAsync<testcontainers_modules::postgres::Postgres>>>> = OnceLock::new();
 
 #[derive(Debug, Error)]
 pub enum TestSlashstepServerError {
@@ -63,23 +67,49 @@ pub struct TestEnvironment {
   // This is required to prevent the compiler from complaining about unused fields.
   // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
   #[allow(dead_code)]
-  pub postgres_container: testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>
+  pub postgres_container: Arc<testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>>
 
 }
 
 impl TestEnvironment {
 
+  pub async fn start_postgresql_container() -> Arc<ContainerAsync<testcontainers_modules::postgres::Postgres>> {
+
+    let mut guard = POSTGRES_CONTAINER_LOCK
+      .get_or_init(|| Mutex::new(Weak::new()))
+      .lock()
+      .unwrap();
+
+    if let Some(container) = guard.upgrade() {
+
+      println!("Reusing existing PostgreSQL test server...");
+      return container;
+
+    }
+
+    println!("Starting PostgreSQL test server...");
+    let postgres_container = Arc::new(
+      testcontainers_modules::postgres::Postgres::default()
+        .with_tag("18")
+        .start()
+        .await
+        .expect("Failed to start PostgreSQL test server")
+    );
+
+    *guard = Arc::downgrade(&postgres_container);
+    return postgres_container;
+
+  }
+
   pub async fn new() -> Result<Self, TestSlashstepServerError> {
 
     import_env_file();
     
-    let postgres_container = testcontainers_modules::postgres::Postgres::default()
-      .with_tag("18")
-      .start()
-      .await?;
+    let postgres_container = Self::start_postgresql_container().await;
     let postgres_host = postgres_container.get_host().await?;
     let postgres_port = postgres_container.get_host_port_ipv4(5432).await?;
 
+    println!("Signing into PostgreSQL test server...");
     let mut postgres_config = tokio_postgres::Config::new();
     postgres_config.host(postgres_host.to_string());
     postgres_config.port(postgres_port);
@@ -88,8 +118,14 @@ impl TestEnvironment {
     let manager_config = deadpool_postgres::ManagerConfig {
       recycling_method: deadpool_postgres::RecyclingMethod::Fast
     };
-    let manager = deadpool_postgres::Manager::from_config(postgres_config, NoTls, manager_config);
+    let manager = deadpool_postgres::Manager::from_config(postgres_config.clone(), NoTls, manager_config.clone());
+    let database_pool = deadpool_postgres::Pool::builder(manager).max_size(1).build()?;
+    let database_client = database_pool.get().await?;
+    let database_name = Uuid::now_v7().to_string();
+    database_client.query(&format!("CREATE DATABASE \"{}\"", database_name), &[]).await?;
 
+    postgres_config.dbname(database_name);
+    let manager = deadpool_postgres::Manager::from_config(postgres_config.clone(), NoTls, manager_config.clone());
     let database_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT as usize).build()?;
 
     let environment = TestEnvironment {

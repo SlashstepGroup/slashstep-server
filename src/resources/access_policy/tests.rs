@@ -12,8 +12,8 @@
 use std::cmp;
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{DeletableResource, access_policy::{
-    AccessPolicy, ActionPermissionLevel, AccessPolicyPrincipalType, AccessPolicyResourceType, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties, Principal
-  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::resource_hierarchy
+    AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties
+  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::resource_hierarchy::{self, PrincipalWithID}
 };
 
 fn assert_access_policy_is_equal_to_initial_properties(access_policy: &AccessPolicy, initial_properties: &InitialAccessPolicyProperties) {
@@ -162,7 +162,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
   // Create dummy access policies.
   const MAXIMUM_ACTION_COUNT: i32 = 25;
-  let mut created_access_policies: Vec<Box<AccessPolicy>> = Vec::new();
+  let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = cmp::max(MAXIMUM_ACTION_COUNT, 2);
   let denied_access_policy_count = remaining_action_count / 2;
   while remaining_action_count > 0 {
@@ -175,13 +175,14 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
       principal_user_id: Some(user.id),
       scoped_resource_type: AccessPolicyResourceType::Action,
       scoped_action_id: Some(dummy_action.id),
+      is_inheritance_enabled: true,
       ..Default::default()
     };
 
-    let access_policy = Box::new(AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?);
+    let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
     if access_policy.permission_level == ActionPermissionLevel::User {
 
-      created_access_policies.push(access_policy.clone());
+      created_access_policies.push(access_policy);
 
     }
     remaining_action_count -= 1;
@@ -335,7 +336,7 @@ async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerEr
   let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &test_environment.database_pool).await?;
   let access_policy_hierarchy = resource_hierarchy::get_hierarchy(&instance_access_policy.scoped_resource_type, instance_access_policy.get_scoped_resource_id().as_ref(), &test_environment.database_pool).await?;
 
-  let retrieved_access_policies = AccessPolicy::list_by_hierarchy(&Principal::User(user.id), &action.id, &access_policy_hierarchy, &test_environment.database_pool).await?;
+  let retrieved_access_policies = resource_hierarchy::list_access_policies_by_hierarchy(&PrincipalWithID::User(user.id), &action.id, &access_policy_hierarchy, &test_environment.database_pool).await?;
 
   assert_eq!(retrieved_access_policies.len(), access_policy_hierarchy.len());
   

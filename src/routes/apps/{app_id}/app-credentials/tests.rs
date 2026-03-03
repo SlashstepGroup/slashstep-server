@@ -17,7 +17,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel, IndividualPrincipal}, action::Action, app_credential::{AppCredential, DEFAULT_APP_CREDENTIAL_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope},}, routes::apps::app_id::app_credentials::CreateAppCredentialResponseBody, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel, IndividualPrincipal}, action::Action, app_credential::{AppCredential, DEFAULT_RESOURCE_LIST_LIMIT, InitialAppCredentialPropertiesForPredefinedScope},}, routes::apps::app_id::app_credentials::CreateAppCredentialResponseBody, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -160,7 +160,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
   let app_credential_count = AppCredential::count(format!("app_id = {}", quote_literal(&dummy_app.id.to_string())).as_str(), &test_environment.database_pool, None).await?;
-  for _ in 0..(DEFAULT_APP_CREDENTIAL_LIST_LIMIT - app_credential_count + 1) {
+  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - app_credential_count + 1) {
 
     test_environment.create_random_app_credential(Some(&dummy_app.id)).await?;
 
@@ -182,7 +182,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<AppCredential> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_APP_CREDENTIAL_LIST_LIMIT as usize);
+  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 
@@ -222,7 +222,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   let response = test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
-    .add_query_param("query", format!("limit {}", DEFAULT_APP_CREDENTIAL_LIST_LIMIT + 1))
+    .add_query_param("query", format!("limit {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
@@ -366,7 +366,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   let response = test_server.get(&format!("/apps/{}/app-credentials", &dummy_app.id))
-    .add_query_param("query", format!("LIMIT {}", DEFAULT_APP_CREDENTIAL_LIST_LIMIT + 1))
+    .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   

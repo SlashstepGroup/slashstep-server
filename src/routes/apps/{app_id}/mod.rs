@@ -17,9 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    DeletableResource, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{reusable_route_handlers::delete_resource, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_field_length, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_field_length, verify_delegate_permissions, verify_principal_permissions}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -43,6 +43,7 @@ async fn handle_get_app_request(
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 ) -> Result<Json<App>, HTTPError> {
 
+  let app_id = get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
   let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &state.database_pool).await?;
   let get_apps_action = get_action_by_name("apps.get", &http_transaction, &state.database_pool).await?;
@@ -82,21 +83,37 @@ async fn handle_delete_app_request(
 ) -> Result<StatusCode, HTTPError> {
 
   let app_id = get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
-  let response = delete_resource(
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app), 
-    Extension(authenticated_app_authorization),
-    Some(&AccessPolicyResourceType::App),
-    &app_id, 
-    "apps.delete",
-    "app",
-    &ActionLogEntryTargetResourceType::App,
-    |app_id, database_pool| Box::new(App::get_by_id(app_id, database_pool))
-  ).await;
+  let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &state.database_pool).await?;
+  let delete_apps_action = get_action_by_name("apps.delete", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_apps_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&authenticated_principal, &delete_apps_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-  return response;
+  if let Err(error) = target_app.delete(&state.database_pool).await {
+
+    let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete app: {:?}", error)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: delete_apps_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::App,
+    target_app_id: Some(target_app.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+
+  ServerLogEntry::success(&format!("Successfully deleted app {}.", target_app.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  return Ok(StatusCode::NO_CONTENT);
 
 }
 
@@ -114,6 +131,7 @@ async fn handle_patch_app_request(
   body: Result<Json<EditableAppProperties>, JsonRejection>
 ) -> Result<Json<App>, HTTPError> {
 
+  let app_id = get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
   let updated_app_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
   if let Some(updated_app_name) = &updated_app_properties.name { 
     

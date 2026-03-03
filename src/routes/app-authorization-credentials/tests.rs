@@ -21,8 +21,8 @@ use crate::{
     access_policy::{
       ActionPermissionLevel,
       IndividualPrincipal
-    }, action::Action, app_authorization_credential::{AppAuthorizationCredential, DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT, DEFAULT_MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT},
-  }, tests::{TestEnvironment, TestSlashstepServerError}, utilities::reusable_route_handlers::ListResourcesResponseBody
+    }, action::Action, app_authorization_credential::{AppAuthorizationCredential, DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT},
+  }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
 
 /// Verifies that the router can return a 200 status code and the requested resource list.
@@ -229,7 +229,7 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router)?;
   let response = test_server.get(&format!("/app-authorization-credentials"))
-    .add_query_param("query", format!("LIMIT {}", DEFAULT_MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT + 1))
+    .add_query_param("query", format!("LIMIT {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
