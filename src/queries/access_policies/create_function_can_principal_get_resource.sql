@@ -45,7 +45,7 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             FROM
                 get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
             WHERE
-                (
+                principal_access_policies.scoped_resource_type = selected_resource_type AND (
                     (
                         principal_access_policies.scoped_resource_type = 'AccessPolicy' AND 
                         principal_access_policies.scoped_access_policy_id = selected_resource_id
@@ -115,6 +115,8 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                     ) OR (
                         principal_access_policies.scoped_resource_type = 'Role' AND 
                         principal_access_policies.scoped_role_id = selected_resource_id
+                    ) OR (
+                        principal_access_policies.scoped_resource_type = 'Server'
                     ) OR (
                         principal_access_policies.scoped_resource_type = 'ServerLogEntry' AND 
                         principal_access_policies.scoped_server_log_entry_id = selected_resource_id

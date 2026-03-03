@@ -15,9 +15,9 @@ mod membership_id;
 mod tests;
 
 use std::sync::Arc;
-use axum::{Extension, Router, extract::{Query, State}};
-use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::App, app_authorization::AppAuthorization, membership::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Membership}, http_transaction::HTTPTransaction, user::User}};
+use axum::{Extension, Json, Router, extract::{Query, State}};
+use reqwest::StatusCode;
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Membership}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 /// GET /memberships
 /// 
@@ -30,28 +30,77 @@ async fn handle_list_memberships_request(
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-) -> Result<ErasedJson, HTTPError> {
+) -> Result<(StatusCode, Json<ListResourcesResponseBody<Membership>>), HTTPError> {
 
-  let resource_hierarchy = vec![(AccessPolicyResourceType::Server, None)];
-  let response = list_resources(
-    Query(query_parameters), 
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app), 
-    Extension(authenticated_app_authorization),
-    resource_hierarchy, 
-    ActionLogEntryTargetResourceType::Server,
-    None, 
-    |query, database_pool, individual_principal| Box::new(Membership::count(query, database_pool, individual_principal)),
-    |query, database_pool, individual_principal| Box::new(Membership::list(query, database_pool, individual_principal)),
-    "memberships.list", 
-    DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
-    "memberships",
-    "membership"
-  ).await;
+  // Make sure the principal has access to list resources.
+  let list_resources_action = get_action_by_name("memberships.list", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
+  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
 
-  return response;
+  ServerLogEntry::trace("Listing memberships...", Some(&http_transaction.id), &state.database_pool).await.ok();
+  let query = query_parameters.query.unwrap_or("".to_string());
+  let queried_resources = match Membership::list(&query, &state.database_pool, Some(&individual_principal)).await {
+
+    Ok(queried_resources) => queried_resources,
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "memberships"),
+
+        ResourceError::PostgresError(error) => match_db_error(&error, "memberships"),
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to list memberships: {:?}", error)))
+
+      };
+
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  ServerLogEntry::trace(&format!("Counting memberships..."), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let resource_count = match Membership::count(&query, &state.database_pool, Some(&individual_principal)).await {
+
+    Ok(resource_count) => resource_count,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count memberships: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: list_resources_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::Server,
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+  
+  let queried_membership_list_length = queried_resources.len();
+  ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_membership_list_length, if queried_membership_list_length == 1 { "membership" } else { "memberships" }), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let response_body = ListResourcesResponseBody::<Membership> {
+    resources: queried_resources,
+    total_count: resource_count
+  };
+  
+  return Ok((StatusCode::OK, Json(response_body)));
 
 }
 

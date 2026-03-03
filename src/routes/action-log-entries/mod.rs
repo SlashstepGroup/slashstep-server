@@ -12,31 +12,19 @@
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State}};
 use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::ListResourcesResponseBody, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[path = "./{action_log_entry_id}/mod.rs"]
 mod action_log_entry_id;
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug, Deserialize)]
-pub struct ActionLogEntryListQueryParameters {
-  query: Option<String>
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ListActionLogEntryResponseBody {
-  action_log_entries: Vec<ActionLogEntry>,
-  total_count: i64
-}
-
 /// GET /action-log-entries
 /// 
 /// Lists action log entries.
 #[axum::debug_handler]
 async fn handle_list_action_log_entries_request(
-  Query(query_parameters): Query<ActionLogEntryListQueryParameters>,
+  Query(query_parameters): Query<ResourceListQueryParameters>,
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,

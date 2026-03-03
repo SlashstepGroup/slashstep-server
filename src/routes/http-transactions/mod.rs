@@ -34,7 +34,7 @@ async fn handle_list_http_transactions_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<HTTPTransaction>>), HTTPError> {
 
   // Make sure the principal has access to list resources.
-  let list_resources_action = get_action_by_name("HTTPTransactions.list", &http_transaction, &state.database_pool).await?;
+  let list_resources_action = get_action_by_name("httpTransactions.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];

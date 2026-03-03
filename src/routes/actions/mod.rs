@@ -67,7 +67,7 @@ async fn handle_list_actions_request(
   };
 
   ServerLogEntry::trace(&format!("Counting actions..."), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let resource_count = match ActionLogEntry::count(&query, &state.database_pool, Some(&individual_principal)).await {
+  let resource_count = match Action::count(&query, &state.database_pool, Some(&individual_principal)).await {
 
     Ok(resource_count) => resource_count,
 

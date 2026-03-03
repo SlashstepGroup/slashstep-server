@@ -14,10 +14,9 @@ mod tests;
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
-use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, item_connection::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, ItemConnection, ItemConnectionParentResourceType, InitialItemConnectionProperties, InitialItemConnectionPropertiesWithPredefinedParent}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_field_by_id, get_item_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_value::DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, http_transaction::HTTPTransaction, item_connection::{InitialItemConnectionProperties, InitialItemConnectionPropertiesWithPredefinedOutwardItem, ItemConnection}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_item_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /items/{item_id}/item-connections
 /// 
@@ -31,46 +30,92 @@ async fn handle_list_item_connections_request(
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-) -> Result<ErasedJson, HTTPError> {
+) -> Result<(StatusCode, Json<ListResourcesResponseBody<ItemConnection>>), HTTPError> {
 
+  // Make sure the principal has access to list resources.
   let item_id = get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
+  let list_resources_action = get_action_by_name("itemConnections.list", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   let target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_item, &AccessPolicyResourceType::Item, &target_item.id, &http_transaction, &state.database_pool).await?;
+  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
 
   let query = format!(
-    "parent_resource_type = 'Item' AND parent_item_id = {}{}", 
-    quote_literal(&target_item.id.to_string()), 
+    "parent_item_id = {}{}", 
+    quote_literal(&item_id.to_string()), 
     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
   );
-  
-  let query_parameters = ResourceListQueryParameters {
-    query: Some(query)
+  let queried_resources = match ItemConnection::list(&query, &state.database_pool, Some(&individual_principal)).await {
+
+    Ok(queried_resources) => queried_resources,
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "item connections"),
+
+        ResourceError::PostgresError(error) => match_db_error(&error, "item connections"),
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to list item connections: {:?}", error)))
+
+      };
+
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
   };
 
-  let response = list_resources(
-    Query(query_parameters), 
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app), 
-    Extension(authenticated_app_authorization),
-    ActionLogEntryTargetResourceType::Item, 
-    Some(target_item.id), 
-    |query, database_pool, individual_principal| Box::new(ItemConnection::count(query, database_pool, individual_principal)),
-    |query, database_pool, individual_principal| Box::new(ItemConnection::list(query, database_pool, individual_principal)),
-    "itemConnections.list", 
-    DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
-    "item connections",
-    "item connection"
-  ).await;
+  ServerLogEntry::trace(&format!("Counting item connections..."), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let resource_count = match ItemConnection::count(&query, &state.database_pool, Some(&individual_principal)).await {
+
+    Ok(resource_count) => resource_count,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count item connections: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: list_resources_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::Item,
+    target_item_id: Some(item_id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
   
-  return response;
+  let queried_resource_list_length = queried_resources.len();
+  ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "item connection" } else { "item connections" }), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let response_body = ListResourcesResponseBody::<ItemConnection> {
+    resources: queried_resources,
+    total_count: resource_count
+  };
+  
+  return Ok((StatusCode::OK, Json(response_body)));
 
 }
 
 /// POST /items/{item_id}/item-connections
 /// 
-/// Creates a item connection for an item.
+/// Creates a item connection for an item. 
+/// 
+/// The outward item is the item specified in the path, while the 
+/// inward item is the item specified in the request body.
 #[axum::debug_handler]
 async fn handle_create_item_connection_request(
   Path(item_id): Path<String>,
@@ -79,55 +124,28 @@ async fn handle_create_item_connection_request(
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-  body: Result<Json<InitialItemConnectionPropertiesWithPredefinedParent>, JsonRejection>
+  body: Result<Json<InitialItemConnectionPropertiesWithPredefinedOutwardItem>, JsonRejection>
 ) -> Result<(StatusCode, Json<ItemConnection>), HTTPError> {
 
   // Make sure the user can create item connections for the target action.
   let item_id = get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
   let item_connection_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
-  if let Some(item_connection_text_value) = &item_connection_properties_json.text_value { 
-
-    validate_field_length(item_connection_text_value, "itemConnections.maximumTextValueLength", "text_value", &http_transaction, &state.database_pool).await?;
-
-  }
-  if let Some(item_connection_number_value) = &item_connection_properties_json.number_value {
-
-    validate_decimal_is_within_range(item_connection_number_value, "itemConnections.minimumNumberValue", "itemConnections.maximumNumberValue", "number_value", &http_transaction, &state.database_pool).await?;
-
-  }
-  let target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_item, &AccessPolicyResourceType::Item, &target_item.id, &http_transaction, &state.database_pool).await?;
+  let outward_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
+  let outward_resource_hierarchy = get_resource_hierarchy(&outward_item, &AccessPolicyResourceType::Item, &outward_item.id, &http_transaction, &state.database_pool).await?;
   let create_item_connections_action = get_action_by_name("itemConnections.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_item_connections_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&authenticated_principal, &create_item_connections_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-
-  // Verify the field is a part of the same project.
-  let field = get_field_by_id(&item_connection_properties_json.field_id, &http_transaction, &state.database_pool).await?;
-  if field.parent_project_id != target_item.parent_project_id {
-
-    let http_error = HTTPError::UnprocessableEntity(Some("The specified field is not a part of the same project as the item.".to_string()));
-    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-    return Err(http_error)
-
-  }
+  verify_principal_permissions(&authenticated_principal, &create_item_connections_action, &outward_resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let inward_item = get_item_by_id(&item_connection_properties_json.inward_item_id, &http_transaction, &state.database_pool).await?;
+  let inward_resource_hierarchy = get_resource_hierarchy(&inward_item, &AccessPolicyResourceType::Item, &inward_item.id, &http_transaction, &state.database_pool).await?;
+  verify_principal_permissions(&authenticated_principal, &create_item_connections_action, &inward_resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Create the item connection.
   ServerLogEntry::trace(&format!("Creating item connection for item {}...", item_id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let item_connection = match ItemConnection::create(&InitialItemConnectionProperties {
-    field_id: item_connection_properties_json.field_id,
-    parent_resource_type: ItemConnectionParentResourceType::Item,
-    parent_item_id: Some(target_item.id),
-    parent_field_id: None,
-    value_type: item_connection_properties_json.value_type,
-    text_value: item_connection_properties_json.text_value.clone(),
-    number_value: item_connection_properties_json.number_value,
-    boolean_value: item_connection_properties_json.boolean_value,
-    timestamp_value: item_connection_properties_json.timestamp_value,
-    stakeholder_type: item_connection_properties_json.stakeholder_type,
-    stakeholder_user_id: item_connection_properties_json.stakeholder_user_id,
-    stakeholder_group_id: item_connection_properties_json.stakeholder_group_id,
-    stakeholder_app_id: item_connection_properties_json.stakeholder_app_id,
+    item_connection_type_id: item_connection_properties_json.item_connection_type_id,
+    inward_item_id: item_connection_properties_json.inward_item_id,
+    outward_item_id: item_id
   }, &state.database_pool).await {
 
     Ok(item_connection) => item_connection,

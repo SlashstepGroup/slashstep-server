@@ -24,6 +24,7 @@ DO $$
         'Membership',
         'MembershipInvitation',
         'Milestone',
+        'OAuthAuthorization',
         'Project',
         'Role',
         'ServerLogEntry',

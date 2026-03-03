@@ -39,6 +39,17 @@ pub struct InitialItemConnectionProperties {
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InitialItemConnectionPropertiesWithPredefinedOutwardItem {
+
+  /// The ID of the item connection type.
+  pub item_connection_type_id: Uuid,
+
+  /// The ID of the inward item.
+  pub inward_item_id: Uuid
+
+}
+
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ItemConnection {
 
   /// The ID of the item connection.

@@ -11,10 +11,9 @@
 
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
-use axum_extra::response::ErasedJson;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action::{Action, ActionParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialActionProperties, InitialActionPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::{route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_app_by_id, get_authenticated_principal, get_resource_hierarchy, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action::{Action, ActionParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialActionProperties, InitialActionPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
 
 #[axum::debug_handler]
 async fn handle_list_actions_request(
@@ -25,40 +24,83 @@ async fn handle_list_actions_request(
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-) -> Result<ErasedJson, HTTPError> {
-
-  let app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&app, &AccessPolicyResourceType::App, &app.id, &http_transaction, &state.database_pool).await?;
+) -> Result<(StatusCode, Json<ListResourcesResponseBody<Action>>), HTTPError> {
+  
+  // Make sure the principal has access to list resources.
+  let app_id = get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
+  let list_resources_action = get_action_by_name("actions.list", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_app, &AccessPolicyResourceType::App, &target_app.id, &http_transaction, &state.database_pool).await?;
+  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
 
   let query = format!(
     "parent_app_id = {}{}", 
     quote_literal(&app_id.to_string()), 
     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
   );
-  
-  let query_parameters = ResourceListQueryParameters {
-    query: Some(query)
+  let queried_resources = match Action::list(&query, &state.database_pool, Some(&individual_principal)).await {
+
+    Ok(queried_resources) => queried_resources,
+
+    Err(error) => {
+
+      let http_error = match error {
+
+        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "actions"),
+
+        ResourceError::PostgresError(error) => match_db_error(&error, "actions"),
+
+        _ => HTTPError::InternalServerError(Some(format!("Failed to list actions: {:?}", error)))
+
+      };
+
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
   };
 
-  let response = list_resources(
-    Query(query_parameters), 
-    State(state), 
-    Extension(http_transaction), 
-    Extension(authenticated_user), 
-    Extension(authenticated_app), 
-    Extension(authenticated_app_authorization),
-    resource_hierarchy, 
-    ActionLogEntryTargetResourceType::App, 
-    Some(app.id), 
-    |query, database_pool, individual_principal| Box::new(Action::count(query, database_pool, individual_principal)),
-    |query, database_pool, individual_principal| Box::new(Action::list(query, database_pool, individual_principal)),
-    "actions.list", 
-    DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
-    "apps",
-    "app"
-  ).await;
+  ServerLogEntry::trace(&format!("Counting actions..."), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let resource_count = match Action::count(&query, &state.database_pool, Some(&individual_principal)).await {
+
+    Ok(resource_count) => resource_count,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count actions: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: list_resources_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
+    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    target_resource_type: ActionLogEntryTargetResourceType::App,
+    target_app_id: Some(target_app.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
   
-  return response;
+  let queried_resource_list_length = queried_resources.len();
+  ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "action" } else { "actions" }), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let response_body = ListResourcesResponseBody::<Action> {
+    resources: queried_resources,
+    total_count: resource_count
+  };
+  
+  return Ok((StatusCode::OK, Json(response_body)));
 
 }
 
@@ -73,33 +115,8 @@ async fn handle_create_action_request(
   body: Result<Json<InitialActionPropertiesForPredefinedScope>, JsonRejection>
 ) -> Result<(StatusCode, Json<Action>), HTTPError> {
 
-  ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &state.database_pool).await.ok();
-  let action_properties_json = match body {
-
-    Ok(action_properties_json) => action_properties_json,
-
-    Err(error) => {
-
-      let http_error = match error {
-
-        JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
-
-        JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
-
-        JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
-
-        JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
-
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
-
-      };
-      
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
+  let app_id = get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
+  let action_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
 
   // Make sure the user can create access policies for the target action.
   let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;

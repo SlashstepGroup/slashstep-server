@@ -8,8 +8,8 @@ mod predefinitions;
 #[cfg(test)]
 mod tests;
 
-use std::{fmt, io::Write, net::SocketAddr};
-use axum::{ServiceExt, body::Body, response::{IntoResponse, Response}};
+use std::{fmt, net::SocketAddr};
+use axum::{body::Body, response::{IntoResponse, Response}};
 use axum_extra::response::ErasedJson;
 use axum_server::tls_rustls::RustlsConfig;
 use deadpool_postgres::{Pool, tokio_postgres};
