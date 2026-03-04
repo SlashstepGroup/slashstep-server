@@ -57,7 +57,7 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/app-authorizations"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -119,7 +119,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let query = format!("app_id = \"{}\"", dummy_app_authorization.app_id);
   let response = test_server.get(&format!("/app-authorizations"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -183,7 +183,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/app-authorizations"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -227,7 +227,7 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/app-authorizations"))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_APP_AUTHORIZATION_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -269,7 +269,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let bad_requests = vec![
     test_server.get(&format!("/app-authorizations"))
@@ -328,7 +328,7 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/app-authorizations"))
     .await;
   
@@ -362,7 +362,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/app-authorizations"))
     .add_query_param("query", format!("limit {}", DEFAULT_APP_AUTHORIZATION_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))

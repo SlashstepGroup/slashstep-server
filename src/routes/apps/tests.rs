@@ -74,7 +74,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -152,7 +152,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let query = format!("id = \'{}\'", &dummy_app.id);
   let response = test_server.get(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -236,7 +236,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -296,7 +296,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps"))
     .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -354,7 +354,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let bad_requests = vec![
     test_server.get(&format!("/apps"))
@@ -413,7 +413,7 @@ async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps"))
     .await;
   
@@ -447,7 +447,7 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -489,7 +489,7 @@ async fn verify_successful_app_creation_with_public_client() -> Result<(), TestS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_app_properties))
@@ -538,7 +538,7 @@ async fn verify_successful_app_creation_with_confidential_client() -> Result<(),
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_app_properties))
@@ -592,7 +592,7 @@ async fn verify_app_name_matches_regex() -> Result<(), TestSlashstepServerError>
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_app_properties))
@@ -639,7 +639,7 @@ async fn verify_app_display_name_matches_regex() -> Result<(), TestSlashstepServ
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_app_properties))
@@ -687,7 +687,7 @@ async fn verify_app_display_name_is_at_most_at_maximum_length() -> Result<(), Te
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_app_properties))
@@ -735,7 +735,7 @@ async fn verify_app_name_is_at_most_at_maximum_length() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_app_properties))

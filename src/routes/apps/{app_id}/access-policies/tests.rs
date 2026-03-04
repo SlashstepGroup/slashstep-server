@@ -68,7 +68,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps/{}/access-policies", &dummy_app.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
     .await;
@@ -129,7 +129,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps/{}/access-policies", &dummy_app.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
     .add_query_param("query", &additional_query)
@@ -193,7 +193,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps/{}/access-policies", &dummy_app.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -237,7 +237,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps/{}/access-policies", &dummy_app.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -281,7 +281,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let bad_requests = vec![
     test_server.get(&format!("/apps/{}/access-policies", &dummy_app.id))
@@ -343,7 +343,7 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps/{}/access-policies", &dummy_app.id))
     .await;
   
@@ -380,7 +380,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps/{}/access-policies", &dummy_app.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -408,7 +408,7 @@ async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(),
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps/{}/access-policies", &Uuid::now_v7()))
     .await;
   
@@ -457,7 +457,7 @@ async fn verify_successful_resource_creation() -> Result<(), TestSlashstepServer
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps/{}/access-policies", dummy_app.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_access_policy_properties))
@@ -498,7 +498,7 @@ async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSla
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps/{}/access-policies", dummy_app.id))
     .add_header("Content-Type", "application/json")
     .json(&serde_json::json!({
@@ -545,7 +545,7 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps/{}/access-policies", dummy_app.id))
     .add_header("Content-Type", "application/json")
     .json(&serde_json::json!(initial_access_policy_properties))
@@ -592,7 +592,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/apps/{}/access-policies", dummy_app.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .add_header("Content-Type", "application/json")
@@ -635,7 +635,7 @@ async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepSe
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.post(&format!("/apps/{}/access-policies", uuid::Uuid::now_v7()))
     .add_header("Content-Type", "application/json")

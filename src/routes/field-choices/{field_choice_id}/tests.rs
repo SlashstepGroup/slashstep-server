@@ -44,7 +44,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -90,7 +90,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.get("/field-choices/not-a-uuid")
     .await;
@@ -116,7 +116,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let field_choice = test_environment.create_random_field_choice(None).await?;
 
@@ -153,7 +153,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/field-choices/{}", field_choice.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -188,7 +188,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/field-choices/{}", uuid::Uuid::now_v7()))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -235,7 +235,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/field-choices/{}", field_choice.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -271,7 +271,7 @@ async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerErro
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.delete("/field-choices/not-a-uuid")
     .await;
@@ -301,7 +301,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/field-choices/{}", field_choice.id))
     .await;
   
@@ -337,7 +337,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/field-choices/{}", field_choice.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -371,7 +371,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/field-choices/{}", uuid::Uuid::now_v7()))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -414,7 +414,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/field-choices/{}", original_field_choice.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(updated_field_choice_properties))
@@ -455,7 +455,7 @@ async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepSe
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch("/field-choices/not-a-uuid")
     .await;
   
@@ -482,7 +482,7 @@ async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlas
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch("/field-choices/not-a-uuid")
     .add_header("Content-Type", "application/json")
     .await;
@@ -510,7 +510,7 @@ async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/field-choices/{}", uuid::Uuid::now_v7()))
     .add_header("Content-Type", "application/json")
     .json(&serde_json::json!({
@@ -543,7 +543,7 @@ async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerErro
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch("/field-choices/not-a-uuid")
     .add_header("Content-Type", "application/json")
     .json(&serde_json::json!({}))
@@ -572,7 +572,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/field-choices/{}", field_choice.id))
     .json(&serde_json::json!({}))
     .await;
@@ -607,7 +607,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/field-choices/{}", field_choice.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!({}))
@@ -637,7 +637,7 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/field-choices/{}", Uuid::now_v7()))
     .json(&serde_json::json!({}))
     .await;
@@ -684,7 +684,7 @@ async fn verify_text_value_is_at_most_at_maximum_length() -> Result<(), TestSlas
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/field-choices/{}", dummy_field_choice.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(updated_field_choice_properties))
@@ -732,7 +732,7 @@ async fn verify_number_value_is_at_least_at_minimum_value() -> Result<(), TestSl
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/field-choices/{}", dummy_field_choice.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(updated_field_choice_properties))
@@ -780,7 +780,7 @@ async fn verify_number_value_is_at_most_at_maximum_value() -> Result<(), TestSla
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/field-choices/{}", dummy_field_choice.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(updated_field_choice_properties))

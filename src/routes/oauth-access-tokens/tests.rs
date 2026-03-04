@@ -48,7 +48,7 @@ async fn verify_successful_creation_for_public_client_with_authorization_code() 
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -94,7 +94,7 @@ async fn verify_successful_creation_for_public_client_with_authorization_code_an
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -147,7 +147,7 @@ async fn verify_successful_creation_for_confidential_client_with_authorization_c
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -204,7 +204,7 @@ async fn verify_successful_creation_for_confidential_client_with_authorization_c
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -246,7 +246,7 @@ async fn verify_client_id_is_uuid() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -287,7 +287,7 @@ async fn verify_authorization_code_is_valid() -> Result<(), TestSlashstepServerE
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -332,7 +332,7 @@ async fn verify_authorization_code_is_single_use() -> Result<(), TestSlashstepSe
     let router = super::get_router(state.clone())
       .with_state(state)
       .into_make_service_with_connect_info::<SocketAddr>();
-    let test_server = TestServer::new(router)?;
+    let test_server = TestServer::new(router);
     let response = test_server.post("/oauth-access-tokens")
       .add_query_params(create_oauth_access_token_query_parameters)
       .await;
@@ -381,7 +381,7 @@ async fn verify_client_id_links_to_app() -> Result<(), TestSlashstepServerError>
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -434,7 +434,7 @@ async fn verify_client_secret_is_provided_for_confidential_client() -> Result<()
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -480,7 +480,7 @@ async fn verify_code_verifier_is_provided_when_code_challenge_is_present() -> Re
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -527,7 +527,7 @@ async fn verify_code_verifier_is_correct_when_code_challenge_is_present() -> Res
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -571,7 +571,7 @@ async fn verify_successful_creation_for_public_client_with_refresh_token() -> Re
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -625,7 +625,7 @@ async fn verify_successful_creation_for_confidential_client_with_refresh_token()
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -677,7 +677,7 @@ async fn verify_active_refresh_token_for_public_client() -> Result<(), TestSlash
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -741,7 +741,7 @@ async fn verify_active_refresh_token_for_confidential_client() -> Result<(), Tes
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;
@@ -792,7 +792,7 @@ async fn verify_valid_refresh_token_for_public_client() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post("/oauth-access-tokens")
     .add_query_params(create_oauth_access_token_query_parameters)
     .await;

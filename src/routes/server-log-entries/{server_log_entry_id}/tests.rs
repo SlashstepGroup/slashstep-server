@@ -40,7 +40,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -83,7 +83,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.get("/server-log-entries/not-a-uuid")
     .await;
@@ -109,7 +109,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let server_log_entry = test_environment.create_random_server_log_entry().await?;
 
@@ -146,7 +146,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/server-log-entries/{}", server_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -181,7 +181,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/server-log-entries/{}", uuid::Uuid::now_v7()))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -227,7 +227,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.delete(&format!("/server-log-entries/{}", server_log_entry.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
@@ -261,7 +261,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 
 //   let response = test_server.delete("/server-log-entries/not-a-uuid")
 //     .await;
@@ -290,7 +290,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.delete(&format!("/server-log-entries/{}", server_log_entry.id))
 //     .await;
   
@@ -325,7 +325,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.delete(&format!("/server-log-entries/{}", server_log_entry.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
@@ -356,7 +356,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.delete(&format!("/server-log-entries/{}", uuid::Uuid::now_v7()))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
@@ -405,7 +405,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.patch(&format!("/server-log-entries/{}", original_field.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .json(&serde_json::json!({
@@ -449,7 +449,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.patch("/server-log-entries/not-a-uuid")
 //     .await;
   
@@ -475,7 +475,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.patch("/server-log-entries/not-a-uuid")
 //     .add_header("Content-Type", "application/json")
 //     .await;
@@ -502,7 +502,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.patch(&format!("/server-log-entries/{}", uuid::Uuid::now_v7()))
 //     .add_header("Content-Type", "application/json")
 //     .json(&serde_json::json!({
@@ -532,7 +532,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.patch("/server-log-entries/not-a-uuid")
 //     .add_header("Content-Type", "application/json")
 //     .json(&serde_json::json!({
@@ -562,7 +562,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.patch(&format!("/server-log-entries/{}", server_log_entry.id))
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()
@@ -598,7 +598,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.patch(&format!("/server-log-entries/{}", server_log_entry.id))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .json(&serde_json::json!({
@@ -629,7 +629,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.patch(&format!("/server-log-entries/{}", Uuid::now_v7()))
 //     .json(&serde_json::json!({
 //       "display_name": Uuid::now_v7().to_string()

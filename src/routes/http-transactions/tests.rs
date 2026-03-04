@@ -57,7 +57,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/http-transactions"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -119,7 +119,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let query = format!("id = {}", quote_literal(&dummy_http_transaction.id.to_string()));
   let response = test_server.get(&format!("/http-transactions"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -187,7 +187,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/http-transactions"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -231,7 +231,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/http-transactions"))
     .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -273,7 +273,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let bad_requests = vec![
     test_server.get(&format!("/http-transactions"))
@@ -332,7 +332,7 @@ async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/http-transactions"))
     .await;
   
@@ -366,7 +366,7 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/http-transactions"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
