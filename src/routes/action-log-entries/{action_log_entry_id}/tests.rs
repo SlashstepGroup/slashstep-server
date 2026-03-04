@@ -41,7 +41,7 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -115,7 +115,7 @@ async fn verify_uuid_when_getting_action_log_entry_by_id() -> Result<(), TestSla
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.get("/action-log-entries/not-a-uuid")
     .await;
@@ -141,7 +141,7 @@ async fn verify_authentication_when_getting_action_log_entry_by_id() -> Result<(
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let action_log_entry = test_environment.create_random_action_log_entry().await?;
 
@@ -179,7 +179,7 @@ async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), T
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}", action_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -208,7 +208,7 @@ async fn verify_not_found_when_getting_action_log_entry_by_id() -> Result<(), Te
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}", uuid::Uuid::now_v7()))
     .await;
   
@@ -254,7 +254,7 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/action-log-entries/{}", action_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -289,7 +289,7 @@ async fn verify_uuid_when_deleting_action_log_entry_by_id() -> Result<(), TestSl
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.delete("/action-log-entries/not-a-uuid")
     .await;
@@ -319,7 +319,7 @@ async fn verify_authentication_when_deleting_action_log_entry_by_id() -> Result<
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/action-log-entries/{}", action_log_entry.id))
     .await;
   
@@ -355,7 +355,7 @@ async fn verify_permission_when_deleting_action_log_entry_by_id() -> Result<(), 
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/action-log-entries/{}", action_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -383,7 +383,7 @@ async fn verify_action_log_entry_exists_when_deleting_action_log_entry_by_id() -
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/action-log-entries/{}", uuid::Uuid::now_v7()))
     .await;
   

@@ -71,7 +71,7 @@
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.get(&format!("/apps"))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
@@ -148,7 +148,7 @@
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let query = format!("id = \'{}\'", &dummy_app.id);
 //   let response = test_server.get(&format!("/apps"))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -231,7 +231,7 @@
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.get(&format!("/apps"))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;
@@ -290,7 +290,7 @@
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.get(&format!("/apps"))
 //     .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -347,7 +347,7 @@
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 
 //   let bad_requests = vec![
 //     test_server.get(&format!("/apps"))
@@ -405,7 +405,7 @@
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.get(&format!("/apps"))
 //     .await;
   
@@ -438,7 +438,7 @@
 //   let router = super::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router)?;
+//   let test_server = TestServer::new(router);
 //   let response = test_server.get(&format!("/apps"))
 //     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
 //     .await;

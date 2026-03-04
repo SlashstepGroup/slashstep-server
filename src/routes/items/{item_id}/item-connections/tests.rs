@@ -61,7 +61,7 @@ async fn verify_successful_item_connection_creation() -> Result<(), TestSlashste
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/items/{}/item-connections", outward_item.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_item_connection_properties))
@@ -112,7 +112,7 @@ async fn verify_returned_item_connection_list_without_query() -> Result<(), Test
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/items/{}/item-connections", &outward_item.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
     .await;
@@ -172,7 +172,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/items/{}/item-connections", &outward_item.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
     .add_query_param("query", &additional_query)
@@ -240,7 +240,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/items/{}/item-connections", &outward_item.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -284,7 +284,7 @@ async fn verify_maximum_item_connection_list_limit() -> Result<(), TestSlashstep
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/items/{}/item-connections", &outward_item.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -328,7 +328,7 @@ async fn verify_query_when_listing_item_connections() -> Result<(), TestSlashste
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let bad_requests = vec![
     test_server.get(&format!("/items/{}/item-connections", &outward_item.id))
@@ -390,7 +390,7 @@ async fn verify_authentication_when_listing_item_connections() -> Result<(), Tes
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/items/{}/item-connections", &outward_item.id))
     .await;
   
@@ -427,7 +427,7 @@ async fn verify_permission_when_listing_item_connections() -> Result<(), TestSla
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/items/{}/item-connections", &outward_item.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;

@@ -74,7 +74,7 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -166,7 +166,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let query = format!("action_id = {}", quote_literal(&dummy_action_log_entry.action_id.to_string()));
   let response = test_server.get(&format!("/action-log-entries"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -251,7 +251,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -311,7 +311,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
     .add_query_param("query", format!("limit {}", DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -369,7 +369,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let bad_requests = vec![
     test_server.get(&format!("/action-log-entries"))
@@ -428,7 +428,7 @@ async fn verify_authentication_when_listing_action_log_entries() -> Result<(), T
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
     .await;
   
@@ -462,7 +462,7 @@ async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
     .add_query_param("query", format!("limit {}", DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))

@@ -70,7 +70,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/action-log-entries/{}/access-policies", dummy_action_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_access_policy_properties))
@@ -122,7 +122,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &dummy_action_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
     .await;
@@ -181,7 +181,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &dummy_action_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
     .add_query_param("query", &additional_query)
@@ -245,7 +245,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &dummy_action_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -289,7 +289,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &dummy_action_log_entry.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -332,7 +332,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let bad_requests = vec![
     test_server.get(&format!("/action-log-entries/{}/access-policies", dummy_action_log_entry.id))
@@ -394,7 +394,7 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &dummy_action_log_entry.id))
     .await;
   
@@ -431,7 +431,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &dummy_action_log_entry.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;

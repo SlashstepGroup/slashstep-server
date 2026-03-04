@@ -44,7 +44,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -109,7 +109,7 @@ async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), TestSlashs
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.get("/access-policies/not-a-uuid")
     .await;
@@ -136,7 +136,7 @@ async fn verify_authentication_when_getting_access_policy_by_id() -> Result<(), 
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let access_policy = test_environment.create_random_access_policy().await?;
 
@@ -166,7 +166,7 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -201,7 +201,7 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -233,7 +233,7 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -285,7 +285,7 @@ async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), TestSlash
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.delete("/access-policies/not-a-uuid")
     .await;
@@ -311,7 +311,7 @@ async fn verify_authentication_when_deleting_access_policy_by_id() -> Result<(),
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let access_policy = test_environment.create_random_access_policy().await?;
 
@@ -340,7 +340,7 @@ async fn verify_permission_when_deleting_access_policy_by_id() -> Result<(), Tes
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -374,7 +374,7 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id() -> Resu
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -407,7 +407,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -476,7 +476,7 @@ async fn verify_content_type_when_patching_access_policy_by_id() -> Result<(), T
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.patch("/access-policies/not-a-uuid")
     .await;
@@ -502,7 +502,7 @@ async fn verify_request_body_exists_when_patching_access_policy_by_id() -> Resul
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.patch("/access-policies/not-a-uuid")
     .add_header("Content-Type", "application/json")
@@ -529,7 +529,7 @@ async fn verify_request_body_json_when_patching_access_policy_by_id() -> Result<
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.patch("/access-policies/not-a-uuid")
     .add_header("Content-Type", "application/json")
@@ -561,7 +561,7 @@ async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), TestSlash
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.patch("/access-policies/not-a-uuid")
     .add_header("Content-Type", "application/json")
@@ -592,7 +592,7 @@ async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(),
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let get_access_policies_action = Action::get_by_name("accessPolicies.update", &test_environment.database_pool).await?;
@@ -636,7 +636,7 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -684,7 +684,7 @@ async fn verify_access_policy_exists_when_patching_access_policy() -> Result<(),
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let response = test_server.patch(&format!("/access-policies/{}", Uuid::now_v7()))
     .json(&serde_json::json!({

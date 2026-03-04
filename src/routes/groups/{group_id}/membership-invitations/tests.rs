@@ -47,7 +47,7 @@ async fn verify_successful_membership_invitation_creation() -> Result<(), TestSl
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/groups/{}/membership-invitations", dummy_group.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_membership_invitation_properties))
@@ -114,7 +114,7 @@ async fn verify_returned_membership_invitation_list_without_query() -> Result<()
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/membership-invitations", &dummy_group.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
     .await;
@@ -185,7 +185,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/membership-invitations", &dummy_group.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
     .add_query_param("query", &additional_query)
@@ -259,7 +259,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/membership-invitations", &dummy_group.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
@@ -303,7 +303,7 @@ async fn verify_maximum_membership_invitation_list_limit() -> Result<(), TestSla
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/membership-invitations", &dummy_group.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -347,7 +347,7 @@ async fn verify_query_when_listing_membership_invitations() -> Result<(), TestSl
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
 
   let bad_requests = vec![
     test_server.get(&format!("/groups/{}/membership-invitations", &dummy_group.id))
@@ -409,7 +409,7 @@ async fn verify_authentication_when_listing_membership_invitations() -> Result<(
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/membership-invitations", &dummy_group.id))
     .await;
   
@@ -446,7 +446,7 @@ async fn verify_permission_when_listing_membership_invitations() -> Result<(), T
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router)?;
+  let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/membership-invitations", &dummy_group.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
