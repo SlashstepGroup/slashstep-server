@@ -25,7 +25,7 @@ async fn create_action_access_policy(database_pool: &deadpool_postgres::Pool, sc
     is_inheritance_enabled: true,
     principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
     principal_user_id: Some(user_id.clone()),
-    scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Action,
+    scoped_resource_type: crate::resources::access_policy::ResourceType::Action,
     scoped_action_id: Some(scoped_action_id.clone()),
     ..Default::default()
   }, database_pool).await?;

@@ -262,7 +262,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
       permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::FieldValue,
+      scoped_resource_type: crate::resources::access_policy::ResourceType::FieldValue,
       scoped_field_value_id: Some(scoped_field_value.id.clone()),
       ..Default::default()
     }, &test_environment.database_pool).await?;

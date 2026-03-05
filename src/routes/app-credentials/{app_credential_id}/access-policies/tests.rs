@@ -25,7 +25,7 @@ async fn create_app_credential_access_policy(database_pool: &deadpool_postgres::
     is_inheritance_enabled: true,
     principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
     principal_user_id: Some(user_id.clone()),
-    scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::AppCredential,
+    scoped_resource_type: crate::resources::access_policy::ResourceType::AppCredential,
     scoped_app_credential_id: Some(scoped_app_credential_id.clone()),
     ..Default::default()
   }, database_pool).await?;

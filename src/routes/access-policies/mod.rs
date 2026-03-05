@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicy, ResourceType, ActionPermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[path = "./{access_policy_id}/mod.rs"]
 mod access_policy_id;
@@ -33,7 +33,7 @@ async fn handle_list_access_policies_request(
   let list_resources_action = get_action_by_name("accessPolicies.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
+  let resource_hierarchy: ResourceHierarchy = vec![(ResourceType::Server, None)];
   verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
   let query = query_parameters.query.unwrap_or("".to_string());
@@ -115,7 +115,7 @@ async fn handle_create_access_policy_request(
   let access_policy_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
 
   // Make sure the authenticated_user can create access policies for the target action log entry.
-  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
+  let resource_hierarchy: ResourceHierarchy = vec![(ResourceType::Server, None)];
   let create_access_policies_action = get_action_by_name("accessPolicies.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_access_policies_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -138,7 +138,7 @@ async fn handle_create_access_policy_request(
     principal_group_id: access_policy_properties_json.principal_group_id,
     principal_role_id: access_policy_properties_json.principal_role_id,
     principal_app_id: access_policy_properties_json.principal_app_id,
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &state.database_pool).await {
 

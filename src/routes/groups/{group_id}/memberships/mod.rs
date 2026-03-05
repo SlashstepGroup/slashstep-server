@@ -16,7 +16,7 @@ use std::{sync::Arc};
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, InitialMembershipPropertiesWithPredefinedParent, Membership, MembershipParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_group_by_id, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{ResourceType, ActionPermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, InitialMembershipPropertiesWithPredefinedParent, Membership, MembershipParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_group_by_id, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /groups/{group_id}/memberships
 /// 
@@ -38,7 +38,7 @@ pub async fn handle_list_memberships_request(
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_group, &AccessPolicyResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_group, &ResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
 
@@ -135,7 +135,7 @@ async fn handle_create_membership_request(
   }
 
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_group, &AccessPolicyResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_group, &ResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
   let create_memberships_action = get_action_by_name("memberships.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_memberships_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;

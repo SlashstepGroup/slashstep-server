@@ -1,7 +1,8 @@
-CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_type principal_type, parameter_principal_id UUID, get_resource_action_id UUID) RETURNS SETOF access_policies AS $$
+CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_type principal_type, parameter_principal_id UUID) RETURNS SETOF access_policies AS $$
   DECLARE
     variable_principal_user_id UUID;
     variable_principal_app_id UUID;
+    variable_principal_group_id UUID;
   BEGIN
 
     IF parameter_principal_type = 'User' THEN
@@ -12,6 +13,26 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
 
       variable_principal_app_id := parameter_principal_id;
 
+    ELSIF parameter_principal_type = 'Group' THEN
+
+      variable_principal_group_id := parameter_principal_id;
+
+    ELSIF parameter_principal_type = 'Role' THEN
+
+      RETURN QUERY
+        SELECT
+          *
+        FROM
+          access_policies
+        WHERE
+          access_policies.principal_type = parameter_principal_type AND (
+            (parameter_principal_type = 'Role' AND access_policies.principal_role_id = parameter_principal_id)
+          );
+
+    ELSE
+
+      RAISE EXCEPTION 'Invalid principal type: %', parameter_principal_type;
+
     END IF;
 
     RETURN QUERY
@@ -19,6 +40,7 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
         SELECT
           variable_principal_user_id as root_principal_user_id,
           variable_principal_app_id as root_principal_app_id,
+          variable_principal_group_id as root_principal_group_id,
           group_memberships.parent_group_id,
           group_memberships.principal_group_id
         FROM
@@ -26,18 +48,15 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
         WHERE
           group_memberships.parent_resource_type = 'Group' AND
           group_memberships.principal_type::TEXT = parameter_principal_type::TEXT AND (
-            (
-              parameter_principal_type = 'User' AND
-              group_memberships.principal_user_id = variable_principal_user_id
-            ) OR (
-              parameter_principal_type = 'App' AND
-              group_memberships.principal_app_id = variable_principal_app_id
-            )
+            group_memberships.principal_user_id = variable_principal_user_id OR 
+            group_memberships.principal_app_id = variable_principal_app_id OR 
+            group_memberships.principal_group_id = variable_principal_group_id
           )
         UNION
           SELECT
             all_group_memberships.root_principal_user_id,
             all_group_memberships.root_principal_app_id,
+            all_group_memberships.root_principal_group_id,
             inherited_group_memberships.parent_group_id,
             inherited_group_memberships.principal_group_id
           FROM
@@ -56,6 +75,9 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
         ) OR (
           parameter_principal_type = 'App' AND
           all_group_memberships.root_principal_app_id = variable_principal_app_id
+        ) OR (
+          parameter_principal_type = 'Group' AND
+          all_group_memberships.root_principal_group_id = variable_principal_group_id
         )
       LEFT JOIN
         memberships role_memberships ON (
@@ -80,23 +102,7 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(parameter_principal_typ
           ) OR
           access_policies.principal_group_id = all_group_memberships.parent_group_id OR
           access_policies.principal_role_id = role_memberships.parent_role_id
-        ) AND
-        access_policies.action_id = get_resource_action_id
-      ORDER BY
-        CASE access_policies.principal_type
-          WHEN 'User' THEN 1
-          WHEN 'App' THEN 2
-          WHEN 'Group' THEN 3
-          WHEN 'Role' THEN 4
-          ELSE 5
-        END,
-        CASE access_policies.permission_level
-          WHEN 'Admin' THEN 1
-          WHEN 'Editor' THEN 2
-          WHEN 'User' THEN 3
-          WHEN 'None' THEN 4
-          ELSE 5
-        END;
+        );
 
   END;
 $$ LANGUAGE plpgsql;

@@ -26,7 +26,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    DeletableResource, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    DeletableResource, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_http_transaction_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -46,7 +46,7 @@ async fn handle_get_http_transaction_request(
 
   let http_transaction_id = get_uuid_from_string(&http_transaction_id, "HTTP transaction", &http_transaction, &state.database_pool).await?;
   let target_http_transaction = get_http_transaction_by_id(&http_transaction_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_http_transaction, &AccessPolicyResourceType::HTTPTransaction, &target_http_transaction.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_http_transaction, &ResourceType::HTTPTransaction, &target_http_transaction.id, &http_transaction, &state.database_pool).await?;
   let get_http_transactions_action = get_action_by_name("httpTransactions.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_http_transactions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -85,7 +85,7 @@ async fn handle_delete_http_transaction_request(
 
   let http_transaction_id = get_uuid_from_string(&http_transaction_id, "HTTP transaction", &http_transaction, &state.database_pool).await?;
   let target_http_transaction = get_http_transaction_by_id(&http_transaction_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_http_transaction, &AccessPolicyResourceType::HTTPTransaction, &target_http_transaction.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_http_transaction, &ResourceType::HTTPTransaction, &target_http_transaction.id, &http_transaction, &state.database_pool).await?;
   let delete_http_transactions_action = get_action_by_name("httpTransactions.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_http_transactions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -163,7 +163,7 @@ async fn handle_delete_http_transaction_request(
 //   };
 
 //   let original_target_http_transaction = get_app_by_id(&http_transaction_id, &http_transaction, &state.database_pool).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&original_target_http_transaction, &AccessPolicyResourceType::App, &original_target_http_transaction.id, &http_transaction, &state.database_pool).await?;
+//   let resource_hierarchy = get_resource_hierarchy(&original_target_http_transaction, &ResourceType::App, &original_target_http_transaction.id, &http_transaction, &state.database_pool).await?;
 //   let update_access_policy_action = get_action_by_name("apps.update", &http_transaction, &state.database_pool).await?;
 //   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
 //   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;

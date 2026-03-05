@@ -20,7 +20,7 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
     }, 
     action::Action, action_log_entry::{ActionLogEntry, DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT},
   }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
@@ -48,7 +48,7 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -60,7 +60,7 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -140,7 +140,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -152,7 +152,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -220,7 +220,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -232,7 +232,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -288,7 +288,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -300,7 +300,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -345,7 +345,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -357,7 +357,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 

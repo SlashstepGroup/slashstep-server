@@ -149,8 +149,8 @@ impl FromStr for ActionPermissionLevel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ToSql, FromSql, Serialize, Deserialize, Default, Copy)]
-#[postgres(name = "access_policy_resource_type")]
-pub enum AccessPolicyResourceType {
+#[postgres(name = "resource_type")]
+pub enum ResourceType {
   AccessPolicy,
   Action,
   ActionLogEntry,
@@ -170,6 +170,9 @@ pub enum AccessPolicyResourceType {
   Item,
   ItemConnection,
   ItemConnectionType,
+  ItemType,
+  ItemTypeIcon,
+  Iteration,
   Membership,
   MembershipInvitation,
   Milestone,
@@ -178,83 +181,89 @@ pub enum AccessPolicyResourceType {
   Role,
   ServerLogEntry,
   Session,
+  Status,
   User,
   View,
+  Webhook,
   Workspace
 }
 
-impl fmt::Display for AccessPolicyResourceType {
+impl fmt::Display for ResourceType {
   fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
     match self {
-      AccessPolicyResourceType::AccessPolicy => write!(formatter, "AccessPolicy"),
-      AccessPolicyResourceType::Action => write!(formatter, "Action"),
-      AccessPolicyResourceType::ActionLogEntry => write!(formatter, "ActionLogEntry"),
-      AccessPolicyResourceType::App => write!(formatter, "App"),
-      AccessPolicyResourceType::AppAuthorization => write!(formatter, "AppAuthorization"),
-      AccessPolicyResourceType::AppAuthorizationCredential => write!(formatter, "AppAuthorizationCredential"),
-      AccessPolicyResourceType::AppCredential => write!(formatter, "AppCredential"),
-      AccessPolicyResourceType::Configuration => write!(formatter, "Configuration"),
-      AccessPolicyResourceType::DelegationPolicy => write!(formatter, "DelegationPolicy"),
-      AccessPolicyResourceType::Field => write!(formatter, "Field"),
-      AccessPolicyResourceType::FieldChoice => write!(formatter, "FieldChoice"),
-      AccessPolicyResourceType::FieldValue => write!(formatter, "FieldValue"),
-      AccessPolicyResourceType::Group => write!(formatter, "Group"),
-      AccessPolicyResourceType::HTTPTransaction => write!(formatter, "HTTPTransaction"),
-      AccessPolicyResourceType::Server => write!(formatter, "Server"),
-      AccessPolicyResourceType::Item => write!(formatter, "Item"),
-      AccessPolicyResourceType::ItemConnection => write!(formatter, "ItemConnection"),
-      AccessPolicyResourceType::ItemConnectionType => write!(formatter, "ItemConnectionType"),
-      AccessPolicyResourceType::Membership => write!(formatter, "Membership"),
-      AccessPolicyResourceType::MembershipInvitation => write!(formatter, "MembershipInvitation"),
-      AccessPolicyResourceType::Milestone => write!(formatter, "Milestone"),
-      AccessPolicyResourceType::OAuthAuthorization => write!(formatter, "OAuthAuthorization"),
-      AccessPolicyResourceType::Project => write!(formatter, "Project"),
-      AccessPolicyResourceType::Role => write!(formatter, "Role"),
-      AccessPolicyResourceType::ServerLogEntry => write!(formatter, "ServerLogEntry"),
-      AccessPolicyResourceType::Session => write!(formatter, "Session"),
-      AccessPolicyResourceType::User => write!(formatter, "User"),
-      AccessPolicyResourceType::View => write!(formatter, "View"),
-      AccessPolicyResourceType::Workspace => write!(formatter, "Workspace")
+      ResourceType::AccessPolicy => write!(formatter, "AccessPolicy"),
+      ResourceType::Action => write!(formatter, "Action"),
+      ResourceType::ActionLogEntry => write!(formatter, "ActionLogEntry"),
+      ResourceType::App => write!(formatter, "App"),
+      ResourceType::AppAuthorization => write!(formatter, "AppAuthorization"),
+      ResourceType::AppAuthorizationCredential => write!(formatter, "AppAuthorizationCredential"),
+      ResourceType::AppCredential => write!(formatter, "AppCredential"),
+      ResourceType::Configuration => write!(formatter, "Configuration"),
+      ResourceType::DelegationPolicy => write!(formatter, "DelegationPolicy"),
+      ResourceType::Field => write!(formatter, "Field"),
+      ResourceType::FieldChoice => write!(formatter, "FieldChoice"),
+      ResourceType::FieldValue => write!(formatter, "FieldValue"),
+      ResourceType::Group => write!(formatter, "Group"),
+      ResourceType::HTTPTransaction => write!(formatter, "HTTPTransaction"),
+      ResourceType::Server => write!(formatter, "Server"),
+      ResourceType::Item => write!(formatter, "Item"),
+      ResourceType::ItemConnection => write!(formatter, "ItemConnection"),
+      ResourceType::ItemConnectionType => write!(formatter, "ItemConnectionType"),
+      ResourceType::ItemType => write!(formatter, "ItemType"),
+      ResourceType::ItemTypeIcon => write!(formatter, "ItemTypeIcon"),
+      ResourceType::Iteration => write!(formatter, "Iteration"),
+      ResourceType::Membership => write!(formatter, "Membership"),
+      ResourceType::MembershipInvitation => write!(formatter, "MembershipInvitation"),
+      ResourceType::Milestone => write!(formatter, "Milestone"),
+      ResourceType::OAuthAuthorization => write!(formatter, "OAuthAuthorization"),
+      ResourceType::Project => write!(formatter, "Project"),
+      ResourceType::Role => write!(formatter, "Role"),
+      ResourceType::ServerLogEntry => write!(formatter, "ServerLogEntry"),
+      ResourceType::Session => write!(formatter, "Session"),
+      ResourceType::User => write!(formatter, "User"),
+      ResourceType::View => write!(formatter, "View"),
+      ResourceType::Webhook => write!(formatter, "Webhook"),
+      ResourceType::Workspace => write!(formatter, "Workspace")
     }
   }
 }
 
-impl FromStr for AccessPolicyResourceType {
+impl FromStr for ResourceType {
 
   type Err = ResourceError;
 
   fn from_str(string: &str) -> Result<Self, Self::Err> {
 
     match string {
-      "AccessPolicy" => Ok(AccessPolicyResourceType::AccessPolicy),
-      "Action" => Ok(AccessPolicyResourceType::Action),
-      "ActionLogEntry" => Ok(AccessPolicyResourceType::ActionLogEntry),
-      "App" => Ok(AccessPolicyResourceType::App),
-      "AppAuthorization" => Ok(AccessPolicyResourceType::AppAuthorization),
-      "AppAuthorizationCredential" => Ok(AccessPolicyResourceType::AppAuthorizationCredential),
-      "AppCredential" => Ok(AccessPolicyResourceType::AppCredential),
-      "Configuration" => Ok(AccessPolicyResourceType::Configuration),
-      "DelegationPolicy" => Ok(AccessPolicyResourceType::DelegationPolicy),
-      "Field" => Ok(AccessPolicyResourceType::Field),
-      "FieldChoice" => Ok(AccessPolicyResourceType::FieldChoice),
-      "FieldValue" => Ok(AccessPolicyResourceType::FieldValue),
-      "Group" => Ok(AccessPolicyResourceType::Group),
-      "HTTPTransaction" => Ok(AccessPolicyResourceType::HTTPTransaction),
-      "Server" => Ok(AccessPolicyResourceType::Server),
-      "Item" => Ok(AccessPolicyResourceType::Item),
-      "ItemConnection" => Ok(AccessPolicyResourceType::ItemConnection),
-      "ItemConnectionType" => Ok(AccessPolicyResourceType::ItemConnectionType),
-      "Membership" => Ok(AccessPolicyResourceType::Membership),
-      "MembershipInvitation" => Ok(AccessPolicyResourceType::MembershipInvitation),
-      "Milestone" => Ok(AccessPolicyResourceType::Milestone),
-      "OAuthAuthorization" => Ok(AccessPolicyResourceType::OAuthAuthorization),
-      "Project" => Ok(AccessPolicyResourceType::Project),
-      "Role" => Ok(AccessPolicyResourceType::Role),
-      "ServerLogEntry" => Ok(AccessPolicyResourceType::ServerLogEntry),
-      "Session" => Ok(AccessPolicyResourceType::Session),
-      "User" => Ok(AccessPolicyResourceType::User),
-      "Workspace" => Ok(AccessPolicyResourceType::Workspace),
-      "View" => Ok(AccessPolicyResourceType::View),
+      "AccessPolicy" => Ok(ResourceType::AccessPolicy),
+      "Action" => Ok(ResourceType::Action),
+      "ActionLogEntry" => Ok(ResourceType::ActionLogEntry),
+      "App" => Ok(ResourceType::App),
+      "AppAuthorization" => Ok(ResourceType::AppAuthorization),
+      "AppAuthorizationCredential" => Ok(ResourceType::AppAuthorizationCredential),
+      "AppCredential" => Ok(ResourceType::AppCredential),
+      "Configuration" => Ok(ResourceType::Configuration),
+      "DelegationPolicy" => Ok(ResourceType::DelegationPolicy),
+      "Field" => Ok(ResourceType::Field),
+      "FieldChoice" => Ok(ResourceType::FieldChoice),
+      "FieldValue" => Ok(ResourceType::FieldValue),
+      "Group" => Ok(ResourceType::Group),
+      "HTTPTransaction" => Ok(ResourceType::HTTPTransaction),
+      "Server" => Ok(ResourceType::Server),
+      "Item" => Ok(ResourceType::Item),
+      "ItemConnection" => Ok(ResourceType::ItemConnection),
+      "ItemConnectionType" => Ok(ResourceType::ItemConnectionType),
+      "Membership" => Ok(ResourceType::Membership),
+      "MembershipInvitation" => Ok(ResourceType::MembershipInvitation),
+      "Milestone" => Ok(ResourceType::Milestone),
+      "OAuthAuthorization" => Ok(ResourceType::OAuthAuthorization),
+      "Project" => Ok(ResourceType::Project),
+      "Role" => Ok(ResourceType::Role),
+      "ServerLogEntry" => Ok(ResourceType::ServerLogEntry),
+      "Session" => Ok(ResourceType::Session),
+      "User" => Ok(ResourceType::User),
+      "Workspace" => Ok(ResourceType::Workspace),
+      "View" => Ok(ResourceType::View),
       _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
     }
 
@@ -329,7 +338,7 @@ pub struct InitialAccessPolicyProperties {
 
   pub principal_app_id: Option<Uuid>,
 
-  pub scoped_resource_type: AccessPolicyResourceType,
+  pub scoped_resource_type: ResourceType,
 
   pub scoped_access_policy_id: Option<Uuid>,
 
@@ -441,7 +450,7 @@ pub struct AccessPolicy {
 
   pub principal_app_id: Option<Uuid>,
 
-  pub scoped_resource_type: AccessPolicyResourceType,
+  pub scoped_resource_type: ResourceType,
 
   pub scoped_access_policy_id: Option<Uuid>,
 
@@ -679,8 +688,8 @@ impl AccessPolicy {
     let get_prinicipal_access_policies_function = include_str!("../../queries/access_policies/create_function_get_principal_access_policies.sql");
     database_client.execute(get_prinicipal_access_policies_function, &[]).await?;
 
-    let can_principal_get_access_policy_function = include_str!("../../queries/access_policies/create_function_can_principal_get_resource.sql");
-    database_client.execute(can_principal_get_access_policy_function, &[]).await?;
+    let get_principal_permission_level_function = include_str!("../../queries/access_policies/create_function_get_principal_permission_level.sql");
+    database_client.execute(get_principal_permission_level_function, &[]).await?;
 
     let get_scoped_resource_id_from_access_policy_function = include_str!("../../queries/access_policies/create_function_get_scoped_resource_id_from_access_policy.sql");
     database_client.execute(get_scoped_resource_id_from_access_policy_function, &[]).await?;
@@ -708,7 +717,7 @@ impl AccessPolicy {
 
         "scoped_resource_type" => {
 
-          let scoped_resource_type = match AccessPolicyResourceType::from_str(value) {
+          let scoped_resource_type = match ResourceType::from_str(value) {
 
             Ok(scoped_resource_type) => scoped_resource_type,
             Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))
@@ -815,35 +824,35 @@ impl AccessPolicy {
 
     let scoped_resource_id = match self.scoped_resource_type {
 
-      AccessPolicyResourceType::AccessPolicy => self.scoped_access_policy_id,
-      AccessPolicyResourceType::Action => self.scoped_action_id,
-      AccessPolicyResourceType::ActionLogEntry => self.scoped_action_log_entry_id,
-      AccessPolicyResourceType::App => self.scoped_app_id,
-      AccessPolicyResourceType::AppAuthorization => self.scoped_app_authorization_id,
-      AccessPolicyResourceType::AppAuthorizationCredential => self.scoped_app_authorization_credential_id,
-      AccessPolicyResourceType::AppCredential => self.scoped_app_credential_id,
-      AccessPolicyResourceType::Configuration => self.scoped_configuration_id,
-      AccessPolicyResourceType::DelegationPolicy => self.scoped_delegation_policy_id,
-      AccessPolicyResourceType::Field => self.scoped_field_id,
-      AccessPolicyResourceType::FieldChoice => self.scoped_field_choice_id,
-      AccessPolicyResourceType::FieldValue => self.scoped_field_value_id,
-      AccessPolicyResourceType::Group => self.scoped_group_id,
-      AccessPolicyResourceType::HTTPTransaction => self.scoped_http_transaction_id,
-      AccessPolicyResourceType::Server => None,
-      AccessPolicyResourceType::Item => self.scoped_item_id,
-      AccessPolicyResourceType::ItemConnection => self.scoped_item_connection_id,
-      AccessPolicyResourceType::ItemConnectionType => self.scoped_item_connection_type_id,
-      AccessPolicyResourceType::Membership => self.scoped_membership_id,
-      AccessPolicyResourceType::MembershipInvitation => self.scoped_membership_invitation_id,
-      AccessPolicyResourceType::Milestone => self.scoped_milestone_id,
-      AccessPolicyResourceType::OAuthAuthorization => self.scoped_oauth_authorization_id,
-      AccessPolicyResourceType::Project => self.scoped_project_id,
-      AccessPolicyResourceType::Role => self.scoped_role_id,
-      AccessPolicyResourceType::ServerLogEntry => self.scoped_server_log_entry_id,
-      AccessPolicyResourceType::Session => self.scoped_session_id,
-      AccessPolicyResourceType::User => self.scoped_user_id,
-      AccessPolicyResourceType::View => self.scoped_view_id,
-      AccessPolicyResourceType::Workspace => self.scoped_workspace_id
+      ResourceType::AccessPolicy => self.scoped_access_policy_id,
+      ResourceType::Action => self.scoped_action_id,
+      ResourceType::ActionLogEntry => self.scoped_action_log_entry_id,
+      ResourceType::App => self.scoped_app_id,
+      ResourceType::AppAuthorization => self.scoped_app_authorization_id,
+      ResourceType::AppAuthorizationCredential => self.scoped_app_authorization_credential_id,
+      ResourceType::AppCredential => self.scoped_app_credential_id,
+      ResourceType::Configuration => self.scoped_configuration_id,
+      ResourceType::DelegationPolicy => self.scoped_delegation_policy_id,
+      ResourceType::Field => self.scoped_field_id,
+      ResourceType::FieldChoice => self.scoped_field_choice_id,
+      ResourceType::FieldValue => self.scoped_field_value_id,
+      ResourceType::Group => self.scoped_group_id,
+      ResourceType::HTTPTransaction => self.scoped_http_transaction_id,
+      ResourceType::Server => None,
+      ResourceType::Item => self.scoped_item_id,
+      ResourceType::ItemConnection => self.scoped_item_connection_id,
+      ResourceType::ItemConnectionType => self.scoped_item_connection_type_id,
+      ResourceType::Membership => self.scoped_membership_id,
+      ResourceType::MembershipInvitation => self.scoped_membership_invitation_id,
+      ResourceType::Milestone => self.scoped_milestone_id,
+      ResourceType::OAuthAuthorization => self.scoped_oauth_authorization_id,
+      ResourceType::Project => self.scoped_project_id,
+      ResourceType::Role => self.scoped_role_id,
+      ResourceType::ServerLogEntry => self.scoped_server_log_entry_id,
+      ResourceType::Session => self.scoped_session_id,
+      ResourceType::User => self.scoped_user_id,
+      ResourceType::View => self.scoped_view_id,
+      ResourceType::Workspace => self.scoped_workspace_id
 
     };
 

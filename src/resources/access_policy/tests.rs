@@ -12,7 +12,7 @@
 use std::cmp;
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{DeletableResource, access_policy::{
-    AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties
+    AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties
   }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::resource_hierarchy::{self, PrincipalWithID}
 };
 
@@ -88,7 +88,7 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -173,7 +173,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
       permission_level: if remaining_action_count > denied_access_policy_count { ActionPermissionLevel::None } else { ActionPermissionLevel::User },
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
-      scoped_resource_type: AccessPolicyResourceType::Action,
+      scoped_resource_type: ResourceType::Action,
       scoped_action_id: Some(dummy_action.id),
       is_inheritance_enabled: true,
       ..Default::default()
@@ -225,7 +225,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: if remaining_action_count == 1 { created_access_policies[0].principal_user_id } else { Some(user.id) },
-      scoped_resource_type: AccessPolicyResourceType::Server,
+      scoped_resource_type: ResourceType::Server,
       ..Default::default()
     };
     let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -298,7 +298,7 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
-      scoped_resource_type: AccessPolicyResourceType::Server,
+      scoped_resource_type: ResourceType::Server,
       ..Default::default()
     };
     let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -330,7 +330,7 @@ async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerEr
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &test_environment.database_pool).await?;
@@ -378,7 +378,7 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &test_environment.database_pool).await?;

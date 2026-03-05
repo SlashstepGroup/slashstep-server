@@ -6,7 +6,7 @@ use crate::{
       AccessPolicy, 
       ActionPermissionLevel, 
       AccessPolicyPrincipalType, 
-      AccessPolicyResourceType, 
+      ResourceType, 
       IndividualPrincipal, 
       InitialAccessPolicyProperties
     }, 
@@ -254,7 +254,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
       permission_level: ActionPermissionLevel::User,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
-      scoped_resource_type: AccessPolicyResourceType::Action,
+      scoped_resource_type: ResourceType::Action,
       scoped_action_id: Some(action.id.clone()),
       ..Default::default()
     }, &test_environment.database_pool).await?;

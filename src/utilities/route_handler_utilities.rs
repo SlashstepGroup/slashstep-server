@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{resource_hierarchy::{self, PrincipalWithID, ResourceHierarchy, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, ResourceType, ActionPermissionLevel, IndividualPrincipal}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{resource_hierarchy::{self, PrincipalWithID, ResourceHierarchy, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -509,7 +509,7 @@ pub async fn get_resource_by_id<ResourceStruct, GetResourceByIDFunction>(
 
 }
 
-pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T, resource_type: &AccessPolicyResourceType, resource_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ResourceHierarchy, HTTPError> {
+pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T, resource_type: &ResourceType, resource_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ResourceHierarchy, HTTPError> {
 
   let resource_type_string = resource_type.to_string().to_lowercase();
   ServerLogEntry::trace(&format!("Getting resource hierarchy for {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &database_pool).await.ok();
@@ -553,7 +553,7 @@ pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T
 
 }
 
-pub async fn get_all_resource_hierarchies<T: DeletableResource>(deletable_resource: &T, resource_type: &AccessPolicyResourceType, resource_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Vec<ResourceHierarchy>, HTTPError> {
+pub async fn get_all_resource_hierarchies<T: DeletableResource>(deletable_resource: &T, resource_type: &ResourceType, resource_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Vec<ResourceHierarchy>, HTTPError> {
 
   let resource_type_string = resource_type.to_string().to_lowercase();
   ServerLogEntry::trace(&format!("Getting all resource hierarchies for {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &database_pool).await.ok();

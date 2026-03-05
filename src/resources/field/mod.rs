@@ -21,6 +21,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "minimum_choice_count",
   "maximum_choice_count",
   "parent_project_id",
+  "protected_field_type",
   "is_deadline"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
@@ -39,7 +40,9 @@ pub enum FieldValueType {
   Number,
   Boolean,
   Timestamp,
-  Stakeholder
+  Stakeholder,
+  Iteration,
+  Milestone
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default, Copy)]

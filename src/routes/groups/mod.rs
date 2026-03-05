@@ -19,7 +19,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}}};
 
 /// GET /groups
 /// 
@@ -38,7 +38,7 @@ async fn handle_list_groups_request(
   let list_resources_action = get_action_by_name("groups.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
+  let resource_hierarchy: ResourceHierarchy = vec![(ResourceType::Server, None)];
   verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
 
@@ -195,7 +195,7 @@ async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTr
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::Role,
       principal_role_id: Some(group_admins_role.id),
-      scoped_resource_type: AccessPolicyResourceType::Group,
+      scoped_resource_type: ResourceType::Group,
       scoped_group_id: Some(group.id),
       ..Default::default()
     }, &database_pool).await {
@@ -257,7 +257,7 @@ async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTr
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::Role,
       principal_role_id: Some(group_members_role.id),
-      scoped_resource_type: AccessPolicyResourceType::Group,
+      scoped_resource_type: ResourceType::Group,
       scoped_group_id: Some(group.id),
       ..Default::default()
     }, &database_pool).await {
@@ -316,7 +316,7 @@ async fn handle_create_group_request(
   }
 
   // Make sure the authenticated_user can create apps for the target action log entry.
-  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
+  let resource_hierarchy: ResourceHierarchy = vec![(ResourceType::Server, None)];
   let create_groups_action = get_action_by_name("groups.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_groups_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;

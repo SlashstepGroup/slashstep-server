@@ -1,40 +1,6 @@
 DO $$
   BEGIN
 
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'access_policy_resource_type') THEN
-      CREATE TYPE access_policy_resource_type AS ENUM (
-        'AccessPolicy',
-        'Action',
-        'ActionLogEntry',
-        'App',
-        'AppAuthorization',
-        'AppAuthorizationCredential',
-        'AppCredential',
-        'Configuration',
-        'DelegationPolicy',
-        'Field',
-        'FieldChoice',
-        'FieldValue',
-        'Group',
-        'HTTPTransaction',
-        'Server',
-        'Item',
-        'ItemConnection',
-        'ItemConnectionType',
-        'Membership',
-        'MembershipInvitation',
-        'Milestone',
-        'OAuthAuthorization',
-        'Project',
-        'Role',
-        'ServerLogEntry',
-        'Session',
-        'User',
-        'View',
-        'Workspace'
-      );
-    END IF;
-
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'principal_type') THEN
       CREATE TYPE principal_type AS ENUM (
         'User',
@@ -55,7 +21,7 @@ DO $$
       principal_app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
 
       /* Scopes */
-      scoped_resource_type access_policy_resource_type NOT NULL,
+      scoped_resource_type resource_type NOT NULL,
       scoped_access_policy_id UUID REFERENCES access_policies(id) ON DELETE CASCADE,
       scoped_action_id UUID REFERENCES actions(id) ON DELETE CASCADE,
       scoped_action_log_entry_id UUID REFERENCES action_log_entries(id) ON DELETE CASCADE,
@@ -73,6 +39,9 @@ DO $$
       scoped_item_id UUID REFERENCES items(id) ON DELETE CASCADE,
       scoped_item_connection_id UUID REFERENCES item_connections(id) ON DELETE CASCADE,
       scoped_item_connection_type_id UUID REFERENCES item_connection_types(id) ON DELETE CASCADE,
+      scoped_item_type_id UUID REFERENCES item_types(id) ON DELETE CASCADE,
+      scoped_item_type_icon_id UUID REFERENCES item_type_icons(id) ON DELETE CASCADE,
+      scoped_iteration_id UUID REFERENCES iterations(id) ON DELETE CASCADE,
       scoped_membership_id UUID REFERENCES memberships(id) ON DELETE CASCADE,
       scoped_membership_invitation_id UUID REFERENCES membership_invitations(id) ON DELETE CASCADE,
       scoped_milestone_id UUID REFERENCES milestones(id) ON DELETE CASCADE,
@@ -81,8 +50,11 @@ DO $$
       scoped_role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
       scoped_server_log_entry_id UUID REFERENCES server_log_entries(id) ON DELETE CASCADE,
       scoped_session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+      scoped_status_id UUID REFERENCES statuses(id) ON DELETE CASCADE,
       scoped_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
       scoped_view_id UUID REFERENCES views(id) ON DELETE CASCADE,
+      scoped_view_field_id UUID REFERENCES view_fields(id) ON DELETE CASCADE,
+      scoped_webhook_id UUID REFERENCES webhooks(id) ON DELETE CASCADE,
       scoped_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
 
       /* Permissions */

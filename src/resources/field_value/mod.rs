@@ -96,6 +96,12 @@ pub struct InitialFieldValueProperties {
 
   /// The field choice's date time value, if applicable.
   pub timestamp_value: Option<DateTime<Utc>>,
+  
+  /// The field value's iteration ID value, if applicable.
+  pub iteration_id_value: Option<Uuid>,
+
+  /// The field value's milestone ID value, if applicable.
+  pub milestone_id_value: Option<Uuid>,
 
   /// The field choice's stakeholder type, if applicable.
   pub stakeholder_type: Option<StakeholderType>,
@@ -132,6 +138,12 @@ pub struct InitialFieldValuePropertiesWithPredefinedParent {
   /// The field choice's date time value, if applicable.
   pub timestamp_value: Option<DateTime<Utc>>,
 
+  /// The field value's iteration ID value, if applicable.
+  pub iteration_id_value: Option<Uuid>,
+
+  /// The field value's milestone ID value, if applicable.
+  pub milestone_id_value: Option<Uuid>,
+
   /// The field choice's stakeholder type, if applicable.
   pub stakeholder_type: Option<StakeholderType>,
 
@@ -160,6 +172,12 @@ pub struct EditableFieldValueProperties {
 
   /// The field choice's date time value, if applicable.
   pub timestamp_value: Option<Option<DateTime<Utc>>>,
+  
+  /// The field value's iteration ID value, if applicable.
+  pub iteration_id_value: Option<Option<Uuid>>,
+
+  /// The field value's milestone ID value, if applicable.
+  pub milestone_id_value: Option<Option<Uuid>>,
 
   /// The field choice's stakeholder type, if applicable.
   pub stakeholder_type: Option<Option<StakeholderType>>,
@@ -207,6 +225,12 @@ pub struct FieldValue {
 
   /// The field choice's date time value, if applicable.
   pub timestamp_value: Option<DateTime<Utc>>,
+
+  /// The field value's iteration ID value, if applicable.
+  pub iteration_id_value: Option<Uuid>,
+
+  /// The field value's milestone ID value, if applicable.
+  pub milestone_id_value: Option<Uuid>,
 
   /// The field choice's stakeholder type, if applicable.
   pub stakeholder_type: Option<StakeholderType>,
@@ -288,6 +312,8 @@ impl FieldValue {
       number_value: row.get("number_value"),
       boolean_value: row.get("boolean_value"),
       timestamp_value: row.get("timestamp_value"),
+      iteration_id_value: row.get("iteration_id_value"),
+      milestone_id_value: row.get("milestone_id_value"),
       stakeholder_type: row.get("stakeholder_type"),
       stakeholder_user_id: row.get("stakeholder_user_id"),
       stakeholder_group_id: row.get("stakeholder_group_id"),
@@ -320,6 +346,8 @@ impl FieldValue {
       &initial_properties.number_value,
       &initial_properties.boolean_value,
       &initial_properties.timestamp_value,
+      &initial_properties.iteration_id_value,
+      &initial_properties.milestone_id_value,
       &initial_properties.stakeholder_type,
       &initial_properties.stakeholder_user_id,
       &initial_properties.stakeholder_group_id,

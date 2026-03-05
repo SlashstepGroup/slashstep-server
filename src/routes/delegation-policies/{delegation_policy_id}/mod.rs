@@ -17,7 +17,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    DeletableResource, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, delegation_policy::{DelegationPolicy, EditableDelegationPolicyProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    DeletableResource, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, delegation_policy::{DelegationPolicy, EditableDelegationPolicyProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_delegation_policy_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -42,7 +42,7 @@ async fn handle_get_delegation_policy_request(
 
   let delegation_policy_id = get_uuid_from_string(&delegation_policy_id, "delegation policy", &http_transaction, &state.database_pool).await?;
   let target_delegation_policy = get_delegation_policy_by_id(&delegation_policy_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_delegation_policy, &AccessPolicyResourceType::DelegationPolicy, &target_delegation_policy.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_delegation_policy, &ResourceType::DelegationPolicy, &target_delegation_policy.id, &http_transaction, &state.database_pool).await?;
   let get_delegation_policies_action = get_action_by_name("delegationPolicies.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_delegation_policies_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -81,7 +81,7 @@ async fn handle_delete_delegation_policy_request(
 
   let delegation_policy_id = get_uuid_from_string(&delegation_policy_id, "delegation policy", &http_transaction, &state.database_pool).await?;
   let target_delegation_policy = get_delegation_policy_by_id(&delegation_policy_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_delegation_policy, &AccessPolicyResourceType::DelegationPolicy, &target_delegation_policy.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_delegation_policy, &ResourceType::DelegationPolicy, &target_delegation_policy.id, &http_transaction, &state.database_pool).await?;
   let delete_delegation_policies_action = get_action_by_name("delegationPolicies.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_delegation_policies_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -131,7 +131,7 @@ async fn handle_patch_delegation_policy_request(
   let updated_delegation_policy_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
   let delegation_policy_id = get_uuid_from_string(&delegation_policy_id, "delegation policy", &http_transaction, &state.database_pool).await?;
   let original_target_delegation_policy = get_delegation_policy_by_id(&delegation_policy_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&original_target_delegation_policy, &AccessPolicyResourceType::DelegationPolicy, &original_target_delegation_policy.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&original_target_delegation_policy, &ResourceType::DelegationPolicy, &original_target_delegation_policy.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("delegationPolicies.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;

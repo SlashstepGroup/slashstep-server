@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
     },
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -57,7 +57,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -246,7 +246,7 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -420,7 +420,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -602,7 +602,7 @@ async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(),
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -649,7 +649,7 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;

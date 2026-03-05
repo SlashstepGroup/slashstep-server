@@ -1,0 +1,1 @@
+DELETE FROM iterations WHERE id = $1;

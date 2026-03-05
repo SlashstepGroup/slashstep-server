@@ -261,9 +261,9 @@ impl SlashstepQLFilterSanitizer {
         
         let additional_condition = match individual_principal {
 
-          IndividualPrincipal::User(user_id) => format!("can_principal_get_resource('User', {}, {}, {}.id, {})", quote_literal(&user_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name)),
+          IndividualPrincipal::User(user_id) => format!("get_principal_permission_level('User', {}, {}, {}.id, {}) >= 'User'", quote_literal(&user_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name)),
 
-          IndividualPrincipal::App(app_id) => format!("can_principal_get_resource('App', {}, {}, {}.id, {})", quote_literal(&app_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name))
+          IndividualPrincipal::App(app_id) => format!("get_principal_permission_level('App', {}, {}, {}.id, {}) >= 'User'", quote_literal(&app_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name))
 
         };
 
@@ -282,10 +282,10 @@ impl SlashstepQLFilterSanitizer {
       None => where_clause
 
     };
-    let where_clause = if where_clause == "" { where_clause } else { format!(" where {}", where_clause) };
-    let limit_clause = sanitized_filter.limit.and_then(|limit| Some(format!(" limit {}", limit))).unwrap_or("".to_string());
-    let offset_clause = sanitized_filter.offset.and_then(|offset| Some(format!(" offset {}", offset))).unwrap_or("".to_string());
-    let query = format!("select {} from {}{}{}{}", if should_count { "count(*)" } else { "*" }, table_name, where_clause, limit_clause, offset_clause);
+    let where_clause = if where_clause == "" { where_clause } else { format!(" WHERE {}", where_clause) };
+    let limit_clause = sanitized_filter.limit.and_then(|limit| Some(format!(" LIMIT {}", limit))).unwrap_or("".to_string());
+    let offset_clause = sanitized_filter.offset.and_then(|offset| Some(format!(" OFFSET {}", offset))).unwrap_or("".to_string());
+    let query = format!("SELECT {} FROM {}{}{}{}", if should_count { "count(*)" } else { "*" }, table_name, where_clause, limit_clause, offset_clause);
 
     return query;
 

@@ -16,7 +16,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, role::Role, server_log_entry::ServerLogEntry, user::User
+    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, role::Role, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_resource_hierarchy, get_role_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -41,7 +41,7 @@ async fn handle_get_role_request(
 
   let role_id = get_uuid_from_string(&role_id, "role", &http_transaction, &state.database_pool).await?;
   let target_role = get_role_by_id(&role_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_role, &AccessPolicyResourceType::Role, &target_role.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_role, &ResourceType::Role, &target_role.id, &http_transaction, &state.database_pool).await?;
   let get_roles_action = get_action_by_name("roles.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_roles_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -85,7 +85,7 @@ async fn handle_get_role_request(
 //     Extension(authenticated_user), 
 //     Extension(authenticated_app), 
 //     Extension(authenticated_app_authorization),
-//     Some(&AccessPolicyResourceType::App),
+//     Some(&ResourceType::App),
 //     &role_id, 
 //     "apps.delete",
 //     "app",
@@ -142,7 +142,7 @@ async fn handle_get_role_request(
 //   };
 
 //   let original_target_field = get_app_by_id(&role_id, &http_transaction, &state.database_pool).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&original_target_field, &AccessPolicyResourceType::App, &original_target_field.id, &http_transaction, &state.database_pool).await?;
+//   let resource_hierarchy = get_resource_hierarchy(&original_target_field, &ResourceType::App, &original_target_field.id, &http_transaction, &state.database_pool).await?;
 //   let update_access_policy_action = get_action_by_name("apps.update", &http_transaction, &state.database_pool).await?;
 //   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
 //   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;

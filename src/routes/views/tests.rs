@@ -19,7 +19,7 @@
 //     initialize_predefined_roles
 //   }, resources::{
 //     access_policy::{
-//       AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
+//       AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
 //     }, action::Action, app::{App, DEFAULT_RESOURCE_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT},
 //   }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 // };
@@ -45,7 +45,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -57,7 +57,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -121,7 +121,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -133,7 +133,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -200,7 +200,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -212,7 +212,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -267,7 +267,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -279,7 +279,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -323,7 +323,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -335,7 +335,7 @@
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 

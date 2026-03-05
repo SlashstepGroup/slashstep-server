@@ -586,7 +586,7 @@ impl TestEnvironment {
       is_inheritance_enabled: true,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Server,
+      scoped_resource_type: crate::resources::access_policy::ResourceType::Server,
       ..Default::default()
     };
 
@@ -604,7 +604,7 @@ impl TestEnvironment {
       is_inheritance_enabled: true,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user_id.clone()),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Server,
+      scoped_resource_type: crate::resources::access_policy::ResourceType::Server,
       ..Default::default()
     }, &self.database_pool).await?;
 

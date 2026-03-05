@@ -1,0 +1,1 @@
+SELECT * FROM item_types WHERE id = $1 LIMIT 1;

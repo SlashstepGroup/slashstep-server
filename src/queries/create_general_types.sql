@@ -1,6 +1,40 @@
 DO $$
 BEGIN
 
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'resource_type') THEN
+    CREATE TYPE resource_type AS ENUM (
+      'AccessPolicy',
+      'Action',
+      'ActionLogEntry',
+      'App',
+      'AppAuthorization',
+      'AppAuthorizationCredential',
+      'AppCredential',
+      'Configuration',
+      'DelegationPolicy',
+      'Field',
+      'FieldChoice',
+      'FieldValue',
+      'Group',
+      'HTTPTransaction',
+      'Server',
+      'Item',
+      'ItemConnection',
+      'ItemConnectionType',
+      'Membership',
+      'MembershipInvitation',
+      'Milestone',
+      'OAuthAuthorization',
+      'Project',
+      'Role',
+      'ServerLogEntry',
+      'Session',
+      'User',
+      'View',
+      'Workspace'
+    );
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'stakeholder_type') THEN
     CREATE TYPE stakeholder_type AS ENUM (
       'User',
@@ -15,7 +49,9 @@ BEGIN
       'Number',
       'Boolean',
       'Timestamp',
-      'Stakeholder'
+      'Stakeholder',
+      'Iteration',
+      'Milestone'
     );
   END IF;
 

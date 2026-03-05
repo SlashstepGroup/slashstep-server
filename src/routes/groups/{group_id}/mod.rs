@@ -17,7 +17,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    DeletableResource, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{EditableGroupProperties, Group}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    DeletableResource, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{EditableGroupProperties, Group}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_group_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -46,7 +46,7 @@ async fn handle_get_group_request(
 
   let group_id = get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_group, &AccessPolicyResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_group, &ResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
   let get_groups_action = get_action_by_name("groups.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_groups_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -85,7 +85,7 @@ async fn handle_delete_group_request(
 
   let group_id = get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_group, &AccessPolicyResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&target_group, &ResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
   let delete_groups_action = get_action_by_name("groups.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_groups_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -151,7 +151,7 @@ async fn handle_patch_group_request(
 
   }
   let original_target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&original_target_group, &AccessPolicyResourceType::Group, &original_target_group.id, &http_transaction, &state.database_pool).await?;
+  let resource_hierarchy = get_resource_hierarchy(&original_target_group, &ResourceType::Group, &original_target_group.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("groups.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;

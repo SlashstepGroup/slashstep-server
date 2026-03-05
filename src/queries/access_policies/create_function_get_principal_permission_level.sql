@@ -1,151 +1,261 @@
--- This function returns true if a principal can get a resource.
+-- This function returns the permission level of a principal for a given resource.
 -- It's helpful for filtering access policies on the database level, making offsets more consistent.
-CREATE OR REPLACE FUNCTION can_principal_get_resource(
+CREATE OR REPLACE FUNCTION get_principal_permission_level(
     parameter_principal_type principal_type, 
     parameter_principal_id UUID,
-    initial_resource_type access_policy_resource_type, 
-    initial_resource_id UUID, 
-    get_resource_action_name TEXT
+    initial_resource_type resource_type, 
+    initial_resource_id UUID,
+    action_id UUID
 ) RETURNS BOOLEAN AS $$
 
     DECLARE
-        get_resource_action_id UUID;
-        current_permission_Level permission_level;
-        is_inheritance_enabled_on_selected_resource BOOLEAN;
-        selected_resource_type access_policy_resource_type := initial_resource_type;
+        primary_permission_level permission_level;
+        selected_resource_type resource_type := initial_resource_type;
         selected_resource_id UUID := initial_resource_id;
-        selected_resource_parent_type access_policy_resource_type;
+        selected_resource_parent_type resource_type;
         selected_resource_parent_id UUID;
         selected_access_policy access_policies%ROWTYPE;
         needs_inheritance BOOLEAN := FALSE;
-        can_principal_get_resource_through_inheritance BOOLEAN := FALSE;
-        bidirectional_resource_type access_policy_resource_type;
+        bidirectional_resource_type resource_type;
         bidirectional_resource_id UUID;
+        individual_permission_level permission_level;
+        role_permission_level permission_level;
+        group_permission_level permission_level;
+        queued_resource_id UUID;
+        queued_resource_type resource_type;
+        can_update_individual_permission_level BOOLEAN := FALSE;
+        can_update_role_permission_level BOOLEAN := FALSE;
+        can_update_group_permission_level BOOLEAN := FALSE;
+        original_permission_level permission_level;
 
     BEGIN
 
-        -- Set the selected resource type and ID based on the principal type.
-        get_resource_action_id := (
-            SELECT
-                id
-            FROM
-                actions
-            WHERE
-                name = get_resource_action_name
-        );
+        IF parameter_principal_type != 'User' AND parameter_principal_type != 'App' THEN
+
+            individual_permission_level := 'None';
+
+        END IF;
+
+        IF parameter_principal_type = 'Role' THEN
+
+            group_permission_level := 'None';
+
+        END IF;
 
         LOOP
 
-            SELECT
-                permission_level,
-                is_inheritance_enabled
-            INTO
-                current_permission_Level,
-                is_inheritance_enabled_on_selected_resource
-            FROM
-                get_principal_access_policies(parameter_principal_type, parameter_principal_id, get_resource_action_id) principal_access_policies
-            WHERE
-                principal_access_policies.scoped_resource_type = selected_resource_type AND (
+            DROP TABLE IF EXISTS principal_access_policies;
+
+            CREATE TEMPORARY TABLE principal_access_policies AS
+                SELECT
+                    *
+                FROM
+                    get_principal_access_policies(parameter_principal_type, parameter_principal_id) principal_access_policies
+                WHERE
+                    principal_access_policies.action_id = action_id AND 
+                    principal_access_policies.scoped_resource_type = selected_resource_type AND 
                     (
-                        principal_access_policies.scoped_resource_type = 'AccessPolicy' AND 
-                        principal_access_policies.scoped_access_policy_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Action' AND 
-                        principal_access_policies.scoped_action_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'ActionLogEntry' AND 
-                        principal_access_policies.scoped_action_log_entry_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'App' AND 
-                        principal_access_policies.scoped_app_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'AppAuthorization' AND 
-                        principal_access_policies.scoped_app_authorization_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'AppAuthorizationCredential' AND 
-                        principal_access_policies.scoped_app_authorization_credential_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'AppCredential' AND 
-                        principal_access_policies.scoped_app_credential_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Configuration' AND 
-                        principal_access_policies.scoped_configuration_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'DelegationPolicy' AND 
-                        principal_access_policies.scoped_delegation_policy_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Field' AND 
-                        principal_access_policies.scoped_field_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'FieldChoice' AND 
-                        principal_access_policies.scoped_field_choice_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'FieldValue' AND 
-                        principal_access_policies.scoped_field_value_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Group' AND 
-                        principal_access_policies.scoped_group_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'HTTPTransaction' AND 
-                        principal_access_policies.scoped_http_transaction_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Item' AND 
-                        principal_access_policies.scoped_item_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'ItemConnection' AND 
-                        principal_access_policies.scoped_item_connection_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'ItemConnectionType' AND
-                        principal_access_policies.scoped_item_connection_type_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Membership' AND 
-                        principal_access_policies.scoped_membership_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'MembershipInvitation' AND 
-                        principal_access_policies.scoped_membership_invitation_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Milestone' AND 
-                        principal_access_policies.scoped_milestone_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'OAuthAuthorization' AND 
-                        principal_access_policies.scoped_app_authorization_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Project' AND 
-                        principal_access_policies.scoped_project_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Role' AND 
-                        principal_access_policies.scoped_role_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Server'
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'ServerLogEntry' AND 
-                        principal_access_policies.scoped_server_log_entry_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Session' AND 
-                        principal_access_policies.scoped_session_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'User' AND 
-                        principal_access_policies.scoped_user_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'View' AND 
-                        principal_access_policies.scoped_view_id = selected_resource_id
-                    ) OR (
-                        principal_access_policies.scoped_resource_type = 'Workspace' AND 
-                        principal_access_policies.scoped_workspace_id = selected_resource_id
+                        (
+                            principal_access_policies.scoped_resource_type = 'AccessPolicy' AND 
+                            principal_access_policies.scoped_access_policy_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Action' AND 
+                            principal_access_policies.scoped_action_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'ActionLogEntry' AND 
+                            principal_access_policies.scoped_action_log_entry_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'App' AND 
+                            principal_access_policies.scoped_app_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'AppAuthorization' AND 
+                            principal_access_policies.scoped_app_authorization_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'AppAuthorizationCredential' AND 
+                            principal_access_policies.scoped_app_authorization_credential_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'AppCredential' AND 
+                            principal_access_policies.scoped_app_credential_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Configuration' AND 
+                            principal_access_policies.scoped_configuration_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'DelegationPolicy' AND 
+                            principal_access_policies.scoped_delegation_policy_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Field' AND 
+                            principal_access_policies.scoped_field_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'FieldChoice' AND 
+                            principal_access_policies.scoped_field_choice_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'FieldValue' AND 
+                            principal_access_policies.scoped_field_value_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Group' AND 
+                            principal_access_policies.scoped_group_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'HTTPTransaction' AND 
+                            principal_access_policies.scoped_http_transaction_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Item' AND 
+                            principal_access_policies.scoped_item_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'ItemConnection' AND 
+                            principal_access_policies.scoped_item_connection_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'ItemConnectionType' AND
+                            principal_access_policies.scoped_item_connection_type_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Membership' AND 
+                            principal_access_policies.scoped_membership_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'MembershipInvitation' AND 
+                            principal_access_policies.scoped_membership_invitation_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Milestone' AND 
+                            principal_access_policies.scoped_milestone_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'OAuthAuthorization' AND 
+                            principal_access_policies.scoped_app_authorization_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Project' AND 
+                            principal_access_policies.scoped_project_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Role' AND 
+                            principal_access_policies.scoped_role_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Server'
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'ServerLogEntry' AND 
+                            principal_access_policies.scoped_server_log_entry_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Session' AND 
+                            principal_access_policies.scoped_session_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'User' AND 
+                            principal_access_policies.scoped_user_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'View' AND 
+                            principal_access_policies.scoped_view_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Workspace' AND 
+                            principal_access_policies.scoped_workspace_id = selected_resource_id
+                        )
+                    ) AND (
+                        NOT needs_inheritance OR 
+                        principal_access_policies.is_inheritance_enabled
+                    );
+
+            IF individual_permission_level IS NULL OR can_update_individual_permission_level THEN
+
+                original_permission_level := individual_permission_level;
+
+                SELECT
+                    permission_level
+                INTO
+                    individual_permission_level
+                FROM
+                    principal_access_policies
+                WHERE
+                    (
+                        principal_access_policies.principal_type = 'User' OR
+                        principal_access_policies.principal_type = 'App'
+                    ) AND (
+                        individual_permission_level IS NULL OR
+                        principal_access_policies.permission_level > individual_permission_level
                     )
-                ) AND (
-                    NOT needs_inheritance OR 
-                    principal_access_policies.is_inheritance_enabled
-                )
-            LIMIT 1;
+                ORDER BY
+                    CASE principal_access_policies.permission_level
+                        WHEN 'Admin' THEN 1
+                        WHEN 'Editor' THEN 2
+                        WHEN 'User' THEN 3
+                        WHEN 'None' THEN 4
+                        ELSE 5
+                    END
+                LIMIT 1;
 
-            IF needs_inheritance AND NOT is_inheritance_enabled_on_selected_resource THEN
+                can_update_individual_permission_level = individual_permission_level IS NULL;
+                individual_permission_level := COALESCE(individual_permission_level, original_permission_level);
 
-                RETURN FALSE;
+            END IF;
 
-            ELSIF current_permission_Level IS NOT NULL THEN
+            IF role_permission_level IS NULL OR can_update_role_permission_level THEN
 
-                RETURN current_permission_Level >= 'User';
+                original_permission_level := role_permission_level;
+
+                SELECT
+                    permission_level
+                INTO
+                    role_permission_level
+                FROM
+                    principal_access_policies
+                WHERE
+                    (
+                        principal_access_policies.principal_type = 'User' OR
+                        principal_access_policies.principal_type = 'App'
+                    ) AND (
+                        role_permission_level IS NULL OR
+                        principal_access_policies.permission_level > role_permission_level
+                    )
+                ORDER BY
+                    CASE principal_access_policies.permission_level
+                        WHEN 'Admin' THEN 1
+                        WHEN 'Editor' THEN 2
+                        WHEN 'User' THEN 3
+                        WHEN 'None' THEN 4
+                        ELSE 5
+                    END
+                LIMIT 1;
+
+                can_update_role_permission_level = role_permission_level IS NULL;
+                role_permission_level := COALESCE(role_permission_level, original_permission_level);
+
+            END IF;
+
+            IF group_permission_level IS NULL OR can_update_group_permission_level THEN
+
+                original_permission_level := group_permission_level;
+
+                SELECT
+                    permission_level
+                INTO
+                    group_permission_level
+                FROM
+                    principal_access_policies
+                WHERE
+                    (
+                        principal_access_policies.principal_type = 'User' OR
+                        principal_access_policies.principal_type = 'App'
+                    ) AND (
+                        group_permission_level IS NULL OR
+                        principal_access_policies.permission_level > group_permission_level
+                    )
+                ORDER BY
+                    CASE principal_access_policies.permission_level
+                        WHEN 'Admin' THEN 1
+                        WHEN 'Editor' THEN 2
+                        WHEN 'User' THEN 3
+                        WHEN 'None' THEN 4
+                        ELSE 5
+                    END
+                LIMIT 1;
+
+                can_update_group_permission_level = group_permission_level IS NULL;
+                group_permission_level := COALESCE(group_permission_level, original_permission_level);
+
+            END IF;
+
+            IF (
+                NOT can_update_individual_permission_level AND
+                NOT can_update_role_permission_level AND
+                NOT can_update_group_permission_level AND
+                group_permission_level IS NOT NULL AND 
+                role_permission_level IS NOT NULL AND 
+                individual_permission_level IS NOT NULL
+            ) THEN
+
+                EXIT;
 
             END IF;
 
@@ -170,7 +280,21 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             ELSIF selected_resource_type = 'Server' THEN
 
                 -- Server
-                RETURN current_permission_Level IS NOT NULL AND current_permission_Level >= 'User';
+                IF queued_resource_id IS NOT NULL THEN
+
+                    selected_resource_type := queued_resource_type;
+                    selected_resource_id := queued_resource_id;
+                    queued_resource_id := NULL;
+                    queued_resource_type := NULL;
+                    can_update_individual_permission_level := TRUE;
+                    can_update_role_permission_level := TRUE;
+                    can_update_group_permission_level := TRUE;
+
+                ELSE
+
+                    EXIT;
+
+                END IF;
 
             ELSIF selected_resource_type = 'Action' THEN
 
@@ -556,56 +680,32 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 -- ItemConnection -> Item + Item
                 -- Since item connections are bidirectional, we need to check both the inward and outward item.
-                --
-                -- This is possible through an iterative algorithm, but we'll use recursion for now to save development time.
-                -- If someone comes across this and has a better solution, send a pull request. :)
                 SELECT
-                    inward_item_id
+                    inward_item_id,
+                    outward_item_id
                 INTO
-                    selected_resource_parent_id
+                    selected_resource_parent_id,
+                    queued_resource_id
                 FROM
                     item_connections
                 WHERE
                     item_connections.id = selected_resource_id;
 
-                SELECT
-                    can_principal_get_resource(
-                        parameter_principal_type, 
-                        parameter_principal_id,
-                        'Item', 
-                        selected_resource_parent_id, 
-                        get_resource_action_name
-                    )
-                INTO
-                    can_principal_get_resource_through_inheritance;
+                IF selected_resource_parent_id IS NULL THEN
 
-                IF can_principal_get_resource_through_inheritance THEN
-
-                    RETURN TRUE;
+                    RAISE EXCEPTION 'Couldn''t find an inward item for item connection %.', selected_resource_id;
 
                 END IF;
 
-                SELECT
-                    outward_item_id
-                INTO
-                    selected_resource_parent_id
-                FROM
-                    item_connections
-                WHERE
-                    item_connections.id = selected_resource_id;
+                IF queued_resource_id IS NULL THEN
 
-                SELECT
-                    can_principal_get_resource(
-                        parameter_principal_type,
-                        parameter_principal_id,
-                        'Item',
-                        selected_resource_parent_id,
-                        get_resource_action_name
-                    )
-                INTO
-                    can_principal_get_resource_through_inheritance;
+                    RAISE EXCEPTION 'Couldn''t find an outward item for item connection %.', selected_resource_id;
 
-                RETURN can_principal_get_resource_through_inheritance;
+                END IF;
+
+                selected_resource_type := 'Item';
+                selected_resource_id := selected_resource_parent_id;
+                queued_resource_type := 'Item';
 
             ELSIF selected_resource_type = 'ItemConnectionType' THEN
 
@@ -664,6 +764,69 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                     RAISE EXCEPTION 'Couldn''t find a parent resource for item connection type %.', selected_resource_id;
 
                 END IF;
+
+            ELSIF selected_resource_type = 'ItemType' THEN
+
+                -- ItemType -> Project
+                SELECT
+                    parent_project_id
+                INTO
+                    selected_resource_parent_id
+                FROM
+                    item_types
+                WHERE
+                    item_types.id = selected_resource_id;
+
+                IF selected_resource_parent_id IS NULL THEN
+
+                    RAISE EXCEPTION 'Couldn''t find a parent project for item type %.', selected_resource_id;
+
+                END IF;
+
+                selected_resource_type := 'Project';
+                selected_resource_id := selected_resource_parent_id;
+
+            ELSIF selected_resource_type = 'ItemTypeIcon' THEN
+
+                -- ItemTypeIcon -> Project
+                SELECT
+                    parent_project_id
+                INTO
+                    selected_resource_parent_id
+                FROM
+                    item_type_icons
+                WHERE
+                    item_type_icons.id = selected_resource_id;
+
+                IF selected_resource_parent_id IS NULL THEN
+
+                    RAISE EXCEPTION 'Couldn''t find a parent project for item type icon %.', selected_resource_id;
+
+                END IF;
+
+                selected_resource_type := 'Project';
+                selected_resource_id := selected_resource_parent_id;
+
+            ELSIF selected_resource_type = 'Iteration' THEN
+
+                -- Iteration -> Project
+                SELECT
+                    parent_project_id
+                INTO
+                    selected_resource_parent_id
+                FROM
+                    iterations
+                WHERE
+                    iterations.id = selected_resource_id;
+
+                IF selected_resource_parent_id IS NULL THEN
+
+                    RAISE EXCEPTION 'Couldn''t find a parent project for iteration %.', selected_resource_id;
+
+                END IF;
+
+                selected_resource_type := 'Project';
+                selected_resource_id := selected_resource_parent_id;
 
             ELSIF selected_resource_type = 'Membership' THEN
 
@@ -970,6 +1133,27 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
                 selected_resource_type := 'User';
                 selected_resource_id := selected_resource_parent_id;
 
+            ELSIF selected_resource_type = 'Status' THEN
+
+                -- Status -> Project
+                SELECT
+                    parent_project_id
+                INTO
+                    selected_resource_parent_id
+                FROM
+                    statuses
+                WHERE
+                    statuses.id = selected_resource_id;
+
+                IF selected_resource_parent_id IS NULL THEN
+
+                    RAISE EXCEPTION 'Couldn''t find a parent project for status %.', selected_resource_id;
+
+                END IF;
+
+                selected_resource_type := 'Project';
+                selected_resource_id := selected_resource_parent_id;
+
             ELSIF selected_resource_type = 'User' THEN
 
                 -- User -> Server
@@ -1034,6 +1218,27 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
 
                 END IF;
 
+            ELSIF selected_resource_type = 'ViewField' THEN
+
+                -- ViewField -> View
+                SELECT
+                    parent_view_id
+                INTO
+                    selected_resource_parent_id
+                FROM
+                    view_fields
+                WHERE
+                    view_fields.id = selected_resource_id;
+
+                IF selected_resource_parent_id IS NULL THEN
+
+                    RAISE EXCEPTION 'Couldn''t find a parent view for view field %.', selected_resource_id;
+
+                END IF;
+
+                selected_resource_type := 'View';
+                selected_resource_id := selected_resource_parent_id;
+
             ELSIF selected_resource_type = 'Workspace' THEN
 
                 -- Workspace -> Server
@@ -1047,6 +1252,13 @@ CREATE OR REPLACE FUNCTION can_principal_get_resource(
             END IF;
 
         END LOOP;
+
+        SELECT 
+            COALESCE(individual_permission_level, role_permission_level, group_permission_level, 'None') 
+        INTO 
+            primary_permission_level;
+
+        RETURN primary_permission_level;
 
     END;
 $$ LANGUAGE plpgsql;
