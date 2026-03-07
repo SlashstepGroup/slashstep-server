@@ -37,7 +37,6 @@ async fn handle_list_membership_invitations_request(
   let list_resources_action = get_action_by_name("membershipInvitations.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_group, &ResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
@@ -127,7 +126,6 @@ async fn handle_create_membership_invitation_request(
   // Make sure the user can create membership invitations for the target action.
   let group_id = get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_group, &ResourceType::Group, &target_group.id, &http_transaction, &state.database_pool).await?;
   let create_membership_invitations_action = get_action_by_name("membershipInvitations.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_membership_invitations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &create_membership_invitations_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

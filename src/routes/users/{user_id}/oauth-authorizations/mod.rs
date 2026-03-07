@@ -207,7 +207,6 @@ async fn handle_create_oauth_authorization_request(
   // Make sure the user can create access policies for the target action.
   let user_id = get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
   let target_user = get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_user, &ResourceType::User, &target_user.id, &http_transaction, &state.database_pool).await?;
   let create_oauth_authorizations_action = get_action_by_name("oauthAuthorizations.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_oauth_authorizations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &create_oauth_authorizations_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

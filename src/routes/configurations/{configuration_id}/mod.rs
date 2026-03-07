@@ -42,7 +42,6 @@ async fn handle_get_configuration_request(
 
   let configuration_id = get_uuid_from_string(&configuration_id, "configuration", &http_transaction, &state.database_pool).await?;
   let target_configuration = get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_configuration, &ResourceType::Configuration, &target_configuration.id, &http_transaction, &state.database_pool).await?;
   let get_configurations_action = get_action_by_name("configurations.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_configurations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &get_configurations_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -80,7 +79,6 @@ async fn handle_delete_configuration_request(
 
   let configuration_id = get_uuid_from_string(&configuration_id, "configuration", &http_transaction, &state.database_pool).await?;
   let target_configuration = get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_configuration, &ResourceType::Configuration, &target_configuration.id, &http_transaction, &state.database_pool).await?;
   let delete_configurations_action = get_action_by_name("configurations.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_configurations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &delete_configurations_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -157,7 +155,6 @@ async fn handle_patch_configuration_request(
 
   let configuration_id = get_uuid_from_string(&configuration_id, "configuration", &http_transaction, &state.database_pool).await?;
   let original_target_configuration = get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&original_target_configuration, &ResourceType::Configuration, &original_target_configuration  .id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("configurations.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

@@ -42,7 +42,6 @@ async fn handle_get_field_choice_request(
 
   let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
   let target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_field_choice, &ResourceType::FieldChoice, &target_field_choice.id, &http_transaction, &state.database_pool).await?;
   let get_field_choices_action = get_action_by_name("fieldChoices.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &get_field_choices_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -80,7 +79,6 @@ async fn handle_delete_field_choice_request(
 
   let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
   let target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_field_choice, &ResourceType::FieldChoice, &target_field_choice.id, &http_transaction, &state.database_pool).await?;
   let delete_field_choices_action = get_action_by_name("fieldChoices.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &delete_field_choices_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -139,7 +137,6 @@ async fn handle_patch_field_choice_request(
   }
   let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
   let original_target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&original_target_field_choice, &ResourceType::FieldChoice, &original_target_field_choice.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("fieldChoices.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

@@ -44,7 +44,6 @@ async fn handle_get_field_request(
 
   let field_id = get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_field, &ResourceType::Field, &target_field.id, &http_transaction, &state.database_pool).await?;
   let get_fields_action = get_action_by_name("fields.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_fields_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &get_fields_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -82,7 +81,6 @@ async fn handle_delete_field_request(
 
   let field_id = get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_field, &ResourceType::Field, &target_field.id, &http_transaction, &state.database_pool).await?;
   let delete_fields_action = get_action_by_name("fields.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_fields_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &delete_fields_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -144,7 +142,6 @@ async fn handle_patch_field_request(
   if let Some(field_description) = &updated_field_properties.description { validate_field_length(field_description, "fields.maximumDescriptionLength", "description", &http_transaction, &state.database_pool).await?; };
   let field_id = get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
   let original_target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&original_target_field, &ResourceType::Field, &original_target_field.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("fields.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

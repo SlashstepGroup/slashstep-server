@@ -73,7 +73,6 @@ pub async fn handle_list_field_choices_request(
   let list_resources_action = get_action_by_name("fieldChoices.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_field, &ResourceType::Field, &target_field.id, &http_transaction, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
@@ -171,7 +170,6 @@ async fn handle_create_field_choice_request(
 
   }
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_field, &ResourceType::Field, &target_field.id, &http_transaction, &state.database_pool).await?;
   let create_field_choices_action = get_action_by_name("fieldChoices.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &create_field_choices_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

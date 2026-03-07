@@ -42,7 +42,6 @@ async fn handle_get_milestone_request(
 
   let milestone_id = get_uuid_from_string(&milestone_id, "milestone", &http_transaction, &state.database_pool).await?;
   let target_milestone = get_milestone_by_id(&milestone_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_milestone, &ResourceType::Milestone, &target_milestone.id, &http_transaction, &state.database_pool).await?;
   let get_milestones_action = get_action_by_name("milestones.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_milestones_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &get_milestones_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

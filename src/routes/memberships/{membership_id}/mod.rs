@@ -42,7 +42,6 @@ async fn handle_get_membership_request(
 
   let membership_id = get_uuid_from_string(&membership_id, "membership", &http_transaction, &state.database_pool).await?;
   let target_membership = get_membership_by_id(&membership_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_membership, &ResourceType::Membership, &target_membership.id, &http_transaction, &state.database_pool).await?;
   let get_memberships_action = get_action_by_name("memberships.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_memberships_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &get_memberships_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -80,7 +79,6 @@ async fn handle_delete_membership_request(
 
   let membership_id = get_uuid_from_string(&membership_id, "membership", &http_transaction, &state.database_pool).await?;
   let target_membership = get_membership_by_id(&membership_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_membership, &ResourceType::Membership, &target_membership.id, &http_transaction, &state.database_pool).await?;
   let delete_memberships_action = get_action_by_name("memberships.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_memberships_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &delete_memberships_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

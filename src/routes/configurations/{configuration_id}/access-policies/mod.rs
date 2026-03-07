@@ -38,7 +38,6 @@ async fn handle_list_access_policies_request(
   // Make sure the principal has access to list resources.
   let list_resources_action = get_action_by_name("accessPolicies.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&configuration, &ResourceType::Configuration, &configuration_id, &http_transaction, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
@@ -128,7 +127,6 @@ async fn handle_create_access_policy_request(
 
   // Make sure the authenticated_user can create access policies for the target configuration.
   let target_configuration = get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_configuration, &ResourceType::Configuration, &target_configuration.id, &http_transaction, &state.database_pool).await?;
   let create_access_policies_action = get_action_by_name("accessPolicies.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_access_policies_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &create_access_policies_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

@@ -44,7 +44,6 @@ async fn handle_get_item_connection_type_request(
   let target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
   let get_item_connection_types_action = get_action_by_name("itemConnectionTypes.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_item_connection_types_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_item_connection_type, &ResourceType::ItemConnectionType, &target_item_connection_type.id, &http_transaction, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &get_item_connection_types_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
@@ -80,7 +79,6 @@ async fn handle_delete_item_connection_type_request(
 
   let item_connection_type_id = get_uuid_from_string(&item_connection_type_id, "item connection type", &http_transaction, &state.database_pool).await?;
   let target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_item_connection_type, &ResourceType::ItemConnectionType, &target_item_connection_type.id, &http_transaction, &state.database_pool).await?;
   let delete_item_connection_types_action = get_action_by_name("itemConnectionTypes.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_item_connection_types_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &delete_item_connection_types_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -144,7 +142,6 @@ async fn handle_patch_item_connection_type_request(
 
   }
   let original_target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&original_target_item_connection_type, &ResourceType::ItemConnectionType, &original_target_item_connection_type.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("itemConnectionTypes.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

@@ -46,7 +46,6 @@ async fn handle_get_http_transaction_request(
 
   let http_transaction_id = get_uuid_from_string(&http_transaction_id, "HTTP transaction", &http_transaction, &state.database_pool).await?;
   let target_http_transaction = get_http_transaction_by_id(&http_transaction_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_http_transaction, &ResourceType::HTTPTransaction, &target_http_transaction.id, &http_transaction, &state.database_pool).await?;
   let get_http_transactions_action = get_action_by_name("httpTransactions.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_http_transactions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &get_http_transactions_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -84,7 +83,6 @@ async fn handle_delete_http_transaction_request(
 
   let http_transaction_id = get_uuid_from_string(&http_transaction_id, "HTTP transaction", &http_transaction, &state.database_pool).await?;
   let target_http_transaction = get_http_transaction_by_id(&http_transaction_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_http_transaction, &ResourceType::HTTPTransaction, &target_http_transaction.id, &http_transaction, &state.database_pool).await?;
   let delete_http_transactions_action = get_action_by_name("httpTransactions.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_http_transactions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &delete_http_transactions_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;

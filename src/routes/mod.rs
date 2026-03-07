@@ -1,8 +1,8 @@
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
 mod actions;
-// #[path = "./action-log-entries/mod.rs"]
-// mod action_log_entries;
+#[path = "./action-log-entries/mod.rs"]
+mod action_log_entries;
 // mod apps;
 // #[path = "./app-authorizations/mod.rs"]
 // mod app_authorizations;

@@ -44,7 +44,6 @@ async fn handle_get_app_authorization_credential_request(
 
   let app_authorization_credential_id = get_uuid_from_string(&app_authorization_credential_id, "app authorization credential", &http_transaction, &state.database_pool).await?;
   let target_app_authorization_credential = get_app_authorization_credential_by_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app_authorization_credential, &ResourceType::AppAuthorizationCredential, &target_app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
   let get_app_authorizations_action = get_action_by_name("appAuthorizationCredentials.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_app_authorizations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &get_app_authorizations_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -82,7 +81,6 @@ async fn handle_delete_app_authorization_credential_request(
 
   let app_authorization_credential_id = get_uuid_from_string(&app_authorization_credential_id, "app authorization credential", &http_transaction, &state.database_pool).await?;
   let target_app_authorization_credential = get_app_authorization_credential_by_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app_authorization_credential, &ResourceType::AppAuthorizationCredential, &target_app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
   let delete_app_authorization_credentials_action = get_action_by_name("appAuthorizationCredentials.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_app_authorization_credentials_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &delete_app_authorization_credentials_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
