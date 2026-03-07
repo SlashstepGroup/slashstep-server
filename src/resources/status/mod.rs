@@ -1,6 +1,6 @@
 /**
  * 
- * This module defines the implementation and types of an item type icon.
+ * This module defines the implementation and types of a status.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -14,6 +14,7 @@ mod tests;
 
 use std::str::FromStr;
 
+use postgres::error::SqlState;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
@@ -23,27 +24,36 @@ pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
-  "display_name",
-  "parent_resource_type",
-  "parent_project_id"
+  "parent_view_id",
+  "field_id",
+  "next_status_id"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "parent_project_id"
+  "parent_view_id",
+  "next_status_id"
 ];
-pub const RESOURCE_NAME: &str = "ItemTypeIcon";
-pub const DATABASE_TABLE_NAME: &str = "item_type_icons";
-pub const GET_RESOURCE_ACTION_NAME: &str = "itemTypeIcons.get";
+pub const RESOURCE_NAME: &str = "Status";
+pub const DATABASE_TABLE_NAME: &str = "statuses";
+pub const GET_RESOURCE_ACTION_NAME: &str = "statuses.get";
 
-#[derive(Debug, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default, Copy, Clone)]
-#[postgres(name = "item_type_icon_parent_resource_type")]
-pub enum ItemTypeIconParentResourceType {
+#[derive(Debug, Clone, Copy, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[postgres(name = "status_type")]
+pub enum StatusType {
+  
+  /// A status that represents a "to do" item.
   #[default]
-  Server,
-  Project
+  ToDo,
+
+  /// A status that represents an "in progress" item.
+  InProgress,
+
+  /// A status that represents a "done" item.
+  Done
+
 }
 
-impl FromStr for ItemTypeIconParentResourceType {
+impl FromStr for StatusType {
 
   type Err = ResourceError;
 
@@ -51,8 +61,9 @@ impl FromStr for ItemTypeIconParentResourceType {
 
     match string {
 
-      "Server" => Ok(Self::Server),
-      "Project" => Ok(Self::Project),
+      "ToDo" => Ok(Self::ToDo),
+      "InProgress" => Ok(Self::InProgress),
+      "Done" => Ok(Self::Done),
       _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
 
     }
@@ -62,55 +73,83 @@ impl FromStr for ItemTypeIconParentResourceType {
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct InitialItemTypeIconProperties {
+pub struct InitialStatusProperties {
 
-  /// The item type icon's display name.
+  /// The status's display name.
   pub display_name: String,
 
-  /// The item type icon's parent resource type.
-  pub parent_resource_type: ItemTypeIconParentResourceType,
+  /// The status's status type.
+  pub status_type: StatusType,
 
-  /// The item type icon's parent project ID, if applicable.
-  pub parent_project_id: Option<Uuid>,
+  /// The status's decimal color, if applicable. If not provided, clients should provide a default color.
+  pub decimal_color: Option<i32>,
 
-  /// The item type icon's local file path.
-  pub local_file_path: String
+  /// The status's description, if applicable.
+  pub description: Option<String>,
+
+  /// The status's next status ID, if applicable. 
+  /// 
+  /// This is the next status in the list. If not provided, one can assume that this status is at the end of the list.
+  pub next_status_id: Option<Uuid>,
+
+  /// The status's parent project ID.
+  pub parent_project_id: Uuid
 
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct EditableItemTypeIconProperties {
+pub struct EditableStatusProperties {
 
-  /// The item type icon's display name.
-  pub display_name: Option<String>
+  /// The status's display name.
+  pub display_name: Option<String>,
+
+  /// The status's status type.
+  pub status_type: Option<StatusType>,
+
+  /// The status's decimal color, if applicable. If not provided, clients should provide a default color.
+  pub decimal_color: Option<Option<i32>>,
+
+  /// The status's description, if applicable.
+  pub description: Option<Option<String>>,
+
+  /// The status's next status ID, if applicable. 
+  /// 
+  /// This is the next status in the list. If not provided, one can assume that this status is at the end of the list.
+  pub next_status_id: Option<Option<Uuid>>
 
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ItemTypeIcon {
+pub struct Status {
 
-  /// The item type icon's ID.
+  /// The status's ID.
   pub id: Uuid,
 
-  /// The item type icon's display name.
+  /// The status's display name.
   pub display_name: String,
 
-  /// The item type icon's parent resource type.
-  pub parent_resource_type: ItemTypeIconParentResourceType,
+  /// The status's status type.
+  pub status_type: StatusType,
 
-  /// The item type icon's parent project ID.
-  pub parent_project_id: Option<Uuid>,
+  /// The status's decimal color, if applicable. If not provided, clients should provide a default color.
+  pub decimal_color: Option<i32>,
 
-  /// The item type icon's local file path.
+  /// The status's description, if applicable.
+  pub description: Option<String>,
+
+  /// The status's next status ID, if applicable. 
   /// 
-  /// This is a private field that should not be exposed to clients, as it may contain sensitive information about the server's file system. It's intended to be only used internally to access the icon file when needed.
-  local_file_path: String
+  /// This is the next status in the list. If not provided, one can assume that this status is at the end of the list.
+  pub next_status_id: Option<Uuid>,
+
+  /// The status's parent project ID.
+  pub parent_project_id: Uuid
 
 }
 
-impl ItemTypeIcon {
+impl Status {
 
-  /// Counts the number of item type icons based on a query.
+  /// Counts the number of statuses based on a query.
   pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
@@ -140,7 +179,7 @@ impl ItemTypeIcon {
   pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/item_type_icons/get_item_type_icon_row_by_id.sql");
+    let query = include_str!("../../queries/statuses/get_status_row_by_id.sql");
     let row = match database_client.query_opt(query, &[&id]).await {
 
       Ok(row) => match row {
@@ -167,39 +206,70 @@ impl ItemTypeIcon {
     return Self {
       id: row.get("id"),
       display_name: row.get("display_name"),
-      parent_resource_type: row.get("parent_resource_type"),
-      parent_project_id: row.get("parent_project_id"),
-      local_file_path: row.get("local_file_path")
+      status_type: row.get("status_type"),
+      decimal_color: row.get("decimal_color"),
+      description: row.get("description"),
+      next_status_id: row.get("next_status_id"),
+      parent_project_id: row.get("parent_project_id")
     };
 
   }
 
-  /// Initializes the item_type_icons table.
+  /// Initializes the statuses table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/item_type_icons/initialize_item_type_icons_table.sql");
+    let query = include_str!("../../queries/statuses/initialize_statuses_table.sql");
     database_client.execute(query, &[]).await?;
+
+    let query = include_str!("../../queries/statuses/create_function_verify_next_status_parent_project_id.sql");
+    database_client.execute(query, &[]).await?;
+
+    let query = include_str!("../../queries/statuses/create_function_update_statuses_next_status_id.sql");
+    database_client.execute(query, &[]).await?;
+
     return Ok(());
 
   }
 
   /// Creates a new field.
-  pub async fn create(initial_properties: &InitialItemTypeIconProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+  pub async fn create(initial_properties: &InitialStatusProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
-    let query = include_str!("../../queries/item_type_icons/insert_item_type_icon_row.sql");
+    let query = include_str!("../../queries/statuses/insert_status_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.display_name,
-      &initial_properties.parent_resource_type,
-      &initial_properties.parent_project_id,
-      &initial_properties.local_file_path
+      &initial_properties.status_type,
+      &initial_properties.decimal_color,
+      &initial_properties.description,
+      &initial_properties.next_status_id,
+      &initial_properties.parent_project_id
     ];
     let database_client = database_pool.get().await?;
-    let row = database_client.query_one(query, parameters).await.map_err(|error| {
+    let row = match database_client.query_one(query, parameters).await {
 
-      return ResourceError::PostgresError(error)
-    
-    })?;
+      Ok(row) => row,
+
+      Err(error) => match error.as_db_error() {
+
+        Some(db_error) => match db_error.code() {
+
+          &SqlState::RAISE_EXCEPTION => match db_error.message() {
+
+            "Next statuses must belong to the same parent project." => return Err(ResourceError::DifferentParentError("next_status_id".to_string())),
+
+            _ => return Err(ResourceError::PostgresError(error))
+
+          },
+
+          _ => return Err(ResourceError::PostgresError(error))
+
+        },
+
+        None => return Err(ResourceError::PostgresError(error))
+
+      }
+
+    };
 
     // Return the app authorization.
     let app_credential = Self::convert_from_row(&row);
@@ -212,7 +282,7 @@ impl ItemTypeIcon {
   pub async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/item_type_icons/delete_item_type_icon_row_by_id.sql");
+    let query = include_str!("../../queries/statuses/delete_status_row_by_id.sql");
     database_client.execute(query, &[&self.id]).await?;
     return Ok(());
 
@@ -234,13 +304,18 @@ impl ItemTypeIcon {
 
     match key {
 
-      "parent_resource_type" => match ItemTypeIconParentResourceType::from_str(value) {
+      "status_type" => {
 
-        Ok(parent_resource_type) => return Ok(Box::new(parent_resource_type)),
+        let scoped_resource_type = match StatusType::from_str(value) {
 
-        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse ItemTypeIconParentResourceType from \"{}\" for key \"{}\".", value, key)))
+          Ok(scoped_resource_type) => scoped_resource_type,
+          Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))
 
-      }
+        };
+
+        return Ok(Box::new(scoped_resource_type));
+
+      },
 
       _ => {}
 
@@ -250,7 +325,7 @@ impl ItemTypeIcon {
 
   }
 
-  /// Returns a list of item_type_icons based on a query.
+  /// Returns a list of statuses based on a query.
   pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
@@ -276,22 +351,19 @@ impl ItemTypeIcon {
 
   }
 
-  /// Gets the local file path for this item type icon.
-  pub async fn get_local_file_path(&self) -> String {
-
-    return self.local_file_path.clone();
-
-  }
-
   /// Updates this item and returns a new instance of the item.
-  pub async fn update(&self, properties: &EditableItemTypeIconProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+  pub async fn update(&self, properties: &EditableStatusProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
-    let query = String::from("UPDATE item_type_icons SET ");
+    let query = String::from("UPDATE statuses SET ");
     let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
     let database_client = database_pool.get().await?;
 
     database_client.query("BEGIN;", &[]).await?;
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "status_type", properties.status_type.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "decimal_color", properties.decimal_color.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "next_status_id", properties.next_status_id.as_ref());
     let (mut parameter_boxes, mut query) = (parameter_boxes, query);
 
     query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
@@ -300,8 +372,8 @@ impl ItemTypeIcon {
     let row = database_client.query_one(&query, &parameters).await?;
     database_client.query("COMMIT;", &[]).await?;
 
-    let item_type_icon = Self::convert_from_row(&row);
-    return Ok(item_type_icon);
+    let status = Self::convert_from_row(&row);
+    return Ok(status);
 
   }
 

@@ -38,6 +38,8 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  let previous_action_count = Action::count("", &test_environment.database_pool, None, None).await?;
   const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACTION_LIST_LIMIT + 1;
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
@@ -49,7 +51,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let retrieved_action_count = Action::count("", &test_environment.database_pool, None, None).await?;
 
-  assert_eq!(retrieved_action_count, MAXIMUM_ACTION_COUNT);
+  assert_eq!(retrieved_action_count, previous_action_count + MAXIMUM_ACTION_COUNT);
 
   return Ok(());
 
@@ -60,6 +62,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
   let action_properties = InitialActionProperties {
@@ -83,6 +86,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_action = test_environment.create_random_action(None).await?;
 
   created_action.delete(&test_environment.database_pool).await?;
@@ -125,6 +129,7 @@ async fn list_actions_with_default_limit() -> Result<(), TestSlashstepServerErro
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACTION_LIST_LIMIT + 1;
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
@@ -148,6 +153,7 @@ async fn list_actions_with_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_ACTION_COUNT: i32 = 5;
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
@@ -187,8 +193,10 @@ async fn list_actions_with_query() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn list_actions_without_query() -> Result<(), TestSlashstepServerError> {
 
+  // TODO: This works for now, but this test could potentially break if there are more predefined actions created by default than the maximum number of actions that can be retrieved by default. Gotta fix this later.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_ACTION_COUNT: i32 = 25;
   let mut created_actions: Vec<Action> = Vec::new();
   for _ in 0..MAXIMUM_ACTION_COUNT {
@@ -200,13 +208,11 @@ async fn list_actions_without_query() -> Result<(), TestSlashstepServerError> {
 
   let retrieved_actions = Action::list("", &test_environment.database_pool, None, None).await?;
 
-  assert_eq!(created_actions.len(), retrieved_actions.len());
-  for i in 0..created_actions.len() {
+  for created_action in created_actions {
 
-    let created_action = &created_actions[i];
-    let retrieved_action = &retrieved_actions[i];
+    let retrieved_action = &retrieved_actions.iter().find(|action| action.id == created_action.id).unwrap();
 
-    assert_actions_are_equal(created_action, retrieved_action);
+    assert_actions_are_equal(&created_action, retrieved_action);
 
   }
 
@@ -221,6 +227,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
   // Make sure there are at least two actions.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MINIMUM_ACTION_COUNT: i32 = 2;
   let mut current_actions = Action::list("", &test_environment.database_pool, None, None).await?;
   if current_actions.len() < MINIMUM_ACTION_COUNT as usize {

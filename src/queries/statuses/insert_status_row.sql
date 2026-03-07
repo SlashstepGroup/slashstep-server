@@ -1,9 +1,9 @@
 INSERT INTO statuses (
-  name,
   display_name,
   status_type,
   decimal_color,
   description,
+  next_status_id,
   parent_project_id
 ) VALUES (
   $1,

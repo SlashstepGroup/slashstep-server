@@ -1,1 +1,1 @@
-SELECT * FROM iteration WHERE id = $1 LIMIT 1;
+SELECT * FROM iterations WHERE id = $1 LIMIT 1;

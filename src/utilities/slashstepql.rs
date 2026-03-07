@@ -254,7 +254,7 @@ impl SlashstepQLFilterSanitizer {
     principal_id: Option<&Uuid>,
     resource_type: &str,
     table_name: &str,
-    get_resource_action_name: &str,
+    get_resource_action_id: &Uuid,
     should_count: bool
   ) -> Result<String, SlashstepQLError> {
 
@@ -271,7 +271,7 @@ impl SlashstepQLFilterSanitizer {
         
         };
 
-        let additional_condition = format!("get_principal_permission_level({}, {}, {}, {}.id, {}) >= 'User'", principal_type.to_string(), quote_literal(&principal_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name));
+        let additional_condition = format!("get_principal_permission_level({}, {}, {}, {}.id, {}) >= 'User'", quote_literal(&principal_type.to_string()), quote_literal(&principal_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(&get_resource_action_id.to_string()));
 
         if where_clause == "" { 
           

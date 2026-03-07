@@ -90,6 +90,9 @@ DO $$
           AND scoped_item_id IS NULL
           AND scoped_item_connection_id IS NULL
           AND scoped_item_connection_type_id IS NULL
+          AND scoped_item_type_id IS NULL
+          AND scoped_item_type_icon_id IS NULL
+          AND scoped_iteration_id IS NULL
           AND scoped_membership_id IS NULL
           AND scoped_membership_invitation_id IS NULL
           AND scoped_milestone_id IS NULL
@@ -97,8 +100,11 @@ DO $$
           AND scoped_role_id IS NULL
           AND scoped_server_log_entry_id IS NULL
           AND scoped_session_id IS NULL
+          AND scoped_status_id IS NULL
           AND scoped_user_id IS NULL
           AND scoped_view_id IS NULL
+          AND scoped_view_field_id IS NULL
+          AND scoped_webhook_id IS NULL
           AND scoped_workspace_id IS NULL
         ) OR (
           (scoped_action_id IS NOT NULL)::INTEGER +
@@ -117,6 +123,9 @@ DO $$
           (scoped_item_id IS NOT NULL)::INTEGER +
           (scoped_item_connection_id IS NOT NULL)::INTEGER +
           (scoped_item_connection_type_id IS NOT NULL)::INTEGER +
+          (scoped_item_type_id IS NOT NULL)::INTEGER +
+          (scoped_item_type_icon_id IS NOT NULL)::INTEGER +
+          (scoped_iteration_id IS NOT NULL)::INTEGER +
           (scoped_membership_id IS NOT NULL)::INTEGER +
           (scoped_membership_invitation_id IS NOT NULL)::INTEGER +
           (scoped_milestone_id IS NOT NULL)::INTEGER +
@@ -124,8 +133,11 @@ DO $$
           (scoped_role_id IS NOT NULL)::INTEGER +
           (scoped_server_log_entry_id IS NOT NULL)::INTEGER +
           (scoped_session_id IS NOT NULL)::INTEGER +
+          (scoped_status_id IS NOT NULL)::INTEGER +
           (scoped_user_id IS NOT NULL)::INTEGER +
           (scoped_view_id IS NOT NULL)::INTEGER +
+          (scoped_view_field_id IS NOT NULL)::INTEGER +
+          (scoped_webhook_id IS NOT NULL)::INTEGER +
           (scoped_workspace_id IS NOT NULL)::INTEGER = 1
         )
       ),
@@ -149,6 +161,9 @@ DO $$
         OR (scoped_resource_type = 'Item' AND scoped_item_id IS NOT NULL)
         OR (scoped_resource_type = 'ItemConnection' AND scoped_item_connection_id IS NOT NULL)
         OR (scoped_resource_type = 'ItemConnectionType' AND scoped_item_connection_type_id IS NOT NULL)
+        OR (scoped_resource_type = 'ItemType' AND scoped_item_type_id IS NOT NULL)
+        OR (scoped_resource_type = 'ItemTypeIcon' AND scoped_item_type_icon_id IS NOT NULL)
+        OR (scoped_resource_type = 'Iteration' AND scoped_iteration_id IS NOT NULL)
         OR (scoped_resource_type = 'Membership' AND scoped_membership_id IS NOT NULL)
         OR (scoped_resource_type = 'MembershipInvitation' AND scoped_membership_invitation_id IS NOT NULL)
         OR (scoped_resource_type = 'Milestone' AND scoped_milestone_id IS NOT NULL)
@@ -156,8 +171,11 @@ DO $$
         OR (scoped_resource_type = 'Role' AND scoped_role_id IS NOT NULL)
         OR (scoped_resource_type = 'ServerLogEntry' AND scoped_server_log_entry_id IS NOT NULL)
         OR (scoped_resource_type = 'Session' AND scoped_session_id IS NOT NULL)
+        OR (scoped_resource_type = 'Status' AND scoped_status_id IS NOT NULL)
         OR (scoped_resource_type = 'User' AND scoped_user_id IS NOT NULL)
         OR (scoped_resource_type = 'View' AND scoped_view_id IS NOT NULL)
+        OR (scoped_resource_type = 'ViewField' AND scoped_view_field_id IS NOT NULL)
+        OR (scoped_resource_type = 'Webhook' AND scoped_webhook_id IS NOT NULL)
         OR (scoped_resource_type = 'Workspace' AND scoped_workspace_id IS NOT NULL)
       )
     );

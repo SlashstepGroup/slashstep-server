@@ -1,1 +1,1 @@
-DELETE FROM statuses WHERE id = $1;
+DELETE FROM webhooks WHERE id = $1;

@@ -1,1 +1,1 @@
-SELECT * FROM statuses WHERE id = $1 LIMIT 1;
+SELECT * FROM webhooks WHERE id = $1 LIMIT 1;

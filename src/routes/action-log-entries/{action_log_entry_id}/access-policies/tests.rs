@@ -15,7 +15,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action,}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action,}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 async fn create_action_log_entry_access_policy(database_pool: &deadpool_postgres::Pool, scoped_action_log_entry_id: &Uuid, user_id: &Uuid, action_id: &Uuid, permission_level: &ActionPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
@@ -209,7 +209,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
 
 /// Verifies that the default access policy list limit is enforced.
 #[tokio::test]
-async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepServerError> {
+async fn verify_DEFAULT_RESOURCE_LIST_LIMIT() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -231,7 +231,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
 
   // Create dummy access policies.
   let dummy_action_log_entry = test_environment.create_random_action_log_entry().await?;
-  for _ in 0..(DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1) {
+  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
     let random_action = test_environment.create_random_action(None).await?;
     let random_user = test_environment.create_random_user().await?;
@@ -253,7 +253,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<AccessPolicy> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
+  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 
@@ -291,7 +291,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries/{}/access-policies", &dummy_action_log_entry.id))
-    .add_query_param("query", format!("LIMIT {}", DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1))
+    .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   

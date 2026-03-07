@@ -1,44 +1,52 @@
--- Verifies that the "next_view_field_id" of a row references another view field that is parented to the same view. 
-CREATE OR REPLACE FUNCTION verify_next_view_field_parent_view_id() RETURNS TRIGGER AS $$
-
-    DECLARE
-        next_view_field_parent_view_id UUID;
+DO $$
 
     BEGIN
 
-        IF NEW.next_view_field_id IS NULL OR OLD.next_view_field_id = NEW.next_view_field_id THEN
+        -- Verifies that the "next_view_field_id" of a row references another view field that is parented to the same view. 
+        CREATE OR REPLACE FUNCTION verify_next_view_field_parent_view_id() RETURNS TRIGGER AS $func$
+            
+            DECLARE
+                next_view_field_parent_view_id UUID;
 
-            RETURN NEW;
+            BEGIN
 
-        END IF;
+                IF NEW.next_view_field_id IS NULL OR OLD.next_view_field_id = NEW.next_view_field_id THEN
 
-        SELECT
-            parent_view_id
-        INTO
-            next_view_field_parent_view_id
-        FROM
-            view_fields
-        WHERE
-            id = NEW.next_view_field_id;
+                    RETURN NEW;
 
-        IF next_view_field_parent_view_id != NEW.parent_view_id THEN
+                END IF;
 
-            RAISE EXCEPTION 'Next view fields must belong to the same parent view.';
+                SELECT
+                    parent_view_id
+                INTO
+                    next_view_field_parent_view_id
+                FROM
+                    view_fields
+                WHERE
+                    id = NEW.next_view_field_id;
 
-        END IF;
+                IF next_view_field_parent_view_id != NEW.parent_view_id THEN
 
-        RETURN NEW;
+                    RAISE EXCEPTION 'Next view fields must belong to the same parent view.';
 
-    END;
+                END IF;
+
+                RETURN NEW;
+
+            END;
+
+        $func$ LANGUAGE plpgsql;
+
+        CREATE OR REPLACE TRIGGER verify_next_view_field_parent_view_id_before_insert
+        BEFORE INSERT ON view_fields
+        FOR EACH ROW
+        EXECUTE FUNCTION verify_next_view_field_parent_view_id();
+
+        CREATE OR REPLACE TRIGGER verify_next_view_field_parent_view_id_before_update
+        BEFORE UPDATE ON view_fields
+        FOR EACH ROW
+        EXECUTE FUNCTION verify_next_view_field_parent_view_id();
+
+    END
 
 $$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE TRIGGER verify_next_view_field_parent_view_id_before_insert
-BEFORE INSERT ON view_fields
-FOR EACH ROW
-EXECUTE FUNCTION verify_next_view_field_parent_view_id();
-
-CREATE OR REPLACE TRIGGER verify_next_view_field_parent_view_id_before_update
-BEFORE UPDATE ON view_fields
-FOR EACH ROW
-EXECUTE FUNCTION verify_next_view_field_parent_view_id();

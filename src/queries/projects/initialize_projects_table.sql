@@ -9,11 +9,10 @@ BEGIN
     description TEXT,
     start_date TIMESTAMPTZ,
     end_date TIMESTAMPTZ,
-    parent_workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE
+    parent_workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    UNIQUE (name, parent_workspace_id),
+    UNIQUE (key, parent_workspace_id)
   );
-
-  CREATE UNIQUE INDEX IF NOT EXISTS projects_name_unique ON projects (upper(name), parent_workspace_id);
-  CREATE UNIQUE INDEX IF NOT EXISTS projects_key_unique ON projects (upper(key), parent_workspace_id);
 
 END
 $$ LANGUAGE plpgsql;

@@ -12,6 +12,8 @@
 #[cfg(test)]
 mod tests;
 
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
@@ -44,6 +46,7 @@ pub const DATABASE_TABLE_NAME: &str = "webhooks";
 pub const GET_RESOURCE_ACTION_NAME: &str = "webhooks.get";
 
 #[derive(Debug, Clone, Copy, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[postgres(name = "webhook_parent_resource_type")]
 pub enum WebhookParentResourceType {
   App,
   Group,
@@ -52,6 +55,28 @@ pub enum WebhookParentResourceType {
   Server,
   User,
   Workspace
+}
+
+impl FromStr for WebhookParentResourceType {
+
+  type Err = ResourceError;
+
+  fn from_str(string: &str) -> Result<Self, Self::Err> {
+
+    match string {
+
+      "App" => Ok(Self::App),
+      "Group" => Ok(Self::Group),
+      "Project" => Ok(Self::Project),
+      "Server" => Ok(Self::Server),
+      "User" => Ok(Self::User),
+      "Workspace" => Ok(Self::Workspace),
+      string => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
+
+    }
+
+  }
+
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -173,12 +198,13 @@ impl Webhook {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, true)?;
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, true)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
-    // Execute the query and return the count.
-    let database_client = database_pool.get().await?;
+    // Execute the query.
     let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
@@ -300,6 +326,25 @@ impl Webhook {
 
     }
 
+    match key {
+
+      "parent_resource_type" => {
+
+        let parent_resource_type = match WebhookParentResourceType::from_str(value) {
+
+          Ok(parent_resource_type) => parent_resource_type,
+          Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))
+
+        };
+
+        return Ok(Box::new(parent_resource_type));
+
+      },
+
+      _ => {}
+
+    }
+
     return Ok(Box::new(value));
 
   }
@@ -317,12 +362,13 @@ impl Webhook {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, false)?;
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, false)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);

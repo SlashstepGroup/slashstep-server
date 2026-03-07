@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use reqwest::StatusCode;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 201 status code and the created access policy when creating an access policy.
 #[tokio::test]
@@ -217,7 +217,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
 
 /// Verifies that the default access policy list limit is 1000.
 #[tokio::test]
-async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepServerError> {
+async fn verify_DEFAULT_RESOURCE_LIST_LIMIT() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -250,7 +250,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   AccessPolicy::create(&get_access_policy_properties, &test_environment.database_pool).await?;
 
   let access_policy_count = AccessPolicy::count("", &test_environment.database_pool, None, None).await?;
-  for _ in 0..(DEFAULT_ACCESS_POLICY_LIST_LIMIT - access_policy_count + 1) {
+  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - access_policy_count + 1) {
 
     let random_action = test_environment.create_random_action(None).await?;
     let random_user = test_environment.create_random_user().await?;
@@ -286,7 +286,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<AccessPolicy> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
+  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 
@@ -339,7 +339,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   AccessPolicy::create(&list_access_policy_properties, &test_environment.database_pool).await?;
 
   let response = test_server.get(&format!("/access-policies"))
-    .add_query_param("query", format!("limit {}", DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1))
+    .add_query_param("query", format!("limit {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   
@@ -486,7 +486,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   let response = test_server.get(&format!("/access-policies"))
-    .add_query_param("query", format!("limit {}", DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1))
+    .add_query_param("query", format!("limit {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   

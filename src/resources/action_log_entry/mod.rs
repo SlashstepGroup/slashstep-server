@@ -89,6 +89,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "target_user_id",
   "target_workspace_id"
 ];
+pub const GET_RESOURCE_ACTION_NAME: &str = "actionLogEntries.get";
 
 #[derive(Debug, Clone, FromSql, ToSql, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[postgres(name = "action_log_entry_actor_type")]
@@ -451,12 +452,13 @@ impl ActionLogEntry {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "ActionLogEntry", "action_log_entries", "actionLogEntries.get", true)?;
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "ActionLogEntry", "action_log_entries", &get_resource_action_id, true)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query and return the count.
-    let database_client = database_pool.get().await?;
     let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
@@ -549,12 +551,13 @@ impl ActionLogEntry {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "ActionLogEntry", "action_log_entries", "actionLogEntries.get", false)?;
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "ActionLogEntry", "action_log_entries", &get_resource_action_id, false)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(ActionLogEntry::convert_from_row).collect();
     return Ok(actions);

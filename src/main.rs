@@ -25,7 +25,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::{Configuration, EditableConfigurationProperties}, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::MembershipInvitation, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::{InitialUserProperties, User}, view::View, view_field::ViewField, webhook::Webhook, workspace::Workspace
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::{Configuration, EditableConfigurationProperties}, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::MembershipInvitation, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::{InitialUserProperties, User}, view::View, view_field::ViewField, webhook::Webhook, workspace::Workspace
   }
 };
 
@@ -118,7 +118,6 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   database_pool.get().await?.execute(create_general_types_query, &[]).await?;
 
   // Because the access_policies table depends on other tables, we need to initialize them in a specific order.
-  ItemTypeIcon::initialize_resource_table(database_pool).await?;
   HTTPTransaction::initialize_resource_table(database_pool).await?;
   ServerLogEntry::initialize_resource_table(database_pool).await?;
   Workspace::initialize_resource_table(database_pool).await?;
@@ -126,8 +125,10 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   Session::initialize_resource_table(database_pool).await?;
   Group::initialize_resource_table(database_pool).await?;
   App::initialize_resource_table(database_pool).await?;
-  Webhook::initialize_resource_table(database_pool).await?;
   Project::initialize_resource_table(database_pool).await?;
+  Status::initialize_resource_table(database_pool).await?;
+  Webhook::initialize_resource_table(database_pool).await?;
+  ItemTypeIcon::initialize_resource_table(database_pool).await?;
   Iteration::initialize_resource_table(database_pool).await?;
   ItemType::initialize_resource_table(database_pool).await?;
   View::initialize_resource_table(database_pool).await?;

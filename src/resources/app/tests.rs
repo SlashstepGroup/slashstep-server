@@ -3,6 +3,7 @@ use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use uuid::Uuid;
 
+use crate::predefinitions::initialize_predefined_actions;
 use crate::{initialize_required_tables, resources::app::{App, AppClientType, EditableAppProperties}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies the list function is accurate.
@@ -11,6 +12,7 @@ async fn verify_list_excludes_nonexistent_resources() -> Result<(), TestSlashste
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
 
   let apps = App::list(&format!("id = '{}'", Uuid::now_v7().to_string()), &test_environment.database_pool, None, None).await?;
   assert_eq!(apps.len(), 0);
@@ -27,6 +29,7 @@ async fn verify_update() -> Result<(), TestSlashstepServerError> {
 
   // Create the app and update everything.
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let original_app = test_environment.create_random_app().await?;
   let new_name = Uuid::now_v7().to_string();
   let new_display_name = Uuid::now_v7().to_string();
@@ -66,6 +69,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_app = test_environment.create_random_app().await?;
 
   created_app.delete(&test_environment.database_pool).await?;

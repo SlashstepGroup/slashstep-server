@@ -16,7 +16,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action,}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action,}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 async fn create_app_access_policy(database_pool: &deadpool_postgres::Pool, scoped_app_id: &Uuid, user_id: &Uuid, action_id: &Uuid, permission_level: &ActionPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
@@ -179,7 +179,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 
   // Create dummy access policies.
   let dummy_app = test_environment.create_random_app().await?;
-  for _ in 0..(DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1) {
+  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
     let random_action = test_environment.create_random_action(None).await?;
     let random_user = test_environment.create_random_user().await?;
@@ -201,7 +201,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<AccessPolicy> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
+  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 
@@ -239,7 +239,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/apps/{}/access-policies", &dummy_app.id))
-    .add_query_param("query", format!("LIMIT {}", DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1))
+    .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
     .await;
   

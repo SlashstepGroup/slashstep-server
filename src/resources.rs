@@ -26,6 +26,7 @@ pub mod project;
 pub mod role;
 pub mod server_log_entry;
 pub mod session;
+pub mod status;
 pub mod user;
 pub mod view;
 pub mod view_field;
@@ -60,6 +61,9 @@ pub enum ResourceError {
 
   #[error("{0} is an unacceptable date.")]
   DateError(DateTime<Utc>),
+
+  #[error("The parent resource of the {0} must be the same as the expected type.")]
+  DifferentParentError(String),
 
   #[error(transparent)]
   UUIDError(#[from] uuid::Error),

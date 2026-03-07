@@ -21,6 +21,9 @@ BEGIN
       'Item',
       'ItemConnection',
       'ItemConnectionType',
+      'ItemType',
+      'ItemTypeIcon',
+      'Iteration',
       'Membership',
       'MembershipInvitation',
       'Milestone',
@@ -29,8 +32,11 @@ BEGIN
       'Role',
       'ServerLogEntry',
       'Session',
+      'Status',
       'User',
       'View',
+      'ViewField',
+      'Webhook',
       'Workspace'
     );
   END IF;

@@ -15,8 +15,8 @@ fn assert_iterations_are_equal(iteration_1: &Iteration, iteration_2: &Iteration)
   assert_eq!(iteration_1.id, iteration_2.id);
   assert_eq!(iteration_1.parent_project_id, iteration_2.parent_project_id);
   assert_eq!(iteration_1.display_name, iteration_2.display_name);
-  assert_eq!(iteration_1.start_date, iteration_2.start_date);
-  assert_eq!(iteration_1.end_date, iteration_2.end_date);
+  assert_eq!(iteration_1.start_date.timestamp_millis(), iteration_2.start_date.timestamp_millis());
+  assert_eq!(iteration_1.end_date.timestamp_millis(), iteration_2.end_date.timestamp_millis());
   assert_eq!(iteration_1.actual_start_date.map(|date| date.timestamp_millis()), iteration_2.actual_start_date.map(|date| date.timestamp_millis()));
   assert_eq!(iteration_1.actual_end_date.map(|date| date.timestamp_millis()), iteration_2.actual_end_date.map(|date| date.timestamp_millis()));
 
@@ -26,8 +26,8 @@ fn assert_iteration_is_equal_to_initial_properties(iteration: &Iteration, initia
 
   assert_eq!(iteration.parent_project_id, initial_properties.parent_project_id);
   assert_eq!(iteration.display_name, initial_properties.display_name);
-  assert_eq!(iteration.start_date, initial_properties.start_date);
-  assert_eq!(iteration.end_date, initial_properties.end_date);
+  assert_eq!(iteration.start_date.timestamp_millis(), initial_properties.start_date.timestamp_millis());
+  assert_eq!(iteration.end_date.timestamp_millis(), initial_properties.end_date.timestamp_millis());
   assert_eq!(iteration.actual_start_date.map(|date| date.timestamp_millis()), initial_properties.actual_start_date.map(|date| date.timestamp_millis()));
   assert_eq!(iteration.actual_end_date.map(|date| date.timestamp_millis()), initial_properties.actual_end_date.map(|date| date.timestamp_millis()));
 
@@ -38,6 +38,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_resources: Vec<Iteration> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -83,6 +84,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_iteration = test_environment.create_random_iteration(None).await?;
   
   created_iteration.delete(&test_environment.database_pool).await?;
@@ -136,6 +138,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut iterations: Vec<Iteration> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -159,6 +162,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 5;
   let mut created_resources: Vec<Iteration> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -191,6 +195,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 25;
   let mut created_resources: Vec<Iteration> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {

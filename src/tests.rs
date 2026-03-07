@@ -8,7 +8,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, item_type::{InitialItemTypeProperties, ItemType}, item_type_icon::{InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType}, iteration::{InitialIterationProperties, Iteration}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, view_field::{InitialViewFieldProperties, ViewField}, webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}};
+use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, item_type::{InitialItemTypeProperties, ItemType}, item_type_icon::{InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType}, iteration::{InitialIterationProperties, Iteration}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, status::{InitialStatusProperties, Status, StatusType}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, view_field::{InitialViewFieldProperties, ViewField}, webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}};
 use thiserror::Error;
 
 static POSTGRES_CONTAINER_LOCK: OnceLock<Mutex<Weak<ContainerAsync<testcontainers_modules::postgres::Postgres>>>> = OnceLock::new();
@@ -588,6 +588,23 @@ impl TestEnvironment {
     let session = Session::create(&session_properties, &self.database_pool).await?;
 
     return Ok(session);
+
+  }
+
+  pub async fn create_random_status(&self, project_id: Option<&Uuid>) -> Result<Status, TestSlashstepServerError> {
+
+    let project_id = project_id.copied().unwrap_or(self.create_random_project().await?.id);
+    let status_properties = InitialStatusProperties {
+      display_name: Uuid::now_v7().to_string(),
+      description: Some(Uuid::now_v7().to_string()),
+      status_type: StatusType::ToDo,
+      parent_project_id: project_id,
+      ..Default::default()
+    };
+
+    let status = Status::create(&status_properties, &self.database_pool).await?;
+
+    return Ok(status);
 
   }
 

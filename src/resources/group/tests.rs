@@ -31,6 +31,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_resources: Vec<Group> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -53,6 +54,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
   let group_properties = InitialGroupProperties {
@@ -75,6 +77,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_group = test_environment.create_random_group().await?;
   
   created_group.delete(&test_environment.database_pool).await?;
@@ -128,6 +131,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut groups: Vec<Group> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -151,6 +155,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 5;
   let mut created_resources: Vec<Group> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -183,6 +188,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 25;
   let mut created_resources: Vec<Group> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {

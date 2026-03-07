@@ -12,6 +12,7 @@
 #[cfg(test)]
 mod tests;
 
+use postgres::error::SqlState;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
@@ -98,12 +99,13 @@ impl ViewField {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, true)?;
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, true)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
-    // Execute the query and return the count.
-    let database_client = database_pool.get().await?;
+    // Execute the query.
     let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
@@ -154,10 +156,10 @@ impl ViewField {
     let query = include_str!("../../queries/view_fields/initialize_view_fields_table.sql");
     database_client.execute(query, &[]).await?;
 
-    let query = include_str!("../../queries/view_fields/create_function_update_view_fields_next_view_field_id.sql");
+    let query = include_str!("../../queries/view_fields/create_function_verify_next_view_field_parent_view_id.sql");
     database_client.execute(query, &[]).await?;
 
-    let query = include_str!("../../queries/view_fields/create_function_verify_next_view_field_parent_view_id.sql");
+    let query = include_str!("../../queries/view_fields/create_function_update_view_fields_next_view_field_id.sql");
     database_client.execute(query, &[]).await?;
 
     return Ok(());
@@ -174,11 +176,31 @@ impl ViewField {
       &initial_properties.next_view_field_id
     ];
     let database_client = database_pool.get().await?;
-    let row = database_client.query_one(query, parameters).await.map_err(|error| {
+    let row = match database_client.query_one(query, parameters).await {
 
-      return ResourceError::PostgresError(error)
-    
-    })?;
+      Ok(row) => row,
+
+      Err(error) => match error.as_db_error() {
+
+        Some(db_error) => match db_error.code() {
+
+          &SqlState::RAISE_EXCEPTION => match db_error.message() {
+
+            "Next view fields must belong to the same parent view." => return Err(ResourceError::DifferentParentError("next_view_field_id".to_string())),
+
+            _ => return Err(ResourceError::PostgresError(error))
+
+          },
+
+          _ => return Err(ResourceError::PostgresError(error))
+
+        },
+
+        None => return Err(ResourceError::PostgresError(error))
+
+      }
+
+    };
 
     // Return the app authorization.
     let app_credential = Self::convert_from_row(&row);
@@ -228,12 +250,13 @@ impl ViewField {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, false)?;
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, false)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);

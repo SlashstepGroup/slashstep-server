@@ -5,8 +5,8 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
     parameter_principal_id UUID,
     initial_resource_type resource_type, 
     initial_resource_id UUID,
-    action_id UUID
-) RETURNS BOOLEAN AS $$
+    parameter_action_id UUID
+) RETURNS permission_level AS $$
 
     DECLARE
         primary_permission_level permission_level;
@@ -44,119 +44,51 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
 
         LOOP
 
-            DROP TABLE IF EXISTS principal_access_policies;
+            DROP TABLE IF EXISTS matching_access_policies;
 
-            CREATE TEMPORARY TABLE principal_access_policies AS
+            CREATE TEMPORARY TABLE matching_access_policies AS
                 SELECT
                     *
                 FROM
                     get_principal_access_policies(parameter_principal_type, parameter_principal_id) principal_access_policies
                 WHERE
-                    principal_access_policies.action_id = action_id AND 
-                    principal_access_policies.scoped_resource_type = selected_resource_type AND 
-                    (
-                        (
-                            principal_access_policies.scoped_resource_type = 'AccessPolicy' AND 
-                            principal_access_policies.scoped_access_policy_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Action' AND 
-                            principal_access_policies.scoped_action_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'ActionLogEntry' AND 
-                            principal_access_policies.scoped_action_log_entry_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'App' AND 
-                            principal_access_policies.scoped_app_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'AppAuthorization' AND 
-                            principal_access_policies.scoped_app_authorization_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'AppAuthorizationCredential' AND 
-                            principal_access_policies.scoped_app_authorization_credential_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'AppCredential' AND 
-                            principal_access_policies.scoped_app_credential_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Configuration' AND 
-                            principal_access_policies.scoped_configuration_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'DelegationPolicy' AND 
-                            principal_access_policies.scoped_delegation_policy_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Field' AND 
-                            principal_access_policies.scoped_field_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'FieldChoice' AND 
-                            principal_access_policies.scoped_field_choice_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'FieldValue' AND 
-                            principal_access_policies.scoped_field_value_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Group' AND 
-                            principal_access_policies.scoped_group_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'HTTPTransaction' AND 
-                            principal_access_policies.scoped_http_transaction_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Item' AND 
-                            principal_access_policies.scoped_item_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'ItemConnection' AND 
-                            principal_access_policies.scoped_item_connection_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'ItemConnectionType' AND
-                            principal_access_policies.scoped_item_connection_type_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'ItemType' AND
-                            principal_access_policies.scoped_item_type_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'ItemTypeIcon' AND
-                            principal_access_policies.scoped_item_type_icon_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Iteration' AND
-                            principal_access_policies.scoped_iteration_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Membership' AND 
-                            principal_access_policies.scoped_membership_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'MembershipInvitation' AND 
-                            principal_access_policies.scoped_membership_invitation_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Milestone' AND 
-                            principal_access_policies.scoped_milestone_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'OAuthAuthorization' AND 
-                            principal_access_policies.scoped_app_authorization_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Project' AND 
-                            principal_access_policies.scoped_project_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Role' AND 
-                            principal_access_policies.scoped_role_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Server'
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'ServerLogEntry' AND 
-                            principal_access_policies.scoped_server_log_entry_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Session' AND 
-                            principal_access_policies.scoped_session_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'User' AND 
-                            principal_access_policies.scoped_user_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'View' AND 
-                            principal_access_policies.scoped_view_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'ViewField' AND
-                            principal_access_policies.scoped_view_field_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Webhook' AND
-                            principal_access_policies.scoped_webhook_id = selected_resource_id
-                        ) OR (
-                            principal_access_policies.scoped_resource_type = 'Workspace' AND 
-                            principal_access_policies.scoped_workspace_id = selected_resource_id
-                        )
+                    principal_access_policies.action_id = parameter_action_id AND 
+                    principal_access_policies.scoped_resource_type = selected_resource_type AND (
+                        principal_access_policies.scoped_access_policy_id = selected_resource_id OR
+                        principal_access_policies.scoped_action_id = selected_resource_id OR
+                        principal_access_policies.scoped_action_log_entry_id = selected_resource_id OR
+                        principal_access_policies.scoped_app_id = selected_resource_id OR
+                        principal_access_policies.scoped_app_authorization_id = selected_resource_id OR
+                        principal_access_policies.scoped_app_authorization_credential_id = selected_resource_id OR
+                        principal_access_policies.scoped_app_credential_id = selected_resource_id OR
+                        principal_access_policies.scoped_configuration_id = selected_resource_id OR
+                        principal_access_policies.scoped_delegation_policy_id = selected_resource_id OR
+                        principal_access_policies.scoped_field_id = selected_resource_id OR
+                        principal_access_policies.scoped_field_choice_id = selected_resource_id OR
+                        principal_access_policies.scoped_field_value_id = selected_resource_id OR
+                        principal_access_policies.scoped_group_id = selected_resource_id OR
+                        principal_access_policies.scoped_http_transaction_id = selected_resource_id OR
+                        principal_access_policies.scoped_item_id = selected_resource_id OR
+                        principal_access_policies.scoped_item_connection_id = selected_resource_id OR
+                        principal_access_policies.scoped_item_connection_type_id = selected_resource_id OR
+                        principal_access_policies.scoped_item_type_id = selected_resource_id OR
+                        principal_access_policies.scoped_item_type_icon_id = selected_resource_id OR
+                        principal_access_policies.scoped_iteration_id = selected_resource_id OR
+                        principal_access_policies.scoped_membership_id = selected_resource_id OR
+                        principal_access_policies.scoped_membership_invitation_id = selected_resource_id OR
+                        principal_access_policies.scoped_milestone_id = selected_resource_id OR
+                        principal_access_policies.scoped_app_authorization_id = selected_resource_id OR
+                        principal_access_policies.scoped_project_id = selected_resource_id OR
+                        principal_access_policies.scoped_role_id = selected_resource_id OR
+                        principal_access_policies.scoped_server_log_entry_id = selected_resource_id OR
+                        selected_resource_type = 'Server' OR
+                        principal_access_policies.scoped_session_id = selected_resource_id OR
+                        principal_access_policies.scoped_status_id = selected_resource_id OR
+                        principal_access_policies.scoped_user_id = selected_resource_id OR
+                        principal_access_policies.scoped_view_id = selected_resource_id OR
+                        principal_access_policies.scoped_view_field_id = selected_resource_id OR
+                        principal_access_policies.scoped_webhook_id = selected_resource_id OR
+                        principal_access_policies.scoped_workspace_id = selected_resource_id
                     ) AND (
                         NOT needs_inheritance OR 
                         principal_access_policies.is_inheritance_enabled
@@ -171,17 +103,17 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 INTO
                     individual_permission_level
                 FROM
-                    principal_access_policies
+                    matching_access_policies
                 WHERE
                     (
-                        principal_access_policies.principal_type = 'User' OR
-                        principal_access_policies.principal_type = 'App'
+                        matching_access_policies.principal_type = 'User' OR
+                        matching_access_policies.principal_type = 'App'
                     ) AND (
                         individual_permission_level IS NULL OR
-                        principal_access_policies.permission_level > individual_permission_level
+                        matching_access_policies.permission_level > individual_permission_level
                     )
                 ORDER BY
-                    CASE principal_access_policies.permission_level
+                    CASE matching_access_policies.permission_level
                         WHEN 'Admin' THEN 1
                         WHEN 'Editor' THEN 2
                         WHEN 'User' THEN 3
@@ -204,17 +136,17 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 INTO
                     role_permission_level
                 FROM
-                    principal_access_policies
+                    matching_access_policies
                 WHERE
                     (
-                        principal_access_policies.principal_type = 'User' OR
-                        principal_access_policies.principal_type = 'App'
+                        matching_access_policies.principal_type = 'User' OR
+                        matching_access_policies.principal_type = 'App'
                     ) AND (
                         role_permission_level IS NULL OR
-                        principal_access_policies.permission_level > role_permission_level
+                        matching_access_policies.permission_level > role_permission_level
                     )
                 ORDER BY
-                    CASE principal_access_policies.permission_level
+                    CASE matching_access_policies.permission_level
                         WHEN 'Admin' THEN 1
                         WHEN 'Editor' THEN 2
                         WHEN 'User' THEN 3
@@ -237,17 +169,17 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 INTO
                     group_permission_level
                 FROM
-                    principal_access_policies
+                    matching_access_policies
                 WHERE
                     (
-                        principal_access_policies.principal_type = 'User' OR
-                        principal_access_policies.principal_type = 'App'
+                        matching_access_policies.principal_type = 'User' OR
+                        matching_access_policies.principal_type = 'App'
                     ) AND (
                         group_permission_level IS NULL OR
-                        principal_access_policies.permission_level > group_permission_level
+                        matching_access_policies.permission_level > group_permission_level
                     )
                 ORDER BY
-                    CASE principal_access_policies.permission_level
+                    CASE matching_access_policies.permission_level
                         WHEN 'Admin' THEN 1
                         WHEN 'Editor' THEN 2
                         WHEN 'User' THEN 3
