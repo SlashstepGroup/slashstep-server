@@ -209,7 +209,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
 
 /// Verifies that the default access policy list limit is enforced.
 #[tokio::test]
-async fn verify_DEFAULT_RESOURCE_LIST_LIMIT() -> Result<(), TestSlashstepServerError> {
+async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
