@@ -9,11 +9,14 @@
  * 
  */
 
+#[cfg(test)]
+mod tests;
+
 use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, access_policy::{AccessPolicyPrincipalType}}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_ACTION_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -125,7 +128,7 @@ impl Action {
 
   }
 
-  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -137,7 +140,7 @@ impl Action {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "Action", "actions", "actions.get", true);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "Action", "actions", "actions.get", true)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
@@ -184,6 +187,16 @@ impl Action {
     let action = Action::convert_from_row(&row);
 
     return Ok(action);
+
+  }
+
+  /// Deletes this action.
+  pub async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/actions/delete_action_row_by_id.sql");
+    database_client.execute(query, &[&self.id]).await?;
+    return Ok(());
 
   }
 
@@ -247,7 +260,7 @@ impl Action {
   }
 
   /// Returns a list of actions based on a query.
-  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -259,7 +272,7 @@ impl Action {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "Action", "actions", "actions.get", false);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "Action", "actions", "actions.get", false)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
@@ -312,20 +325,3 @@ impl Action {
   }
 
 }
-
-impl DeletableResource for Action {
-
-  /// Deletes this action.
-  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/actions/delete_action_row_by_id.sql");
-    database_client.execute(query, &[&self.id]).await?;
-    return Ok(());
-
-  }
-
-}
-
-#[cfg(test)]
-mod tests;

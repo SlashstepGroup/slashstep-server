@@ -20,7 +20,7 @@ use crate::{
   }, resources::{
     access_policy::{
       ActionPermissionLevel,
-      IndividualPrincipal
+      PrincipalWithID
     }, action::Action, configuration::{self, Configuration},
   }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
@@ -69,10 +69,10 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_configuration_count = Configuration::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_configuration_count = Configuration::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_configuration_count);
 
-  let actual_configurations = Configuration::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_configurations = Configuration::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_configurations.len());
 
   for actual_configuration in actual_configurations {
@@ -130,10 +130,10 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_json: ListResourcesResponseBody::<Configuration> = response.json();
-  let actual_configuration_count = Configuration::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_configuration_count = Configuration::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_configuration_count);
 
-  let actual_configurations = Configuration::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_configurations = Configuration::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_configurations.len());
 
   for actual_configuration in actual_configurations {
@@ -170,7 +170,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy actions.
-  let configuration_count = Configuration::count("", &test_environment.database_pool, None).await?;
+  let configuration_count = Configuration::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(configuration::DEFAULT_RESOURCE_LIST_LIMIT - configuration_count + 1) {
 
     test_environment.create_random_configuration().await?;

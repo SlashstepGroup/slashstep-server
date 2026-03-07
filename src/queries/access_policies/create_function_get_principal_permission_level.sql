@@ -107,6 +107,15 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                             principal_access_policies.scoped_resource_type = 'ItemConnectionType' AND
                             principal_access_policies.scoped_item_connection_type_id = selected_resource_id
                         ) OR (
+                            principal_access_policies.scoped_resource_type = 'ItemType' AND
+                            principal_access_policies.scoped_item_type_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'ItemTypeIcon' AND
+                            principal_access_policies.scoped_item_type_icon_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Iteration' AND
+                            principal_access_policies.scoped_iteration_id = selected_resource_id
+                        ) OR (
                             principal_access_policies.scoped_resource_type = 'Membership' AND 
                             principal_access_policies.scoped_membership_id = selected_resource_id
                         ) OR (
@@ -138,6 +147,12 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                         ) OR (
                             principal_access_policies.scoped_resource_type = 'View' AND 
                             principal_access_policies.scoped_view_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'ViewField' AND
+                            principal_access_policies.scoped_view_field_id = selected_resource_id
+                        ) OR (
+                            principal_access_policies.scoped_resource_type = 'Webhook' AND
+                            principal_access_policies.scoped_webhook_id = selected_resource_id
                         ) OR (
                             principal_access_policies.scoped_resource_type = 'Workspace' AND 
                             principal_access_policies.scoped_workspace_id = selected_resource_id
@@ -788,24 +803,46 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
 
             ELSIF selected_resource_type = 'ItemTypeIcon' THEN
 
-                -- ItemTypeIcon -> Project
+                -- ItemTypeIcon -> (Project | Server)
                 SELECT
-                    parent_project_id
+                    parent_resource_type
                 INTO
-                    selected_resource_parent_id
+                    selected_resource_parent_type
                 FROM
                     item_type_icons
                 WHERE
                     item_type_icons.id = selected_resource_id;
 
-                IF selected_resource_parent_id IS NULL THEN
+                IF selected_resource_parent_type = 'Project' THEN
 
-                    RAISE EXCEPTION 'Couldn''t find a parent project for item type icon %.', selected_resource_id;
+                    SELECT
+                        parent_project_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        item_type_icons
+                    WHERE
+                        item_type_icons.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent project for item type icon %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Project';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Server' THEN
+
+                    selected_resource_type := 'Server';
+                    selected_resource_id := NULL;
+
+                ELSE
+
+                    RAISE EXCEPTION 'Unknown parent resource type % for item type icon %.', selected_resource_parent_type, selected_resource_id;
 
                 END IF;
-
-                selected_resource_type := 'Project';
-                selected_resource_id := selected_resource_parent_id;
 
             ELSIF selected_resource_type = 'Iteration' THEN
 
@@ -1012,7 +1049,7 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
 
                 -- Project -> Workspace
                 SELECT
-                    workspace_id
+                    parent_workspace_id
                 INTO
                     selected_resource_parent_id
                 FROM
@@ -1239,6 +1276,129 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 selected_resource_type := 'View';
                 selected_resource_id := selected_resource_parent_id;
 
+            ELSIF selected_resource_type = 'Webhook' THEN
+
+                -- Webhook -> (App | Group | Project | Server | User | Workspace)
+                SELECT
+                    parent_resource_type
+                INTO
+                    selected_resource_parent_type
+                FROM
+                    webhooks
+                WHERE
+                    webhooks.id = selected_resource_id;
+
+                IF selected_resource_parent_type = 'App' THEN
+
+                    SELECT
+                        parent_app_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        webhooks
+                    WHERE
+                        webhooks.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent app for webhook %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'App';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Group' THEN
+
+                    SELECT
+                        parent_group_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        webhooks
+                    WHERE
+                        webhooks.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent group for webhook %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Group';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Project' THEN
+
+                    SELECT
+                        parent_project_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        webhooks
+                    WHERE
+                        webhooks.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent project for webhook %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Project';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Server' THEN
+
+                    selected_resource_type := 'Server';
+                    selected_resource_id := NULL;
+
+                ELSIF selected_resource_parent_type = 'User' THEN
+
+                    SELECT
+                        parent_user_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        webhooks
+                    WHERE
+                        webhooks.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent user for webhook %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'User';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'Workspace' THEN
+
+                    SELECT
+                        parent_workspace_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        webhooks
+                    WHERE
+                        webhooks.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent workspace for webhook %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'Workspace';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSE
+
+                    RAISE EXCEPTION 'Unknown parent resource type % for webhook %.', selected_resource_parent_type, selected_resource_id;
+
+                END IF;
+
             ELSIF selected_resource_type = 'Workspace' THEN
 
                 -- Workspace -> Server
@@ -1261,4 +1421,5 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
         RETURN primary_permission_level;
 
     END;
+    
 $$ LANGUAGE plpgsql;

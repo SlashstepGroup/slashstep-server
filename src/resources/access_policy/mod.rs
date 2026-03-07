@@ -22,7 +22,7 @@ use postgres::{
 use postgres_types::FromSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{DeletableResource, ResourceError}, 
+use crate::{resources::{ResourceError}, 
   utilities::slashstepql::{
     self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions
   }}
@@ -38,12 +38,12 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "principal_app_id",
   "scoped_resource_type",
   "scoped_access_policy_id",
-  "scoped_action_id",
-  "scoped_action_log_entry_id", 
+  "scoped_action_id", 
+  "scoped_action_log_entry_id",
   "scoped_app_id",
-  "scoped_app_credential_id",
   "scoped_app_authorization_id",
   "scoped_app_authorization_credential_id",
+  "scoped_app_credential_id",
   "scoped_configuration_id",
   "scoped_delegation_policy_id",
   "scoped_field_id",
@@ -54,6 +54,9 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_item_id",
   "scoped_item_connection_id",
   "scoped_item_connection_type_id",
+  "scoped_item_type_id",
+  "scoped_item_type_icon_id",
+  "scoped_iteration_id",
   "scoped_membership_id",
   "scoped_membership_invitation_id",
   "scoped_milestone_id", 
@@ -62,8 +65,11 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_role_id",
   "scoped_server_log_entry_id",
   "scoped_session_id",
+  "scoped_status_id",
   "scoped_user_id", 
   "scoped_view_id",
+  "scoped_view_field_id",
+  "scoped_webhook_id",
   "scoped_workspace_id",
   "permission_level",
   "is_inheritance_enabled"
@@ -93,6 +99,9 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_item_id",
   "scoped_item_connection_id",
   "scoped_item_connection_type_id",
+  "scoped_item_type_id",
+  "scoped_item_type_icon_id",
+  "scoped_iteration_id",
   "scoped_membership_id",
   "scoped_membership_invitation_id",
   "scoped_milestone_id", 
@@ -101,8 +110,11 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_role_id",
   "scoped_server_log_entry_id",
   "scoped_session_id",
+  "scoped_status_id",
   "scoped_user_id", 
   "scoped_view_id",
+  "scoped_view_field_id",
+  "scoped_webhook_id",
   "scoped_workspace_id"
 ];
 
@@ -184,6 +196,7 @@ pub enum ResourceType {
   Status,
   User,
   View,
+  ViewField,
   Webhook,
   Workspace
 }
@@ -220,8 +233,10 @@ impl fmt::Display for ResourceType {
       ResourceType::Role => write!(formatter, "Role"),
       ResourceType::ServerLogEntry => write!(formatter, "ServerLogEntry"),
       ResourceType::Session => write!(formatter, "Session"),
+      ResourceType::Status => write!(formatter, "Status"),
       ResourceType::User => write!(formatter, "User"),
       ResourceType::View => write!(formatter, "View"),
+      ResourceType::ViewField => write!(formatter, "ViewField"),
       ResourceType::Webhook => write!(formatter, "Webhook"),
       ResourceType::Workspace => write!(formatter, "Workspace")
     }
@@ -253,6 +268,9 @@ impl FromStr for ResourceType {
       "Item" => Ok(ResourceType::Item),
       "ItemConnection" => Ok(ResourceType::ItemConnection),
       "ItemConnectionType" => Ok(ResourceType::ItemConnectionType),
+      "ItemType" => Ok(ResourceType::ItemType),
+      "ItemTypeIcon" => Ok(ResourceType::ItemTypeIcon),
+      "Iteration" => Ok(ResourceType::Iteration),
       "Membership" => Ok(ResourceType::Membership),
       "MembershipInvitation" => Ok(ResourceType::MembershipInvitation),
       "Milestone" => Ok(ResourceType::Milestone),
@@ -261,9 +279,12 @@ impl FromStr for ResourceType {
       "Role" => Ok(ResourceType::Role),
       "ServerLogEntry" => Ok(ResourceType::ServerLogEntry),
       "Session" => Ok(ResourceType::Session),
+      "Status" => Ok(ResourceType::Status),
       "User" => Ok(ResourceType::User),
-      "Workspace" => Ok(ResourceType::Workspace),
       "View" => Ok(ResourceType::View),
+      "ViewField" => Ok(ResourceType::ViewField),
+      "Webhook" => Ok(ResourceType::Webhook),
+      "Workspace" => Ok(ResourceType::Workspace),
       _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
     }
 
@@ -374,6 +395,12 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_item_connection_type_id: Option<Uuid>,
 
+  pub scoped_item_type_id: Option<Uuid>,
+
+  pub scoped_item_type_icon_id: Option<Uuid>,
+
+  pub scoped_iteration_id: Option<Uuid>,
+
   pub scoped_membership_id: Option<Uuid>,
 
   pub scoped_membership_invitation_id: Option<Uuid>,
@@ -390,9 +417,15 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_session_id: Option<Uuid>,
 
+  pub scoped_status_id: Option<Uuid>,
+
   pub scoped_user_id: Option<Uuid>,
 
   pub scoped_view_id: Option<Uuid>,
+
+  pub scoped_view_field_id: Option<Uuid>,
+
+  pub scoped_webhook_id: Option<Uuid>,
 
   pub scoped_workspace_id: Option<Uuid>
 
@@ -409,9 +442,11 @@ pub struct EditableAccessPolicyProperties {
 }
 
 #[derive(Debug, Clone)]
-pub enum IndividualPrincipal {
+pub enum PrincipalWithID {
   User(Uuid),
-  App(Uuid)
+  App(Uuid),
+  Group(Uuid),
+  Role(Uuid)
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
@@ -486,6 +521,12 @@ pub struct AccessPolicy {
 
   pub scoped_item_connection_type_id: Option<Uuid>,
 
+  pub scoped_item_type_id: Option<Uuid>,
+
+  pub scoped_item_type_icon_id: Option<Uuid>,
+
+  pub scoped_iteration_id: Option<Uuid>,
+
   pub scoped_membership_id: Option<Uuid>,
 
   pub scoped_membership_invitation_id: Option<Uuid>,
@@ -502,9 +543,15 @@ pub struct AccessPolicy {
 
   pub scoped_session_id: Option<Uuid>,
 
+  pub scoped_status_id: Option<Uuid>,
+
   pub scoped_user_id: Option<Uuid>,
 
   pub scoped_view_id: Option<Uuid>,
+
+  pub scoped_view_field_id: Option<Uuid>,
+
+  pub scoped_webhook_id: Option<Uuid>,
 
   pub scoped_workspace_id: Option<Uuid>
 
@@ -514,7 +561,7 @@ impl AccessPolicy {
 
   /* Static methods */
   /// Counts the number of access policies based on a query.
-  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -526,7 +573,7 @@ impl AccessPolicy {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "AccessPolicy", "access_policies", "accessPolicies.get", true);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "AccessPolicy", "access_policies", "accessPolicies.get", true)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
@@ -570,6 +617,9 @@ impl AccessPolicy {
       &initial_properties.scoped_item_id,
       &initial_properties.scoped_item_connection_id,
       &initial_properties.scoped_item_connection_type_id,
+      &initial_properties.scoped_item_type_id,
+      &initial_properties.scoped_item_type_icon_id,
+      &initial_properties.scoped_iteration_id,
       &initial_properties.scoped_membership_id,
       &initial_properties.scoped_membership_invitation_id,
       &initial_properties.scoped_milestone_id,
@@ -578,8 +628,11 @@ impl AccessPolicy {
       &initial_properties.scoped_role_id,
       &initial_properties.scoped_server_log_entry_id,
       &initial_properties.scoped_session_id,
+      &initial_properties.scoped_status_id,
       &initial_properties.scoped_user_id,
       &initial_properties.scoped_view_id,
+      &initial_properties.scoped_view_field_id,
+      &initial_properties.scoped_webhook_id,
       &initial_properties.scoped_workspace_id
     ];
     let database_client = database_pool.get().await?;
@@ -604,6 +657,16 @@ impl AccessPolicy {
     let access_policy = AccessPolicy::convert_from_row(&row);
 
     return Ok(access_policy);
+
+  }
+
+  /// Deletes this access policy.
+  pub async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/access_policies/delete_access_policy_row_by_id.sql");
+    database_client.execute(query, &[&self.id]).await?;
+    return Ok(());
 
   }
 
@@ -663,6 +726,9 @@ impl AccessPolicy {
       scoped_item_id: row.get("scoped_item_id"),
       scoped_item_connection_id: row.get("scoped_item_connection_id"),
       scoped_item_connection_type_id: row.get("scoped_item_connection_type_id"),
+      scoped_item_type_id: row.get("scoped_item_type_id"),
+      scoped_item_type_icon_id: row.get("scoped_item_type_icon_id"),
+      scoped_iteration_id: row.get("scoped_iteration_id"),
       scoped_membership_id: row.get("scoped_membership_id"),
       scoped_membership_invitation_id: row.get("scoped_membership_invitation_id"),
       scoped_milestone_id: row.get("scoped_milestone_id"),
@@ -671,8 +737,11 @@ impl AccessPolicy {
       scoped_role_id: row.get("scoped_role_id"),
       scoped_server_log_entry_id: row.get("scoped_server_log_entry_id"),
       scoped_session_id: row.get("scoped_session_id"),
+      scoped_status_id: row.get("scoped_status_id"),
       scoped_user_id: row.get("scoped_user_id"),
       scoped_view_id: row.get("scoped_view_id"),
+      scoped_view_field_id: row.get("scoped_view_field_id"),
+      scoped_webhook_id: row.get("scoped_webhook_id"),
       scoped_workspace_id: row.get("scoped_workspace_id")
     };
 
@@ -767,7 +836,7 @@ impl AccessPolicy {
   }
 
   /// Returns a list of access policies based on a query.
-  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
                             
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -786,7 +855,7 @@ impl AccessPolicy {
 
       }
     };
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "AccessPolicy", "access_policies", "accessPolicies.get", false);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "AccessPolicy", "access_policies", "accessPolicies.get", false)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
     
@@ -842,6 +911,9 @@ impl AccessPolicy {
       ResourceType::Item => self.scoped_item_id,
       ResourceType::ItemConnection => self.scoped_item_connection_id,
       ResourceType::ItemConnectionType => self.scoped_item_connection_type_id,
+      ResourceType::ItemType => self.scoped_item_type_id,
+      ResourceType::ItemTypeIcon => self.scoped_item_type_icon_id,
+      ResourceType::Iteration => self.scoped_iteration_id,
       ResourceType::Membership => self.scoped_membership_id,
       ResourceType::MembershipInvitation => self.scoped_membership_invitation_id,
       ResourceType::Milestone => self.scoped_milestone_id,
@@ -850,27 +922,16 @@ impl AccessPolicy {
       ResourceType::Role => self.scoped_role_id,
       ResourceType::ServerLogEntry => self.scoped_server_log_entry_id,
       ResourceType::Session => self.scoped_session_id,
+      ResourceType::Status => self.scoped_session_id,
       ResourceType::User => self.scoped_user_id,
       ResourceType::View => self.scoped_view_id,
+      ResourceType::ViewField => self.scoped_view_field_id,
+      ResourceType::Webhook => self.scoped_webhook_id,
       ResourceType::Workspace => self.scoped_workspace_id
 
     };
 
     return scoped_resource_id;
-
-  }
-
-}
-
-impl DeletableResource for AccessPolicy {
-
-  /// Deletes this access policy.
-  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/access_policies/delete_access_policy_row_by_id.sql");
-    database_client.execute(query, &[&self.id]).await?;
-    return Ok(());
 
   }
 

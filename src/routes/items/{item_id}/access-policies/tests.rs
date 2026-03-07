@@ -15,7 +15,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action,}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action,}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 async fn create_item_access_policy(database_pool: &deadpool_postgres::Pool, scoped_item_id: &Uuid, user_id: &Uuid, action_id: &Uuid, permission_level: &ActionPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
@@ -136,10 +136,10 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   assert_eq!(response_access_policies.resources.len(), 1);
 
   let query = format!("scoped_resource_type = 'Item' AND scoped_item_id = {}", quote_literal(&dummy_item.id.to_string()));
-  let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
-  let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
   assert_eq!(response_access_policies.resources[0].id, actual_access_policies[0].id);
   assert_eq!(response_access_policies.resources[0].id, shown_access_policy.id);
@@ -198,10 +198,10 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   assert_eq!(response_access_policies.resources.len(), 1);
 
   let query = format!("scoped_resource_type = 'Item' AND scoped_item_id = {} and permission_level = 'Editor'", quote_literal(&dummy_item.id.to_string()));
-  let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
-  let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
   assert_eq!(response_access_policies.resources[0].id, actual_access_policies[0].id);
   assert_eq!(response_access_policies.resources[0].id, shown_access_policy.id);

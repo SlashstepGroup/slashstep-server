@@ -21,7 +21,7 @@ use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_configuration_by_name, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, match_db_error, match_slashstepql_error, validate_field_length, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_request_body_without_json_rejection, match_db_error, match_slashstepql_error, validate_field_length, verify_delegate_permissions, verify_principal_permissions}}};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct InitialAppPropertiesWithoutClientSecretHash {
@@ -151,14 +151,12 @@ async fn handle_list_apps_request(
   // Make sure the principal has access to list resources.
   let list_resources_action = get_action_by_name("apps.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  let resource_hierarchy: ResourceHierarchy = vec![(ResourceType::Server, None)];
-  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace("Listing apps...", Some(&http_transaction.id), &state.database_pool).await.ok();
   let query = query_parameters.query.unwrap_or("".to_string());
-  let queried_resources = match App::list(&query, &state.database_pool, Some(&individual_principal)).await {
+  let queried_resources = match App::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 
     Ok(queried_resources) => queried_resources,
 
@@ -182,7 +180,7 @@ async fn handle_list_apps_request(
   };
 
   ServerLogEntry::trace(&format!("Counting apps..."), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let resource_count = match App::count(&query, &state.database_pool, Some(&individual_principal)).await {
+  let resource_count = match App::count(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 
     Ok(resource_count) => resource_count,
 
@@ -202,9 +200,9 @@ async fn handle_list_apps_request(
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::Server,
     ..Default::default()
   }, &state.database_pool).await.ok();
@@ -240,10 +238,8 @@ async fn handle_create_app_request(
   validate_field_length(&app_properties_json.display_name, "apps.maximumDisplayNameLength", "display_name", &http_transaction, &state.database_pool).await?;
 
   // Make sure the authenticated_user can create apps for the target action log entry.
-  let resource_hierarchy: ResourceHierarchy = vec![(ResourceType::Server, None)];
   let create_apps_action = get_action_by_name("apps.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_apps_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &create_apps_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let mut client_secret_hash = None;
@@ -300,9 +296,9 @@ async fn handle_create_app_request(
     action_id: create_apps_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::App,
     target_app_id: Some(app.id),
     ..Default::default()

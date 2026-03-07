@@ -1,3 +1,14 @@
+/**
+ * 
+ * This module defines the implementation and types of a project.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
+
 #[cfg(test)]
 mod tests;
 
@@ -5,7 +16,7 @@ use chrono::{DateTime, Utc};
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -17,11 +28,11 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "description",
   "start_date",
   "end_date",
-  "workspace_id"
+  "parent_workspace_id"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "workspace_id"
+  "parent_workspace_id"
 ];
 pub const RESOURCE_NAME: &str = "Project";
 pub const DATABASE_TABLE_NAME: &str = "projects";
@@ -49,7 +60,7 @@ pub struct InitialProjectProperties {
   pub end_date: Option<DateTime<Utc>>,
 
   /// The project's workspace ID.
-  pub workspace_id: Uuid
+  pub parent_workspace_id: Uuid
 
 }
 
@@ -78,14 +89,14 @@ pub struct Project {
   pub end_date: Option<DateTime<Utc>>,
 
   /// The project's workspace ID.
-  pub workspace_id: Uuid
+  pub parent_workspace_id: Uuid
 
 }
 
 impl Project {
 
   /// Counts the number of projects based on a query.
-  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -97,7 +108,7 @@ impl Project {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, true);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, true)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
@@ -145,7 +156,7 @@ impl Project {
       description: row.get("description"),
       start_date: row.get("start_date"),
       end_date: row.get("end_date"),
-      workspace_id: row.get("workspace_id")
+      parent_workspace_id: row.get("parent_workspace_id")
     };
 
   }
@@ -175,7 +186,7 @@ impl Project {
       &initial_properties.description,
       &initial_properties.start_date,
       &initial_properties.end_date,
-      &initial_properties.workspace_id
+      &initial_properties.parent_workspace_id
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {
@@ -190,6 +201,16 @@ impl Project {
     database_client.execute(query, &[&project.id]).await?;
 
     return Ok(project);
+
+  }
+
+  /// Deletes this project.
+  pub async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/projects/delete_project_row_by_id.sql");
+    database_client.execute(query, &[&self.id]).await?;
+    return Ok(());
 
   }
 
@@ -212,7 +233,7 @@ impl Project {
   }
 
   /// Returns a list of projects based on a query.
-  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -224,7 +245,7 @@ impl Project {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, false);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, false)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
@@ -233,20 +254,6 @@ impl Project {
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
-
-  }
-
-}
-
-impl DeletableResource for Project {
-
-  /// Deletes this field.
-  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/projects/delete_project_row_by_id.sql");
-    database_client.execute(query, &[&self.id]).await?;
-    return Ok(());
 
   }
 

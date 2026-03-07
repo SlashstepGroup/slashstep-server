@@ -20,7 +20,7 @@ use reqwest::StatusCode;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, StakeholderType, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_choice::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_field_by_id, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, match_db_error, match_slashstepql_error, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, StakeholderType, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_choice::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_field_by_id, get_request_body_without_json_rejection, get_uuid_from_string, match_db_error, match_slashstepql_error, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct InitialFieldChoicePropertiesWithPredefinedFieldID {
@@ -72,18 +72,16 @@ pub async fn handle_list_field_choices_request(
   let field_id = get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
   let list_resources_action = get_action_by_name("fieldChoices.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
   let resource_hierarchy = get_resource_hierarchy(&target_field, &ResourceType::Field, &target_field.id, &http_transaction, &state.database_pool).await?;
   verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
 
   let query = format!(
     "field_id = {}{}", 
     quote_literal(&field_id.to_string()), 
     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
   );
-  let queried_resources = match FieldChoice::list(&query, &state.database_pool, Some(&individual_principal)).await {
+  let queried_resources = match FieldChoice::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 
     Ok(queried_resources) => queried_resources,
 
@@ -107,7 +105,7 @@ pub async fn handle_list_field_choices_request(
   };
 
   ServerLogEntry::trace(&format!("Counting field choices..."), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let resource_count = match FieldChoice::count(&query, &state.database_pool, Some(&individual_principal)).await {
+  let resource_count = match FieldChoice::count(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 
     Ok(resource_count) => resource_count,
 
@@ -127,9 +125,9 @@ pub async fn handle_list_field_choices_request(
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::Field,
     target_field_id: Some(target_field.id),
     ..Default::default()
@@ -176,7 +174,6 @@ async fn handle_create_field_choice_request(
   let resource_hierarchy = get_resource_hierarchy(&target_field, &ResourceType::Field, &target_field.id, &http_transaction, &state.database_pool).await?;
   let create_field_choices_action = get_action_by_name("fieldChoices.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &create_field_choices_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Create the authenticated field choice.
@@ -212,9 +209,9 @@ async fn handle_create_field_choice_request(
     action_id: create_field_choices_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::FieldChoice,
     target_field_choice_id: Some(created_field_choice.id),
     ..Default::default()

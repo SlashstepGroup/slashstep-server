@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
     }, action::Action, app::{App, AppClientType, DEFAULT_RESOURCE_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, configuration::{Configuration, EditableConfigurationProperties},
   }, routes::apps::{AppWithClientSecret, InitialAppPropertiesWithoutClientSecretHash}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
@@ -86,10 +86,10 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_app_count = App::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_app_count = App::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_app_count);
 
-  let actual_apps = App::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_apps = App::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_apps.len());
 
   for actual_app in actual_apps {
@@ -166,10 +166,10 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_app_count = App::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_app_count = App::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_app_count);
 
-  let actual_apps = App::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_apps = App::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_apps.len());
 
   for actual_app in actual_apps {
@@ -222,7 +222,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   }, &test_environment.database_pool).await?;
 
   // Create dummy actions.
-  let app_count = App::count("", &test_environment.database_pool, None).await?;
+  let app_count = App::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - app_count + 1) {
 
     test_environment.create_random_app().await?;

@@ -19,7 +19,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::str::FromStr;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_authenticated_principal, get_json_web_token_private_key, get_resource_hierarchy, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_json_web_token_private_key, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}};
 
 
 // /// GET /apps
@@ -210,7 +210,6 @@ async fn handle_create_oauth_authorization_request(
   let resource_hierarchy = get_resource_hierarchy(&target_user, &ResourceType::User, &target_user.id, &http_transaction, &state.database_pool).await?;
   let create_oauth_authorizations_action = get_action_by_name("oauthAuthorizations.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_oauth_authorizations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &create_oauth_authorizations_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   let target_app = get_app_by_id(&initial_oauth_authorization_properties_json.app_id, &http_transaction, &state.database_pool).await?;
   let authorize_app_action = get_action_by_name("apps.authorize", &http_transaction, &state.database_pool).await?;

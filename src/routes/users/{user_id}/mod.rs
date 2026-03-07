@@ -12,7 +12,7 @@ use crate::{
   resources::{
     access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_resource_hierarchy, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
 
 /// GET /users/{user_id}
@@ -34,7 +34,6 @@ async fn handle_get_user_request(
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_user_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let resource_hierarchy = get_resource_hierarchy(&target_user, &ResourceType::User, &target_user.id, &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &get_user_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
@@ -42,9 +41,9 @@ async fn handle_get_user_request(
     action_id: get_user_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::User,
     target_user_id: Some(target_user.id),
     ..Default::default()

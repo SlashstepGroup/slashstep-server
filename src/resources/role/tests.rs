@@ -1,7 +1,7 @@
 use uuid::Uuid;
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, initialize_predefined_configurations, resources::{
-    DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
+    ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     }
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -47,7 +47,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_resource_count = Role::count("", &test_environment.database_pool, None).await?;
+  let retrieved_resource_count = Role::count("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_resource_count, MAXIMUM_RESOURCE_COUNT);
 
@@ -148,7 +148,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   }
 
-  let retrieved_resources = Role::list("", &test_environment.database_pool, None).await?;
+  let retrieved_resources = Role::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_resources.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
@@ -172,7 +172,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   }
 
   let query = format!("id = \"{}\"", created_resources[0].id);
-  let retrieved_resources = Role::list(&query, &test_environment.database_pool, None).await?;
+  let retrieved_resources = Role::list(&query, &test_environment.database_pool, None, None).await?;
 
   let created_resources_with_specific_id: Vec<&Role> = created_resources.iter().filter(|role| role.id == created_resources[0].id).collect();
   assert_eq!(created_resources_with_specific_id.len(), retrieved_resources.len());
@@ -203,7 +203,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   }
 
-  let retrieved_resources = Role::list("", &test_environment.database_pool, None).await?;
+  let retrieved_resources = Role::list("", &test_environment.database_pool, None, None).await?;
   assert_eq!(created_resources.len(), retrieved_resources.len());
   for i in 0..created_resources.len() {
 
@@ -228,7 +228,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   const MINIMUM_RESOURCE_COUNT: i32 = 2;
-  let mut current_resources = Role::list("", &test_environment.database_pool, None).await?;
+  let mut current_resources = Role::list("", &test_environment.database_pool, None, None).await?;
   if current_resources.len() < MINIMUM_RESOURCE_COUNT as usize {
 
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
@@ -267,8 +267,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Make sure the user only sees the allowed actions.
-  let individual_principal = crate::resources::access_policy::IndividualPrincipal::User(user.id);
-  let retrieved_resources = Role::list("", &test_environment.database_pool, Some(&individual_principal)).await?;
+  let retrieved_resources = Role::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
 
   assert_eq!(allowed_resources.len(), retrieved_resources.len());
   for allowed_resource in allowed_resources {

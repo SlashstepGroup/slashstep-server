@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
-    DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
+    ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     }, field::{DEFAULT_RESOURCE_LIST_LIMIT, Field, FieldValueType, InitialFieldProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -53,7 +53,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_field_count = Field::count("", &test_environment.database_pool, None).await?;
+  let retrieved_field_count = Field::count("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_field_count, MAXIMUM_FIELD_COUNT);
 
@@ -155,7 +155,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   }
 
-  let retrieved_fields = Field::list("", &test_environment.database_pool, None).await?;
+  let retrieved_fields = Field::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_fields.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
@@ -179,7 +179,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   }
 
   let query = format!("id = \"{}\"", created_fields[0].id);
-  let retrieved_fields = Field::list(&query, &test_environment.database_pool, None).await?;
+  let retrieved_fields = Field::list(&query, &test_environment.database_pool, None, None).await?;
 
   let created_fields_with_specific_id: Vec<&Field> = created_fields.iter().filter(|field| field.id == created_fields[0].id).collect();
   assert_eq!(created_fields_with_specific_id.len(), retrieved_fields.len());
@@ -210,7 +210,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   }
 
-  let retrieved_fields = Field::list("", &test_environment.database_pool, None).await?;
+  let retrieved_fields = Field::list("", &test_environment.database_pool, None, None).await?;
   assert_eq!(created_fields.len(), retrieved_fields.len());
   for i in 0..created_fields.len() {
 
@@ -235,7 +235,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   const MINIMUM_ACTION_COUNT: i32 = 2;
-  let mut current_fields = Field::list("", &test_environment.database_pool, None).await?;
+  let mut current_fields = Field::list("", &test_environment.database_pool, None, None).await?;
   if current_fields.len() < MINIMUM_ACTION_COUNT as usize {
 
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_fields.len() as i32;
@@ -274,8 +274,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Make sure the user only sees the allowed actions.
-  let individual_principal = crate::resources::access_policy::IndividualPrincipal::User(user.id);
-  let retrieved_fields = Field::list("", &test_environment.database_pool, Some(&individual_principal)).await?;
+  let retrieved_fields = Field::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
 
   assert_eq!(allowed_fields.len(), retrieved_fields.len());
   for allowed_field in allowed_fields {

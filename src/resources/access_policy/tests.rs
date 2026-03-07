@@ -5,15 +5,15 @@
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
  * 
- * © 2025 Beastslash LLC
+ * © 2025 – 2026 Beastslash LLC
  * 
  */
 
 use std::cmp;
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{DeletableResource, access_policy::{
-    AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties
-  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::resource_hierarchy::{self, PrincipalWithID}
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{access_policy::{
+    AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, InitialAccessPolicyProperties
+  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 fn assert_access_policy_is_equal_to_initial_properties(access_policy: &AccessPolicy, initial_properties: &InitialAccessPolicyProperties) {
@@ -133,7 +133,7 @@ async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerE
 
   }
 
-  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, None).await?;
+  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(created_access_policies.len(), retrieved_access_policies.len());
   for i in 0..created_access_policies.len() {
@@ -189,8 +189,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
   }
 
-  let individual_principal = IndividualPrincipal::User(user.id);
-  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, Some(&individual_principal)).await?;
+  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
 
   assert_eq!(created_access_policies.len(), retrieved_access_policies.len());
   for i in 0..created_access_policies.len() {
@@ -237,7 +236,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
 
   let principal_user_id = created_access_policies[0].principal_user_id.expect("Principal user ID is not set.");
   let query = format!("principal_user_id = \"{}\"", principal_user_id);
-  let retrieved_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, None).await?;
+  let retrieved_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, None, None).await?;
 
   let created_access_policies_with_specific_user: Vec<&AccessPolicy> = created_access_policies.iter().filter(|access_policy| access_policy.principal_user_id == Some(principal_user_id)).collect();
   assert_eq!(created_access_policies_with_specific_user.len(), retrieved_access_policies.len());
@@ -271,7 +270,7 @@ async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepSe
 
   }
 
-  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, None).await?;
+  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_access_policies.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
 
@@ -307,39 +306,10 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_access_policy_count = AccessPolicy::count("", &test_environment.database_pool, None).await?;
+  let retrieved_access_policy_count = AccessPolicy::count("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_access_policy_count, MAXIMUM_ACTION_COUNT);
 
-  return Ok(());
-
-}
-
-/// Verifies that the implementation can return a list of access policies in the proper order given a hierarchy.
-#[tokio::test]
-async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerError> {
-
-  // Create the access policy.
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  let action = test_environment.create_random_action(None).await?;
-  let user = test_environment.create_random_user().await?;
-  let instance_access_policy_properties = InitialAccessPolicyProperties {
-    action_id: action.id,
-    permission_level: ActionPermissionLevel::User,
-    is_inheritance_enabled: true,
-    principal_type: AccessPolicyPrincipalType::User,
-    principal_user_id: Some(user.id),
-    scoped_resource_type: ResourceType::Server,
-    ..Default::default()
-  };
-  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &test_environment.database_pool).await?;
-  let access_policy_hierarchy = resource_hierarchy::get_hierarchy(&instance_access_policy.scoped_resource_type, instance_access_policy.get_scoped_resource_id().as_ref(), &test_environment.database_pool).await?;
-
-  let retrieved_access_policies = resource_hierarchy::list_access_policies_by_hierarchy(&PrincipalWithID::User(user.id), &action.id, &access_policy_hierarchy, &test_environment.database_pool).await?;
-
-  assert_eq!(retrieved_access_policies.len(), access_policy_hierarchy.len());
-  
   return Ok(());
 
 }

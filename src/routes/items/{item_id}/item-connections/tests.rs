@@ -15,7 +15,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel, IndividualPrincipal}, action::Action, item_connection::{DEFAULT_RESOURCE_LIST_LIMIT, InitialItemConnectionProperties, InitialItemConnectionPropertiesWithPredefinedOutwardItem, ItemConnection}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel}, action::Action, item_connection::{DEFAULT_RESOURCE_LIST_LIMIT, InitialItemConnectionProperties, InitialItemConnectionPropertiesWithPredefinedOutwardItem, ItemConnection}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
 
 async fn create_item_connection(test_environment: &TestEnvironment, outward_item_id: &Uuid, inward_item_id: &Uuid) -> Result<ItemConnection, TestSlashstepServerError> {
 
@@ -125,10 +125,10 @@ async fn verify_returned_item_connection_list_without_query() -> Result<(), Test
   assert_eq!(response_item_connections.resources.len(), 1);
 
   let query = format!("(outward_item_id = {} OR inward_item_id = {})", quote_literal(&outward_item.id.to_string()), quote_literal(&outward_item.id.to_string()));
-  let actual_item_connection_count = ItemConnection::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_item_connection_count = ItemConnection::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_connections.total_count, actual_item_connection_count);
 
-  let actual_item_connections = ItemConnection::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_item_connections = ItemConnection::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_connections.resources.len(), actual_item_connections.len());
   assert_eq!(response_item_connections.resources[0].id, actual_item_connections[0].id);
   assert_eq!(response_item_connections.resources[0].id, shown_item_connection.id);
@@ -191,10 +191,10 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   //
   // We know the inward item ID because we defined it in this test, but users might not.
   let query = format!("(outward_item_id = {} OR inward_item_id = {}) AND {}", quote_literal(&outward_item.id.to_string()), quote_literal(&outward_item.id.to_string()), additional_query);
-  let actual_item_connection_count = ItemConnection::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_item_connection_count = ItemConnection::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_connections.total_count, actual_item_connection_count);
 
-  let actual_item_connections = ItemConnection::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_item_connections = ItemConnection::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_connections.resources.len(), actual_item_connections.len());
   assert_eq!(response_item_connections.resources[0].id, actual_item_connections[0].id);
   assert_eq!(response_item_connections.resources[0].id, shown_item_connection.id);

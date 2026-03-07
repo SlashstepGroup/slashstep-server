@@ -207,7 +207,7 @@ pub async fn authenticate_user(
 
     };
     ServerLogEntry::trace(&format!("Checking if user {} has the anonymous-users role...", ip_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-    let memberships = match Membership::list(&format!("parent_role_id = '{}' and principal_type = 'User' and principal_user_id = '{}'", anonymous_users_role.id, ip_user.id), &state.database_pool, None).await {
+    let memberships = match Membership::list(&format!("parent_role_id = '{}' and principal_type = 'User' and principal_user_id = '{}'", anonymous_users_role.id, ip_user.id), &state.database_pool, None, None).await {
 
       Ok(memberships) => memberships,
 

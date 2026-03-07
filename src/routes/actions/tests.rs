@@ -19,7 +19,7 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
     }, 
     action::{
       Action, 
@@ -86,10 +86,10 @@ async fn verify_returned_action_list_without_query() -> Result<(), TestSlashstep
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_action_count = Action::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_action_count = Action::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_action_count);
 
-  let actual_actions = Action::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_actions = Action::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_actions.len());
 
   for actual_action in actual_actions {
@@ -159,10 +159,10 @@ async fn verify_returned_action_list_with_query() -> Result<(), TestSlashstepSer
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_json: ListResourcesResponseBody::<Action> = response.json();
-  let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_action_count);
 
-  let actual_actions = Action::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_actions = Action::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_actions.len());
 
   for actual_action in actual_actions {
@@ -215,7 +215,7 @@ async fn verify_default_action_list_limit() -> Result<(), TestSlashstepServerErr
   }, &test_environment.database_pool).await?;
 
   // Create dummy actions.
-  let action_count = Action::count("", &test_environment.database_pool, None).await?;
+  let action_count = Action::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_ACTION_LIST_LIMIT - action_count + 1) {
 
     test_environment.create_random_action(None).await?;

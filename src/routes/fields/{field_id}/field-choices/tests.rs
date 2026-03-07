@@ -16,7 +16,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel, IndividualPrincipal}, action::Action, field_choice::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType}}, routes::fields::field_id::field_choices::InitialFieldChoicePropertiesWithPredefinedFieldID, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel}, action::Action, field_choice::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType}}, routes::fields::field_id::field_choices::InitialFieldChoicePropertiesWithPredefinedFieldID, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -63,10 +63,10 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   assert_eq!(response_body.resources.len(), 1);
 
   let query = format!("field_id = {}", quote_literal(&dummy_field_choice.field_id.to_string()));
-  let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_field_choice_count);
 
-  let actual_field_choices = FieldChoice::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_field_choices = FieldChoice::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.resources.len(), actual_field_choices.len());
   assert_eq!(response_body.resources[0].id, actual_field_choices[0].id);
   assert_eq!(response_body.resources[0].id, dummy_field_choice.id);
@@ -122,10 +122,10 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   assert_eq!(response_body.resources.len(), 1);
 
   let query = format!("field_id = {} AND {}", quote_literal(&dummy_field_choice.field_id.to_string()), &additional_query);
-  let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_field_choice_count);
 
-  let actual_field_choices = FieldChoice::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_field_choices = FieldChoice::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.resources.len(), actual_field_choices.len());
   assert_eq!(response_body.resources[0].id, actual_field_choices[0].id);
   assert_eq!(response_body.resources[0].id, dummy_field_choice.id);
@@ -158,7 +158,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 
   // Create dummy resources.
   let dummy_field = test_environment.create_random_field().await?;
-  let field_choice_count = FieldChoice::count(format!("field_id = {}", quote_literal(&dummy_field.id.to_string())).as_str(), &test_environment.database_pool, None).await?;
+  let field_choice_count = FieldChoice::count(format!("field_id = {}", quote_literal(&dummy_field.id.to_string())).as_str(), &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - field_choice_count + 1) {
 
     test_environment.create_random_field_choice(Some(&dummy_field.id)).await?;

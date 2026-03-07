@@ -3,8 +3,9 @@ use pg_escape::{quote_identifier, quote_literal};
 use postgres_types::ToSql;
 use regex::{RegexBuilder};
 use thiserror::Error;
+use uuid::Uuid;
 use std::error::Error;
-use crate::resources::access_policy::IndividualPrincipal;
+use crate::resources::access_policy::{AccessPolicyPrincipalType};
 
 /// An error that occurs when a resource does not exist.
 #[derive(Debug)]
@@ -57,6 +58,8 @@ pub enum SlashstepQLError {
   SlashstepQLInvalidLimitError(SlashstepQLInvalidLimitError),
   #[error("String parser error: {0}")]
   StringParserError(String),
+  #[error("Missing principal ID for non-anonymous principal.")]
+  MissingPrincipalIDError(()),
 }
 
 pub struct SlashstepQLSanitizeFunctionOptions {
@@ -247,25 +250,28 @@ impl SlashstepQLFilterSanitizer {
 
   pub fn build_query_from_sanitized_filter(
     sanitized_filter: &SlashstepQLSanitizedFilter, 
-    individual_principal: Option<&IndividualPrincipal>,
+    principal_type: Option<&AccessPolicyPrincipalType>,
+    principal_id: Option<&Uuid>,
     resource_type: &str,
     table_name: &str,
     get_resource_action_name: &str,
     should_count: bool
-  ) -> String {
+  ) -> Result<String, SlashstepQLError> {
 
     let where_clause = sanitized_filter.where_clause.clone().unwrap_or("".to_string());
-    let where_clause = match individual_principal {
+    let where_clause = match principal_type {
       
-      Some(individual_principal) => {
+      Some(principal_type) => {
         
-        let additional_condition = match individual_principal {
+        let principal_id = match principal_id {
 
-          IndividualPrincipal::User(user_id) => format!("get_principal_permission_level('User', {}, {}, {}.id, {}) >= 'User'", quote_literal(&user_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name)),
-
-          IndividualPrincipal::App(app_id) => format!("get_principal_permission_level('App', {}, {}, {}.id, {}) >= 'User'", quote_literal(&app_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name))
-
+          Some(principal_id) => principal_id,
+          
+          None => return Err(SlashstepQLError::MissingPrincipalIDError(()))
+        
         };
+
+        let additional_condition = format!("get_principal_permission_level({}, {}, {}, {}.id, {}) >= 'User'", principal_type.to_string(), quote_literal(&principal_id.to_string()), quote_literal(resource_type), &table_name, quote_literal(get_resource_action_name));
 
         if where_clause == "" { 
           
@@ -287,7 +293,7 @@ impl SlashstepQLFilterSanitizer {
     let offset_clause = sanitized_filter.offset.and_then(|offset| Some(format!(" OFFSET {}", offset))).unwrap_or("".to_string());
     let query = format!("SELECT {} FROM {}{}{}{}", if should_count { "count(*)" } else { "*" }, table_name, where_clause, limit_clause, offset_clause);
 
-    return query;
+    return Ok(query);
 
   }
 

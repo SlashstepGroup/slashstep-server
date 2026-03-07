@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use reqwest::StatusCode;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, IndividualPrincipal, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 201 status code and the created access policy when creating an access policy.
 #[tokio::test]
@@ -127,10 +127,10 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   assert!(response_access_policies.total_count > 0);
   assert!(response_access_policies.resources.len() > 0);
 
-  let actual_access_policy_count = AccessPolicy::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policy_count = AccessPolicy::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
-  let actual_access_policies = AccessPolicy::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policies = AccessPolicy::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
 
   for actual_access_policy in actual_access_policies {
@@ -198,10 +198,10 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
-  let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
-  let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
 
   for actual_access_policy in actual_access_policies {
@@ -249,7 +249,7 @@ async fn verify_default_access_policy_list_limit() -> Result<(), TestSlashstepSe
   };
   AccessPolicy::create(&get_access_policy_properties, &test_environment.database_pool).await?;
 
-  let access_policy_count = AccessPolicy::count("", &test_environment.database_pool, None).await?;
+  let access_policy_count = AccessPolicy::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_ACCESS_POLICY_LIST_LIMIT - access_policy_count + 1) {
 
     let random_action = test_environment.create_random_action(None).await?;

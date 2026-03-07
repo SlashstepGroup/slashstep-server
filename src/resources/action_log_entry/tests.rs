@@ -1,6 +1,6 @@
-use chrono::{DateTime, Days, Utc};
+use chrono::Utc;
 
-use crate::{initialize_required_tables, resources::{DeletableResource, ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{initialize_required_tables, resources::{ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 fn assert_action_log_entry_is_equal_to_initial_properties(action_log_entry: &ActionLogEntry, initial_properties: &InitialActionLogEntryProperties) {
 

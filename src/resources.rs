@@ -17,6 +17,9 @@ pub mod http_transaction;
 pub mod item;
 pub mod item_connection;
 pub mod item_connection_type;
+pub mod item_type;
+pub mod item_type_icon;
+pub mod iteration;
 pub mod milestone;
 pub mod oauth_authorization;
 pub mod project;
@@ -25,13 +28,15 @@ pub mod server_log_entry;
 pub mod session;
 pub mod user;
 pub mod view;
+pub mod view_field;
+pub mod webhook;
 pub mod workspace;
 
 use chrono::{DateTime, Utc};
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use crate::{resources::access_policy::IndividualPrincipal, utilities::slashstepql::SlashstepQLError};
+use crate::{utilities::slashstepql::SlashstepQLError};
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default, Copy)]
 #[postgres(name = "stakeholder_type")]
@@ -83,13 +88,4 @@ pub enum ResourceError {
   // Can't use the #[from] attribute for this error for some reason.
   #[error("An error occurred while hashing the password using Argon2.")]
   Argon2PasswordHashError(argon2::password_hash::Error)
-}
-
-pub trait SearchableResource<ResourceStruct> {
-  fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> impl Future<Output = Result<i64, ResourceError>>;
-  fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> impl Future<Output = Result<Vec<ResourceStruct>, ResourceError>>;
-}
-
-pub trait DeletableResource {
-  fn delete(&self, database_pool: &deadpool_postgres::Pool) -> impl Future<Output = Result<(), ResourceError>>;
 }

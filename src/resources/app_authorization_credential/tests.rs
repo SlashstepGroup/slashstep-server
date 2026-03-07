@@ -1,8 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
 
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, initialize_predefined_configurations, resources::{
-    DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
+    ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     }, app_authorization_credential::{AppAuthorizationCredential, DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT, InitialAppAuthorizationCredentialProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -42,7 +42,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_app_authorization_credential_count = AppAuthorizationCredential::count("", &test_environment.database_pool, None).await?;
+  let retrieved_app_authorization_credential_count = AppAuthorizationCredential::count("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_app_authorization_credential_count, MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_COUNT);
 
@@ -141,7 +141,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   }
 
-  let retrieved_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, None).await?;
+  let retrieved_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_app_authorization_credentials.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
@@ -168,7 +168,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   created_app_authorization_credentials.push(app_authorization_with_same_app_authorization_id);
 
   let query = format!("app_authorization_id = \"{}\"", created_app_authorization_credentials[0].app_authorization_id);
-  let retrieved_app_authorization_credentials = AppAuthorizationCredential::list(&query, &test_environment.database_pool, None).await?;
+  let retrieved_app_authorization_credentials = AppAuthorizationCredential::list(&query, &test_environment.database_pool, None, None).await?;
 
   let created_app_authorization_credentials_with_specific_app_id: Vec<&AppAuthorizationCredential> = created_app_authorization_credentials.iter().filter(|app_authorization_credential| app_authorization_credential.app_authorization_id == created_app_authorization_credentials[0].app_authorization_id).collect();
   assert_eq!(created_app_authorization_credentials_with_specific_app_id.len(), retrieved_app_authorization_credentials.len());
@@ -199,7 +199,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   }
 
-  let retrieved_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, None).await?;
+  let retrieved_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, None, None).await?;
   assert_eq!(created_app_authorization_credentials.len(), retrieved_app_authorization_credentials.len());
   for i in 0..created_app_authorization_credentials.len() {
 
@@ -224,7 +224,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   const MINIMUM_ACTION_COUNT: i32 = 2;
-  let mut current_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, None).await?;
+  let mut current_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, None, None).await?;
   if current_app_authorization_credentials.len() < MINIMUM_ACTION_COUNT as usize {
 
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_app_authorization_credentials.len() as i32;
@@ -263,8 +263,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Make sure the user only sees the allowed actions.
-  let individual_principal = crate::resources::access_policy::IndividualPrincipal::User(user.id);
-  let retrieved_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, Some(&individual_principal)).await?;
+  let retrieved_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
 
   assert_eq!(allowed_app_authorization_credentials.len(), retrieved_app_authorization_credentials.len());
   for allowed_app_authorization in allowed_app_authorization_credentials {

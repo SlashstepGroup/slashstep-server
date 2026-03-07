@@ -1,13 +1,11 @@
 use uuid::Uuid;
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, initialize_predefined_configurations, resources::{
-    DeletableResource,
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
     access_policy::{ 
       AccessPolicy, 
       ActionPermissionLevel, 
       AccessPolicyPrincipalType, 
       ResourceType, 
-      IndividualPrincipal, 
       InitialAccessPolicyProperties
     }, 
     action::{
@@ -49,7 +47,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_action_count = Action::count("", &test_environment.database_pool, None).await?;
+  let retrieved_action_count = Action::count("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_action_count, MAXIMUM_ACTION_COUNT);
 
@@ -136,7 +134,7 @@ async fn list_actions_with_default_limit() -> Result<(), TestSlashstepServerErro
 
   }
 
-  let retrieved_actions = Action::list("", &test_environment.database_pool, None).await?;
+  let retrieved_actions = Action::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_actions.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
@@ -169,7 +167,7 @@ async fn list_actions_with_query() -> Result<(), TestSlashstepServerError> {
   created_actions.push(action_with_same_display_name);
 
   let query = format!("display_name = \"{}\"", created_actions[0].display_name);
-  let retrieved_actions = Action::list(&query, &test_environment.database_pool, None).await?;
+  let retrieved_actions = Action::list(&query, &test_environment.database_pool, None, None).await?;
 
   let created_actions_with_specific_display_name: Vec<&Action> = created_actions.iter().filter(|action| action.display_name == created_actions[0].display_name).collect();
   assert_eq!(created_actions_with_specific_display_name.len(), retrieved_actions.len());
@@ -200,7 +198,7 @@ async fn list_actions_without_query() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_actions = Action::list("", &test_environment.database_pool, None).await?;
+  let retrieved_actions = Action::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(created_actions.len(), retrieved_actions.len());
   for i in 0..created_actions.len() {
@@ -224,7 +222,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   const MINIMUM_ACTION_COUNT: i32 = 2;
-  let mut current_actions = Action::list("", &test_environment.database_pool, None).await?;
+  let mut current_actions = Action::list("", &test_environment.database_pool, None, None).await?;
   if current_actions.len() < MINIMUM_ACTION_COUNT as usize {
 
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_actions.len() as i32;
@@ -264,8 +262,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
   }
 
   // Make sure the user only sees the allowed actions.
-  let individual_principal = IndividualPrincipal::User(user.id);
-  let retrieved_actions = Action::list("", &test_environment.database_pool, Some(&individual_principal)).await?;
+  let retrieved_actions = Action::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
 
   assert_eq!(allowed_actions.len(), retrieved_actions.len());
   for allowed_action in allowed_actions {

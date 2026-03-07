@@ -22,10 +22,10 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    DeletableResource, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{
-    AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_authorization_credential_by_id, get_authenticated_principal, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions
+    get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_authorization_credential_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions
   }
 };
 
@@ -47,7 +47,6 @@ async fn handle_get_app_authorization_credential_request(
   let resource_hierarchy = get_resource_hierarchy(&target_app_authorization_credential, &ResourceType::AppAuthorizationCredential, &target_app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
   let get_app_authorizations_action = get_action_by_name("appAuthorizationCredentials.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_app_authorizations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &get_app_authorizations_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
@@ -55,9 +54,9 @@ async fn handle_get_app_authorization_credential_request(
     action_id: get_app_authorizations_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::AppAuthorizationCredential,
     target_app_authorization_credential_id: Some(target_app_authorization_credential.id),
     ..Default::default()
@@ -86,7 +85,6 @@ async fn handle_delete_app_authorization_credential_request(
   let resource_hierarchy = get_resource_hierarchy(&target_app_authorization_credential, &ResourceType::AppAuthorizationCredential, &target_app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
   let delete_app_authorization_credentials_action = get_action_by_name("appAuthorizationCredentials.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_app_authorization_credentials_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&authenticated_principal, &delete_app_authorization_credentials_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_app_authorization_credential.delete(&state.database_pool).await {
@@ -103,9 +101,9 @@ async fn handle_delete_app_authorization_credential_request(
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::AppAuthorizationCredential,
     target_app_authorization_credential_id: Some(target_app_authorization_credential.id),
     ..Default::default()

@@ -20,7 +20,7 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
     }, 
     action::Action, action_log_entry::{ActionLogEntry, DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT},
   }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
@@ -87,10 +87,10 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
   assert!(response_json.resources.len() > 0);
 
   const LIST_OFFSET: i64 = 1;
-  let actual_action_count = ActionLogEntry::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_action_count = ActionLogEntry::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count + LIST_OFFSET, actual_action_count);
 
-  let actual_action_log_entries = ActionLogEntry::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_action_log_entries = ActionLogEntry::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len() + LIST_OFFSET as usize, actual_action_log_entries.len());
 
   let mut remaining_list_offset = LIST_OFFSET;
@@ -180,10 +180,10 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_action_count = ActionLogEntry::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_action_count = ActionLogEntry::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_action_count);
 
-  let actual_action_log_entries = ActionLogEntry::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_action_log_entries = ActionLogEntry::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_action_log_entries.len());
 
   for actual_action_log_entry in actual_action_log_entries {
@@ -237,7 +237,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
   }, &test_environment.database_pool).await?;
 
   // Create dummy actions.
-  let action_log_entry_count = ActionLogEntry::count("", &test_environment.database_pool, None).await?;
+  let action_log_entry_count = ActionLogEntry::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT - action_log_entry_count + 1) {
 
     test_environment.create_random_action_log_entry().await?;

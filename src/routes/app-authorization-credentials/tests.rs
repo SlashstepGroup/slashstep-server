@@ -20,7 +20,7 @@ use crate::{
   }, resources::{
     access_policy::{
       ActionPermissionLevel,
-      IndividualPrincipal
+      PrincipalWithID
     }, action::Action, app_authorization_credential::{AppAuthorizationCredential, DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT},
   }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
@@ -69,10 +69,10 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_app_authorization_credential_count = AppAuthorizationCredential::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_app_authorization_credential_count = AppAuthorizationCredential::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_app_authorization_credential_count);
 
-  let actual_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_app_authorization_credentials.len());
 
   for actual_app_authorization in actual_app_authorization_credentials {
@@ -129,10 +129,10 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_json: ListResourcesResponseBody::<AppAuthorizationCredential> = response.json();
-  let actual_app_authorization_credential_count = AppAuthorizationCredential::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_app_authorization_credential_count = AppAuthorizationCredential::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_app_authorization_credential_count);
 
-  let actual_app_authorization_credentials = AppAuthorizationCredential::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_app_authorization_credentials = AppAuthorizationCredential::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_app_authorization_credentials.len());
 
   for actual_action in actual_app_authorization_credentials {
@@ -169,7 +169,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   test_environment.create_server_access_policy(&user.id, &list_app_authorizations_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy actions.
-  let app_authorization_count = AppAuthorizationCredential::count("", &test_environment.database_pool, None).await?;
+  let app_authorization_count = AppAuthorizationCredential::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT - app_authorization_count + 1) {
 
     test_environment.create_random_app_authorization_credential(None).await?;

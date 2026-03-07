@@ -17,9 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    DeletableResource, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection::ItemConnection, server_log_entry::ServerLogEntry, user::User
+    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection::ItemConnection, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_all_resource_hierarchies, get_authenticated_principal, get_item_connection_by_id, get_resource_hierarchy, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_all_resource_hierarchies, get_item_connection_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
 
 // #[path = "./access-policies/mod.rs"]
@@ -46,7 +46,6 @@ async fn handle_get_item_connection_request(
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_item_connections_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let resource_hierarchies = get_all_resource_hierarchies(&target_item_connection, &ResourceType::ItemConnection, &target_item_connection.id, &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   for index in 0..resource_hierarchies.len() {
 
     let resource_hierarchy = &resource_hierarchies[index];
@@ -75,9 +74,9 @@ async fn handle_get_item_connection_request(
     action_id: get_item_connections_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::ItemConnection,
     target_item_connection_id: Some(target_item_connection.id),
     ..Default::default()
@@ -106,7 +105,6 @@ async fn handle_delete_item_connection_request(
   let delete_item_connections_action = get_action_by_name("itemConnections.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_item_connections_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let resource_hierarchies = get_all_resource_hierarchies(&target_item_connection, &ResourceType::ItemConnection, &target_item_connection.id, &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   for index in 0..resource_hierarchies.len() {
 
     let resource_hierarchy = &resource_hierarchies[index];
@@ -144,9 +142,9 @@ async fn handle_delete_item_connection_request(
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::ItemConnection,
     target_item_connection_id: Some(target_item_connection.id),
     ..Default::default()
