@@ -21,8 +21,8 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
-    ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
+    ResourceType, ResourceError, access_policy::{
+      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
     }, app::App, configuration::{Configuration, EditableConfigurationProperties}, field::{EditableFieldProperties, Field}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -67,7 +67,6 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   assert_eq!(response_field.name, field.name);
   assert_eq!(response_field.display_name, field.display_name);
   assert_eq!(response_field.description, field.description);
-  assert_eq!(response_field.is_required, field.is_required);
   assert_eq!(response_field.field_value_type, field.field_value_type);
   assert_eq!(response_field.minimum_value, field.minimum_value);
   assert_eq!(response_field.maximum_value, field.maximum_value);
@@ -413,7 +412,6 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
     name: Some(Uuid::now_v7().to_string()),
     display_name: Some(Uuid::now_v7().to_string()),
     description: Some(Uuid::now_v7().to_string()),
-    is_required: Some(!original_field.is_required),
     ..Default::default()
   };
 
@@ -437,7 +435,6 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   assert_eq!(updated_app.name, updated_field_properties.name.expect("Expected an updated field name to compare."));
   assert_eq!(updated_app.display_name, updated_field_properties.display_name.expect("Expected an updated field display name to compare."));
   assert_eq!(updated_app.description, updated_field_properties.description.expect("Expected an updated field description to compare."));
-  assert_eq!(updated_app.is_required, updated_field_properties.is_required.expect("Expected an updated field is_required to compare."));
   assert_eq!(updated_app.field_value_type, original_field.field_value_type);
   assert_eq!(updated_app.minimum_value, original_field.minimum_value);
   assert_eq!(updated_app.maximum_value, original_field.maximum_value);

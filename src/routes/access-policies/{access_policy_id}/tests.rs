@@ -20,8 +20,8 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
-    ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
+    ResourceType, ResourceError, access_policy::{
+      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
     },
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };

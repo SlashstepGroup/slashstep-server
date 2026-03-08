@@ -17,7 +17,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{ActionPermissionLevel, ResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection::{EditableItemConnectionProperties, ItemConnection}, server_log_entry::ServerLogEntry, user::User
+    ResourceType, access_policy::{ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection::{EditableItemConnectionProperties, ItemConnection}, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_item_connection_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -55,7 +55,7 @@ async fn handle_get_item_connection_request(
     actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
     actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::ItemConnection,
+    target_resource_type: ResourceType::ItemConnection,
     target_item_connection_id: Some(target_item_connection.id),
     ..Default::default()
   }, &state.database_pool).await.ok();
@@ -102,7 +102,7 @@ async fn handle_delete_item_connection_request(
     actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
     actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::ItemConnection,
+    target_resource_type: ResourceType::ItemConnection,
     target_item_connection_id: Some(target_item_connection.id),
     ..Default::default()
   }, &state.database_pool).await.ok();
@@ -156,7 +156,7 @@ async fn handle_patch_item_connection_request(
     actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
     actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::ItemConnection,
+    target_resource_type: ResourceType::ItemConnection,
     target_item_connection_id: Some(updated_target_item_connection.id),
     ..Default::default()
   }, &state.database_pool).await.ok();

@@ -16,7 +16,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{ActionPermissionLevel, ResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_value::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, FieldValue, FieldValueParentResourceType, InitialFieldValueProperties, InitialFieldValuePropertiesWithPredefinedParent}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_field_by_id, get_item_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, ResourceError, access_policy::{ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_value::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, FieldValue, FieldValueParentResourceType, InitialFieldValueProperties, InitialFieldValuePropertiesWithPredefinedParent}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_field_by_id, get_item_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /items/{item_id}/field-values
 /// 
@@ -92,7 +92,7 @@ async fn handle_list_field_values_request(
     actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
     actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::Item,
+    target_resource_type: ResourceType::Item,
     target_item_id: Some(item_id),
     ..Default::default()
   }, &state.database_pool).await.ok();
@@ -191,7 +191,7 @@ async fn handle_create_field_value_request(
     actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
     actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::FieldValue,
+    target_resource_type: ResourceType::FieldValue,
     target_field_value_id: Some(field_value.id),
     ..Default::default()
   }, &state.database_pool).await.ok();

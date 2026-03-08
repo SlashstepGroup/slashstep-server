@@ -2,7 +2,6 @@ INSERT INTO fields (
   name,
   display_name,
   description,
-  is_required,
   type,
   minimum_value,
   maximum_value,
@@ -20,6 +19,5 @@ INSERT INTO fields (
   $7,
   $8,
   $9,
-  $10,
-  $11
+  $10
 ) RETURNING *;

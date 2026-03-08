@@ -23,11 +23,13 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "name",
   "display_name",
+  "item_type_icon_id",
   "parent_project_id",
   "description"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
+  "item_type_icon_id",
   "parent_project_id"
 ];
 pub const RESOURCE_NAME: &str = "ItemType";

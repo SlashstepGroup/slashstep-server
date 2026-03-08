@@ -17,7 +17,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User, workspace::Workspace
+    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User, workspace::Workspace
   }, 
   utilities::{route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_uuid_from_string, get_workspace_by_id, verify_delegate_permissions, verify_principal_permissions}}
 };
@@ -55,7 +55,7 @@ async fn handle_get_workspace_request(
     actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
     actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::Workspace,
+    target_resource_type: ResourceType::Workspace,
     target_workspace_id: Some(target_workspace.id),
     ..Default::default()
   }, &state.database_pool).await.ok();
@@ -89,7 +89,7 @@ async fn handle_get_workspace_request(
 //     &workspace_id, 
 //     "apps.delete",
 //     "app",
-//     &ActionLogEntryTargetResourceType::App,
+//     &ResourceType::App,
 //     |workspace_id, database_pool| Box::new(App::get_by_id(workspace_id, database_pool))
 //   ).await;
 
@@ -170,7 +170,7 @@ async fn handle_get_workspace_request(
 //     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
 //     actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
 //     actor_workspace_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-//     target_resource_type: ActionLogEntryTargetResourceType::Action,
+//     target_resource_type: ResourceType::Action,
 //     target_action_id: Some(updated_target_action.id),
 //     ..Default::default()
 //   }, &state.database_pool).await.ok();

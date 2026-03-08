@@ -19,8 +19,8 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
-    access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
+    ResourceType, access_policy::{
+      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
     }, 
     action::Action, action_log_entry::{ActionLogEntry, DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT},
   }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}

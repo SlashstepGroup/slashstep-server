@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, ResourceType}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -430,6 +430,13 @@ pub async fn get_item_connection_type_by_id(item_connection_type_id: &Uuid, http
 
   let target_item_connection_type = get_resource_by_id::<ItemConnectionType, _>("item connection type", &item_connection_type_id, &http_transaction, &database_pool, |item_connection_type_id, database_pool| Box::new(ItemConnectionType::get_by_id(item_connection_type_id, database_pool))).await?;
   return Ok(target_item_connection_type);
+
+}
+
+pub async fn get_item_type_by_id(item_type_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ItemType, HTTPError> {
+
+  let target_item_type = get_resource_by_id::<ItemType, _>("item type", &item_type_id, &http_transaction, &database_pool, |item_type_id, database_pool| Box::new(ItemType::get_by_id(item_type_id, database_pool))).await?;
+  return Ok(target_item_type);
 
 }
 

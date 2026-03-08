@@ -16,7 +16,7 @@ use chrono::{DateTime, Utc};
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{ResourceError, access_policy::{AccessPolicyPrincipalType}}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceType, ResourceError, access_policy::{AccessPolicyPrincipalType}}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -44,6 +44,12 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "target_group_id",
   "target_http_transaction_id",
   "target_item_id",
+  "target_item_connection_id",
+  "target_item_connection_type_id",
+  "target_item_type_id",
+  "target_item_type_field_id",
+  "target_item_type_icon_id",
+  "target_iteration_id",
   "target_membership_id",
   "target_membership_invitation_id",
   "target_milestone_id",
@@ -52,7 +58,11 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "target_role_membership_id",
   "target_server_log_entry_id",
   "target_session_id",
+  "target_status_id",
   "target_user_id",
+  "target_view_id",
+  "target_view_field_id",
+  "target_webhook_id",
   "target_workspace_id",
   "reason"
 ];
@@ -78,6 +88,12 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "target_group_id",
   "target_http_transaction_id",
   "target_item_id",
+  "target_item_connection_id",
+  "target_item_connection_type_id",
+  "target_item_type_id",
+  "target_item_type_field_id",
+  "target_item_type_icon_id",
+  "target_iteration_id",
   "target_membership_id",
   "target_membership_invitation_id",
   "target_milestone_id",
@@ -86,7 +102,11 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "target_role_membership_id",
   "target_server_log_entry_id",
   "target_session_id",
+  "target_status_id",
   "target_user_id",
+  "target_view_id",
+  "target_view_field_id",
+  "target_webhook_id",
   "target_workspace_id"
 ];
 pub const GET_RESOURCE_ACTION_NAME: &str = "actionLogEntries.get";
@@ -98,41 +118,6 @@ pub enum ActionLogEntryActorType {
   User,
   App,
   Server
-}
-
-#[derive(Debug, Clone, FromSql, ToSql, Serialize, Deserialize, Default, PartialEq, Eq)]
-#[postgres(name = "action_log_entry_target_resource_type")]
-pub enum ActionLogEntryTargetResourceType {
-  AccessPolicy,
-  Action,
-  ActionLogEntry,
-  App,
-  AppAuthorization,
-  AppAuthorizationCredential,
-  AppCredential,
-  Configuration,
-  DelegationPolicy,
-  Field,
-  FieldChoice,
-  FieldValue,
-  Group,
-  HTTPTransaction,
-  #[default]
-  Server,
-  Item,
-  ItemConnection,
-  ItemConnectionType,
-  Membership,
-  MembershipInvitation,
-  Milestone,
-  OAuthAuthorization,
-  Project,
-  Role,
-  ServerLogEntry,
-  Session,
-  User,
-  View,
-  Workspace
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -160,7 +145,7 @@ pub struct ActionLogEntry {
   pub actor_app_id: Option<Uuid>,
 
   /// The type of the target resource of the action.
-  pub target_resource_type: ActionLogEntryTargetResourceType,
+  pub target_resource_type: ResourceType,
 
   /// The target access policy ID of the action, if applicable.
   pub target_access_policy_id: Option<Uuid>,
@@ -213,6 +198,18 @@ pub struct ActionLogEntry {
   /// The target item connection type ID of the action, if applicable.
   pub target_item_connection_type_id: Option<Uuid>,
 
+  /// The target item type ID of the action, if applicable.
+  pub target_item_type_id: Option<Uuid>,
+
+  /// The target item type field ID of the action, if applicable.
+  pub target_item_type_field_id: Option<Uuid>,
+
+  /// The target item type icon ID of the action, if applicable.
+  pub target_item_type_icon_id: Option<Uuid>,
+
+  /// The target iteration ID of the action, if applicable.
+  pub target_iteration_id: Option<Uuid>,
+
   /// The target membership ID of the action, if applicable.
   pub target_membership_id: Option<Uuid>,
 
@@ -237,11 +234,20 @@ pub struct ActionLogEntry {
   /// The target session ID of the action, if applicable.
   pub target_session_id: Option<Uuid>,
 
+  /// The target status ID of the action, if applicable.
+  pub target_status_id: Option<Uuid>,
+
   /// The target user ID of the action, if applicable.
   pub target_user_id: Option<Uuid>,
 
   /// The target view ID of the action, if applicable.
   pub target_view_id: Option<Uuid>,
+
+  /// The target view field ID of the action, if applicable.
+  pub target_view_field_id: Option<Uuid>,
+
+  /// The target webhook ID of the action, if applicable.
+  pub target_webhook_id: Option<Uuid>,
 
   /// The target workspace ID of the action, if applicable.
   pub target_workspace_id: Option<Uuid>,
@@ -273,7 +279,7 @@ pub struct InitialActionLogEntryProperties {
   pub actor_app_id: Option<Uuid>,
 
   /// The type of the target resource of the action.
-  pub target_resource_type: ActionLogEntryTargetResourceType,
+  pub target_resource_type: ResourceType,
 
   /// The target access policy ID of the action, if applicable.
   pub target_access_policy_id: Option<Uuid>,
@@ -326,6 +332,18 @@ pub struct InitialActionLogEntryProperties {
   /// The target item connection type ID of the action, if applicable.
   pub target_item_connection_type_id: Option<Uuid>,
 
+  /// The target item type ID of the action, if applicable.
+  pub target_item_type_id: Option<Uuid>,
+
+  /// The target item type field ID of the action, if applicable.
+  pub target_item_type_field_id: Option<Uuid>,
+
+  /// The target item type icon ID of the action, if applicable.
+  pub target_item_type_icon_id: Option<Uuid>,
+
+  /// The target iteration ID of the action, if applicable.
+  pub target_iteration_id: Option<Uuid>,
+
   /// The target membership ID of the action, if applicable.
   pub target_membership_id: Option<Uuid>,
 
@@ -350,11 +368,20 @@ pub struct InitialActionLogEntryProperties {
   /// The target session ID of the action, if applicable.
   pub target_session_id: Option<Uuid>,
 
+  /// The target status ID of the action, if applicable.
+  pub target_status_id: Option<Uuid>,
+
   /// The target user ID of the action, if applicable.
   pub target_user_id: Option<Uuid>,
 
   /// The target view ID of the action, if applicable.
   pub target_view_id: Option<Uuid>,
+
+  /// The target view field ID of the action, if applicable.
+  pub target_view_field_id: Option<Uuid>,
+
+  /// The target webhook ID of the action, if applicable.
+  pub target_webhook_id: Option<Uuid>,
 
   /// The target workspace ID of the action, if applicable.
   pub target_workspace_id: Option<Uuid>,
@@ -421,6 +448,10 @@ impl ActionLogEntry {
       target_item_id: row.get("target_item_id"),
       target_item_connection_id: row.get("target_item_connection_id"),
       target_item_connection_type_id: row.get("target_item_connection_type_id"),
+      target_item_type_id: row.get("target_item_type_id"),
+      target_item_type_field_id: row.get("target_item_type_field_id"),
+      target_item_type_icon_id: row.get("target_item_type_icon_id"),
+      target_iteration_id: row.get("target_iteration_id"),
       target_membership_id: row.get("target_membership_id"),
       target_membership_invitation_id: row.get("target_membership_invitation_id"),
       target_milestone_id: row.get("target_milestone_id"),
@@ -429,8 +460,11 @@ impl ActionLogEntry {
       target_role_id: row.get("target_role_id"),
       target_server_log_entry_id: row.get("target_server_log_entry_id"),
       target_session_id: row.get("target_session_id"),
+      target_status_id: row.get("target_status_id"),
       target_user_id: row.get("target_user_id"),
       target_view_id: row.get("target_view_id"),
+      target_view_field_id: row.get("target_view_field_id"),
+      target_webhook_id: row.get("target_webhook_id"),
       target_workspace_id: row.get("target_workspace_id"),
       reason: row.get("reason")
     };
@@ -494,6 +528,10 @@ impl ActionLogEntry {
       &initial_properties.target_item_id,
       &initial_properties.target_item_connection_id,
       &initial_properties.target_item_connection_type_id,
+      &initial_properties.target_item_type_id,
+      &initial_properties.target_item_type_field_id,
+      &initial_properties.target_item_type_icon_id,
+      &initial_properties.target_iteration_id,
       &initial_properties.target_membership_id,
       &initial_properties.target_membership_invitation_id,
       &initial_properties.target_milestone_id,
@@ -502,8 +540,11 @@ impl ActionLogEntry {
       &initial_properties.target_role_id,
       &initial_properties.target_server_log_entry_id,
       &initial_properties.target_session_id,
+      &initial_properties.target_status_id,
       &initial_properties.target_user_id,
       &initial_properties.target_view_id,
+      &initial_properties.target_view_field_id,
+      &initial_properties.target_webhook_id,
       &initial_properties.target_workspace_id,
       &initial_properties.reason
     ];

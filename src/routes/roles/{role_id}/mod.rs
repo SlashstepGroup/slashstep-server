@@ -16,7 +16,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, role::Role, server_log_entry::ServerLogEntry, user::User
+    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, role::Role, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_role_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -54,7 +54,7 @@ async fn handle_get_role_request(
     actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
     actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::Role,
+    target_resource_type: ResourceType::Role,
     target_role_id: Some(target_role.id),
     ..Default::default()
   }, &state.database_pool).await.ok();
@@ -88,7 +88,7 @@ async fn handle_get_role_request(
 //     &role_id, 
 //     "apps.delete",
 //     "app",
-//     &ActionLogEntryTargetResourceType::App,
+//     &ResourceType::App,
 //     |role_id, database_pool| Box::new(App::get_by_id(role_id, database_pool))
 //   ).await;
 
@@ -169,7 +169,7 @@ async fn handle_get_role_request(
 //     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
 //     actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
 //     actor_role_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-//     target_resource_type: ActionLogEntryTargetResourceType::Action,
+//     target_resource_type: ResourceType::Action,
 //     target_action_id: Some(updated_target_action.id),
 //     ..Default::default()
 //   }, &state.database_pool).await.ok();

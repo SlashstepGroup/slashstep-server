@@ -6,7 +6,6 @@ BEGIN
     name TEXT NOT NULL,
     display_name TEXT NOT NULL,
     description TEXT NOT NULL,
-    is_required BOOLEAN NOT NULL,
     type field_value_type NOT NULL, /* Defined in general types */
     minimum_value DECIMAL,
     maximum_value DECIMAL,

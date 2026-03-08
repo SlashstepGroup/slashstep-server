@@ -23,6 +23,10 @@ INSERT INTO action_log_entries (
   target_item_id,
   target_item_connection_id,
   target_item_connection_type_id,
+  target_item_type_id,
+  target_item_type_field_id,
+  target_item_type_icon_id,
+  target_iteration_id,
   target_membership_id,
   target_membership_invitation_id,
   target_milestone_id,
@@ -31,8 +35,11 @@ INSERT INTO action_log_entries (
   target_role_id,
   target_server_log_entry_id,
   target_session_id,
+  target_status_id,
   target_user_id,
   target_view_id,
+  target_view_field_id,
+  target_webhook_id,
   target_workspace_id,
   reason
 ) VALUES (
@@ -71,5 +78,12 @@ INSERT INTO action_log_entries (
   $33,
   $34,
   $35,
-  $36
+  $36,
+  $37,
+  $38,
+  $39,
+  $40,
+  $41,
+  $42,
+  $43
 ) RETURNING *;

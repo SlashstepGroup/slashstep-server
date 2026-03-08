@@ -19,7 +19,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::str::FromStr;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_json_web_token_private_key, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_json_web_token_private_key, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}};
 
 
 // /// GET /apps
@@ -42,7 +42,7 @@ use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_tr
 //     Extension(authenticated_user), 
 //     Extension(authenticated_app), 
 //     resource_hierarchy, 
-//     ActionLogEntryTargetResourceType::Server, 
+//     ResourceType::Server, 
 //     None, 
 //     |query, database_pool, individual_principal| Box::new(App::count(query, database_pool, individual_principal)),
 //     |query, database_pool, individual_principal| Box::new(App::list(query, database_pool, individual_principal)),
@@ -266,7 +266,7 @@ async fn handle_create_oauth_authorization_request(
     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
     actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::App,
+    target_resource_type: ResourceType::App,
     target_app_id: Some(target_app.id),
     ..Default::default()
   }, &state.database_pool).await.ok();
@@ -278,7 +278,7 @@ async fn handle_create_oauth_authorization_request(
     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
     actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
     actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ActionLogEntryTargetResourceType::OAuthAuthorization,
+    target_resource_type: ResourceType::OAuthAuthorization,
     target_oauth_authorization_id: Some(created_oauth_authorization.id),
     ..Default::default()
   }, &state.database_pool).await.ok();

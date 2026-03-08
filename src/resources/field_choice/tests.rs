@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
-    ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
+    ResourceType, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     }, field_choice::{DEFAULT_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -260,7 +260,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
       permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
-      scoped_resource_type: crate::resources::access_policy::ResourceType::FieldChoice,
+      scoped_resource_type: ResourceType::FieldChoice,
       scoped_field_choice_id: Some(scoped_field_choice.id.clone()),
       ..Default::default()
     }, &test_environment.database_pool).await?;
