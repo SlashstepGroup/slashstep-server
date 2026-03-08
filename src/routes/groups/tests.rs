@@ -404,7 +404,6 @@ async fn verify_successful_group_creation() -> Result<(), TestSlashstepServerErr
     display_name: Uuid::now_v7().to_string(),
     ..Default::default()
   };
-  println!("Initial group properties: {:?}", initial_group_properties);
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };

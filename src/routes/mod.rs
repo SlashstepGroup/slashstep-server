@@ -13,11 +13,11 @@ mod app_credentials;
 mod configurations;
 #[path = "./delegation-policies/mod.rs"]
 mod delegation_policies;
-// mod fields;
-// #[path = "./field-choices/mod.rs"]
-// mod field_choices;
-// #[path = "./field-values/mod.rs"]
-// mod field_values;
+mod fields;
+#[path = "./field-choices/mod.rs"]
+mod field_choices;
+#[path = "./field-values/mod.rs"]
+mod field_values;
 // mod groups;
 // #[path = "./http-transactions/mod.rs"]
 // mod http_transactions;
@@ -74,9 +74,9 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(app_credentials::get_router(state.clone()))
     .merge(configurations::get_router(state.clone()))
     .merge(delegation_policies::get_router(state.clone()))
-    // .merge(fields::get_router(state.clone()))
-    // .merge(field_choices::get_router(state.clone()))
-    // .merge(field_values::get_router(state.clone()))
+    .merge(fields::get_router(state.clone()))
+    .merge(field_choices::get_router(state.clone()))
+    .merge(field_values::get_router(state.clone()))
     // .merge(groups::get_router(state.clone()))
     // .merge(http_transactions::get_router(state.clone()))
     // .merge(items::get_router(state.clone()))

@@ -44,56 +44,6 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
 
         LOOP
 
-            DROP TABLE IF EXISTS matching_access_policies;
-
-            CREATE TEMPORARY TABLE matching_access_policies AS
-                SELECT
-                    *
-                FROM
-                    get_principal_access_policies(parameter_principal_type, parameter_principal_id) principal_access_policies
-                WHERE
-                    principal_access_policies.action_id = parameter_action_id AND 
-                    principal_access_policies.scoped_resource_type = selected_resource_type AND (
-                        principal_access_policies.scoped_access_policy_id = selected_resource_id OR
-                        principal_access_policies.scoped_action_id = selected_resource_id OR
-                        principal_access_policies.scoped_action_log_entry_id = selected_resource_id OR
-                        principal_access_policies.scoped_app_id = selected_resource_id OR
-                        principal_access_policies.scoped_app_authorization_id = selected_resource_id OR
-                        principal_access_policies.scoped_app_authorization_credential_id = selected_resource_id OR
-                        principal_access_policies.scoped_app_credential_id = selected_resource_id OR
-                        principal_access_policies.scoped_configuration_id = selected_resource_id OR
-                        principal_access_policies.scoped_delegation_policy_id = selected_resource_id OR
-                        principal_access_policies.scoped_field_id = selected_resource_id OR
-                        principal_access_policies.scoped_field_choice_id = selected_resource_id OR
-                        principal_access_policies.scoped_field_value_id = selected_resource_id OR
-                        principal_access_policies.scoped_group_id = selected_resource_id OR
-                        principal_access_policies.scoped_http_transaction_id = selected_resource_id OR
-                        principal_access_policies.scoped_item_id = selected_resource_id OR
-                        principal_access_policies.scoped_item_connection_id = selected_resource_id OR
-                        principal_access_policies.scoped_item_connection_type_id = selected_resource_id OR
-                        principal_access_policies.scoped_item_type_id = selected_resource_id OR
-                        principal_access_policies.scoped_item_type_icon_id = selected_resource_id OR
-                        principal_access_policies.scoped_iteration_id = selected_resource_id OR
-                        principal_access_policies.scoped_membership_id = selected_resource_id OR
-                        principal_access_policies.scoped_membership_invitation_id = selected_resource_id OR
-                        principal_access_policies.scoped_milestone_id = selected_resource_id OR
-                        principal_access_policies.scoped_app_authorization_id = selected_resource_id OR
-                        principal_access_policies.scoped_project_id = selected_resource_id OR
-                        principal_access_policies.scoped_role_id = selected_resource_id OR
-                        principal_access_policies.scoped_server_log_entry_id = selected_resource_id OR
-                        selected_resource_type = 'Server' OR
-                        principal_access_policies.scoped_session_id = selected_resource_id OR
-                        principal_access_policies.scoped_status_id = selected_resource_id OR
-                        principal_access_policies.scoped_user_id = selected_resource_id OR
-                        principal_access_policies.scoped_view_id = selected_resource_id OR
-                        principal_access_policies.scoped_view_field_id = selected_resource_id OR
-                        principal_access_policies.scoped_webhook_id = selected_resource_id OR
-                        principal_access_policies.scoped_workspace_id = selected_resource_id
-                    ) AND (
-                        NOT needs_inheritance OR 
-                        principal_access_policies.is_inheritance_enabled
-                    );
-
             IF individual_permission_level IS NULL OR can_update_individual_permission_level THEN
 
                 original_permission_level := individual_permission_level;
@@ -103,7 +53,7 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 INTO
                     individual_permission_level
                 FROM
-                    matching_access_policies
+                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, parameter_action_id, selected_resource_type, selected_resource_id, needs_inheritance) matching_access_policies
                 WHERE
                     (
                         matching_access_policies.principal_type = 'User' OR
@@ -136,7 +86,7 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 INTO
                     role_permission_level
                 FROM
-                    matching_access_policies
+                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, parameter_action_id, selected_resource_type, selected_resource_id, needs_inheritance) matching_access_policies
                 WHERE
                     (
                         matching_access_policies.principal_type = 'User' OR
@@ -169,7 +119,7 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 INTO
                     group_permission_level
                 FROM
-                    matching_access_policies
+                    get_principal_access_policies(parameter_principal_type, parameter_principal_id, parameter_action_id, selected_resource_type, selected_resource_id, needs_inheritance) matching_access_policies
                 WHERE
                     (
                         matching_access_policies.principal_type = 'User' OR
