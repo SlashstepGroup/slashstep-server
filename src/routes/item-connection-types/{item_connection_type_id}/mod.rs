@@ -44,7 +44,8 @@ async fn handle_get_item_connection_type_request(
   let target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
   let get_item_connection_types_action = get_action_by_name("itemConnectionTypes.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_item_connection_types_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &get_item_connection_types_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &get_item_connection_types_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -81,7 +82,8 @@ async fn handle_delete_item_connection_type_request(
   let target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
   let delete_item_connection_types_action = get_action_by_name("itemConnectionTypes.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_item_connection_types_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &delete_item_connection_types_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &delete_item_connection_types_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_item_connection_type.delete(&state.database_pool).await {
 
@@ -144,7 +146,8 @@ async fn handle_patch_item_connection_type_request(
   let original_target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("itemConnectionTypes.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace(&format!("Updating item connection type {}...", original_target_item_connection_type.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_item_connection_type = match original_target_item_connection_type.update(&updated_item_connection_type_properties, &state.database_pool).await {

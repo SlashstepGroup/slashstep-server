@@ -31,7 +31,8 @@ async fn handle_list_actions_request(
   let list_resources_action = get_action_by_name("actions.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
     "parent_app_id = {}{}", 
@@ -119,7 +120,8 @@ async fn handle_create_action_request(
   let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
   let create_actions_action = get_action_by_name("actions.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_actions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &create_actions_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &create_actions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Create the action.
   ServerLogEntry::trace(&format!("Creating action for authenticated_app {}...", target_app.id), Some(&http_transaction.id), &state.database_pool).await.ok();

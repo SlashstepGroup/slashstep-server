@@ -19,8 +19,7 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      ActionPermissionLevel,
-      PrincipalWithID
+      ActionPermissionLevel
     }, action::Action, configuration::{self, Configuration},
   }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };

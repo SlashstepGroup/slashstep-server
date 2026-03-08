@@ -46,7 +46,8 @@ async fn handle_get_field_request(
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
   let get_fields_action = get_action_by_name("fields.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_fields_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &get_fields_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &get_fields_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -83,7 +84,8 @@ async fn handle_delete_field_request(
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
   let delete_fields_action = get_action_by_name("fields.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_fields_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &delete_fields_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &delete_fields_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_field.delete(&state.database_pool).await {
 
@@ -144,7 +146,8 @@ async fn handle_patch_field_request(
   let original_target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("fields.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace(&format!("Updating field {}...", original_target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_field = match original_target_field.update(&updated_field_properties, &state.database_pool).await {

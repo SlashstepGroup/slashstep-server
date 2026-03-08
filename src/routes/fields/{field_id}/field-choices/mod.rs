@@ -73,7 +73,8 @@ pub async fn handle_list_field_choices_request(
   let list_resources_action = get_action_by_name("fieldChoices.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
     "field_id = {}{}", 
@@ -172,7 +173,8 @@ async fn handle_create_field_choice_request(
   let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
   let create_field_choices_action = get_action_by_name("fieldChoices.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &create_field_choices_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &create_field_choices_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Create the authenticated field choice.
   ServerLogEntry::trace(&format!("Creating field choice for field {}...", target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();

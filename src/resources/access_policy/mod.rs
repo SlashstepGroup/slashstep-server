@@ -440,14 +440,6 @@ pub struct EditableAccessPolicyProperties {
 
 }
 
-#[derive(Debug, Clone)]
-pub enum PrincipalWithID {
-  User(Uuid),
-  App(Uuid),
-  Group(Uuid),
-  Role(Uuid)
-}
-
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct InitialAccessPolicyPropertiesForPredefinedScope {
   pub action_id: Uuid,

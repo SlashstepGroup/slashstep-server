@@ -44,7 +44,8 @@ async fn handle_get_delegation_policy_request(
   let target_delegation_policy = get_delegation_policy_by_id(&delegation_policy_id, &http_transaction, &state.database_pool).await?;
   let get_delegation_policies_action = get_action_by_name("delegationPolicies.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_delegation_policies_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &get_delegation_policies_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &get_delegation_policies_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -81,7 +82,8 @@ async fn handle_delete_delegation_policy_request(
   let target_delegation_policy = get_delegation_policy_by_id(&delegation_policy_id, &http_transaction, &state.database_pool).await?;
   let delete_delegation_policies_action = get_action_by_name("delegationPolicies.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_delegation_policies_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &delete_delegation_policies_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &delete_delegation_policies_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_delegation_policy.delete(&state.database_pool).await {
 
@@ -129,7 +131,8 @@ async fn handle_patch_delegation_policy_request(
   let original_target_delegation_policy = get_delegation_policy_by_id(&delegation_policy_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("delegationPolicies.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace(&format!("Updating delegation policy {}...", original_target_delegation_policy.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_delegation_policy = match original_target_delegation_policy.update(&updated_delegation_policy_properties, &state.database_pool).await {

@@ -37,7 +37,8 @@ pub async fn handle_list_memberships_request(
   let list_resources_action = get_action_by_name("memberships.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
     "parent_group_id = {}{}", 
@@ -134,7 +135,8 @@ async fn handle_create_membership_request(
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
   let create_memberships_action = get_action_by_name("memberships.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_memberships_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &create_memberships_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &create_memberships_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Create the membership.
   ServerLogEntry::trace(&format!("Creating membership on group {}...", target_group.id), Some(&http_transaction.id), &state.database_pool).await.ok();

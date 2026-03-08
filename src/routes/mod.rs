@@ -6,8 +6,8 @@ mod action_log_entries;
 // mod apps;
 // #[path = "./app-authorizations/mod.rs"]
 // mod app_authorizations;
-// #[path = "./app-authorization-credentials/mod.rs"]
-// mod app_authorization_credentials;
+#[path = "./app-authorization-credentials/mod.rs"]
+mod app_authorization_credentials;
 // #[path = "./app-credentials/mod.rs"]
 // mod app_credentials;
 // mod configurations;
@@ -70,7 +70,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(action_log_entries::get_router(state.clone()))
     // .merge(apps::get_router(state.clone()))
     // .merge(app_authorizations::get_router(state.clone()))
-    // .merge(app_authorization_credentials::get_router(state.clone()))
+    .merge(app_authorization_credentials::get_router(state.clone()))
     // .merge(app_credentials::get_router(state.clone()))
     // .merge(configurations::get_router(state.clone()))
     // .merge(delegation_policies::get_router(state.clone()))
