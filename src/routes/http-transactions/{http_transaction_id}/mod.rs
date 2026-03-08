@@ -12,9 +12,6 @@
 
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
-// mod actions;
-// #[path = "./app-credentials/mod.rs"]
-// mod app_credentials;
 #[cfg(test)]
 mod tests;
 
@@ -26,9 +23,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    access_policy::{ActionPermissionLevel, ResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_http_transaction_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_http_transaction_by_id, get_principal_type_and_id_from_principal, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}
 };
 
 /// GET /http-transactions/{http_transaction_id}
@@ -49,7 +46,7 @@ async fn handle_get_http_transaction_request(
   let get_http_transactions_action = get_action_by_name("httpTransactions.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_http_transactions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &get_http_transactions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::HTTPTransaction, Some(&target_http_transaction.id), &get_http_transactions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -87,7 +84,7 @@ async fn handle_delete_http_transaction_request(
   let delete_http_transactions_action = get_action_by_name("httpTransactions.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_http_transactions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &delete_http_transactions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::HTTPTransaction, Some(&target_http_transaction.id), &delete_http_transactions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_http_transaction.delete(&state.database_pool).await {
 
@@ -116,95 +113,11 @@ async fn handle_delete_http_transaction_request(
 
 }
 
-// /// PATCH /http-transactions/{http_transaction_id}
-// /// 
-// /// Updates an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_patch_app_request(
-//   Path(http_transaction_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-//   body: Result<Json<EditableAppProperties>, JsonRejection>
-// ) -> Result<Json<App>, HTTPError> {
-
-//   let http_transaction = http_transaction.clone();
-
-//   ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &state.database_pool).await.ok();
-//   let updated_app_properties = match body {
-
-//     Ok(updated_app_properties) => updated_app_properties,
-
-//     Err(error) => {
-
-//       let http_error = match error {
-
-//         JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
-
-//         JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
-
-//         JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
-
-//         JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
-
-//         _ => HTTPError::InternalServerError(Some(error.to_string()))
-
-//       };
-      
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-//       return Err(http_error);
-
-//     }
-
-//   };
-
-//   let original_target_http_transaction = get_app_by_id(&http_transaction_id, &http_transaction, &state.database_pool).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&original_target_http_transaction, &ResourceType::App, &original_target_http_transaction.id, &http_transaction, &state.database_pool).await?;
-//   let update_access_policy_action = get_action_by_name("apps.update", &http_transaction, &state.database_pool).await?;
-//   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-//   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-//   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-
-//   ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_http_transaction.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-//   let updated_target_action = match original_target_http_transaction.update(&updated_app_properties, &state.database_pool).await {
-
-//     Ok(updated_target_action) => updated_target_action,
-
-//     Err(error) => {
-
-//       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update authenticated_app: {:?}", error)));
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-//       return Err(http_error);
-
-//     }
-
-//   };
-
-//   ActionLogEntry::create(&InitialActionLogEntryProperties {
-//     action_id: update_access_policy_action.id,
-//     http_transaction_id: Some(http_transaction.id),
-//     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-//     actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-//     actor_http_transaction_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-//     target_resource_type: ActionLogEntryTargetResourceType::Action,
-//     target_action_id: Some(updated_target_action.id),
-//     ..Default::default()
-//   }, &state.database_pool).await.ok();
-//   ServerLogEntry::success(&format!("Successfully updated action {}.", updated_target_action.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-
-//   return Ok(Json(updated_target_action));
-
-// }
-
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/http-transactions/{http_transaction_id}", axum::routing::get(handle_get_http_transaction_request))
     .route("/http-transactions/{http_transaction_id}", axum::routing::delete(handle_delete_http_transaction_request))
-    // .route("/http-transactions/{http_transaction_id}", axum::routing::patch(handle_patch_app_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))

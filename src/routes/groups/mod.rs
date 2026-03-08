@@ -19,7 +19,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_request_body_without_json_rejection, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties, ResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /groups
 /// 
@@ -144,7 +144,7 @@ async fn create_membership(initial_membership_properties: &InitialMembershipProp
 
 }
 
-async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool, authenticated_principal: &AuthenticatedPrincipal) -> Result<(), HTTPError> {
+async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool, principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid) -> Result<(), HTTPError> {
 
   ServerLogEntry::trace("Creating default child resources for group...", Some(&http_transaction.id), database_pool).await.ok();
 
@@ -215,9 +215,9 @@ async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTr
   create_membership(&InitialMembershipProperties {
     parent_resource_type: MembershipParentResourceType::Role,
     parent_role_id: Some(group_admins_role.id),
-    principal_type: if let AuthenticatedPrincipal::User(_) = authenticated_principal { MembershipPrincipalType::User } else { MembershipPrincipalType::App },
-    principal_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    principal_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    principal_type: if principal_type == &AccessPolicyPrincipalType::User { MembershipPrincipalType::User } else { MembershipPrincipalType::App },
+    principal_user_id: if let AccessPolicyPrincipalType::User = principal_type { Some(principal_id.clone()) } else { None },
+    principal_app_id: if let AccessPolicyPrincipalType::App = principal_type { Some(principal_id.clone()) } else { None },
     ..Default::default()
   }, &http_transaction.id, &database_pool).await?;
 
@@ -277,9 +277,9 @@ async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTr
   create_membership(&InitialMembershipProperties {
     parent_resource_type: MembershipParentResourceType::Role,
     parent_role_id: Some(group_members_role.id),
-    principal_type: if let AuthenticatedPrincipal::User(_) = authenticated_principal { MembershipPrincipalType::User } else { MembershipPrincipalType::App },
-    principal_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    principal_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    principal_type: if principal_type == &AccessPolicyPrincipalType::User { MembershipPrincipalType::User } else { MembershipPrincipalType::App },
+    principal_user_id: if let AccessPolicyPrincipalType::User = principal_type { Some(principal_id.clone()) } else { None },
+    principal_app_id: if let AccessPolicyPrincipalType::App = principal_type { Some(principal_id.clone()) } else { None },
     ..Default::default()
   }, &http_transaction.id, &database_pool).await?;
 
@@ -317,7 +317,7 @@ async fn handle_create_group_request(
   let create_groups_action = get_action_by_name("groups.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_groups_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &create_groups_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &create_groups_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Create the group.
   ServerLogEntry::trace("Creating group...", Some(&http_transaction.id), &state.database_pool).await.ok();
@@ -349,7 +349,7 @@ async fn handle_create_group_request(
   }, &state.database_pool).await.ok();
   ServerLogEntry::info(&format!("Successfully created group {}.", group.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 
-  if let Err(error) = create_default_child_resources(&group, &http_transaction, &state.database_pool, &authenticated_principal).await {
+  if let Err(error) = create_default_child_resources(&group, &http_transaction, &state.database_pool, &principal_type, &principal_id).await {
 
     ServerLogEntry::trace("Deleting group due to error creating default child resources...", Some(&http_transaction.id), &state.database_pool).await.ok();
     if let Err(delete_error) = group.delete(&state.database_pool).await {

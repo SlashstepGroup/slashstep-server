@@ -20,9 +20,9 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      ActionPermissionLevel
+      AccessPolicyPrincipalType, ActionPermissionLevel
     }, action::Action, item_connection_type::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, ItemConnectionType},
-  }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
+  }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested list.

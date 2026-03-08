@@ -18,16 +18,16 @@ mod fields;
 mod field_choices;
 #[path = "./field-values/mod.rs"]
 mod field_values;
-// mod groups;
-// #[path = "./http-transactions/mod.rs"]
-// mod http_transactions;
-// mod items;
+mod groups;
+#[path = "./http-transactions/mod.rs"]
+mod http_transactions;
+mod items;
 // #[path = "./item-connections/mod.rs"]
 // mod item_connections;
-// #[path = "./item-connection-types/mod.rs"]
-// mod item_connection_types;
-// #[path = "./memberships/mod.rs"]
-// mod memberships;
+#[path = "./item-connection-types/mod.rs"]
+mod item_connection_types;
+#[path = "./memberships/mod.rs"]
+mod memberships;
 // mod milestones;
 // #[path = "./oauth-access-tokens/mod.rs"]
 // mod oauth_access_tokens;
@@ -77,12 +77,12 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(fields::get_router(state.clone()))
     .merge(field_choices::get_router(state.clone()))
     .merge(field_values::get_router(state.clone()))
-    // .merge(groups::get_router(state.clone()))
-    // .merge(http_transactions::get_router(state.clone()))
-    // .merge(items::get_router(state.clone()))
+    .merge(groups::get_router(state.clone()))
+    .merge(http_transactions::get_router(state.clone()))
+    .merge(items::get_router(state.clone()))
     // .merge(item_connections::get_router(state.clone()))
-    // .merge(item_connection_types::get_router(state.clone()))
-    // .merge(memberships::get_router(state.clone()))
+    .merge(item_connection_types::get_router(state.clone()))
+    .merge(memberships::get_router(state.clone()))
     // .merge(milestones::get_router(state.clone()))
     // .merge(oauth_access_tokens::get_router(state.clone()))
     // .merge(projects::get_router(state.clone()))
