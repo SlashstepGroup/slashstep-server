@@ -67,7 +67,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
     .merge(access_policies::get_router(state.clone()))
     .merge(actions::get_router(state.clone()))
-    // .merge(action_log_entries::get_router(state.clone()))
+    .merge(action_log_entries::get_router(state.clone()))
     // .merge(apps::get_router(state.clone()))
     // .merge(app_authorizations::get_router(state.clone()))
     // .merge(app_authorization_credentials::get_router(state.clone()))
