@@ -19,9 +19,9 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      ActionPermissionLevel
+      AccessPolicyPrincipalType, ActionPermissionLevel
     }, action::Action, app_authorization::{AppAuthorization, DEFAULT_APP_AUTHORIZATION_LIST_LIMIT},
-  }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
+  }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested resource list.
