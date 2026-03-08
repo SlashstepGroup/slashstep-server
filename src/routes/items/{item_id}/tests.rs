@@ -14,6 +14,7 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
+use rust_decimal::Decimal;
 use uuid::Uuid;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
@@ -21,7 +22,7 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     ResourceError, access_policy::
-      ActionPermissionLevel, item::{EditableItemProperties, Item}
+      ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, item::{EditableItemProperties, Item}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -629,6 +630,51 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the item summary is over the maximum length.
+#[tokio::test]
+async fn verify_item_summary_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "items.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+
+  // Set up the server and send the request.
+  let maximum_item_summary_length_configuration = Configuration::get_by_name("items.maximumSummaryLength", &test_environment.database_pool).await?;
+  maximum_item_summary_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let initial_group_properties = EditableItemProperties {
+    summary: Some(Uuid::now_v7().to_string()),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/items/{}", Uuid::now_v7()))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(initial_group_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
   return Ok(());
 

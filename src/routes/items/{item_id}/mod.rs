@@ -19,7 +19,7 @@ use crate::{
   resources::{
     access_policy::{ActionPermissionLevel, ResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item::{EditableItemProperties, Item}, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_item_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_item_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_field_length, verify_delegate_permissions, verify_principal_permissions}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -132,6 +132,11 @@ async fn handle_patch_item_request(
 
   let item_id = get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
   let updated_item_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  if let Some(summary) = &updated_item_properties.summary {
+
+    validate_field_length(summary, "items.maximumSummaryLength", "summary", &http_transaction, &state.database_pool).await?;
+
+  }
   let original_target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("items.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
