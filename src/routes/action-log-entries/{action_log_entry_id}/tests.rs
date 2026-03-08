@@ -18,8 +18,8 @@ use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles
   }, resources::{
-    ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
+    ResourceType, ResourceError, access_policy::{
+      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
     }, action_log_entry::ActionLogEntry,
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };

@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
-    ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
+    ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     }, field::{DEFAULT_RESOURCE_LIST_LIMIT, Field, FieldValueType, InitialFieldProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -14,7 +14,6 @@ fn assert_fields_are_equal(field_1: &Field, field_2: &Field) {
   assert_eq!(field_1.name, field_2.name);
   assert_eq!(field_1.display_name, field_2.display_name);
   assert_eq!(field_1.description, field_2.description);
-  assert_eq!(field_1.is_required, field_2.is_required);
   assert_eq!(field_1.field_value_type, field_2.field_value_type);
   assert_eq!(field_1.minimum_value, field_2.minimum_value);
   assert_eq!(field_1.maximum_value, field_2.maximum_value);
@@ -29,7 +28,6 @@ fn assert_field_is_equal_to_initial_properties(field: &Field, initial_properties
   assert_eq!(field.name, initial_properties.name);
   assert_eq!(field.display_name, initial_properties.display_name);
   assert_eq!(field.description, initial_properties.description);
-  assert_eq!(field.is_required, initial_properties.is_required);
   assert_eq!(field.field_value_type, initial_properties.field_value_type);
   assert_eq!(field.minimum_value, initial_properties.minimum_value);
   assert_eq!(field.maximum_value, initial_properties.maximum_value);
@@ -75,7 +73,6 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
     name: Uuid::now_v7().to_string(),
     display_name: Uuid::now_v7().to_string(),
     description: Uuid::now_v7().to_string(),
-    is_required: true,
     field_value_type: FieldValueType::Text,
     parent_project_id: project.id,
     ..Default::default()
@@ -270,7 +267,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
       permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
-      scoped_resource_type: crate::resources::access_policy::ResourceType::Field,
+      scoped_resource_type: ResourceType::Field,
       scoped_field_id: Some(scoped_field.id.clone()),
       ..Default::default()
     }, &test_environment.database_pool).await?;

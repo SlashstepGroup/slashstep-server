@@ -25,7 +25,6 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "name",
   "display_name",
   "description",
-  "is_required",
   "type",
   "minimum_value",
   "maximum_value",
@@ -76,9 +75,6 @@ pub struct InitialFieldProperties {
   /// The field's description.
   pub description: String,
 
-  /// Whether the field is required.
-  pub is_required: bool,
-
   /// The field's type.
   pub field_value_type: FieldValueType,
 
@@ -114,9 +110,6 @@ pub struct EditableFieldProperties {
   /// The field's description.
   pub description: Option<String>,
 
-  /// Whether the field is required.
-  pub is_required: Option<bool>,
-
   /// The field's minimum value.
   pub minimum_value: Option<Option<Decimal>>,
 
@@ -148,9 +141,6 @@ pub struct Field {
 
   /// The field's description.
   pub description: String,
-
-  /// Whether the field is required.
-  pub is_required: bool,
 
   /// The field's type.
   pub field_value_type: FieldValueType,
@@ -236,7 +226,6 @@ impl Field {
       name: row.get("name"),
       display_name: row.get("display_name"),
       description: row.get("description"),
-      is_required: row.get("is_required"),
       field_value_type: row.get("type"),
       minimum_value: row.get("minimum_value"),
       maximum_value: row.get("maximum_value"),
@@ -266,7 +255,6 @@ impl Field {
       &initial_properties.name,
       &initial_properties.display_name,
       &initial_properties.description,
-      &initial_properties.is_required,
       &initial_properties.field_value_type,
       &initial_properties.minimum_value,
       &initial_properties.maximum_value,
@@ -354,7 +342,6 @@ impl Field {
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
-    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "is_required", properties.is_required.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "minimum_value", properties.minimum_value.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "maximum_value", properties.maximum_value.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "minimum_choice_count", properties.minimum_choice_count.as_ref());

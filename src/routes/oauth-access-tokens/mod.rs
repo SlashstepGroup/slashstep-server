@@ -23,7 +23,7 @@ use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware::get_decoding_key, http_transaction_middleware}, resources::{ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::{App, AppClientType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialClaims, InitialAppAuthorizationCredentialProperties}, configuration::Configuration, http_transaction::HTTPTransaction, oauth_authorization::{EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims}, server_log_entry::ServerLogEntry}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_json_web_token_private_key, get_json_web_token_public_key}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware::get_decoding_key, http_transaction_middleware}, resources::{ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, AppClientType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialClaims, InitialAppAuthorizationCredentialProperties}, configuration::Configuration, http_transaction::HTTPTransaction, oauth_authorization::{EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims}, server_log_entry::ServerLogEntry}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_json_web_token_private_key, get_json_web_token_public_key}};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct CreateOAuthAccessTokenQueryParameters {
@@ -467,7 +467,7 @@ pub async fn create_app_authorization(oauth_authorization: &OAuthAuthorization, 
     actor_type: ActionLogEntryActorType::App,
     actor_user_id: None,
     actor_app_id: Some(oauth_authorization.app_id),
-    target_resource_type: ActionLogEntryTargetResourceType::AppAuthorization,
+    target_resource_type: ResourceType::AppAuthorization,
     target_app_authorization_id: Some(app_authorization.id),
     reason: Some("OAuth authorization code was used to create an app authorization.".to_string()),
     ..Default::default()
@@ -735,7 +735,7 @@ pub async fn delete_app_authorization(app_authorization: &AppAuthorization, http
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
     actor_type: ActionLogEntryActorType::Server,
-    target_resource_type: ActionLogEntryTargetResourceType::AppAuthorization,
+    target_resource_type: ResourceType::AppAuthorization,
     target_app_authorization_id: Some(app_authorization.id),
     reason: Some("OAuth authorization code was reused. Deleting this app authorization in accordance with the OAuth 2.0 specification.".to_string()),
     ..Default::default()
@@ -968,7 +968,7 @@ async fn handle_create_oauth_access_token_request(
       actor_type: ActionLogEntryActorType::App,
       actor_user_id: None,
       actor_app_id: Some(app_authorization_credential.app_authorization_id),
-      target_resource_type: ActionLogEntryTargetResourceType::AppAuthorizationCredential,
+      target_resource_type: ResourceType::AppAuthorizationCredential,
       target_app_authorization_credential_id: Some(app_authorization_credential.id),
       reason: Some("Refresh token was used to create a new access token.".to_string()),
       ..Default::default()
@@ -1088,7 +1088,7 @@ async fn handle_create_oauth_access_token_request(
     expiration_timestamp,
     actor_type: ActionLogEntryActorType::App,
     actor_app_id: Some(app_authorization.app_id),
-    target_resource_type: ActionLogEntryTargetResourceType::AppAuthorizationCredential,
+    target_resource_type: ResourceType::AppAuthorizationCredential,
     target_app_authorization_credential_id: Some(app_authorization_credential.id),
     reason: Some("OAuth was used to create an app authorization credential.".to_string()),
     ..Default::default()

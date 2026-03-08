@@ -11,8 +11,8 @@
 
 use std::cmp;
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{access_policy::{
-    AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, EditableAccessPolicyProperties, InitialAccessPolicyProperties
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{ResourceType, access_policy::{
+    AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, EditableAccessPolicyProperties, InitialAccessPolicyProperties
   }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}
 };
 

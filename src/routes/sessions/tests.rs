@@ -19,7 +19,7 @@
 //     initialize_predefined_roles
 //   }, resources::{
 //     access_policy::{
-//       AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties
+//       AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
 //     }, action::Action, app::{App, DEFAULT_RESOURCE_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT},
 //   }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 // };
