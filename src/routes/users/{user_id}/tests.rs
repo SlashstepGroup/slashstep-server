@@ -216,7 +216,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 
@@ -389,7 +389,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
-//     scoped_resource_type: AccessPolicyResourceType::Server,
+//     scoped_resource_type: ResourceType::Server,
 //     ..Default::default()
 //   }, &test_environment.database_pool).await?;
 

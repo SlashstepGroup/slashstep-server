@@ -8,6 +8,8 @@ INSERT INTO field_values (
   number_value,
   boolean_value,
   timestamp_value,
+  iteration_id_value,
+  milestone_id_value,
   stakeholder_type,
   stakeholder_user_id,
   stakeholder_group_id,
@@ -25,5 +27,7 @@ INSERT INTO field_values (
   $10,
   $11,
   $12,
-  $13
+  $13,
+  $14,
+  $15
 ) RETURNING *;

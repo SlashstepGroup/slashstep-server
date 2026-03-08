@@ -13,7 +13,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{route_handler_utilities::{AuthenticatedPrincipal, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_authorization_credential_by_id, get_authenticated_principal, get_individual_principal_from_authenticated_principal, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope, ResourceType}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_authorization_credential_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
 
 #[cfg(test)]
 mod tests;
@@ -38,17 +38,15 @@ async fn handle_list_access_policies_request(
   // Make sure the principal has access to list resources.
   let list_resources_action = get_action_by_name("accessPolicies.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  let resource_hierarchy = get_resource_hierarchy(&app_authorization_credential, &AccessPolicyResourceType::AppAuthorizationCredential, &app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
-  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AppAuthorizationCredential, Some(&app_authorization_credential.id), &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
     "scoped_resource_type = 'AppAuthorizationCredential' AND scoped_app_authorization_credential_id = {}{}", 
     quote_literal(&app_authorization_credential_id.to_string()), 
     query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
   );
-  let queried_resources = match AccessPolicy::list(&query, &state.database_pool, Some(&individual_principal)).await {
+  let queried_resources = match AccessPolicy::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 
     Ok(queried_resources) => queried_resources,
 
@@ -72,7 +70,7 @@ async fn handle_list_access_policies_request(
   };
 
   ServerLogEntry::trace(&format!("Counting access policies..."), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let resource_count = match AccessPolicy::count(&query, &state.database_pool, Some(&individual_principal)).await {
+  let resource_count = match AccessPolicy::count(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 
     Ok(resource_count) => resource_count,
 
@@ -92,9 +90,9 @@ async fn handle_list_access_policies_request(
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::AppAuthorizationCredential,
     target_app_authorization_credential_id: Some(app_authorization_credential_id),
     ..Default::default()
@@ -130,16 +128,15 @@ async fn handle_create_access_policy_request(
 
   // Make sure the authenticated_user can create access policies for the target app authorization credential.
   let target_app_authorization_credential = get_app_authorization_credential_by_id(&app_authorization_credential_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_app_authorization_credential, &AccessPolicyResourceType::AppAuthorizationCredential, &target_app_authorization_credential.id, &http_transaction, &state.database_pool).await?;
   let create_access_policies_action = get_action_by_name("accessPolicies.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_access_policies_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&authenticated_principal, &create_access_policies_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AppAuthorizationCredential, Some(&target_app_authorization_credential.id), &create_access_policies_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Make sure the authenticated_user has at least editor access to the access policy's action.
   let access_policy_action = get_action_by_id(&access_policy_properties_json.action_id, &http_transaction, &state.database_pool).await?;
   let minimum_permission_level = if access_policy_properties_json.permission_level > ActionPermissionLevel::Editor { access_policy_properties_json.permission_level } else { ActionPermissionLevel::Editor };
-  verify_principal_permissions(&authenticated_principal, &access_policy_action, &resource_hierarchy, &http_transaction, &minimum_permission_level, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AppAuthorizationCredential, Some(&target_app_authorization_credential.id), &access_policy_action, &http_transaction, &minimum_permission_level, &state.database_pool).await?;
 
   // Create the access policy.
   ServerLogEntry::trace(&format!("Creating access policy for app authorization credential {}...", app_authorization_credential_id), Some(&http_transaction.id), &state.database_pool).await.ok();
@@ -152,7 +149,7 @@ async fn handle_create_access_policy_request(
     principal_group_id: access_policy_properties_json.principal_group_id,
     principal_role_id: access_policy_properties_json.principal_role_id,
     principal_app_id: access_policy_properties_json.principal_app_id,
-    scoped_resource_type: AccessPolicyResourceType::AppAuthorizationCredential,
+    scoped_resource_type: ResourceType::AppAuthorizationCredential,
     scoped_app_authorization_credential_id: Some(target_app_authorization_credential.id),
     ..Default::default()
   }, &state.database_pool).await {
@@ -174,9 +171,9 @@ async fn handle_create_access_policy_request(
     action_id: create_access_policies_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::AccessPolicy,
     target_access_policy_id: Some(access_policy.id),
     ..Default::default()

@@ -1,0 +1,1 @@
+SELECT * FROM view_fields WHERE id = $1;

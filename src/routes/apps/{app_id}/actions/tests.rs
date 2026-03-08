@@ -16,7 +16,7 @@ use ntest::timeout;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, InitialActionPropertiesForPredefinedScope},}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, InitialActionPropertiesForPredefinedScope},}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 201 status code and the created resource.
 #[tokio::test]
@@ -269,10 +269,10 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   assert_eq!(response_body.resources.len(), 1);
 
   let query = format!("parent_app_id = {}", quote_literal(&dummy_app.id.to_string()));
-  let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_action_count);
 
-  let actual_access_policies = Action::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_access_policies = Action::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.resources.len(), actual_access_policies.len());
   assert_eq!(response_body.resources[0].id, actual_access_policies[0].id);
   assert_eq!(response_body.resources[0].id, dummy_action.id);
@@ -330,10 +330,10 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   assert_eq!(response_body.resources.len(), 1);
 
   let query = format!("parent_app_id = {} AND ({})", quote_literal(&dummy_app.id.to_string()), &additional_query);
-  let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_action_count = Action::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_action_count);
 
-  let actual_actions = Action::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_actions = Action::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.resources.len(), actual_actions.len());
   assert_eq!(response_body.resources[0].id, actual_actions[0].id);
   assert_eq!(response_body.resources[0].id, dummy_action.id);
@@ -364,7 +364,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -376,13 +376,13 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
   // Create dummy resources.
   let dummy_app = test_environment.create_random_app().await?;
-  let action_count = Action::count(format!("parent_app_id = {}", quote_literal(&dummy_app.id.to_string())).as_str(), &test_environment.database_pool, None).await?;
+  let action_count = Action::count(format!("parent_app_id = {}", quote_literal(&dummy_app.id.to_string())).as_str(), &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_ACTION_LIST_LIMIT - action_count + 1) {
 
     test_environment.create_random_action(Some(&dummy_app.id)).await?;
@@ -433,7 +433,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -445,7 +445,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -493,7 +493,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
@@ -505,7 +505,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   }, &test_environment.database_pool).await?;
 

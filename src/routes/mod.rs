@@ -22,23 +22,23 @@ mod groups;
 #[path = "./http-transactions/mod.rs"]
 mod http_transactions;
 mod items;
-#[path = "./item-connections/mod.rs"]
-mod item_connections;
+// #[path = "./item-connections/mod.rs"]
+// mod item_connections;
 #[path = "./item-connection-types/mod.rs"]
 mod item_connection_types;
 #[path = "./memberships/mod.rs"]
 mod memberships;
-mod milestones;
-#[path = "./oauth-access-tokens/mod.rs"]
-mod oauth_access_tokens;
-mod projects;
-mod roles;
-#[path = "./server-log-entries/mod.rs"]
-mod server_log_entries;
-mod sessions;
-mod users;
-mod views;
-mod workspaces;
+// mod milestones;
+// #[path = "./oauth-access-tokens/mod.rs"]
+// mod oauth_access_tokens;
+// mod projects;
+// mod roles;
+// #[path = "./server-log-entries/mod.rs"]
+// mod server_log_entries;
+// mod sessions;
+// mod users;
+// mod views;
+// mod workspaces;
 
 use axum::{Router, response::IntoResponse};
 use serde::{Deserialize, Serialize};
@@ -80,18 +80,18 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(groups::get_router(state.clone()))
     .merge(http_transactions::get_router(state.clone()))
     .merge(items::get_router(state.clone()))
-    .merge(item_connections::get_router(state.clone()))
+    // .merge(item_connections::get_router(state.clone()))
     .merge(item_connection_types::get_router(state.clone()))
     .merge(memberships::get_router(state.clone()))
-    .merge(milestones::get_router(state.clone()))
-    .merge(oauth_access_tokens::get_router(state.clone()))
-    .merge(projects::get_router(state.clone()))
-    .merge(roles::get_router(state.clone()))
-    .merge(server_log_entries::get_router(state.clone()))
-    .merge(sessions::get_router(state.clone()))
-    .merge(users::get_router(state.clone()))
-    .merge(views::get_router(state.clone()))
-    .merge(workspaces::get_router(state.clone()))
+    // .merge(milestones::get_router(state.clone()))
+    // .merge(oauth_access_tokens::get_router(state.clone()))
+    // .merge(projects::get_router(state.clone()))
+    // .merge(roles::get_router(state.clone()))
+    // .merge(server_log_entries::get_router(state.clone()))
+    // .merge(sessions::get_router(state.clone()))
+    // .merge(users::get_router(state.clone()))
+    // .merge(views::get_router(state.clone()))
+    // .merge(workspaces::get_router(state.clone()))
     .fallback(fallback);
   return router;
 

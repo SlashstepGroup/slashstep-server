@@ -1,8 +1,22 @@
+/**
+ * 
+ * This module defines the implementation and types of an action log entry.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
+
+#[cfg(test)]
+mod tests;
+
 use chrono::{DateTime, Utc};
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{DeletableResource, ResourceError, access_policy::IndividualPrincipal}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, access_policy::{AccessPolicyPrincipalType}}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -75,6 +89,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "target_user_id",
   "target_workspace_id"
 ];
+pub const GET_RESOURCE_ACTION_NAME: &str = "actionLogEntries.get";
 
 #[derive(Debug, Clone, FromSql, ToSql, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[postgres(name = "action_log_entry_actor_type")]
@@ -423,7 +438,7 @@ impl ActionLogEntry {
   }
 
   /// Counts the number of action log entries based on a query.
-  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<i64, ResourceError> {
 
     Self::delete_expired_action_log_entries(database_pool).await?;
 
@@ -437,12 +452,13 @@ impl ActionLogEntry {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "ActionLogEntry", "action_log_entries", "actionLogEntries.get", true);
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "ActionLogEntry", "action_log_entries", &get_resource_action_id, true)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query and return the count.
-    let database_client = database_pool.get().await?;
     let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
@@ -499,6 +515,16 @@ impl ActionLogEntry {
     return Ok(action_log_entry);
 
   }
+
+  /// Deletes this action log entry.
+  pub async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/action_log_entries/delete_action_log_entry_row.sql");
+    database_client.execute(query, &[&self.id]).await?;
+    return Ok(());
+
+  }
   
   /// Initializes the action_log_entries table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
@@ -511,7 +537,7 @@ impl ActionLogEntry {
   }
 
   /// Returns a list of action log entries based on a query.
-  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
 
     Self::delete_expired_action_log_entries(database_pool).await?;
     
@@ -525,12 +551,13 @@ impl ActionLogEntry {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, "ActionLogEntry", "action_log_entries", "actionLogEntries.get", false);
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, "ActionLogEntry", "action_log_entries", &get_resource_action_id, false)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(ActionLogEntry::convert_from_row).collect();
     return Ok(actions);
@@ -565,20 +592,3 @@ impl ActionLogEntry {
   }
 
 }
-
-impl DeletableResource for ActionLogEntry {
-
-  /// Deletes this action log entry.
-  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/action_log_entries/delete_action_log_entry_row.sql");
-    database_client.execute(query, &[&self.id]).await?;
-    return Ok(());
-
-  }
-
-}
-
-#[cfg(test)]
-mod tests;

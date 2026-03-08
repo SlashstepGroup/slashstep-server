@@ -8,7 +8,7 @@ use postgres::NoTls;
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}, utilities::resource_hierarchy::ResourceHierarchyError};
+use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, item_type::{InitialItemTypeProperties, ItemType}, item_type_icon::{InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType}, iteration::{InitialIterationProperties, Iteration}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, status::{InitialStatusProperties, Status, StatusType}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, view_field::{InitialViewFieldProperties, ViewField}, webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}};
 use thiserror::Error;
 
 static POSTGRES_CONTAINER_LOCK: OnceLock<Mutex<Weak<ContainerAsync<testcontainers_modules::postgres::Postgres>>>> = OnceLock::new();
@@ -36,9 +36,6 @@ pub enum TestSlashstepServerError {
 
   #[error(transparent)]
   LocalIPAddressError(#[from] local_ip_address::Error),
-
-  #[error(transparent)]
-  ResourceHierarchyError(#[from] ResourceHierarchyError),
 
   #[error(transparent)]
   TestcontainersError(#[from] testcontainers::TestcontainersError),
@@ -431,6 +428,55 @@ impl TestEnvironment {
 
   }
 
+  pub async fn create_random_item_type(&self) -> Result<ItemType, TestSlashstepServerError> {
+
+    let item_type_properties = InitialItemTypeProperties {
+      name: Uuid::now_v7().to_string(),
+      display_name: Uuid::now_v7().to_string(),
+      parent_project_id: self.create_random_project().await?.id,
+      item_type_icon_id: None,
+      description: Some(Uuid::now_v7().to_string())
+    };
+
+    let item_type = ItemType::create(&item_type_properties, &self.database_pool).await?;
+
+    return Ok(item_type);
+
+  }
+
+  pub async fn create_random_item_type_icon(&self, parent_project_id: Option<&Uuid>) -> Result<ItemTypeIcon, TestSlashstepServerError> {
+
+    let parent_project_id = parent_project_id.copied();
+    let item_type_icon_properties = InitialItemTypeIconProperties {
+      display_name: Uuid::now_v7().to_string(),
+      parent_resource_type: if parent_project_id.is_some() { ItemTypeIconParentResourceType::Project } else { ItemTypeIconParentResourceType::Server },
+      parent_project_id: parent_project_id,
+      local_file_path: "./src/icons/default-item-type-icon.svg".to_string()
+    };
+
+    let item_type_icon = ItemTypeIcon::create(&item_type_icon_properties, &self.database_pool).await?;
+
+    return Ok(item_type_icon);
+
+  }
+
+  pub async fn create_random_iteration(&self, parent_project_id: Option<&Uuid>) -> Result<Iteration, TestSlashstepServerError> {
+
+    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project().await?.id);
+    let iteration_properties = InitialIterationProperties {
+      display_name: Uuid::now_v7().to_string(),
+      parent_project_id: parent_project_id,
+      start_date: Utc::now(),
+      end_date: Utc::now() + Duration::days(7),
+      ..Default::default()
+    };
+
+    let iteration = Iteration::create(&iteration_properties, &self.database_pool).await?;
+
+    return Ok(iteration);
+
+  }
+
   pub async fn create_random_membership(&self) -> Result<Membership, TestSlashstepServerError> {
 
     let membership_properties = InitialMembershipProperties {
@@ -490,7 +536,7 @@ impl TestEnvironment {
       description: Some(Uuid::now_v7().to_string()),
       start_date: Some(Utc::now()),
       end_date: Some(Utc::now()),
-      workspace_id: self.create_random_workspace().await?.id
+      parent_workspace_id: self.create_random_workspace().await?.id
     };
 
     let project = Project::create(&project_properties, &self.database_pool).await?;
@@ -545,6 +591,23 @@ impl TestEnvironment {
 
   }
 
+  pub async fn create_random_status(&self, project_id: Option<&Uuid>) -> Result<Status, TestSlashstepServerError> {
+
+    let project_id = project_id.copied().unwrap_or(self.create_random_project().await?.id);
+    let status_properties = InitialStatusProperties {
+      display_name: Uuid::now_v7().to_string(),
+      description: Some(Uuid::now_v7().to_string()),
+      status_type: StatusType::ToDo,
+      parent_project_id: project_id,
+      ..Default::default()
+    };
+
+    let status = Status::create(&status_properties, &self.database_pool).await?;
+
+    return Ok(status);
+
+  }
+
   pub async fn create_random_user(&self) -> Result<User, TestSlashstepServerError> {
 
     let user_properties = InitialUserProperties {
@@ -576,6 +639,22 @@ impl TestEnvironment {
 
   }
 
+  pub async fn create_random_view_field(&self, parent_view_id: Option<&Uuid>, field_id: Option<&Uuid>) -> Result<ViewField, TestSlashstepServerError> {
+
+    let parent_view_id = parent_view_id.copied().unwrap_or(self.create_random_view().await?.id);
+    let field_id = field_id.copied().unwrap_or(self.create_random_field().await?.id);
+    let view_field_properties = InitialViewFieldProperties {
+      parent_view_id,
+      field_id,
+      next_view_field_id: None
+    };
+
+    let view_field = ViewField::create(&view_field_properties, &self.database_pool).await?;
+
+    return Ok(view_field);
+
+  }
+
   pub async fn create_random_access_policy(&self) -> Result<AccessPolicy, TestSlashstepServerError> {
 
     let action = self.create_random_action(None).await?;
@@ -586,7 +665,7 @@ impl TestEnvironment {
       is_inheritance_enabled: true,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Server,
+      scoped_resource_type: crate::resources::access_policy::ResourceType::Server,
       ..Default::default()
     };
 
@@ -604,7 +683,7 @@ impl TestEnvironment {
       is_inheritance_enabled: true,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user_id.clone()),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Server,
+      scoped_resource_type: crate::resources::access_policy::ResourceType::Server,
       ..Default::default()
     }, &self.database_pool).await?;
 
@@ -623,6 +702,22 @@ impl TestEnvironment {
     let workspace = Workspace::create(&workspace_properties, &self.database_pool).await?;
 
     return Ok(workspace);
+
+  }
+
+  pub async fn create_random_webhook(&self) -> Result<Webhook, TestSlashstepServerError> {
+
+    let webhook_properties = InitialWebhookProperties {
+      display_name: Uuid::now_v7().to_string(),
+      url: "https://example.internal".to_string(),
+      parent_resource_type: WebhookParentResourceType::Server,
+      is_enabled: true,
+      ..Default::default()
+    };
+
+    let webhook = Webhook::create(&webhook_properties, &self.database_pool).await?;
+
+    return Ok(webhook);
 
   }
 

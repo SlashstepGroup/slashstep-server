@@ -19,6 +19,8 @@ BEGIN
     number_value DECIMAL,
     boolean_value BOOLEAN,
     timestamp_value TIMESTAMPTZ,
+    iteration_id_value UUID REFERENCES iterations(id) ON DELETE CASCADE,
+    milestone_id_value UUID REFERENCES milestones(id) ON DELETE CASCADE,
     stakeholder_type stakeholder_type,
     stakeholder_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     stakeholder_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
@@ -28,6 +30,8 @@ BEGIN
       OR (value_type = 'Number' AND number_value IS NOT NULL)
       OR (value_type = 'Boolean' AND number_value IS NOT NULL)
       OR (value_type = 'Timestamp' AND timestamp_value IS NOT NULL)
+      OR (value_type = 'Iteration' AND iteration_id_value IS NOT NULL)
+      OR (value_type = 'Milestone' AND milestone_id_value IS NOT NULL)
       OR (value_type = 'Stakeholder' AND stakeholder_type IS NOT NULL AND (
         stakeholder_type = 'User' AND stakeholder_user_id IS NOT NULL
         OR stakeholder_type = 'Group' AND stakeholder_group_id IS NOT NULL

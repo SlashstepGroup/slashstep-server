@@ -22,9 +22,9 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      ActionPermissionLevel, IndividualPrincipal
+      AccessPolicyPrincipalType, ActionPermissionLevel
     }, action::Action, configuration::{Configuration, EditableConfigurationProperties}, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}
-  }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
+  }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested list.
@@ -71,10 +71,10 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_group_count = Group::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_group_count = Group::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_group_count);
 
-  let actual_groups = Group::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_groups = Group::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_groups.len());
 
   for actual_group in actual_groups {
@@ -135,10 +135,10 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_group_count = Group::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_group_count = Group::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_group_count);
 
-  let actual_groups = Group::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_groups = Group::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_groups.len());
 
   for actual_group in actual_groups {
@@ -175,7 +175,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy delegation policies.
-  let group_count = Group::count("", &test_environment.database_pool, None).await?;
+  let group_count = Group::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - group_count + 1) {
 
     test_environment.create_random_group().await?;
@@ -404,7 +404,6 @@ async fn verify_successful_group_creation() -> Result<(), TestSlashstepServerErr
     display_name: Uuid::now_v7().to_string(),
     ..Default::default()
   };
-  println!("Initial group properties: {:?}", initial_group_properties);
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };

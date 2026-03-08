@@ -1,14 +1,24 @@
+/**
+ * 
+ * This module defines the implementation and types of a field value.
+ * 
+ * Programmers: 
+ * - Christian Toney (https://christiantoney.com)
+ * 
+ * © 2026 Beastslash LLC
+ * 
+ */
+
 #[cfg(test)]
 mod tests;
 
 use std::str::FromStr;
-
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
-use crate::{resources::{DeletableResource, ResourceError, StakeholderType, access_policy::IndividualPrincipal, field::FieldValueType}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, StakeholderType, access_policy::AccessPolicyPrincipalType, field::FieldValueType}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -96,6 +106,12 @@ pub struct InitialFieldValueProperties {
 
   /// The field choice's date time value, if applicable.
   pub timestamp_value: Option<DateTime<Utc>>,
+  
+  /// The field value's iteration ID value, if applicable.
+  pub iteration_id_value: Option<Uuid>,
+
+  /// The field value's milestone ID value, if applicable.
+  pub milestone_id_value: Option<Uuid>,
 
   /// The field choice's stakeholder type, if applicable.
   pub stakeholder_type: Option<StakeholderType>,
@@ -132,6 +148,12 @@ pub struct InitialFieldValuePropertiesWithPredefinedParent {
   /// The field choice's date time value, if applicable.
   pub timestamp_value: Option<DateTime<Utc>>,
 
+  /// The field value's iteration ID value, if applicable.
+  pub iteration_id_value: Option<Uuid>,
+
+  /// The field value's milestone ID value, if applicable.
+  pub milestone_id_value: Option<Uuid>,
+
   /// The field choice's stakeholder type, if applicable.
   pub stakeholder_type: Option<StakeholderType>,
 
@@ -160,6 +182,12 @@ pub struct EditableFieldValueProperties {
 
   /// The field choice's date time value, if applicable.
   pub timestamp_value: Option<Option<DateTime<Utc>>>,
+  
+  /// The field value's iteration ID value, if applicable.
+  pub iteration_id_value: Option<Option<Uuid>>,
+
+  /// The field value's milestone ID value, if applicable.
+  pub milestone_id_value: Option<Option<Uuid>>,
 
   /// The field choice's stakeholder type, if applicable.
   pub stakeholder_type: Option<Option<StakeholderType>>,
@@ -208,6 +236,12 @@ pub struct FieldValue {
   /// The field choice's date time value, if applicable.
   pub timestamp_value: Option<DateTime<Utc>>,
 
+  /// The field value's iteration ID value, if applicable.
+  pub iteration_id_value: Option<Uuid>,
+
+  /// The field value's milestone ID value, if applicable.
+  pub milestone_id_value: Option<Uuid>,
+
   /// The field choice's stakeholder type, if applicable.
   pub stakeholder_type: Option<StakeholderType>,
 
@@ -225,7 +259,7 @@ pub struct FieldValue {
 impl FieldValue {
 
   /// Counts the number of field_values based on a query.
-  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<i64, ResourceError> {
+  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<i64, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -237,12 +271,13 @@ impl FieldValue {
       should_ignore_offset: true
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, true);
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, true)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
-    // Execute the query and return the count.
-    let database_client = database_pool.get().await?;
+    // Execute the query.
     let rows = database_client.query_one(&query, &parameters).await?;
     let count = rows.get(0);
     return Ok(count);
@@ -288,6 +323,8 @@ impl FieldValue {
       number_value: row.get("number_value"),
       boolean_value: row.get("boolean_value"),
       timestamp_value: row.get("timestamp_value"),
+      iteration_id_value: row.get("iteration_id_value"),
+      milestone_id_value: row.get("milestone_id_value"),
       stakeholder_type: row.get("stakeholder_type"),
       stakeholder_user_id: row.get("stakeholder_user_id"),
       stakeholder_group_id: row.get("stakeholder_group_id"),
@@ -320,6 +357,8 @@ impl FieldValue {
       &initial_properties.number_value,
       &initial_properties.boolean_value,
       &initial_properties.timestamp_value,
+      &initial_properties.iteration_id_value,
+      &initial_properties.milestone_id_value,
       &initial_properties.stakeholder_type,
       &initial_properties.stakeholder_user_id,
       &initial_properties.stakeholder_group_id,
@@ -336,6 +375,16 @@ impl FieldValue {
     let app_credential = Self::convert_from_row(&row);
 
     return Ok(app_credential);
+
+  }
+
+  /// Deletes this field value.
+  pub async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/field_values/delete_field_value_row_by_id.sql");
+    database_client.execute(query, &[&self.id]).await?;
+    return Ok(());
 
   }
 
@@ -372,7 +421,7 @@ impl FieldValue {
   }
 
   /// Returns a list of field_values based on a query.
-  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, individual_principal: Option<&IndividualPrincipal>) -> Result<Vec<Self>, ResourceError> {
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
@@ -384,12 +433,13 @@ impl FieldValue {
       should_ignore_offset: false
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, individual_principal, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &GET_RESOURCE_ACTION_NAME, false);
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, false)?;
     let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
     let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
 
     // Execute the query.
-    let database_client = database_pool.get().await?;
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
@@ -422,20 +472,6 @@ impl FieldValue {
 
     let field_value = Self::convert_from_row(&row);
     return Ok(field_value);
-
-  }
-
-}
-
-impl DeletableResource for FieldValue {
-
-  /// Deletes this field.
-  async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/field_values/delete_field_value_row_by_id.sql");
-    database_client.execute(query, &[&self.id]).await?;
-    return Ok(());
 
   }
 

@@ -5,15 +5,15 @@
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
  * 
- * © 2025 Beastslash LLC
+ * © 2025 – 2026 Beastslash LLC
  * 
  */
 
 use std::cmp;
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{DeletableResource, access_policy::{
-    AccessPolicy, AccessPolicyPrincipalType, AccessPolicyResourceType, ActionPermissionLevel, DEFAULT_ACCESS_POLICY_LIST_LIMIT, EditableAccessPolicyProperties, IndividualPrincipal, InitialAccessPolicyProperties
-  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, utilities::resource_hierarchy::{self, PrincipalWithID}
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{access_policy::{
+    AccessPolicy, AccessPolicyPrincipalType, ResourceType, ActionPermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, EditableAccessPolicyProperties, InitialAccessPolicyProperties
+  }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 fn assert_access_policy_is_equal_to_initial_properties(access_policy: &AccessPolicy, initial_properties: &InitialAccessPolicyProperties) {
@@ -78,6 +78,7 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
   let action = test_environment.create_random_action(None).await?;
@@ -88,7 +89,7 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -107,6 +108,7 @@ async fn get_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_access_policy = test_environment.create_random_access_policy().await?;
   let retrieved_access_policy = AccessPolicy::get_by_id(&created_access_policy.id, &test_environment.database_pool).await?;
 
@@ -122,6 +124,8 @@ async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerE
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  
   const MAXIMUM_ACTION_COUNT: i32 = 25;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -133,7 +137,7 @@ async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerE
 
   }
 
-  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, None).await?;
+  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(created_access_policies.len(), retrieved_access_policies.len());
   for i in 0..created_access_policies.len() {
@@ -173,7 +177,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
       permission_level: if remaining_action_count > denied_access_policy_count { ActionPermissionLevel::None } else { ActionPermissionLevel::User },
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
-      scoped_resource_type: AccessPolicyResourceType::Action,
+      scoped_resource_type: ResourceType::Action,
       scoped_action_id: Some(dummy_action.id),
       is_inheritance_enabled: true,
       ..Default::default()
@@ -189,9 +193,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
   }
 
-  let individual_principal = IndividualPrincipal::User(user.id);
-  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, Some(&individual_principal)).await?;
-
+  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(created_access_policies.len(), retrieved_access_policies.len());
   for i in 0..created_access_policies.len() {
 
@@ -212,6 +214,9 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+
+  // Create dummy access policies.
   const MAXIMUM_ACTION_COUNT: i32 = 5;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -225,7 +230,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: if remaining_action_count == 1 { created_access_policies[0].principal_user_id } else { Some(user.id) },
-      scoped_resource_type: AccessPolicyResourceType::Server,
+      scoped_resource_type: ResourceType::Server,
       ..Default::default()
     };
     let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -237,7 +242,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
 
   let principal_user_id = created_access_policies[0].principal_user_id.expect("Principal user ID is not set.");
   let query = format!("principal_user_id = \"{}\"", principal_user_id);
-  let retrieved_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, None).await?;
+  let retrieved_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, None, None).await?;
 
   let created_access_policies_with_specific_user: Vec<&AccessPolicy> = created_access_policies.iter().filter(|access_policy| access_policy.principal_user_id == Some(principal_user_id)).collect();
   assert_eq!(created_access_policies_with_specific_user.len(), retrieved_access_policies.len());
@@ -260,7 +265,8 @@ async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepSe
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
   while remaining_action_count > 0 {
@@ -271,9 +277,9 @@ async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepSe
 
   }
 
-  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, None).await?;
+  let retrieved_access_policies = AccessPolicy::list("", &test_environment.database_pool, None, None).await?;
 
-  assert_eq!(retrieved_access_policies.len(), DEFAULT_ACCESS_POLICY_LIST_LIMIT as usize);
+  assert_eq!(retrieved_access_policies.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
   
@@ -285,7 +291,8 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
-  const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_ACCESS_POLICY_LIST_LIMIT + 1;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
   let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
   while remaining_action_count > 0 {
@@ -298,7 +305,7 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
-      scoped_resource_type: AccessPolicyResourceType::Server,
+      scoped_resource_type: ResourceType::Server,
       ..Default::default()
     };
     let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
@@ -307,39 +314,10 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_access_policy_count = AccessPolicy::count("", &test_environment.database_pool, None).await?;
+  let retrieved_access_policy_count = AccessPolicy::count("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_access_policy_count, MAXIMUM_ACTION_COUNT);
 
-  return Ok(());
-
-}
-
-/// Verifies that the implementation can return a list of access policies in the proper order given a hierarchy.
-#[tokio::test]
-async fn list_access_policies_by_hierarchy() -> Result<(), TestSlashstepServerError> {
-
-  // Create the access policy.
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  let action = test_environment.create_random_action(None).await?;
-  let user = test_environment.create_random_user().await?;
-  let instance_access_policy_properties = InitialAccessPolicyProperties {
-    action_id: action.id,
-    permission_level: ActionPermissionLevel::User,
-    is_inheritance_enabled: true,
-    principal_type: AccessPolicyPrincipalType::User,
-    principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
-    ..Default::default()
-  };
-  let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &test_environment.database_pool).await?;
-  let access_policy_hierarchy = resource_hierarchy::get_hierarchy(&instance_access_policy.scoped_resource_type, instance_access_policy.get_scoped_resource_id().as_ref(), &test_environment.database_pool).await?;
-
-  let retrieved_access_policies = resource_hierarchy::list_access_policies_by_hierarchy(&PrincipalWithID::User(user.id), &action.id, &access_policy_hierarchy, &test_environment.database_pool).await?;
-
-  assert_eq!(retrieved_access_policies.len(), access_policy_hierarchy.len());
-  
   return Ok(());
 
 }
@@ -351,6 +329,7 @@ async fn delete_access_policy() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_access_policy = test_environment.create_random_access_policy().await?;
 
   created_access_policy.delete(&test_environment.database_pool).await?;
@@ -370,6 +349,7 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let action = test_environment.create_random_action(None).await?;
   let user = test_environment.create_random_user().await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {
@@ -378,7 +358,7 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
-    scoped_resource_type: AccessPolicyResourceType::Server,
+    scoped_resource_type: ResourceType::Server,
     ..Default::default()
   };
   let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &test_environment.database_pool).await?;

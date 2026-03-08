@@ -530,6 +530,96 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties { 
+      name: "itemTypes.get".to_string(),
+      display_name: "Get item types".to_string(),
+      description: "Get a specific item type on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypes.list".to_string(),
+      display_name: "List item types".to_string(),
+      description: "List all item types on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypes.create".to_string(),
+      display_name: "Create item types".to_string(),
+      description: "Create new item types on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypes.update".to_string(),
+      display_name: "Update item types".to_string(),
+      description: "Update item types on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypes.delete".to_string(),
+      display_name: "Delete item types".to_string(),
+      description: "Delete item types on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypeIcons.get".to_string(),
+      display_name: "Get item type icons".to_string(),
+      description: "Get a specific item type icon on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypeIcons.list".to_string(),
+      display_name: "List item type icons".to_string(),
+      description: "List all item type icons on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypeIcons.create".to_string(),
+      display_name: "Create item type icons".to_string(),
+      description: "Create new item type icons on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypeIcons.update".to_string(),
+      display_name: "Update item type icons".to_string(),
+      description: "Update item type icons on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "itemTypeIcons.delete".to_string(),
+      display_name: "Delete item type icons".to_string(),
+      description: "Delete item type icons on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "iterations.get".to_string(),
+      display_name: "Get iterations".to_string(),
+      description: "Get a specific iteration on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "iterations.list".to_string(),
+      display_name: "List iterations".to_string(),
+      description: "List all iterations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "iterations.create".to_string(),
+      display_name: "Create iterations".to_string(),
+      description: "Create new iterations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "iterations.update".to_string(),
+      display_name: "Update iterations".to_string(),
+      description: "Update iterations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "iterations.delete".to_string(),
+      display_name: "Delete iterations".to_string(),
+      description: "Delete iterations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
       name: "memberships.get".to_string(),
       display_name: "Get memberships".to_string(),
       description: "Get a specific membership on a particular scope.".to_string(),
@@ -721,6 +811,36 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       description: "Delete sessions on a particular scope.".to_string(),
       ..Default::default()
     },
+    InitialActionProperties { 
+      name: "statuses.get".to_string(),
+      display_name: "Get statuses".to_string(),
+      description: "Get a specific status on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "statuses.list".to_string(),
+      display_name: "List statuses".to_string(),
+      description: "List all statuses on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "statuses.create".to_string(),
+      display_name: "Create statuses".to_string(),
+      description: "Create new statuses on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "statuses.update".to_string(),
+      display_name: "Update statuses".to_string(),
+      description: "Update statuses on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "statuses.delete".to_string(),
+      display_name: "Delete statuses".to_string(),
+      description: "Delete statuses on a particular scope.".to_string(),
+      ..Default::default()
+    },
     InitialActionProperties {
       name: "users.get".to_string(),
       display_name: "Get users".to_string(),
@@ -779,6 +899,60 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       name: "views.delete".to_string(),
       display_name: "Delete views".to_string(),
       description: "Delete views on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "viewFields.get".to_string(),
+      display_name: "Get view fields".to_string(),
+      description: "Get a specific view field on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "viewFields.list".to_string(),
+      display_name: "List view fields".to_string(),
+      description: "List all view fields on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "viewFields.create".to_string(),
+      display_name: "Create view fields".to_string(),
+      description: "Create new view fields on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "viewFields.update".to_string(),
+      display_name: "Update view fields".to_string(),
+      description: "Update view fields on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "viewFields.delete".to_string(),
+      display_name: "Delete view fields".to_string(),
+      description: "Delete view fields on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "webhooks.get".to_string(),
+      display_name: "Get webhooks".to_string(),
+      description: "Get a specific webhook on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "webhooks.list".to_string(),
+      display_name: "List webhooks".to_string(),
+      description: "List all webhooks on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "webhooks.create".to_string(),
+      display_name: "Create webhooks".to_string(),
+      description: "Create new webhooks on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties { 
+      name: "webhooks.delete".to_string(),
+      display_name: "Delete webhooks".to_string(),
+      description: "Delete webhooks on a particular scope.".to_string(),
       ..Default::default()
     },
     InitialActionProperties {

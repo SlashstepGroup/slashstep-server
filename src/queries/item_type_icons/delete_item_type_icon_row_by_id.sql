@@ -1,0 +1,1 @@
+DELETE FROM item_type_icons WHERE id = $1;

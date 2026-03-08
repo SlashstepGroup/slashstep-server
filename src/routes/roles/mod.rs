@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::AccessPolicyResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::ResourceType, action_log_entry::ActionLogEntryTargetResourceType, app::{App, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}};
 
 #[path = "./{role_id}/mod.rs"]
 mod role_id;
@@ -32,7 +32,7 @@ mod tests;
 //   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
 // ) -> Result<ErasedJson, HTTPError> {
 
-//   let resource_hierarchy = vec![(AccessPolicyResourceType::Server, None)];
+//   let resource_hierarchy = vec![(ResourceType::Server, None)];
 //   let response = list_resources(
 //     Query(query_parameters), 
 //     State(state), 
