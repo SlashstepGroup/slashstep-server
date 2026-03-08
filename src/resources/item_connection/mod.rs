@@ -61,6 +61,14 @@ pub struct InitialItemConnectionPropertiesWithPredefinedOutwardItem {
 }
 
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EditableItemConnectionProperties {
+
+  /// The ID of the item connection type, if applicable.
+  pub item_connection_type_id: Option<Option<Uuid>>
+
+}
+
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ItemConnection {
 
   /// The ID of the item connection.
@@ -226,6 +234,28 @@ impl ItemConnection {
     let rows = database_client.query(&query, &parameters).await?;
     let actions = rows.iter().map(Self::convert_from_row).collect();
     return Ok(actions);
+
+  }
+
+  /// Updates this item connection and returns a new instance of the item connection.
+  pub async fn update(&self, properties: &EditableItemConnectionProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE item_connections SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "item_connection_type_id", properties.item_connection_type_id.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let item_connection = Self::convert_from_row(&row);
+    return Ok(item_connection);
 
   }
 
