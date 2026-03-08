@@ -10,7 +10,7 @@ mod app_authorizations;
 mod app_authorization_credentials;
 #[path = "./app-credentials/mod.rs"]
 mod app_credentials;
-// mod configurations;
+mod configurations;
 // #[path = "./delegation-policies/mod.rs"]
 // mod delegation_policies;
 // mod fields;
@@ -72,7 +72,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(app_authorizations::get_router(state.clone()))
     .merge(app_authorization_credentials::get_router(state.clone()))
     .merge(app_credentials::get_router(state.clone()))
-    // .merge(configurations::get_router(state.clone()))
+    .merge(configurations::get_router(state.clone()))
     // .merge(delegation_policies::get_router(state.clone()))
     // .merge(fields::get_router(state.clone()))
     // .merge(field_choices::get_router(state.clone()))
