@@ -1,0 +1,1 @@
+DELETE FROM webhooks WHERE id = $1;

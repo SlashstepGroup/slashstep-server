@@ -4,8 +4,8 @@ use local_ip_address::local_ip;
 use uuid::Uuid;
 
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, initialize_predefined_configurations, resources::{
-    DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
+    ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     }, app_credential::{AppCredential, DEFAULT_RESOURCE_LIST_LIMIT, InitialAppCredentialProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -37,6 +37,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
@@ -46,7 +47,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_app_credential_count = AppCredential::count("", &test_environment.database_pool, None).await?;
+  let retrieved_app_credential_count = AppCredential::count("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_app_credential_count, MAXIMUM_APP_CREDENTIAL_COUNT);
 
@@ -59,6 +60,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the resource.
   let mut os_rng = OsRng;
@@ -87,6 +89,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_app_credential = test_environment.create_random_app_credential(None).await?;
   
   created_app_credential.delete(&test_environment.database_pool).await?;
@@ -140,6 +143,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
@@ -149,7 +153,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   }
 
-  let retrieved_app_credentials = AppCredential::list("", &test_environment.database_pool, None).await?;
+  let retrieved_app_credentials = AppCredential::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_app_credentials.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
@@ -163,6 +167,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 5;
   let mut created_app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -176,7 +181,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   created_app_credentials.push(app_credential_with_same_app_id);
 
   let query = format!("app_id = \"{}\"", created_app_credentials[0].app_id);
-  let retrieved_app_credentials = AppCredential::list(&query, &test_environment.database_pool, None).await?;
+  let retrieved_app_credentials = AppCredential::list(&query, &test_environment.database_pool, None, None).await?;
 
   let created_app_credentials_with_specific_app_id: Vec<&AppCredential> = created_app_credentials.iter().filter(|app_credential| app_credential.app_id == created_app_credentials[0].app_id).collect();
   assert_eq!(created_app_credentials_with_specific_app_id.len(), retrieved_app_credentials.len());
@@ -198,6 +203,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 25;
   let mut created_app_credentials: Vec<AppCredential> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -207,7 +213,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   }
 
-  let retrieved_app_credentials = AppCredential::list("", &test_environment.database_pool, None).await?;
+  let retrieved_app_credentials = AppCredential::list("", &test_environment.database_pool, None, None).await?;
   assert_eq!(created_app_credentials.len(), retrieved_app_credentials.len());
   for i in 0..created_app_credentials.len() {
 
@@ -232,7 +238,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   const MINIMUM_ACTION_COUNT: i32 = 2;
-  let mut current_app_credentials = AppCredential::list("", &test_environment.database_pool, None).await?;
+  let mut current_app_credentials = AppCredential::list("", &test_environment.database_pool, None, None).await?;
   if current_app_credentials.len() < MINIMUM_ACTION_COUNT as usize {
 
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_app_credentials.len() as i32;
@@ -261,7 +267,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
       permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::AppCredential,
+      scoped_resource_type: crate::resources::access_policy::ResourceType::AppCredential,
       scoped_app_credential_id: Some(scoped_app_credential.id.clone()),
       ..Default::default()
     }, &test_environment.database_pool).await?;
@@ -271,8 +277,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Make sure the user only sees the allowed actions.
-  let individual_principal = crate::resources::access_policy::IndividualPrincipal::User(user.id);
-  let retrieved_app_credentials = AppCredential::list("", &test_environment.database_pool, Some(&individual_principal)).await?;
+  let retrieved_app_credentials = AppCredential::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
 
   assert_eq!(allowed_app_credentials.len(), retrieved_app_credentials.len());
   for allowed_app_credential in allowed_app_credentials {

@@ -17,7 +17,7 @@ mod tests;
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State}};
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Membership}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{resource_hierarchy::ResourceHierarchy, route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_individual_principal_from_authenticated_principal, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Membership}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::{route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}}};
 
 /// GET /memberships
 /// 
@@ -35,14 +35,12 @@ async fn handle_list_memberships_request(
   // Make sure the principal has access to list resources.
   let list_resources_action = get_action_by_name("memberships.list", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  let resource_hierarchy: ResourceHierarchy = vec![(AccessPolicyResourceType::Server, None)];
-  verify_principal_permissions(&authenticated_principal, &list_resources_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let individual_principal = get_individual_principal_from_authenticated_principal(&authenticated_principal);
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace("Listing memberships...", Some(&http_transaction.id), &state.database_pool).await.ok();
   let query = query_parameters.query.unwrap_or("".to_string());
-  let queried_resources = match Membership::list(&query, &state.database_pool, Some(&individual_principal)).await {
+  let queried_resources = match Membership::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 
     Ok(queried_resources) => queried_resources,
 
@@ -66,7 +64,7 @@ async fn handle_list_memberships_request(
   };
 
   ServerLogEntry::trace(&format!("Counting memberships..."), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let resource_count = match Membership::count(&query, &state.database_pool, Some(&individual_principal)).await {
+  let resource_count = match Membership::count(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 
     Ok(resource_count) => resource_count,
 
@@ -86,9 +84,9 @@ async fn handle_list_memberships_request(
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::Server,
     ..Default::default()
   }, &state.database_pool).await.ok();

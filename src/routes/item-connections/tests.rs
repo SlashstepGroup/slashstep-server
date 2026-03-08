@@ -20,7 +20,7 @@ use crate::{
     initialize_predefined_roles
   }, resources::{
     access_policy::{
-      ActionPermissionLevel, IndividualPrincipal
+      ActionPermissionLevel
     }, action::Action, item_connection::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, ItemConnection},
   }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 };
@@ -69,10 +69,10 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_item_connection_count = ItemConnection::count("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_item_connection_count = ItemConnection::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_item_connection_count);
 
-  let actual_delegation_policies = ItemConnection::list("", &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_delegation_policies = ItemConnection::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_delegation_policies.len());
 
   for actual_item_connection in actual_delegation_policies {
@@ -133,10 +133,10 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   assert!(response_json.total_count > 0);
   assert!(response_json.resources.len() > 0);
 
-  let actual_item_connection_count = ItemConnection::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_item_connection_count = ItemConnection::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_item_connection_count);
 
-  let actual_delegation_policies = ItemConnection::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_delegation_policies = ItemConnection::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.resources.len(), actual_delegation_policies.len());
 
   for actual_item_connection in actual_delegation_policies {
@@ -173,7 +173,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy delegation policies.
-  let item_connection_count = ItemConnection::count("", &test_environment.database_pool, None).await?;
+  let item_connection_count = ItemConnection::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - item_connection_count + 1) {
 
     test_environment.create_random_item_connection().await?;

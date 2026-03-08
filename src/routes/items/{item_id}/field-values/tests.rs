@@ -15,7 +15,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel, IndividualPrincipal}, action::Action, field::FieldValueType, field_value::{DEFAULT_RESOURCE_LIST_LIMIT, FieldValue, FieldValueParentResourceType, InitialFieldValueProperties, InitialFieldValuePropertiesWithPredefinedParent}, item::{InitialItemProperties, Item}}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel}, action::Action, field::FieldValueType, field_value::{DEFAULT_RESOURCE_LIST_LIMIT, FieldValue, FieldValueParentResourceType, InitialFieldValueProperties, InitialFieldValuePropertiesWithPredefinedParent}, item::{InitialItemProperties, Item}}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 async fn create_field_value(test_environment: &TestEnvironment, item_id: &Uuid) -> Result<FieldValue, TestSlashstepServerError> {
 
@@ -142,10 +142,10 @@ async fn verify_returned_field_value_list_without_query() -> Result<(), TestSlas
   assert_eq!(response_field_values.resources.len(), 1);
 
   let query = format!("parent_item_id = {}", quote_literal(&dummy_item.id.to_string()));
-  let actual_field_value_count = FieldValue::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_field_value_count = FieldValue::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_field_values.total_count, actual_field_value_count);
 
-  let actual_field_values = FieldValue::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_field_values = FieldValue::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_field_values.resources.len(), actual_field_values.len());
   assert_eq!(response_field_values.resources[0].id, actual_field_values[0].id);
   assert_eq!(response_field_values.resources[0].id, shown_field_value.id);
@@ -202,10 +202,10 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   assert_eq!(response_field_values.resources.len(), 1);
 
   let query = format!("parent_item_id = {} AND {}", quote_literal(&dummy_item.id.to_string()), additional_query);
-  let actual_field_value_count = FieldValue::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_field_value_count = FieldValue::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_field_values.total_count, actual_field_value_count);
 
-  let actual_field_values = FieldValue::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_field_values = FieldValue::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_field_values.resources.len(), actual_field_values.len());
   assert_eq!(response_field_values.resources[0].id, actual_field_values[0].id);
   assert_eq!(response_field_values.resources[0].id, shown_field_value.id);

@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{DeletableResource, ResourceError, access_policy::{AccessPolicy, AccessPolicyResourceType, ActionPermissionLevel, IndividualPrincipal}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{resource_hierarchy::{self, PrincipalWithID, ResourceHierarchy, ResourceHierarchyError}, slashstepql::SlashstepQLError}};
+use crate::{HTTPError, resources::{ResourceError, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, ResourceType}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::{slashstepql::SlashstepQLError}};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -11,7 +11,7 @@ use uuid::Uuid;
 pub async fn get_action_log_entry_expiration_timestamp(http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Option<DateTime<Utc>>, HTTPError> {
 
   ServerLogEntry::trace("Getting configuration to determine whether action log entries should expire...", Some(&http_transaction.id), database_pool).await.ok();
-  let should_action_log_entries_expire_configuration = match Configuration::list(&format!("name = {} LIMIT 1", quote_literal("actionLogEntries.shouldExpire")), &database_pool, None).await {
+  let should_action_log_entries_expire_configuration = match Configuration::list(&format!("name = {} LIMIT 1", quote_literal("actionLogEntries.shouldExpire")), &database_pool, None, None).await {
 
     Ok(configurations) => match configurations.into_iter().next() {
 
@@ -45,7 +45,7 @@ pub async fn get_action_log_entry_expiration_timestamp(http_transaction: &HTTPTr
   }
 
   ServerLogEntry::trace("Getting configuration to determine the expiration duration for action log entries...", Some(&http_transaction.id), database_pool).await.ok();
-  let action_log_entry_expiration_duration_configuration = match Configuration::list(&format!("name = {} LIMIT 1", quote_literal("actionLogEntries.expirationDurationMilliseconds")), &database_pool, None).await {
+  let action_log_entry_expiration_duration_configuration = match Configuration::list(&format!("name = {} LIMIT 1", quote_literal("actionLogEntries.expirationDurationMilliseconds")), &database_pool, None, None).await {
 
     Ok(configurations) => match configurations.into_iter().next() {
 
@@ -155,6 +155,12 @@ pub enum AuthenticatedPrincipal {
   App(Arc<App>)
 }
 
+pub fn is_authenticated_user_anonymous(authenticated_user: Option<&Arc<User>>) -> bool {
+
+  return authenticated_user.and_then(|authenticated_user| Some(authenticated_user.is_anonymous)).unwrap_or(false)
+
+}
+
 pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
 
   let app_authorization_id = match app_authorization_id {
@@ -166,7 +172,7 @@ pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, ac
   };
 
   let query = format!("action_id = {} AND delegate_app_authorization_id = {} LIMIT 1", quote_literal(&action_id.to_string()), quote_literal(&app_authorization_id.to_string()));
-  let delegation_policy = match DelegationPolicy::list(&query, &database_pool, None).await {
+  let delegation_policy = match DelegationPolicy::list(&query, &database_pool, None, None).await {
 
     Ok(delegation_policies) => {
       
@@ -211,40 +217,57 @@ pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, ac
 
 }
 
-pub async fn verify_principal_permissions(authenticated_principal: &AuthenticatedPrincipal, action: &Action, resource_hierarchy: &ResourceHierarchy, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, is_principal_anonymous: bool, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
 
   ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
 
-  let principal = match authenticated_principal {
-    AuthenticatedPrincipal::User(user) => PrincipalWithID::User(user.id),
-    AuthenticatedPrincipal::App(app) => PrincipalWithID::App(app.id)
-  };
+  let database_client = match database_pool.get().await {
 
-  match resource_hierarchy::verify_permissions(&principal, &action.id, &resource_hierarchy, &minimum_permission_level, &database_pool).await {
-
-    Ok(_) => {},
+    Ok(database_client) => database_client,
 
     Err(error) => {
 
-      let http_error = match error {
-
-        ResourceHierarchyError::ForbiddenError { .. } => {
-          
-          let message = format!("You need at least {} permission to the \"{}\" action.", minimum_permission_level.to_string(), action.name);
-          match authenticated_principal {
-            AuthenticatedPrincipal::User(user) => if user.is_anonymous { HTTPError::UnauthorizedError(Some(message)) } else { HTTPError::ForbiddenError(Some(message)) },
-            AuthenticatedPrincipal::App(_) => HTTPError::ForbiddenError(Some(message))
-          }
-
-        },
-
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
-
-      };
+      let http_error = map_postgres_error_to_http_error(error);
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
       return Err(http_error);
 
     }
+
+  };
+  let permission_level_row = match database_client.query_one("SELECT get_principal_permission_level($1, $2, $3, $4, $5)", &[
+    &principal_type,
+    &principal_id,
+    &resource_type,
+    &resource_id,
+    &action.id
+  ]).await {
+
+    Ok(permission_level_row) => permission_level_row,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to verify permissions for principal {} with ID {}: {:?}", principal_type, principal_id, error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+  let actual_permission_level: ActionPermissionLevel = permission_level_row.get(0);
+
+  if &actual_permission_level < minimum_permission_level {
+
+    let location = match resource_type {
+
+      ResourceType::Server => "the server".to_string(),
+
+      _ => format!("{} {}", resource_type.to_string().to_lowercase(), resource_id.unwrap_or(&Uuid::nil()).to_string())
+
+    };
+    let message = format!("You need at least {} permission to the \"{}\" action on {}.", minimum_permission_level.to_string(), action.name, location);
+    let http_error = if is_principal_anonymous { HTTPError::UnauthorizedError(Some(message)) } else { HTTPError::ForbiddenError(Some(message)) };
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+    return Err(http_error);
 
   }
 
@@ -479,8 +502,7 @@ pub async fn get_resource_by_id<ResourceStruct, GetResourceByIDFunction>(
   http_transaction: &HTTPTransaction, 
   database_pool: &deadpool_postgres::Pool, 
   get_resource_by_id_function: GetResourceByIDFunction
-) -> Result<ResourceStruct, HTTPError> where 
-  ResourceStruct: DeletableResource,
+) -> Result<ResourceStruct, HTTPError> where
   GetResourceByIDFunction: for<'a> Fn(&'a Uuid, &'a deadpool_postgres::Pool) -> Box<dyn Future<Output = Result<ResourceStruct, ResourceError>> + 'a + Send>
 {
 
@@ -506,94 +528,6 @@ pub async fn get_resource_by_id<ResourceStruct, GetResourceByIDFunction>(
   };
 
   return Ok(resource);
-
-}
-
-pub async fn get_resource_hierarchy<T: DeletableResource>(deletable_resource: &T, resource_type: &AccessPolicyResourceType, resource_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ResourceHierarchy, HTTPError> {
-
-  let resource_type_string = resource_type.to_string().to_lowercase();
-  ServerLogEntry::trace(&format!("Getting resource hierarchy for {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &database_pool).await.ok();
-  let resource_hierarchy = match resource_hierarchy::get_hierarchy(&resource_type, Some(resource_id), &database_pool).await {
-
-    Ok(resource_hierarchy) => resource_hierarchy,
-
-    Err(error) => {
-
-      let http_error = match error {
-
-        ResourceHierarchyError::ScopedResourceIDMissingError(scoped_resource_type) => {
-
-          ServerLogEntry::trace(&format!("Deleting orphaned {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &database_pool).await.ok();
-
-          let http_error = match deletable_resource.delete(&database_pool).await {
-
-            Ok(_) => HTTPError::GoneError(Some(format!("The {} resource has been deleted because it was orphaned.", scoped_resource_type))),
-
-            Err(error) => HTTPError::InternalServerError(Some(format!("Failed to delete orphaned {}: {:?}", resource_type_string, error)))
-
-          };
-          
-          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-          return Err(http_error);
-
-        },
-
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
-
-      };
-      
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  return Ok(resource_hierarchy);
-
-}
-
-pub async fn get_all_resource_hierarchies<T: DeletableResource>(deletable_resource: &T, resource_type: &AccessPolicyResourceType, resource_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Vec<ResourceHierarchy>, HTTPError> {
-
-  let resource_type_string = resource_type.to_string().to_lowercase();
-  ServerLogEntry::trace(&format!("Getting all resource hierarchies for {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &database_pool).await.ok();
-  let resource_hierarchies = match resource_hierarchy::get_all_hierarchies(&resource_type, Some(resource_id), &database_pool).await {
-
-    Ok(resource_hierarchies) => resource_hierarchies,
-
-    Err(error) => {
-
-      let http_error = match error {
-
-        ResourceHierarchyError::ScopedResourceIDMissingError(scoped_resource_type) => {
-
-          ServerLogEntry::trace(&format!("Deleting orphaned {} {}...", resource_type_string, resource_id), Some(&http_transaction.id), &database_pool).await.ok();
-
-          let http_error = match deletable_resource.delete(&database_pool).await {
-
-            Ok(_) => HTTPError::GoneError(Some(format!("The {} resource has been deleted because it was orphaned.", scoped_resource_type))),
-
-            Err(error) => HTTPError::InternalServerError(Some(format!("Failed to delete orphaned {}: {:?}", resource_type_string, error)))
-
-          };
-          
-          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-          return Err(http_error);
-
-        },
-
-        _ => HTTPError::InternalServerError(Some(error.to_string()))
-
-      };
-      
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  return Ok(resource_hierarchies);
 
 }
 
@@ -635,28 +569,19 @@ pub fn match_db_error(error: &postgres::Error, resource_type: &str) -> HTTPError
 
 }
 
-pub fn get_authenticated_principal(user: Option<&Arc<User>>, app: Option<&Arc<App>>) -> Result<AuthenticatedPrincipal, HTTPError> {
+pub fn get_principal_type_and_id_from_principal(user: Option<&Arc<User>>, app: Option<&Arc<App>>) -> Result<(AccessPolicyPrincipalType, Uuid), HTTPError> {
 
-  if let Some(authenticated_principal) =
+  if let Some((principal_type, principal_id)) =
     user
-    .and_then(|user| Some(AuthenticatedPrincipal::User(user.clone())))
-    .or_else(|| app.and_then(|app| Some(AuthenticatedPrincipal::App(app.clone())))) 
+    .and_then(|user| Some((AccessPolicyPrincipalType::User, user.id)))
+    .or_else(|| app.and_then(|app| Some((AccessPolicyPrincipalType::App, app.id)))) 
   {
 
-    return Ok(authenticated_principal);
+    return Ok((principal_type, principal_id));
 
   }
 
   return Err(HTTPError::InternalServerError(Some("Couldn't find a user or app for the request. This is a bug. Make sure the authentication middleware is installed and is working properly.".to_string())));
-
-}
-
-pub fn get_individual_principal_from_authenticated_principal(authenticated_principal: &AuthenticatedPrincipal) -> IndividualPrincipal {
-
-  match authenticated_principal {
-    AuthenticatedPrincipal::User(user) => IndividualPrincipal::User(user.id),
-    AuthenticatedPrincipal::App(app) => IndividualPrincipal::App(app.id)
-  }
 
 }
 

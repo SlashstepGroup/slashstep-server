@@ -1,19 +1,18 @@
-do $$
-begin
+DO $$
+BEGIN
 
-  create table if not exists projects (
-    id UUID default uuidv7() primary key,
-    name text not null,
-    display_name text not null,
-    key text not null,
-    description text,
-    start_date timestamptz,
-    end_date timestamptz,
-    workspace_id UUID not null references workspaces(id) on delete cascade
+  CREATE TABLE IF NOT EXISTS projects (
+    id UUID DEFAULT uuidv7() PRIMARY KEY,
+    name TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    key TEXT NOT NULL,
+    description TEXT,
+    start_date TIMESTAMPTZ,
+    end_date TIMESTAMPTZ,
+    parent_workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    UNIQUE (name, parent_workspace_id),
+    UNIQUE (key, parent_workspace_id)
   );
 
-  create unique index if not exists projects_name_unique on projects (upper(name), workspace_id);
-  create unique index if not exists projects_key_unique on projects (upper(key), workspace_id);
-
-end
-$$ language plpgsql;
+END
+$$ LANGUAGE plpgsql;

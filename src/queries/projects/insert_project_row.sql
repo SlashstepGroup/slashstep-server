@@ -5,7 +5,7 @@ insert into projects (
   description, 
   start_date, 
   end_date, 
-  workspace_id
+  parent_workspace_id
 ) values (
   $1, 
   $2, 

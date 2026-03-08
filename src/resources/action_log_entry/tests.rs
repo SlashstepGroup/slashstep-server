@@ -1,6 +1,6 @@
-use chrono::{DateTime, Days, Utc};
+use chrono::Utc;
 
-use crate::{initialize_required_tables, resources::{DeletableResource, ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 fn assert_action_log_entry_is_equal_to_initial_properties(action_log_entry: &ActionLogEntry, initial_properties: &InitialActionLogEntryProperties) {
 
@@ -44,6 +44,7 @@ async fn verify_action_log_entry_creation() -> Result<(), TestSlashstepServerErr
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
   let action = test_environment.create_random_action(None).await?;
@@ -70,6 +71,7 @@ async fn verify_action_log_entry_deletion_by_id() -> Result<(), TestSlashstepSer
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_action_log_entry = test_environment.create_random_action_log_entry().await?;
 
   created_action_log_entry.delete(&test_environment.database_pool).await?;
@@ -100,6 +102,7 @@ async fn verify_deletion_of_expired_action_log_entries() -> Result<(), TestSlash
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let app = test_environment.create_random_app().await?;
   let action = test_environment.create_random_action(None).await?;
   let created_action_log_entry = ActionLogEntry::create(&InitialActionLogEntryProperties {

@@ -36,6 +36,12 @@ CREATE OR REPLACE FUNCTION get_scoped_resource_id_from_access_policy(access_poli
         RETURN access_policy_record.scoped_item_connection_id;
       WHEN 'ItemConnectionType' THEN 
         RETURN access_policy_record.scoped_item_connection_type_id;
+      WHEN 'ItemType' THEN 
+        RETURN access_policy_record.scoped_item_type_id;
+      WHEN 'ItemTypeIcon' THEN 
+        RETURN access_policy_record.scoped_item_type_icon_id;
+      WHEN 'Iteration' THEN 
+        RETURN access_policy_record.scoped_iteration_id;
       WHEN 'Membership' THEN 
         RETURN access_policy_record.scoped_membership_id;
       WHEN 'MembershipInvitation' THEN 
@@ -54,10 +60,16 @@ CREATE OR REPLACE FUNCTION get_scoped_resource_id_from_access_policy(access_poli
         RETURN access_policy_record.scoped_server_log_entry_id;
       WHEN 'Session' THEN 
         RETURN access_policy_record.scoped_session_id;
+      WHEN 'Status' THEN 
+        RETURN access_policy_record.scoped_status_id;
       WHEN 'User' THEN 
         RETURN access_policy_record.scoped_user_id;
       WHEN 'View' THEN 
         RETURN access_policy_record.scoped_view_id;
+      WHEN 'ViewField' THEN 
+        RETURN access_policy_record.scoped_view_field_id;
+      WHEN 'Webhook' THEN 
+        RETURN access_policy_record.scoped_webhook_id;
       WHEN 'Workspace' THEN 
         RETURN access_policy_record.scoped_workspace_id;
       ELSE

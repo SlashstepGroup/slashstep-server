@@ -14,7 +14,7 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel, IndividualPrincipal}, action::Action, membership::{MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{DEFAULT_RESOURCE_LIST_LIMIT, InitialMembershipInvitationProperties, InitialMembershipInvitationPropertiesWithPredefinedParentAndInviter, MembershipInvitation, MembershipInvitationInviteePrincipalType}}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{ActionPermissionLevel}, action::Action, membership::{MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{DEFAULT_RESOURCE_LIST_LIMIT, InitialMembershipInvitationProperties, InitialMembershipInvitationPropertiesWithPredefinedParentAndInviter, MembershipInvitation, MembershipInvitationInviteePrincipalType}}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 #[tokio::test]
 async fn verify_successful_membership_invitation_creation() -> Result<(), TestSlashstepServerError> {
@@ -127,10 +127,10 @@ async fn verify_returned_membership_invitation_list_without_query() -> Result<()
   assert_eq!(response_membership_invitations.resources.len(), 1);
 
   let query = format!("parent_group_id = {}", quote_literal(&dummy_group.id.to_string()));
-  let actual_membership_invitation_count = MembershipInvitation::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_membership_invitation_count = MembershipInvitation::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_membership_invitations.total_count, actual_membership_invitation_count);
 
-  let actual_membership_invitations = MembershipInvitation::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_membership_invitations = MembershipInvitation::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_membership_invitations.resources.len(), actual_membership_invitations.len());
   assert_eq!(response_membership_invitations.resources[0].id, actual_membership_invitations[0].id);
   assert_eq!(response_membership_invitations.resources[0].id, shown_membership_invitation.id);
@@ -199,10 +199,10 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   assert_eq!(response_membership_invitations.resources.len(), 1);
 
   let query = format!("parent_group_id = {} AND {}", quote_literal(&dummy_group.id.to_string()), additional_query);
-  let actual_membership_invitation_count = MembershipInvitation::count(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_membership_invitation_count = MembershipInvitation::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_membership_invitations.total_count, actual_membership_invitation_count);
 
-  let actual_membership_invitations = MembershipInvitation::list(&query, &test_environment.database_pool, Some(&IndividualPrincipal::User(user.id))).await?;
+  let actual_membership_invitations = MembershipInvitation::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_membership_invitations.resources.len(), actual_membership_invitations.len());
   assert_eq!(response_membership_invitations.resources[0].id, actual_membership_invitations[0].id);
   assert_eq!(response_membership_invitations.resources[0].id, shown_membership_invitation.id);

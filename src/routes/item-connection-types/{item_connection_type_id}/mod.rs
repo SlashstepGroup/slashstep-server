@@ -17,9 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    DeletableResource, access_policy::{AccessPolicyResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection_type::{EditableItemConnectionTypeProperties, ItemConnectionType}, server_log_entry::ServerLogEntry, user::User
+    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, ActionLogEntryTargetResourceType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection_type::{EditableItemConnectionTypeProperties, ItemConnectionType}, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{AuthenticatedPrincipal, get_action_by_name, get_action_log_entry_expiration_timestamp, get_authenticated_principal, get_item_connection_type_by_id, get_request_body_without_json_rejection, get_resource_hierarchy, get_uuid_from_string, validate_field_length, verify_delegate_permissions, verify_principal_permissions}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_item_connection_type_by_id, get_request_body_without_json_rejection, get_uuid_from_string, validate_field_length, verify_delegate_permissions, verify_principal_permissions}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -44,18 +44,17 @@ async fn handle_get_item_connection_type_request(
   let target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
   let get_item_connection_types_action = get_action_by_name("itemConnectionTypes.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_item_connection_types_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_item_connection_type, &AccessPolicyResourceType::ItemConnectionType, &target_item_connection_type.id, &http_transaction, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&authenticated_principal, &get_item_connection_types_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &get_item_connection_types_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: get_item_connection_types_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::ItemConnectionType,
     target_item_connection_type_id: Some(target_item_connection_type.id),
     ..Default::default()
@@ -81,11 +80,10 @@ async fn handle_delete_item_connection_type_request(
 
   let item_connection_type_id = get_uuid_from_string(&item_connection_type_id, "item connection type", &http_transaction, &state.database_pool).await?;
   let target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&target_item_connection_type, &AccessPolicyResourceType::ItemConnectionType, &target_item_connection_type.id, &http_transaction, &state.database_pool).await?;
   let delete_item_connection_types_action = get_action_by_name("itemConnectionTypes.delete", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_item_connection_types_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&authenticated_principal, &delete_item_connection_types_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &delete_item_connection_types_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_item_connection_type.delete(&state.database_pool).await {
 
@@ -101,9 +99,9 @@ async fn handle_delete_item_connection_type_request(
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(app) = &authenticated_principal { Some(app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::ItemConnectionType,
     target_item_connection_type_id: Some(target_item_connection_type.id),
     ..Default::default()
@@ -146,11 +144,10 @@ async fn handle_patch_item_connection_type_request(
 
   }
   let original_target_item_connection_type = get_item_connection_type_by_id(&item_connection_type_id, &http_transaction, &state.database_pool).await?;
-  let resource_hierarchy = get_resource_hierarchy(&original_target_item_connection_type, &AccessPolicyResourceType::ItemConnectionType, &original_target_item_connection_type.id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("itemConnectionTypes.update", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&authenticated_principal, &update_access_policy_action, &resource_hierarchy, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace(&format!("Updating item connection type {}...", original_target_item_connection_type.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_item_connection_type = match original_target_item_connection_type.update(&updated_item_connection_type_properties, &state.database_pool).await {
@@ -170,9 +167,9 @@ async fn handle_patch_item_connection_type_request(
   ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: update_access_policy_action.id,
     http_transaction_id: Some(http_transaction.id),
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ActionLogEntryTargetResourceType::ItemConnectionType,
     target_item_connection_type_id: Some(updated_target_item_connection_type.id),
     ..Default::default()

@@ -1,11 +1,8 @@
 use std::net::{IpAddr, Ipv4Addr};
-
 use chrono::DateTime;
-use uuid::Uuid;
-
 use crate::{
-  initialize_required_tables, predefinitions::initialize_predefined_actions, initialize_predefined_configurations, resources::{
-    DeletableResource, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties}, action::{
+  initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
+    ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     },
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -34,6 +31,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_resources: Vec<Session> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -43,7 +41,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
   }
 
-  let retrieved_resource_count = Session::count("", &test_environment.database_pool, None).await?;
+  let retrieved_resource_count = Session::count("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_resource_count, MAXIMUM_RESOURCE_COUNT);
 
@@ -75,6 +73,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   // Create the access policy.
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   let created_session = test_environment.create_random_session(None).await?;
   
   created_session.delete(&test_environment.database_pool).await?;
@@ -128,6 +127,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut server_log_entries: Vec<Session> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -137,7 +137,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   }
 
-  let retrieved_resources = Session::list("", &test_environment.database_pool, None).await?;
+  let retrieved_resources = Session::list("", &test_environment.database_pool, None, None).await?;
 
   assert_eq!(retrieved_resources.len(), DEFAULT_ACTION_LIST_LIMIT as usize);
 
@@ -151,6 +151,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 5;
   let mut created_resources: Vec<Session> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -161,7 +162,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   }
 
   let query = format!("id = \"{}\"", created_resources[0].id);
-  let retrieved_resources = Session::list(&query, &test_environment.database_pool, None).await?;
+  let retrieved_resources = Session::list(&query, &test_environment.database_pool, None, None).await?;
 
   let created_resources_with_specific_id: Vec<&Session> = created_resources.iter().filter(|session| session.id == created_resources[0].id).collect();
   assert_eq!(created_resources_with_specific_id.len(), retrieved_resources.len());
@@ -183,6 +184,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 25;
   let mut created_resources: Vec<Session> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -192,7 +194,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   }
 
-  let retrieved_resources = Session::list("", &test_environment.database_pool, None).await?;
+  let retrieved_resources = Session::list("", &test_environment.database_pool, None, None).await?;
   assert_eq!(created_resources.len(), retrieved_resources.len());
   for i in 0..created_resources.len() {
 
@@ -217,7 +219,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   const MINIMUM_RESOURCE_COUNT: i32 = 2;
-  let mut current_resources = Session::list("", &test_environment.database_pool, None).await?;
+  let mut current_resources = Session::list("", &test_environment.database_pool, None, None).await?;
   if current_resources.len() < MINIMUM_RESOURCE_COUNT as usize {
 
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
@@ -246,7 +248,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
       permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
-      scoped_resource_type: crate::resources::access_policy::AccessPolicyResourceType::Session,
+      scoped_resource_type: crate::resources::access_policy::ResourceType::Session,
       scoped_session_id: Some(scoped_session.id.clone()),
       ..Default::default()
     }, &test_environment.database_pool).await?;
@@ -256,8 +258,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Make sure the user only sees the allowed actions.
-  let individual_principal = crate::resources::access_policy::IndividualPrincipal::User(user.id);
-  let retrieved_resources = Session::list("", &test_environment.database_pool, Some(&individual_principal)).await?;
+  let retrieved_resources = Session::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
 
   assert_eq!(allowed_resources.len(), retrieved_resources.len());
   for allowed_resource in allowed_resources {
