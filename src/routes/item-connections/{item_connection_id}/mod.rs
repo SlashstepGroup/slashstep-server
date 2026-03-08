@@ -22,8 +22,8 @@ use crate::{
   utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_item_connection_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}
 };
 
-// #[path = "./access-policies/mod.rs"]
-// mod access_policies;
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
 #[cfg(test)]
 mod tests;
 
@@ -174,7 +174,8 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/item-connections/{item_connection_id}", axum::routing::patch(handle_patch_item_connection_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
+    .merge(access_policies::get_router(state.clone()));
   return router;
 
 }
