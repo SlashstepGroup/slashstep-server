@@ -14,13 +14,14 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
+use rust_decimal::Decimal;
 use uuid::Uuid;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
-    ResourceError, access_policy::ActionPermissionLevel, item_type::{EditableItemTypeProperties, ItemType}
+    ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, item_type::{EditableItemTypeProperties, ItemType}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -639,6 +640,201 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the item type name is over the maximum length.
+#[tokio::test]
+async fn verify_item_type_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "itemTypes.update" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let update_item_types_action = Action::get_by_name("itemTypes.update", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let maximum_item_type_name_length_configuration = Configuration::get_by_name("itemTypes.maximumNameLength", &test_environment.database_pool).await?;
+  maximum_item_type_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let dummy_item_type = test_environment.create_random_item_type().await?;
+  let updated_item_type_properties = EditableItemTypeProperties {
+    name: Some(Uuid::now_v7().to_string()),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/item-types/{}", dummy_item_type.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_item_type_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+#[tokio::test]
+async fn verify_item_type_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "itemTypes.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let create_item_types_action = Action::get_by_name("itemTypes.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_item_types_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let item_type_name_regex_configuration = Configuration::get_by_name("itemTypes.allowedNameRegex", &test_environment.database_pool).await?;
+  item_type_name_regex_configuration.update(&EditableConfigurationProperties {
+    text_value: Some("^$".to_string()), // This regex pattern doesn't allow any item type names, so this should cause a validation error.
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let dummy_item_type = test_environment.create_random_item_type().await?;
+  let editable_item_type_properties = EditableItemTypeProperties {
+    name: Some(Uuid::now_v7().to_string()),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/item-types/{}", dummy_item_type.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(editable_item_type_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the item type display name is over the maximum length.
+#[tokio::test]
+async fn verify_item_type_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "itemTypes.update" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let update_item_types_action = Action::get_by_name("itemTypes.update", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let maximum_item_type_display_name_length_configuration = Configuration::get_by_name("itemTypes.maximumDisplayNameLength", &test_environment.database_pool).await?;
+  maximum_item_type_display_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let dummy_item_type = test_environment.create_random_item_type().await?;
+  let updated_item_type_properties = EditableItemTypeProperties {
+    display_name: Some(Uuid::now_v7().to_string()),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/item-types/{}", dummy_item_type.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_item_type_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the item type description is over the maximum length.
+#[tokio::test]
+async fn verify_item_type_description_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "itemTypes.update" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let update_item_types_action = Action::get_by_name("itemTypes.update", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let maximum_item_type_description_length_configuration = Configuration::get_by_name("itemTypes.maximumDescriptionLength", &test_environment.database_pool).await?;
+  maximum_item_type_description_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let dummy_item_type = test_environment.create_random_item_type().await?;
+  let updated_item_type_properties = EditableItemTypeProperties {
+    description: Some(Some(Uuid::now_v7().to_string())),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/item-types/{}", dummy_item_type.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_item_type_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
   return Ok(());
 

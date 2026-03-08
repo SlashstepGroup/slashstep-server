@@ -528,6 +528,10 @@ impl ActionLogEntry {
       &initial_properties.target_item_id,
       &initial_properties.target_item_connection_id,
       &initial_properties.target_item_connection_type_id,
+      &initial_properties.target_item_type_id,
+      &initial_properties.target_item_type_field_id,
+      &initial_properties.target_item_type_icon_id,
+      &initial_properties.target_iteration_id,
       &initial_properties.target_membership_id,
       &initial_properties.target_membership_invitation_id,
       &initial_properties.target_milestone_id,
@@ -536,8 +540,11 @@ impl ActionLogEntry {
       &initial_properties.target_role_id,
       &initial_properties.target_server_log_entry_id,
       &initial_properties.target_session_id,
+      &initial_properties.target_status_id,
       &initial_properties.target_user_id,
       &initial_properties.target_view_id,
+      &initial_properties.target_view_field_id,
+      &initial_properties.target_webhook_id,
       &initial_properties.target_workspace_id,
       &initial_properties.reason
     ];

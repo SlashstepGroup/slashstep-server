@@ -17,9 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    ResourceType, access_policy::{ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_type::{EditableItemTypeProperties, ItemType}, server_log_entry::ServerLogEntry, user::User
+    ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_type::{EditableItemTypeProperties, ItemType}, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_item_type_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_item_type_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -128,6 +128,24 @@ async fn handle_patch_item_type_request(
 
   let item_type_id = get_uuid_from_string(&item_type_id, "item type", &http_transaction, &state.database_pool).await?;
   let updated_item_type_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  if let Some(name) = &updated_item_type_properties.name {
+
+    validate_field_length(name, "itemTypes.maximumNameLength", "name", &http_transaction, &state.database_pool).await?;
+    validate_resource_name(name, "itemTypes.allowedNameRegex", "item type", &http_transaction, &state.database_pool).await?;
+
+  }
+
+  if let Some(display_name) = &updated_item_type_properties.display_name {
+
+    validate_field_length(display_name, "itemTypes.maximumDisplayNameLength", "display name", &http_transaction, &state.database_pool).await?;
+
+  }
+
+  if let Some(Some(description)) = &updated_item_type_properties.description {
+
+    validate_field_length(description, "itemTypes.maximumDescriptionLength", "description", &http_transaction, &state.database_pool).await?;
+
+  }
 
   let original_target_item_type = get_item_type_by_id(&item_type_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("itemTypes.update", &http_transaction, &state.database_pool).await?;
