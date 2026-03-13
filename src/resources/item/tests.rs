@@ -200,12 +200,11 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
   let retrieved_resources = Item::list("", &test_environment.database_pool, None, None).await?;
   assert_eq!(created_resources.len(), retrieved_resources.len());
-  for i in 0..created_resources.len() {
 
-    let created_item = &created_resources[i];
-    let retrieved_resource = &retrieved_resources[i];
+  for created_resource in created_resources {
 
-    assert_fields_are_equal(created_item, retrieved_resource);
+    let retrieved_resource = retrieved_resources.iter().find(|retrieved_resource| retrieved_resource.id == created_resource.id).expect("Expected a retrieved resource with the same ID.");
+    assert_fields_are_equal(&created_resource, retrieved_resource);
 
   }
 

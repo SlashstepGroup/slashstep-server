@@ -12,10 +12,11 @@
 #[cfg(test)]
 mod tests;
 
+use pg_escape::quote_identifier;
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParameterType, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -30,7 +31,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "parent_project_id"
 ];
 pub const RESOURCE_NAME: &str = "Item";
-pub const DATABASE_TABLE_NAME: &str = "items";
+pub const DATABASE_TABLE_NAME: &str = "searchable_items";
 pub const GET_RESOURCE_ACTION_NAME: &str = "items.get";
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -193,6 +194,40 @@ impl Item {
     }
 
     return Ok(Box::new(value));
+
+  }
+
+  async fn translate_assignment(assignment_properties: SlashstepQLAssignmentProperties, database_pool: &deadpool_postgres::Pool) -> Result<(String, Vec<(String, SlashstepQLParameterType)>), SlashstepQLError> {
+
+    if ALLOWED_QUERY_KEYS.contains(&identifier) {
+
+      return Ok(quote_identifier(identifier).to_string());
+
+    }
+
+    const ALLOWED_IDENTIFIER_PREFIXES: &[&str] = &[
+      "fields"
+    ];
+    let identifier_parts = identifier.split('.').collect::<Vec<&str>>();
+
+    match identifier_parts[0] {
+
+      "fields" => {
+
+        if identifier_parts.len() != 2 || !ALLOWED_IDENTIFIER_PREFIXES.contains(&identifier_parts[0]) {
+
+          return Err(SlashstepQLError::InvalidFieldError(identifier.to_string()));
+
+        }
+
+        let field_name = identifier_parts[1];
+        return Ok(format!("fields.name = {} AND field_values", quote_identifier(field_name)));
+
+      },
+
+      _ => return Err(SlashstepQLError::InvalidFieldError(identifier.to_string()))
+
+    }
 
   }
 

@@ -71,6 +71,15 @@ pub struct SlashstepQLSanitizeFunctionOptions {
   pub should_ignore_offset: bool
 }
 
+pub struct SlashstepQLAssignmentProperties {
+  pub key: String,
+  pub operator: String,
+  pub string_value: Option<String>,
+  pub number_value: Option<i64>,
+  pub boolean_value: Option<bool>,
+  pub has_null_value: bool
+}
+
 pub type SlashstepQLParsedParameter<'a> = Box<dyn ToSql + Sync + Send + 'a>;
 pub type SlashstepQLParsedParameters<'a> = Vec<SlashstepQLParsedParameter<'a>>;
 

@@ -153,6 +153,10 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   DelegationPolicy::initialize_resource_table(database_pool).await?;
   AccessPolicy::initialize_resource_table(database_pool).await?;
 
+  let database_client = database_pool.get().await?;
+  let query = include_str!("./queries/items/initialize_searchable_items_view.sql");
+  database_client.execute(query, &[]).await?;
+
   println!("{}", "Successfully initialized all tables.".blue());
 
   return Ok(());
