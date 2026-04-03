@@ -12,11 +12,12 @@
 #[cfg(test)]
 mod tests;
 
-use pg_escape::quote_identifier;
+use chrono::DateTime;
+use pg_escape::{quote_literal};
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParameterType, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParameterType, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -78,11 +79,11 @@ impl Item {
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: None,
       maximum_limit: None,
       should_ignore_limit: true,
-      should_ignore_offset: true
+      should_ignore_offset: true,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let database_client = database_pool.get().await?;
@@ -197,26 +198,27 @@ impl Item {
 
   }
 
-  async fn translate_assignment(assignment_properties: SlashstepQLAssignmentProperties, database_pool: &deadpool_postgres::Pool) -> Result<(String, Vec<(String, SlashstepQLParameterType)>), SlashstepQLError> {
+  fn translate_assignment(mut assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
 
-    if ALLOWED_QUERY_KEYS.contains(&identifier) {
+    // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
 
-      return Ok(quote_identifier(identifier).to_string());
+    // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
+    if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
+
+      return Ok(slashstepql::translate_normal_assignment(assignment_properties))
 
     }
 
-    const ALLOWED_IDENTIFIER_PREFIXES: &[&str] = &[
-      "fields"
-    ];
-    let identifier_parts = identifier.split('.').collect::<Vec<&str>>();
-
+    // Since the key is dynamic, we'll use it as a hint to form a valid SQL query.
+    let identifier_parts = (&assignment_properties.key).split('.').collect::<Vec<&str>>();
     match identifier_parts[0] {
 
       "fields" => {
 
-        if identifier_parts.len() != 2 || !ALLOWED_IDENTIFIER_PREFIXES.contains(&identifier_parts[0]) {
+        // In this case, the identifier should be made of two parts: the "fields" prefix and the field name. For example, "fields.priority".
+        if identifier_parts.len() != 2 {
 
-          return Err(SlashstepQLError::InvalidFieldError(identifier.to_string()));
+          return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
 
         }
 
@@ -225,21 +227,18 @@ impl Item {
         // The filter may be queried on multiple levels. For example, "/items?query=fields.priority = 'High'" targets all items across the server and searches for any fields named "priority". 
         // In one project, the ID may be `00000000-0000-0000-0000-000000000000` and in another project, the ID may be `11111111-1111-1111-1111-111111111111`; 
         // but, they both have the same field name of "priority" and must be accounted for.
+        // 
+        // TODO: Can we turn this query into a view to improve readability?
         let field_name = identifier_parts[1];
-        // TODO: Turn this into a view after getting this working.
-        let mut filter = format!("((SELECT COUNT(*) FROM items LEFT JOIN fields ON fields.parent_project_id = items.parent_project_id LEFT JOIN field_values ON field_values.field_id = fields.field_id AND (field_values.parent_resource_id = items.id OR field_values.parent_resource_type = 'Field') WHERE fields.name = {} AND field_values.field_id = fields.id", quote_identifier(field_name));
+        assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM items LEFT JOIN fields ON fields.parent_project_id = items.parent_project_id LEFT JOIN field_values ON field_values.field_id = fields.field_id AND (field_values.parent_resource_id = items.id OR field_values.parent_resource_type = 'Field') WHERE fields.name = {} AND field_values.field_id = fields.id", quote_literal(field_name)));
+        
         if let Some(string_value) = assignment_properties.string_value {
 
-          // 'Text',
-          // 'Number',
-          // 'Boolean',
-          // 'Timestamp',
-          // 'Stakeholder',
-          // 'Iteration',
-          // 'Milestone'
-          if let Ok(uuid_value) = Uuid::parse_str(&string_value) {
+          assignment_properties.where_clause.push_str(" AND (");
 
-            filter.push_str(" AND (");
+          if Uuid::parse_str(&string_value).is_ok() {
+
+            // UUID field types: Iteration, Milestone, Stakeholder
 
             // UUIDs are supposed to be globally unique, so it's generally safe to check the ID against all UUID columns.
             let uuid_column_name_map = vec![
@@ -249,40 +248,62 @@ impl Item {
               vec!["Stakeholder", "stakeholder_group_id"],
               vec!["Stakeholder", "stakeholder_app_id"]
             ];
-            
+
             for index in 0..uuid_column_name_map.len() {
 
               if index != 0 {
 
-                filter.push_str(" OR ");
+                assignment_properties.where_clause.push_str(" OR ");
 
               }
 
               let value_type = uuid_column_name_map[index][0];
               let column_name = uuid_column_name_map[index][1];
-              filter.push_str(&format!("((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = {} AND field_values.{} {} {}) = 1)", quote_identifier(value_type), column_name, &assignment_properties.operator, quote_identifier(&uuid_value.to_string())));
+              assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = {} AND field_values.{} {} ${}) = 1)", quote_literal(value_type), column_name, &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+              assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::String(string_value.clone())));
 
             }
 
-            filter.push_str(")")
-            
-          } else {
+          } else if DateTime::parse_from_rfc3339(&string_value).is_ok() {
 
-            filter.push_str(&format!(" AND ((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Text' AND field_values.text_value {} {}) = 1)", &assignment_properties.operator, quote_identifier(&string_value)));
+            assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Timestamp' AND field_values.timestamp_value {} ${}) = 1)", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+            assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::String(string_value.clone())));
 
           }
 
+          assignment_properties.where_clause.push_str(")");
+
+          // Despite the text value may being a UUID or a date, there's a chance that field value type might just be normal text.
+          // So, we have to account for that as well.
+          assignment_properties.where_clause.push_str(&format!(" AND ((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Text' AND field_values.text_value {} ${}) = 1)", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::String(string_value.clone())));
+
+        } else if let Some(number_value) = assignment_properties.number_value {
+
+          assignment_properties.where_clause.push_str(&format!(" AND ((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Number' AND field_values.number_value {} ${}) = 1)", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::Number(number_value)));
+
+        } else if let Some(boolean_value) = assignment_properties.boolean_value {
+
+          assignment_properties.where_clause.push_str(&format!(" AND ((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Boolean' AND field_values.boolean_value {} ${}) = 1)", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::Boolean(boolean_value)));
+
         }
 
-        filter.push_str(") = 1)");
-
-        return Ok(filter);
+        assignment_properties.where_clause.push_str(") = 1)");
 
       },
 
-      _ => return Err(SlashstepQLError::InvalidFieldError(identifier.to_string()))
+      _ => return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key))
 
     }
+
+    let assignment_translation_result = SlashstepQLAssignmentTranslationResult {
+      where_clause: assignment_properties.where_clause,
+      parameters: assignment_properties.parameters
+    };
+
+    return Ok(assignment_translation_result);
 
   }
 
@@ -292,11 +313,11 @@ impl Item {
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: Some(DEFAULT_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       should_ignore_limit: false,
-      should_ignore_offset: false
+      should_ignore_offset: false,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let database_client = database_pool.get().await?;
