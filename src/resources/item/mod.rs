@@ -220,8 +220,63 @@ impl Item {
 
         }
 
+        // Since the filter lacks the field value type and only includes the field name, we have to check the value against all possible field value types.
+        // 
+        // The filter may be queried on multiple levels. For example, "/items?query=fields.priority = 'High'" targets all items across the server and searches for any fields named "priority". 
+        // In one project, the ID may be `00000000-0000-0000-0000-000000000000` and in another project, the ID may be `11111111-1111-1111-1111-111111111111`; 
+        // but, they both have the same field name of "priority" and must be accounted for.
         let field_name = identifier_parts[1];
-        return Ok(format!("fields.name = {} AND field_values", quote_identifier(field_name)));
+        // TODO: Turn this into a view after getting this working.
+        let mut filter = format!("((SELECT COUNT(*) FROM items LEFT JOIN fields ON fields.parent_project_id = items.parent_project_id LEFT JOIN field_values ON field_values.field_id = fields.field_id AND (field_values.parent_resource_id = items.id OR field_values.parent_resource_type = 'Field') WHERE fields.name = {} AND field_values.field_id = fields.id", quote_identifier(field_name));
+        if let Some(string_value) = assignment_properties.string_value {
+
+          // 'Text',
+          // 'Number',
+          // 'Boolean',
+          // 'Timestamp',
+          // 'Stakeholder',
+          // 'Iteration',
+          // 'Milestone'
+          if let Ok(uuid_value) = Uuid::parse_str(&string_value) {
+
+            filter.push_str(" AND (");
+
+            // UUIDs are supposed to be globally unique, so it's generally safe to check the ID against all UUID columns.
+            let uuid_column_name_map = vec![
+              vec!["Iteration", "iteration_id_value"],
+              vec!["Milestone", "milestone_id_value"],
+              vec!["Stakeholder", "stakeholder_user_id"],
+              vec!["Stakeholder", "stakeholder_group_id"],
+              vec!["Stakeholder", "stakeholder_app_id"]
+            ];
+            
+            for index in 0..uuid_column_name_map.len() {
+
+              if index != 0 {
+
+                filter.push_str(" OR ");
+
+              }
+
+              let value_type = uuid_column_name_map[index][0];
+              let column_name = uuid_column_name_map[index][1];
+              filter.push_str(&format!("((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = {} AND field_values.{} {} {}) = 1)", quote_identifier(value_type), column_name, &assignment_properties.operator, quote_identifier(&uuid_value.to_string())));
+
+            }
+
+            filter.push_str(")")
+            
+          } else {
+
+            filter.push_str(&format!(" AND ((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Text' AND field_values.text_value {} {}) = 1)", &assignment_properties.operator, quote_identifier(&string_value)));
+
+          }
+
+        }
+
+        filter.push_str(") = 1)");
+
+        return Ok(filter);
 
       },
 
