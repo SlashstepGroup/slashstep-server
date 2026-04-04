@@ -4,7 +4,7 @@ use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
     ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
-    }, field::FieldValueType, field_value::{FieldValue, InitialFieldValueProperties}
+    }, field::{Field, FieldValueType, InitialFieldProperties}, field_value::{FieldValue, InitialFieldValueProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 use super::{DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, Item, InitialItemProperties};
@@ -157,6 +157,7 @@ async fn verify_list_resources_with_query_and_field_references() -> Result<(), T
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   let project = test_environment.create_random_project().await?;
+  test_environment.create_random_item(Some(&project.id)).await?;
   let item = test_environment.create_random_item(Some(&project.id)).await?;
   let field = test_environment.create_random_field(Some(&project.id)).await?;
   let field_value = FieldValue::create(&InitialFieldValueProperties {
@@ -169,11 +170,36 @@ async fn verify_list_resources_with_query_and_field_references() -> Result<(), T
 
   let query = format!("parent_project_id = \"{}\" AND fields.{} = \"{}\"", &project.id, &field.name, &field_value.text_value.as_ref().expect("Expected a text value."));
   let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
-  println!("Retrieved resources: {:#?}", retrieved_resources);
+  println!("Retrieved resources: {:?}", retrieved_resources);
+  assert_eq!(retrieved_resources.len(), 1);
+  assert_fields_are_equal(&item, &retrieved_resources[0]);
 
-  let query = format!("parent_project_id = \"{}\" AND fields.test = \"{}\"", &project.id, &field_value.text_value.as_ref().expect("Expected a text value."));
+  let query = format!("parent_project_id = \"{}\" AND fields.{} = \"{}\"", &project.id, Uuid::now_v7().to_string(), &field_value.text_value.as_ref().expect("Expected a text value."));
   let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
-  println!("Retrieved resources: {:#?}", retrieved_resources);
+  assert_eq!(retrieved_resources.len(), 0);
+
+  let item_on_different_project = test_environment.create_random_item(None).await?;
+  let field_with_same_name_on_different_project = Field::create(&InitialFieldProperties {
+    name: field.name.clone(),
+    parent_project_id: item_on_different_project.parent_project_id,
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  FieldValue::create(&InitialFieldValueProperties {
+    field_id: field_with_same_name_on_different_project.id,
+    value_type: FieldValueType::Text,
+    text_value: Some(field_value.text_value.as_ref().expect("Expected a text value.").clone()),
+    parent_item_id: Some(item_on_different_project.id),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let query = format!("parent_project_id = \"{}\" AND fields.{} = \"{}\"", &project.id, &field.name, &field_value.text_value.as_ref().expect("Expected a text value."));
+  let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  assert_eq!(retrieved_resources.len(), 1);
+  assert_fields_are_equal(&item, &retrieved_resources[0]);
+
+  let query = format!("fields.{} = \"{}\"", &field.name, &field_value.text_value.as_ref().expect("Expected a text value."));
+  let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  assert_eq!(retrieved_resources.len(), 2);
 
   return Ok(());
 

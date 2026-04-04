@@ -230,11 +230,11 @@ impl Item {
         // 
         // TODO: Can we turn this query into a view to improve readability?
         let field_name = identifier_parts[1];
-        assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM searchable_items LEFT JOIN fields ON fields.parent_project_id = searchable_items.parent_project_id LEFT JOIN field_values ON field_values.field_id = fields.id AND (field_values.parent_item_id = searchable_items.id OR field_values.parent_resource_type = 'Field') WHERE fields.name = {} AND field_values.field_id = fields.id", quote_literal(field_name)));
+        assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM searchable_items searchable_items_subquery LEFT JOIN fields ON fields.parent_project_id = searchable_items.parent_project_id LEFT JOIN field_values ON field_values.field_id = fields.id WHERE fields.name = {} AND searchable_items.id = searchable_items_subquery.id", quote_literal(field_name)));
         
         if let Some(string_value) = assignment_properties.string_value {
 
-          assignment_properties.where_clause.push_str(" AND (");
+          assignment_properties.where_clause.push_str(" AND (SELECT COUNT(*) FROM field_values WHERE (field_values.parent_item_id = searchable_items.id OR field_values.parent_field_id = fields.id) AND (");
 
           if let Ok(uuid_value) = Uuid::parse_str(&string_value) {
 
@@ -259,23 +259,26 @@ impl Item {
 
               let value_type = uuid_column_name_map[index][0];
               let column_name = uuid_column_name_map[index][1];
-              assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = {} AND field_values.{} {} ${}) = 1)", quote_literal(value_type), column_name, &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+              assignment_properties.where_clause.push_str(&format!("(field_values.value_type = {} AND field_values.{} {} ${})", quote_literal(value_type), column_name, &assignment_properties.operator, assignment_properties.parameters.len() + 1));
               assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::UUID(uuid_value)));
 
             }
 
+            assignment_properties.where_clause.push_str(" OR ")
+
           } else if DateTime::parse_from_rfc3339(&string_value).is_ok() {
 
-            assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Timestamp' AND field_values.timestamp_value {} ${}) = 1)", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+            assignment_properties.where_clause.push_str(&format!("(field_values.value_type = 'Timestamp' AND field_values.timestamp_value {} ${})", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
             assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::String(string_value.clone())));
+            assignment_properties.where_clause.push_str(" OR ")
 
           }
 
 
           // Despite the text value may being a UUID or a date, there's a chance that field value type might just be normal text.
           // So, we have to account for that as well.
-          assignment_properties.where_clause.push_str(&format!(" OR ((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Text' AND field_values.text_value {} ${}) = 1)", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
-          assignment_properties.where_clause.push_str(")");
+          assignment_properties.where_clause.push_str(&format!("(field_values.value_type = 'Text' AND field_values.text_value {} ${})", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.where_clause.push_str(")) = 1");
           assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::String(string_value.clone())));
 
         } else if let Some(number_value) = assignment_properties.number_value {
