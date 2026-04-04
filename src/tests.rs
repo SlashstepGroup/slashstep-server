@@ -294,15 +294,15 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_field(&self) -> Result<Field, TestSlashstepServerError> {
+  pub async fn create_random_field(&self, parent_project_id: Option<&Uuid>) -> Result<Field, TestSlashstepServerError> {
 
-    let parent_project = self.create_random_project().await?;
+    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project().await?.id);
     let field_properties = InitialFieldProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
       description: Uuid::now_v7().to_string(),
       field_value_type: FieldValueType::Text,
-      parent_project_id: parent_project.id,
+      parent_project_id: parent_project_id,
       ..Default::default()
     };
 
@@ -315,7 +315,7 @@ impl TestEnvironment {
   pub async fn create_random_field_choice(&self, field_id: Option<&Uuid>) -> Result<FieldChoice, TestSlashstepServerError> {
 
     let field_choice_properties = InitialFieldChoiceProperties {
-      field_id: field_id.copied().unwrap_or(self.create_random_field().await?.id),
+      field_id: field_id.copied().unwrap_or(self.create_random_field(None).await?.id),
       description: Some(Uuid::now_v7().to_string()),
       value_type: FieldChoiceType::Text,
       text_value: Some(Uuid::now_v7().to_string()),
@@ -330,7 +330,7 @@ impl TestEnvironment {
 
   pub async fn create_random_field_value(&self) -> Result<FieldValue, TestSlashstepServerError> {
 
-    let field = self.create_random_field().await?;
+    let field = self.create_random_field(None).await?;
     let field_choice_properties = InitialFieldValueProperties {
       field_id: field.id,
       parent_resource_type: FieldValueParentResourceType::Field,
@@ -377,11 +377,11 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_item(&self) -> Result<Item, TestSlashstepServerError> {
+  pub async fn create_random_item(&self, parent_project_id: Option<&Uuid>) -> Result<Item, TestSlashstepServerError> {
 
     let item_properties = InitialItemProperties {
       summary: Uuid::now_v7().to_string(),
-      parent_project_id: self.create_random_project().await?.id,
+      parent_project_id: parent_project_id.copied().unwrap_or(self.create_random_project().await?.id),
       ..Default::default()
     };
 
@@ -394,8 +394,8 @@ impl TestEnvironment {
   pub async fn create_random_item_connection(&self) -> Result<ItemConnection, TestSlashstepServerError> {
 
     let item_connection_type = self.create_random_item_connection_type().await?;
-    let inward_item = self.create_random_item().await?;
-    let outward_item = self.create_random_item().await?;
+    let inward_item = self.create_random_item(None).await?;
+    let outward_item = self.create_random_item(None).await?;
 
     let item_connection_properties = InitialItemConnectionProperties {
       item_connection_type_id: item_connection_type.id,
@@ -641,7 +641,7 @@ impl TestEnvironment {
   pub async fn create_random_view_field(&self, parent_view_id: Option<&Uuid>, field_id: Option<&Uuid>) -> Result<ViewField, TestSlashstepServerError> {
 
     let parent_view_id = parent_view_id.copied().unwrap_or(self.create_random_view().await?.id);
-    let field_id = field_id.copied().unwrap_or(self.create_random_field().await?.id);
+    let field_id = field_id.copied().unwrap_or(self.create_random_field(None).await?.id);
     let view_field_properties = InitialViewFieldProperties {
       parent_view_id,
       field_id,

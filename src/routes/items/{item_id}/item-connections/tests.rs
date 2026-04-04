@@ -49,8 +49,8 @@ async fn verify_successful_item_connection_creation() -> Result<(), TestSlashste
 
   // Set up the server and send the request.
   let dummy_item_connection_type = test_environment.create_random_item_connection_type().await?;
-  let outward_item = test_environment.create_random_item().await?;
-  let inward_item = test_environment.create_random_item().await?;
+  let outward_item = test_environment.create_random_item(None).await?;
+  let inward_item = test_environment.create_random_item(None).await?;
   let initial_item_connection_properties = InitialItemConnectionPropertiesWithPredefinedOutwardItem {
     inward_item_id: inward_item.id,
     item_connection_type_id: dummy_item_connection_type.id
@@ -101,8 +101,8 @@ async fn verify_returned_item_connection_list_without_query() -> Result<(), Test
   test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let outward_item = test_environment.create_random_item().await?;
-  let inward_item = test_environment.create_random_item().await?;
+  let outward_item = test_environment.create_random_item(None).await?;
+  let inward_item = test_environment.create_random_item(None).await?;
   let shown_item_connection = create_item_connection(&test_environment, &outward_item.id, &inward_item.id).await?;
 
   // Set up the server and send the request.
@@ -160,8 +160,8 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
-  let outward_item = test_environment.create_random_item().await?;
-  let inward_item = test_environment.create_random_item().await?;
+  let outward_item = test_environment.create_random_item(None).await?;
+  let inward_item = test_environment.create_random_item(None).await?;
   let shown_item_connection = create_item_connection(&test_environment, &outward_item.id, &inward_item.id).await?;
 
   // Set up the server and send the request.
@@ -226,10 +226,10 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy access policies.
-  let outward_item = test_environment.create_random_item().await?;
+  let outward_item = test_environment.create_random_item(None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
-    let inward_item = test_environment.create_random_item().await?;
+    let inward_item = test_environment.create_random_item(None).await?;
     let _ = create_item_connection(&test_environment, &outward_item.id, &inward_item.id).await?;
 
   }
@@ -275,7 +275,7 @@ async fn verify_maximum_item_connection_list_limit() -> Result<(), TestSlashstep
   test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let outward_item = test_environment.create_random_item().await?;
+  let outward_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -319,7 +319,7 @@ async fn verify_query_when_listing_item_connections() -> Result<(), TestSlashste
   test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let outward_item = test_environment.create_random_item().await?;
+  let outward_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -381,7 +381,7 @@ async fn verify_authentication_when_listing_item_connections() -> Result<(), Tes
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a dummy action.
-  let outward_item = test_environment.create_random_item().await?;
+  let outward_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -418,7 +418,7 @@ async fn verify_permission_when_listing_item_connections() -> Result<(), TestSla
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Create a dummy action.
-  let outward_item = test_environment.create_random_item().await?;
+  let outward_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {

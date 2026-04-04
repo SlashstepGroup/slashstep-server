@@ -52,7 +52,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let get_items_action = Action::get_by_name("items.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_items_action.id, &ActionPermissionLevel::User).await?;
   
-  let item = test_environment.create_random_item().await?;
+  let item = test_environment.create_random_item(None).await?;
 
   let response = test_server.get(&format!("/items/{}", item.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -115,7 +115,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let item = test_environment.create_random_item().await?;
+  let item = test_environment.create_random_item(None).await?;
 
   let response = test_server.get(&format!("/items/{}", item.id))
     .await;
@@ -141,7 +141,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let item = test_environment.create_random_item().await?;
+  let item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -217,7 +217,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   test_environment.create_server_access_policy(&user.id, &delete_fields_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let item = test_environment.create_random_item().await?;
+  let item = test_environment.create_random_item(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -281,7 +281,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create a dummy app.
-  let item = test_environment.create_random_item().await?;
+  let item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -317,7 +317,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
   // Create a dummy app.
-  let item = test_environment.create_random_item().await?;
+  let item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -390,7 +390,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   test_environment.create_server_access_policy(&user.id, &update_items_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let original_item = test_environment.create_random_item().await?;
+  let original_item = test_environment.create_random_item(None).await?;
   let updated_item_properties = EditableItemProperties {
     summary: Some(Uuid::now_v7().to_string())
   };
@@ -545,7 +545,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
-  let item = test_environment.create_random_item().await?;
+  let item = test_environment.create_random_item(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -582,7 +582,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Set up the server and send the request.
-  let item = test_environment.create_random_item().await?;
+  let item = test_environment.create_random_item(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };

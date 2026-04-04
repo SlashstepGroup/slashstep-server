@@ -15,7 +15,7 @@ mod tests;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
-use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -93,11 +93,11 @@ impl Group {
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: None,
       maximum_limit: None,
       should_ignore_limit: true,
-      should_ignore_offset: true
+      should_ignore_offset: true,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let database_client = database_pool.get().await?;
@@ -193,6 +193,32 @@ impl Group {
 
   }
 
+  /// Returns a list of groups based on a query.
+  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
+
+    // Prepare the query.
+    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+      filter: query.to_string(),
+      default_limit: Some(DEFAULT_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+      should_ignore_limit: false,
+      should_ignore_offset: false,
+      translate_assignment: Self::translate_assignment
+    };
+    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+    let database_client = database_pool.get().await?;
+    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
+    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, false)?;
+    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
+    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+
+    // Execute the query.
+    let rows = database_client.query(&query, &parameters).await?;
+    let actions = rows.iter().map(Self::convert_from_row).collect();
+    return Ok(actions);
+
+  }
+
   /// Parses a string into a parameter for a slashstepql query.
   fn parse_string_slashstepql_parameters<'a>(key: &'a str, value: &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
 
@@ -211,29 +237,18 @@ impl Group {
 
   }
 
-  /// Returns a list of groups based on a query.
-  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
+  fn translate_assignment(assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
 
-    // Prepare the query.
-    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
-      filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
-      default_limit: Some(DEFAULT_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      should_ignore_limit: false,
-      should_ignore_offset: false
-    };
-    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let database_client = database_pool.get().await?;
-    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, false)?;
-    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
-    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
 
-    // Execute the query.
-    let rows = database_client.query(&query, &parameters).await?;
-    let actions = rows.iter().map(Self::convert_from_row).collect();
-    return Ok(actions);
+    // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
+    if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
+
+      return Ok(slashstepql::translate_normal_assignment(assignment_properties))
+
+    }
+
+    return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
 
   }
 

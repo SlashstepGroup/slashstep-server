@@ -35,7 +35,8 @@ pub struct SlashstepQLSanitizedFilter {
 pub enum SlashstepQLParameterType {
   String(String),
   Number(i64),
-  Boolean(bool)
+  Boolean(bool),
+  UUID(Uuid)
 }
 
 pub struct SlashstepQLFilterSanitizer;
@@ -130,12 +131,14 @@ impl SlashstepQLFilterSanitizer {
     let mut offset = None;
     let mut limit = options.default_limit;
 
+    println!("Raw filter: {}", raw_filter);
+
     while raw_filter.len() > 0 {
 
       // Remove unnecessary whitespace.
       raw_filter = raw_filter.trim().to_string();
 
-      const SEARCH_REGEX_PATTERN: &str = r#"^((?<openParenthesis>\()|(?<closedParenthesis>\))|(?<and>and)|(?<or>or)|(?<not>not)|(?<assignment>(?<key>\w+) *(?<operator>is|~|~\*|!~|!~\*|=|>|<|>=|<=) *(("(?<stringDoubleQuotes>[^"\\]*(?:\\.[^"\\]*)*)")|(('(?<stringSingleQuotes>[^'\\]*(?:\\.[^'\\]*)*)'))|(?<number>(\d+\.?\d*|(\.\d+)))|(?<boolean>(true|false))|(?<null>null)))|(limit ((?<limit>\d+)))|(offset ((?<offset>\d+))))"#;
+      const SEARCH_REGEX_PATTERN: &str = r#"^((?<openParenthesis>\()|(?<closedParenthesis>\))|(?<and>and)|(?<or>or)|(?<not>not)|(?<assignment>(?<key>[\w.-]+) *(?<operator>is|~|~\*|!~|!~\*|=|>|<|>=|<=) *(("(?<stringDoubleQuotes>[^"\\]*(?:\\.[^"\\]*)*)")|(('(?<stringSingleQuotes>[^'\\]*(?:\\.[^'\\]*)*)'))|(?<number>(\d+\.?\d*|(\.\d+)))|(?<boolean>(true|false))|(?<null>null)))|(limit ((?<limit>\d+)))|(offset ((?<offset>\d+))))"#;
       let search_regex = RegexBuilder::new(SEARCH_REGEX_PATTERN)
         .case_insensitive(true)
         .build()?;
@@ -374,6 +377,12 @@ pub fn parse_parameters<'a>(
       SlashstepQLParameterType::Boolean(boolean_value) => {
 
         parsed_parameters.push(Box::new(boolean_value));
+
+      }
+
+      SlashstepQLParameterType::UUID(uuid_value) => {
+
+        parsed_parameters.push(Box::new(uuid_value));
 
       }
 

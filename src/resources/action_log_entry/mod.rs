@@ -16,7 +16,7 @@ use chrono::{DateTime, Utc};
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{ResourceType, ResourceError, access_policy::{AccessPolicyPrincipalType}}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, ResourceType, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -479,11 +479,11 @@ impl ActionLogEntry {
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: None,
       maximum_limit: None,
       should_ignore_limit: true,
-      should_ignore_offset: true
+      should_ignore_offset: true,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let database_client = database_pool.get().await?;
@@ -566,6 +566,15 @@ impl ActionLogEntry {
     return Ok(());
 
   }
+
+  pub async fn delete_expired_action_log_entries(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/action_log_entries/delete_expired_action_log_entry_rows.sql");
+    database_client.execute(query, &[]).await?;
+    return Ok(());
+
+  }
   
   /// Initializes the action_log_entries table.
   pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
@@ -585,11 +594,11 @@ impl ActionLogEntry {
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: Some(DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       should_ignore_limit: false,
-      should_ignore_offset: false
+      should_ignore_offset: false,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let database_client = database_pool.get().await?;
@@ -623,12 +632,18 @@ impl ActionLogEntry {
 
   }
 
-  pub async fn delete_expired_action_log_entries(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+  fn translate_assignment(assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
 
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/action_log_entries/delete_expired_action_log_entry_rows.sql");
-    database_client.execute(query, &[]).await?;
-    return Ok(());
+    // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
+
+    // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
+    if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
+
+      return Ok(slashstepql::translate_normal_assignment(assignment_properties))
+
+    }
+
+    return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
 
   }
 
