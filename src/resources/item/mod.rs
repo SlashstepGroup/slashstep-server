@@ -12,7 +12,7 @@
 #[cfg(test)]
 mod tests;
 
-use chrono::DateTime;
+use chrono::{DateTime};
 use pg_escape::{quote_literal};
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
@@ -230,11 +230,11 @@ impl Item {
         // 
         // TODO: Can we turn this query into a view to improve readability?
         let field_name = identifier_parts[1];
-        assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM searchable_items searchable_items_subquery LEFT JOIN fields ON fields.parent_project_id = searchable_items.parent_project_id LEFT JOIN field_values ON field_values.field_id = fields.id WHERE fields.name = {} AND searchable_items.id = searchable_items_subquery.id", quote_literal(field_name)));
+        assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM searchable_items searchable_items_subquery LEFT JOIN fields ON fields.parent_project_id = searchable_items.parent_project_id LEFT JOIN field_values ON field_values.field_id = fields.id WHERE fields.name = {} AND searchable_items.id = searchable_items_subquery.id AND (SELECT COUNT(*) FROM field_values WHERE (field_values.parent_item_id = searchable_items.id OR field_values.parent_field_id = fields.id)", quote_literal(field_name)));
         
         if let Some(string_value) = assignment_properties.string_value {
 
-          assignment_properties.where_clause.push_str(" AND (SELECT COUNT(*) FROM field_values WHERE (field_values.parent_item_id = searchable_items.id OR field_values.parent_field_id = fields.id) AND (");
+          assignment_properties.where_clause.push_str(" AND (");
 
           if let Ok(uuid_value) = Uuid::parse_str(&string_value) {
 
@@ -266,14 +266,13 @@ impl Item {
 
             assignment_properties.where_clause.push_str(" OR ")
 
-          } else if DateTime::parse_from_rfc3339(&string_value).is_ok() {
+          } else if let Ok(datetime_value) = DateTime::parse_from_rfc3339(&string_value) {
 
             assignment_properties.where_clause.push_str(&format!("(field_values.value_type = 'Timestamp' AND field_values.timestamp_value {} ${})", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
-            assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::String(string_value.clone())));
+            assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::Timestamp(datetime_value)));
             assignment_properties.where_clause.push_str(" OR ")
 
           }
-
 
           // Despite the text value may being a UUID or a date, there's a chance that field value type might just be normal text.
           // So, we have to account for that as well.
@@ -283,12 +282,12 @@ impl Item {
 
         } else if let Some(number_value) = assignment_properties.number_value {
 
-          assignment_properties.where_clause.push_str(&format!(" AND ((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Number' AND field_values.number_value {} ${}) = 1)", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.where_clause.push_str(&format!(" AND (field_values.value_type = 'Number' AND field_values.number_value {} ${})) = 1", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
           assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::Number(number_value)));
 
         } else if let Some(boolean_value) = assignment_properties.boolean_value {
 
-          assignment_properties.where_clause.push_str(&format!(" AND ((SELECT COUNT(*) FROM field_values WHERE field_values.value_type = 'Boolean' AND field_values.boolean_value {} ${}) = 1)", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.where_clause.push_str(&format!(" AND (field_values.value_type = 'Boolean' AND field_values.boolean_value {} ${})) = 1", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
           assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::Boolean(boolean_value)));
 
         }

@@ -1,7 +1,9 @@
 use std::fmt;
+use chrono::{DateTime, FixedOffset};
 use pg_escape::{quote_identifier, quote_literal};
 use postgres_types::ToSql;
 use regex::{RegexBuilder};
+use rust_decimal::Decimal;
 use thiserror::Error;
 use uuid::Uuid;
 use std::error::Error;
@@ -32,11 +34,13 @@ pub struct SlashstepQLSanitizedFilter {
   pub offset: Option<i64>
 }
 
+#[derive(Debug)]
 pub enum SlashstepQLParameterType {
   String(String),
-  Number(i64),
+  Number(Decimal),
   Boolean(bool),
-  UUID(Uuid)
+  UUID(Uuid),
+  Timestamp(DateTime<FixedOffset>)
 }
 
 pub struct SlashstepQLFilterSanitizer;
@@ -77,11 +81,12 @@ pub struct SlashstepQLSanitizeFunctionOptions {
   pub translate_assignment: fn(SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError>
 }
 
+#[derive(Debug)]
 pub struct SlashstepQLAssignmentProperties {
   pub key: String,
   pub operator: String,
   pub string_value: Option<String>,
-  pub number_value: Option<i64>,
+  pub number_value: Option<Decimal>,
   pub boolean_value: Option<bool>,
   pub has_null_value: bool,
   pub where_clause: String,
@@ -172,8 +177,8 @@ impl SlashstepQLFilterSanitizer {
           if let Some(original_key) = regex_captures.name("key").and_then(|string_match| Some(string_match.as_str().to_string())) {
 
             let string_value = regex_captures.name("stringDoubleQuotes").or(regex_captures.name("stringSingleQuotes")).and_then(|string_match| Some(string_match.as_str().to_string()));
-            let number_value = regex_captures.name("numberValue").and_then(|string_match| Some(string_match.as_str().parse::<i64>().ok()?));
-            let boolean_value = regex_captures.name("booleanValue").and_then(|string_match| Some(string_match.as_str().parse::<bool>().ok()?));
+            let number_value = regex_captures.name("number").and_then(|string_match| Some(string_match.as_str().parse::<Decimal>().ok()?));
+            let boolean_value = regex_captures.name("boolean").and_then(|string_match| Some(string_match.as_str().parse::<bool>().ok()?));
             let operator = match regex_captures.name("operator").and_then(|string_match| Some(string_match.as_str().to_string())) {
 
               Some(operator) => operator,
@@ -383,6 +388,12 @@ pub fn parse_parameters<'a>(
       SlashstepQLParameterType::UUID(uuid_value) => {
 
         parsed_parameters.push(Box::new(uuid_value));
+
+      },
+
+      SlashstepQLParameterType::Timestamp(timestamp_value) => {
+
+        parsed_parameters.push(Box::new(timestamp_value));
 
       }
 

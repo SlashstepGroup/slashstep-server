@@ -170,7 +170,6 @@ async fn verify_list_resources_with_query_and_field_references() -> Result<(), T
 
   let query = format!("parent_project_id = \"{}\" AND fields.{} = \"{}\"", &project.id, &field.name, &field_value.text_value.as_ref().expect("Expected a text value."));
   let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
-  println!("Retrieved resources: {:?}", retrieved_resources);
   assert_eq!(retrieved_resources.len(), 1);
   assert_fields_are_equal(&item, &retrieved_resources[0]);
 
@@ -200,6 +199,18 @@ async fn verify_list_resources_with_query_and_field_references() -> Result<(), T
   let query = format!("fields.{} = \"{}\"", &field.name, &field_value.text_value.as_ref().expect("Expected a text value."));
   let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
   assert_eq!(retrieved_resources.len(), 2);
+
+  // let query = format!("fields.{} = \"{}\"", &field.name, &Utc::now().to_rfc3339());
+  // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  // assert_eq!(retrieved_resources.len(), 0);
+
+  // let query = format!("fields.{} = {}", &field.name, true);
+  // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  // assert_eq!(retrieved_resources.len(), 0);
+
+  // let query = format!("fields.{} = {}", &field.name, 2);
+  // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  // assert_eq!(retrieved_resources.len(), 0);
 
   return Ok(());
 
