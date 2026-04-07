@@ -135,8 +135,7 @@ impl SlashstepQLFilterSanitizer {
     let mut raw_filter = options.filter.to_string();
     let mut offset = None;
     let mut limit = options.default_limit;
-
-    println!("Raw filter: {}", raw_filter);
+    let mut open_parenthesis_count = 0;
 
     while raw_filter.len() > 0 {
 
@@ -155,7 +154,17 @@ impl SlashstepQLFilterSanitizer {
 
           where_clause.push_str("(");
 
+          open_parenthesis_count += 1;
+
         } else if regex_captures.name("closedParenthesis").is_some() {
+
+          if open_parenthesis_count == 0 {
+
+            return Err(SlashstepQLError::InvalidFilterSyntaxError("Unexpected closed parenthesis in filter query.".to_string()));
+
+          }
+
+          open_parenthesis_count -= 1;
 
           where_clause.push_str(")");
 

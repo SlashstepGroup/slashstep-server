@@ -304,7 +304,7 @@ impl Action {
 
   }
 
-  fn translate_assignment(mut assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
+  fn translate_assignment(assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
 
     // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
 
