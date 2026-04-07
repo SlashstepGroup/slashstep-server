@@ -43,7 +43,7 @@ pub async fn handle_list_roles_request(
   let query = format!(
     "parent_group_id = {}{}", 
     quote_literal(&group_id.to_string()), 
-    query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
+    query_parameters.query.and_then(|query| Some(format!(" AND ({})", query))).unwrap_or("".to_string())
   );
   let queried_resources = match Role::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 

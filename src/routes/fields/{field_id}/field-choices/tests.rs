@@ -121,7 +121,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   assert_eq!(response_body.total_count, 1);
   assert_eq!(response_body.resources.len(), 1);
 
-  let query = format!("field_id = {} AND {}", quote_literal(&dummy_field_choice.field_id.to_string()), &additional_query);
+  let query = format!("field_id = {} AND ({})", quote_literal(&dummy_field_choice.field_id.to_string()), &additional_query);
   let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_field_choice_count);
 

@@ -190,7 +190,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   // the item is either the inward item or the outward item.
   //
   // We know the inward item ID because we defined it in this test, but users might not.
-  let query = format!("(outward_item_id = {} OR inward_item_id = {}) AND {}", quote_literal(&outward_item.id.to_string()), quote_literal(&outward_item.id.to_string()), additional_query);
+  let query = format!("(outward_item_id = {} OR inward_item_id = {}) AND ({})", quote_literal(&outward_item.id.to_string()), quote_literal(&outward_item.id.to_string()), additional_query);
   let actual_item_connection_count = ItemConnection::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_connections.total_count, actual_item_connection_count);
 

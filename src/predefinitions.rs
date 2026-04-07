@@ -1363,6 +1363,13 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       default_number_value: Some(Decimal::from(2_i64.pow(8))),
       ..Default::default()
     },
+    InitialConfigurationProperties {
+      name: "iterations.maximumDisplayNameLength".to_string(),
+      description: Some("The maximum length of iteration display names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
   ];
 
   let mut configurations: Vec<Configuration> = Vec::new();
