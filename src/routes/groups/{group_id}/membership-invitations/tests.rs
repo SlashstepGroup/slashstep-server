@@ -198,7 +198,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   assert_eq!(response_membership_invitations.total_count, 1);
   assert_eq!(response_membership_invitations.resources.len(), 1);
 
-  let query = format!("parent_group_id = {} AND {}", quote_literal(&dummy_group.id.to_string()), additional_query);
+  let query = format!("parent_group_id = {} AND ({})", quote_literal(&dummy_group.id.to_string()), additional_query);
   let actual_membership_invitation_count = MembershipInvitation::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_membership_invitations.total_count, actual_membership_invitation_count);
 

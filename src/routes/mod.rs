@@ -30,6 +30,8 @@ mod item_connection_types;
 mod item_types;
 #[path = "./memberships/mod.rs"]
 mod memberships;
+#[path = "./iterations/mod.rs"]
+mod iterations;
 // mod milestones;
 // #[path = "./oauth-access-tokens/mod.rs"]
 // mod oauth_access_tokens;
@@ -86,6 +88,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(item_connection_types::get_router(state.clone()))
     .merge(item_types::get_router(state.clone()))
     .merge(memberships::get_router(state.clone()))
+    .merge(iterations::get_router(state.clone()))
     // .merge(milestones::get_router(state.clone()))
     // .merge(oauth_access_tokens::get_router(state.clone()))
     // .merge(projects::get_router(state.clone()))

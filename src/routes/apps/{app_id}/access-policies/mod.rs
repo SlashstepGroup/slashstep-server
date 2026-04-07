@@ -44,7 +44,7 @@ async fn handle_list_access_policies_request(
   let query = format!(
     "scoped_resource_type = 'App' AND scoped_app_id = {}{}", 
     quote_literal(&app_id.to_string()), 
-    query_parameters.query.and_then(|query| Some(format!(" AND {}", query))).unwrap_or("".to_string())
+    query_parameters.query.and_then(|query| Some(format!(" AND ({})", query))).unwrap_or("".to_string())
   );
   let queried_resources = match AccessPolicy::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
 

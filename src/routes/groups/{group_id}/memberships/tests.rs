@@ -135,7 +135,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   assert_eq!(response_body.total_count, 1);
   assert_eq!(response_body.resources.len(), 1);
 
-  let query = format!("parent_group_id = {} AND {}", quote_literal(&dummy_group.id.to_string()), &additional_query);
+  let query = format!("parent_group_id = {} AND ({})", quote_literal(&dummy_group.id.to_string()), &additional_query);
   let actual_membership_count = Membership::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_membership_count);
 

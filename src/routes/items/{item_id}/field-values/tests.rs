@@ -201,7 +201,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   assert_eq!(response_field_values.total_count, 1);
   assert_eq!(response_field_values.resources.len(), 1);
 
-  let query = format!("parent_item_id = {} AND {}", quote_literal(&dummy_item.id.to_string()), additional_query);
+  let query = format!("parent_item_id = {} AND ({})", quote_literal(&dummy_item.id.to_string()), additional_query);
   let actual_field_value_count = FieldValue::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_field_values.total_count, actual_field_value_count);
 
