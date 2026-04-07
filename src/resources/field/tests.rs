@@ -47,7 +47,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_fields: Vec<Field> = Vec::new();
   for _ in 0..MAXIMUM_FIELD_COUNT {
 
-    let field = test_environment.create_random_field().await?;
+    let field = test_environment.create_random_field(None).await?;
     created_fields.push(field);
 
   }
@@ -93,7 +93,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_field = test_environment.create_random_field().await?;
+  let created_field = test_environment.create_random_field(None).await?;
   
   created_field.delete(&test_environment.database_pool).await?;
 
@@ -132,7 +132,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_field = test_environment.create_random_field().await?;
+  let created_field = test_environment.create_random_field(None).await?;
   let retrieved_field = Field::get_by_id(&created_field.id, &test_environment.database_pool).await?;
   assert_fields_are_equal(&created_field, &retrieved_field);
 
@@ -151,7 +151,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut fields: Vec<Field> = Vec::new();
   for _ in 0..MAXIMUM_FIELD_COUNT {
 
-    let field = test_environment.create_random_field().await?;
+    let field = test_environment.create_random_field(None).await?;
     fields.push(field);
 
   }
@@ -175,7 +175,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_fields: Vec<Field> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let field = test_environment.create_random_field().await?;
+    let field = test_environment.create_random_field(None).await?;
     created_fields.push(field);
 
   }
@@ -208,7 +208,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_fields: Vec<Field> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let field = test_environment.create_random_field().await?;
+    let field = test_environment.create_random_field(None).await?;
     created_fields.push(field);
 
   }
@@ -244,7 +244,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_ACTION_COUNT - current_fields.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let field = test_environment.create_random_field().await?;
+      let field = test_environment.create_random_field(None).await?;
       current_fields.push(field);
 
     }

@@ -19,7 +19,7 @@ use crate::{AppState, get_json_web_token_private_key, initialize_required_tables
 
 async fn create_field_value(test_environment: &TestEnvironment, item_id: &Uuid) -> Result<FieldValue, TestSlashstepServerError> {
 
-  let dummy_field = test_environment.create_random_field().await?;
+  let dummy_field = test_environment.create_random_field(None).await?;
   let dummy_field_value = FieldValue::create(&InitialFieldValueProperties {
     parent_resource_type: FieldValueParentResourceType::Item,
     parent_item_id: Some(*item_id),
@@ -51,7 +51,7 @@ async fn verify_successful_field_value_creation() -> Result<(), TestSlashstepSer
   test_environment.create_server_access_policy(&user.id, &create_field_values_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let field = test_environment.create_random_field().await?;
+  let field = test_environment.create_random_field(None).await?;
   let dummy_item = Item::create(&InitialItemProperties {
     summary: Uuid::now_v7().to_string(),
     parent_project_id: field.parent_project_id,
@@ -119,7 +119,7 @@ async fn verify_returned_field_value_list_without_query() -> Result<(), TestSlas
   test_environment.create_server_access_policy(&user.id, &list_field_values_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
   let shown_field_value = create_field_value(&test_environment, &dummy_item.id).await?;
 
   // Set up the server and send the request.
@@ -177,7 +177,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   test_environment.create_server_access_policy(&user.id, &list_field_values_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
   let shown_field_value = create_field_value(&test_environment, &dummy_item.id).await?;
 
   // Set up the server and send the request.
@@ -237,7 +237,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   test_environment.create_server_access_policy(&user.id, &list_field_values_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy access policies.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
     let _ = create_field_value(&test_environment, &dummy_item.id).await?;
@@ -285,7 +285,7 @@ async fn verify_maximum_field_value_list_limit() -> Result<(), TestSlashstepServ
   test_environment.create_server_access_policy(&user.id, &list_field_values_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -329,7 +329,7 @@ async fn verify_query_when_listing_field_values() -> Result<(), TestSlashstepSer
   test_environment.create_server_access_policy(&user.id, &list_field_values_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -391,7 +391,7 @@ async fn verify_authentication_when_listing_field_values() -> Result<(), TestSla
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a dummy action.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -428,7 +428,7 @@ async fn verify_permission_when_listing_field_values() -> Result<(), TestSlashst
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Create a dummy action.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {

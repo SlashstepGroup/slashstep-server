@@ -52,7 +52,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
   test_environment.create_server_access_policy(&user.id, &create_access_policies_action.id, &ActionPermissionLevel::User).await?;
   
   // Give the user editor access to a dummy action.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
   let dummy_action = test_environment.create_random_action(None).await?;
   test_environment.create_server_access_policy(&user.id, &dummy_action.id, &ActionPermissionLevel::Editor).await?;
 
@@ -113,7 +113,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
   let shown_access_policy = create_item_access_policy(&test_environment.database_pool, &dummy_item.id, &user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
@@ -171,7 +171,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
   create_item_access_policy(&test_environment.database_pool, &dummy_item.id, &user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   let shown_access_policy = create_item_access_policy(&test_environment.database_pool, &dummy_item.id, &user.id, &get_access_policies_action.id, &ActionPermissionLevel::Editor).await?;
@@ -233,7 +233,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy access policies.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
     let random_action = test_environment.create_random_action(None).await?;
@@ -283,7 +283,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -327,7 +327,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
   test_environment.create_server_access_policy(&user.id, &list_access_policies_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -389,7 +389,7 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a dummy action.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -426,7 +426,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Create a dummy action.
-  let dummy_item = test_environment.create_random_item().await?;
+  let dummy_item = test_environment.create_random_item(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {

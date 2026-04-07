@@ -1,7 +1,9 @@
 use std::fmt;
+use chrono::{DateTime, FixedOffset};
 use pg_escape::{quote_identifier, quote_literal};
 use postgres_types::ToSql;
 use regex::{RegexBuilder};
+use rust_decimal::Decimal;
 use thiserror::Error;
 use uuid::Uuid;
 use std::error::Error;
@@ -32,10 +34,13 @@ pub struct SlashstepQLSanitizedFilter {
   pub offset: Option<i64>
 }
 
+#[derive(Debug)]
 pub enum SlashstepQLParameterType {
   String(String),
-  Number(i64),
-  Boolean(bool)
+  Number(Decimal),
+  Boolean(bool),
+  UUID(Uuid),
+  Timestamp(DateTime<FixedOffset>)
 }
 
 pub struct SlashstepQLFilterSanitizer;
@@ -62,17 +67,64 @@ pub enum SlashstepQLError {
   MissingPrincipalIDError(()),
 }
 
+pub struct SlashstepQLAssignmentTranslationResult {
+  pub where_clause: String,
+  pub parameters: Vec<(String, SlashstepQLParameterType)>
+}
+
 pub struct SlashstepQLSanitizeFunctionOptions {
   pub filter: String,
-  pub allowed_fields: Vec<String>,
   pub default_limit: Option<i64>,
   pub maximum_limit: Option<i64>,
   pub should_ignore_limit: bool,
-  pub should_ignore_offset: bool
+  pub should_ignore_offset: bool,
+  pub translate_assignment: fn(SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError>
+}
+
+#[derive(Debug)]
+pub struct SlashstepQLAssignmentProperties {
+  pub key: String,
+  pub operator: String,
+  pub string_value: Option<String>,
+  pub number_value: Option<Decimal>,
+  pub boolean_value: Option<bool>,
+  pub has_null_value: bool,
+  pub where_clause: String,
+  pub parameters: Vec<(String, SlashstepQLParameterType)>
 }
 
 pub type SlashstepQLParsedParameter<'a> = Box<dyn ToSql + Sync + Send + 'a>;
 pub type SlashstepQLParsedParameters<'a> = Vec<SlashstepQLParsedParameter<'a>>;
+
+pub fn translate_normal_assignment(mut assignment_properties: SlashstepQLAssignmentProperties) -> SlashstepQLAssignmentTranslationResult {
+
+  let identifier = quote_identifier(&assignment_properties.key);
+  let formatted_value = format!("${}", assignment_properties.parameters.len() + 1);
+  let injected_value = if assignment_properties.has_null_value { "NULL".to_string() } else { formatted_value };
+  assignment_properties.where_clause.push_str(&format!("{} {} {}", identifier, assignment_properties.operator, injected_value));
+
+  if let Some(parameterized_value) = assignment_properties.string_value {
+
+    assignment_properties.parameters.push((assignment_properties.key, SlashstepQLParameterType::String(parameterized_value)));
+
+  } else if let Some(parameterized_value) = assignment_properties.number_value {
+
+    assignment_properties.parameters.push((assignment_properties.key, SlashstepQLParameterType::Number(parameterized_value)));
+
+  } else if let Some(parameterized_value) = assignment_properties.boolean_value {
+
+    assignment_properties.parameters.push((assignment_properties.key, SlashstepQLParameterType::Boolean(parameterized_value)));
+
+  }
+
+  let assignment_translation_result = SlashstepQLAssignmentTranslationResult {
+    where_clause: assignment_properties.where_clause,
+    parameters: assignment_properties.parameters
+  };
+
+  return assignment_translation_result;
+
+}
 
 impl SlashstepQLFilterSanitizer {
 
@@ -83,13 +135,14 @@ impl SlashstepQLFilterSanitizer {
     let mut raw_filter = options.filter.to_string();
     let mut offset = None;
     let mut limit = options.default_limit;
+    let mut open_parenthesis_count = 0;
 
     while raw_filter.len() > 0 {
 
       // Remove unnecessary whitespace.
       raw_filter = raw_filter.trim().to_string();
 
-      const SEARCH_REGEX_PATTERN: &str = r#"^((?<openParenthesis>\()|(?<closedParenthesis>\))|(?<and>and)|(?<or>or)|(?<not>not)|(?<assignment>(?<key>\w+) *(?<operator>is|~|~\*|!~|!~\*|=|>|<|>=|<=) *(("(?<stringDoubleQuotes>[^"\\]*(?:\\.[^"\\]*)*)")|(('(?<stringSingleQuotes>[^'\\]*(?:\\.[^'\\]*)*)'))|(?<number>(\d+\.?\d*|(\.\d+)))|(?<boolean>(true|false))|(?<null>null)))|(limit ((?<limit>\d+)))|(offset ((?<offset>\d+))))"#;
+      const SEARCH_REGEX_PATTERN: &str = r#"^((?<openParenthesis>\()|(?<closedParenthesis>\))|(?<and>and)|(?<or>or)|(?<not>not)|(?<assignment>(?<key>[\w.-]+) *(?<operator>is|~|~\*|!~|!~\*|=|>|<|>=|<=) *(("(?<stringDoubleQuotes>[^"\\]*(?:\\.[^"\\]*)*)")|(('(?<stringSingleQuotes>[^'\\]*(?:\\.[^'\\]*)*)'))|(?<number>(\d+\.?\d*|(\.\d+)))|(?<boolean>(true|false))|(?<null>null)))|(limit ((?<limit>\d+)))|(offset ((?<offset>\d+))))"#;
       let search_regex = RegexBuilder::new(SEARCH_REGEX_PATTERN)
         .case_insensitive(true)
         .build()?;
@@ -101,7 +154,17 @@ impl SlashstepQLFilterSanitizer {
 
           where_clause.push_str("(");
 
+          open_parenthesis_count += 1;
+
         } else if regex_captures.name("closedParenthesis").is_some() {
+
+          if open_parenthesis_count == 0 {
+
+            return Err(SlashstepQLError::InvalidFilterSyntaxError("Unexpected closed parenthesis in filter query.".to_string()));
+
+          }
+
+          open_parenthesis_count -= 1;
 
           where_clause.push_str(")");
 
@@ -122,45 +185,32 @@ impl SlashstepQLFilterSanitizer {
           // Ensure the key is a valid identifier. Very important to prevent SQL injection.
           if let Some(original_key) = regex_captures.name("key").and_then(|string_match| Some(string_match.as_str().to_string())) {
 
-            let field = original_key.as_str().to_string();
-            if !options.allowed_fields.contains(&field) {
-
-              return Err(SlashstepQLError::InvalidFieldError(field));
-
-            }
-
             let string_value = regex_captures.name("stringDoubleQuotes").or(regex_captures.name("stringSingleQuotes")).and_then(|string_match| Some(string_match.as_str().to_string()));
-            let number_value = regex_captures.name("numberValue").and_then(|string_match| Some(string_match.as_str().parse::<i64>().ok()?));
-            let boolean_value = regex_captures.name("booleanValue").and_then(|string_match| Some(string_match.as_str().parse::<bool>().ok()?));
-            let operator = regex_captures.name("operator").and_then(|string_match| Some(string_match.as_str().to_string()));
+            let number_value = regex_captures.name("number").and_then(|string_match| Some(string_match.as_str().parse::<Decimal>().ok()?));
+            let boolean_value = regex_captures.name("boolean").and_then(|string_match| Some(string_match.as_str().parse::<bool>().ok()?));
+            let operator = match regex_captures.name("operator").and_then(|string_match| Some(string_match.as_str().to_string())) {
+
+              Some(operator) => operator,
+
+              None => continue
+
+            };
             let has_null_value = regex_captures.name("nullValue").is_some();
 
-            if let Some(operator) = operator {
-
-              let identifier = quote_identifier(&original_key);
-              let formatted_value = format!("${}", parameters.len() + 1);
-              let where_value = if has_null_value { "NULL" } else { formatted_value.as_str() };
-              where_clause.push_str(&format!("{} {} {}", identifier, operator, where_value));
-
-              if !has_null_value {
-
-                if let Some(string_value) = string_value {
-
-                  parameters.push((original_key.to_string(), SlashstepQLParameterType::String(string_value)));
-
-                } else if let Some(number_value) = number_value {
-
-                  parameters.push((original_key.to_string(), SlashstepQLParameterType::Number(number_value)));
-
-                } else if let Some(boolean_value) = boolean_value {
-
-                  parameters.push((original_key.to_string(), SlashstepQLParameterType::Boolean(boolean_value)));
-
-                }
-
-              }
-              
-            }
+            let assignment_properties = SlashstepQLAssignmentProperties {
+              key: original_key.to_string(),
+              operator: operator,
+              string_value,
+              number_value,
+              boolean_value,
+              has_null_value,
+              where_clause,
+              parameters
+            };
+            
+            let assignment_translation_result = (options.translate_assignment)(assignment_properties)?;
+            where_clause = assignment_translation_result.where_clause;
+            parameters = assignment_translation_result.parameters;
 
           }
 
@@ -341,6 +391,18 @@ pub fn parse_parameters<'a>(
       SlashstepQLParameterType::Boolean(boolean_value) => {
 
         parsed_parameters.push(Box::new(boolean_value));
+
+      }
+
+      SlashstepQLParameterType::UUID(uuid_value) => {
+
+        parsed_parameters.push(Box::new(uuid_value));
+
+      },
+
+      SlashstepQLParameterType::Timestamp(timestamp_value) => {
+
+        parsed_parameters.push(Box::new(timestamp_value));
 
       }
 

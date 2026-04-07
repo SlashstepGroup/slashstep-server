@@ -12,10 +12,12 @@
 #[cfg(test)]
 mod tests;
 
+use chrono::{DateTime};
+use pg_escape::{quote_literal};
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParameterType, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -30,7 +32,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "parent_project_id"
 ];
 pub const RESOURCE_NAME: &str = "Item";
-pub const DATABASE_TABLE_NAME: &str = "items";
+pub const DATABASE_TABLE_NAME: &str = "searchable_items";
 pub const GET_RESOURCE_ACTION_NAME: &str = "items.get";
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -77,11 +79,11 @@ impl Item {
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: None,
       maximum_limit: None,
       should_ignore_limit: true,
-      should_ignore_offset: true
+      should_ignore_offset: true,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let database_client = database_pool.get().await?;
@@ -196,17 +198,128 @@ impl Item {
 
   }
 
+  fn translate_assignment(mut assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
+
+    // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
+
+    // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
+    if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
+
+      return Ok(slashstepql::translate_normal_assignment(assignment_properties))
+
+    }
+
+    // Since the key is dynamic, we'll use it as a hint to form a valid SQL query.
+    let identifier_parts = (&assignment_properties.key).split('.').collect::<Vec<&str>>();
+    match identifier_parts[0] {
+
+      "fields" => {
+
+        // In this case, the identifier should be made of two parts: the "fields" prefix and the field name. For example, "fields.priority".
+        if identifier_parts.len() != 2 {
+
+          return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
+
+        }
+
+        // Since the filter lacks the field value type and only includes the field name, we have to check the value against all possible field value types.
+        // 
+        // The filter may be queried on multiple levels. For example, "/items?query=fields.priority = 'High'" targets all items across the server and searches for any fields named "priority". 
+        // In one project, the ID may be `00000000-0000-0000-0000-000000000000` and in another project, the ID may be `11111111-1111-1111-1111-111111111111`; 
+        // but, they both have the same field name of "priority" and must be accounted for.
+        // 
+        // TODO: Can we turn this query into a view to improve readability?
+        let field_name = identifier_parts[1];
+        assignment_properties.where_clause.push_str(&format!("((SELECT COUNT(*) FROM searchable_items searchable_items_subquery LEFT JOIN fields ON fields.parent_project_id = searchable_items.parent_project_id LEFT JOIN field_values ON field_values.field_id = fields.id WHERE fields.name = {} AND searchable_items.id = searchable_items_subquery.id AND (SELECT COUNT(*) FROM field_values WHERE (field_values.parent_item_id = searchable_items.id OR field_values.parent_field_id = fields.id)", quote_literal(field_name)));
+        
+        if let Some(string_value) = assignment_properties.string_value {
+
+          assignment_properties.where_clause.push_str(" AND (");
+
+          if let Ok(uuid_value) = Uuid::parse_str(&string_value) {
+
+            // UUID field types: Iteration, Milestone, Stakeholder
+
+            // UUIDs are supposed to be globally unique, so it's generally safe to check the ID against all UUID columns.
+            let uuid_column_name_map = vec![
+              vec!["Iteration", "iteration_id_value"],
+              vec!["Milestone", "milestone_id_value"],
+              vec!["Stakeholder", "stakeholder_user_id"],
+              vec!["Stakeholder", "stakeholder_group_id"],
+              vec!["Stakeholder", "stakeholder_app_id"]
+            ];
+
+            for index in 0..uuid_column_name_map.len() {
+
+              if index != 0 {
+
+                assignment_properties.where_clause.push_str(" OR ");
+
+              }
+
+              let value_type = uuid_column_name_map[index][0];
+              let column_name = uuid_column_name_map[index][1];
+              assignment_properties.where_clause.push_str(&format!("(field_values.value_type = {} AND field_values.{} {} ${})", quote_literal(value_type), column_name, &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+              assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::UUID(uuid_value)));
+
+            }
+
+            assignment_properties.where_clause.push_str(" OR ")
+
+          } else if let Ok(datetime_value) = DateTime::parse_from_rfc3339(&string_value) {
+
+            assignment_properties.where_clause.push_str(&format!("(field_values.value_type = 'Timestamp' AND field_values.timestamp_value {} ${})", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+            assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::Timestamp(datetime_value)));
+            assignment_properties.where_clause.push_str(" OR ")
+
+          }
+
+          // Despite the text value may being a UUID or a date, there's a chance that field value type might just be normal text.
+          // So, we have to account for that as well.
+          assignment_properties.where_clause.push_str(&format!("(field_values.value_type = 'Text' AND field_values.text_value {} ${})", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.where_clause.push_str(")) = 1");
+          assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::String(string_value.clone())));
+
+        } else if let Some(number_value) = assignment_properties.number_value {
+
+          assignment_properties.where_clause.push_str(&format!(" AND (field_values.value_type = 'Number' AND field_values.number_value {} ${})) = 1", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::Number(number_value)));
+
+        } else if let Some(boolean_value) = assignment_properties.boolean_value {
+
+          assignment_properties.where_clause.push_str(&format!(" AND (field_values.value_type = 'Boolean' AND field_values.boolean_value {} ${})) = 1", &assignment_properties.operator, assignment_properties.parameters.len() + 1));
+          assignment_properties.parameters.push((assignment_properties.key.clone(), SlashstepQLParameterType::Boolean(boolean_value)));
+
+        }
+
+        assignment_properties.where_clause.push_str(") = 1)");
+
+      },
+
+      _ => return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key))
+
+    }
+
+    let assignment_translation_result = SlashstepQLAssignmentTranslationResult {
+      where_clause: assignment_properties.where_clause,
+      parameters: assignment_properties.parameters
+    };
+
+    return Ok(assignment_translation_result);
+
+  }
+
   /// Returns a list of items based on a query.
   pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
 
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: Some(DEFAULT_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       should_ignore_limit: false,
-      should_ignore_offset: false
+      should_ignore_offset: false,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let database_client = database_pool.get().await?;

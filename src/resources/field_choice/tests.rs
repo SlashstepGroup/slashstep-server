@@ -62,7 +62,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
-  let field = test_environment.create_random_field().await?;
+  let field = test_environment.create_random_field(None).await?;
   let field_properties = InitialFieldChoiceProperties {
     field_id: field.id,
     description: Some(Uuid::now_v7().to_string()),

@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::{resources::{ResourceError, ResourceType}, 
   utilities::slashstepql::{
-    self, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions
+    self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions
   }}
 ;
 
@@ -427,11 +427,11 @@ impl AccessPolicy {
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: None,
       maximum_limit: None,
       should_ignore_limit: true,
-      should_ignore_offset: true
+      should_ignore_offset: true,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
@@ -702,11 +702,11 @@ impl AccessPolicy {
     // Prepare the query.
     let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
       filter: query.to_string(),
-      allowed_fields: ALLOWED_QUERY_KEYS.into_iter().map(|string| string.to_string()).collect(),
       default_limit: Some(DEFAULT_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
       should_ignore_limit: false,
-      should_ignore_offset: false
+      should_ignore_offset: false,
+      translate_assignment: Self::translate_assignment
     };
     let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
     let database_client = database_pool.get().await?;
@@ -719,6 +719,21 @@ impl AccessPolicy {
     let rows = database_client.query(&query, &parameters).await?;
     let access_policies = rows.iter().map(AccessPolicy::convert_from_row).collect();
     return Ok(access_policies);
+
+  }
+
+  fn translate_assignment(assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
+
+    // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
+
+    // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
+    if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
+
+      return Ok(slashstepql::translate_normal_assignment(assignment_properties))
+
+    }
+
+    return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
 
   }
 

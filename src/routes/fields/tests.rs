@@ -48,7 +48,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a dummy delegation policy.
-  test_environment.create_random_field().await?;
+  test_environment.create_random_field(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -109,7 +109,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a dummy delegation policy.
-  let dummy_field = test_environment.create_random_field().await?;
+  let dummy_field = test_environment.create_random_field(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -176,7 +176,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let field_count = Field::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - field_count + 1) {
 
-    test_environment.create_random_field().await?;
+    test_environment.create_random_field(None).await?;
 
   }
 

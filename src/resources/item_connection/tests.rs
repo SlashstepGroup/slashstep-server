@@ -54,8 +54,8 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
 
   let item_connection_type = test_environment.create_random_item_connection_type().await?;
-  let inward_item = test_environment.create_random_item().await?;
-  let outward_item = test_environment.create_random_item().await?;
+  let inward_item = test_environment.create_random_item(None).await?;
+  let outward_item = test_environment.create_random_item(None).await?;
   let item_connection_properties = InitialItemConnectionProperties {
     item_connection_type_id: item_connection_type.id,
     inward_item_id: inward_item.id,

@@ -2,9 +2,9 @@ use uuid::Uuid;
 
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
-    ResourceType, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
+    ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
-    }
+    }, field::{Field, FieldValueType, InitialFieldProperties}, field_value::{FieldValue, InitialFieldValueProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 use super::{DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, Item, InitialItemProperties};
@@ -35,7 +35,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_resources: Vec<Item> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_item().await?;
+    let resource = test_environment.create_random_item(None).await?;
     created_resources.push(resource);
 
   }
@@ -78,7 +78,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_item = test_environment.create_random_item().await?;
+  let created_item = test_environment.create_random_item(None).await?;
   
   created_item.delete(&test_environment.database_pool).await?;
 
@@ -117,7 +117,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_item = test_environment.create_random_item().await?;
+  let created_item = test_environment.create_random_item(None).await?;
   let retrieved_resource = Item::get_by_id(&created_item.id, &test_environment.database_pool).await?;
   assert_fields_are_equal(&created_item, &retrieved_resource);
 
@@ -136,7 +136,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut fields: Vec<Item> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let item = test_environment.create_random_item().await?;
+    let item = test_environment.create_random_item(None).await?;
     fields.push(item);
 
   }
@@ -147,6 +147,73 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 
   return Ok(());
   
+}
+
+#[tokio::test]
+async fn verify_list_resources_with_query_and_field_references() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+
+  let project = test_environment.create_random_project().await?;
+  test_environment.create_random_item(Some(&project.id)).await?;
+  let item = test_environment.create_random_item(Some(&project.id)).await?;
+  let field = test_environment.create_random_field(Some(&project.id)).await?;
+  let field_value = FieldValue::create(&InitialFieldValueProperties {
+    field_id: field.id,
+    value_type: FieldValueType::Text,
+    text_value: Some(Uuid::now_v7().to_string()),
+    parent_item_id: Some(item.id),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let query = format!("parent_project_id = \"{}\" AND fields.{} = \"{}\"", &project.id, &field.name, &field_value.text_value.as_ref().expect("Expected a text value."));
+  let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  assert_eq!(retrieved_resources.len(), 1);
+  assert_fields_are_equal(&item, &retrieved_resources[0]);
+
+  let query = format!("parent_project_id = \"{}\" AND fields.{} = \"{}\"", &project.id, Uuid::now_v7().to_string(), &field_value.text_value.as_ref().expect("Expected a text value."));
+  let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  assert_eq!(retrieved_resources.len(), 0);
+
+  let item_on_different_project = test_environment.create_random_item(None).await?;
+  let field_with_same_name_on_different_project = Field::create(&InitialFieldProperties {
+    name: field.name.clone(),
+    parent_project_id: item_on_different_project.parent_project_id,
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  FieldValue::create(&InitialFieldValueProperties {
+    field_id: field_with_same_name_on_different_project.id,
+    value_type: FieldValueType::Text,
+    text_value: Some(field_value.text_value.as_ref().expect("Expected a text value.").clone()),
+    parent_item_id: Some(item_on_different_project.id),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let query = format!("parent_project_id = \"{}\" AND fields.{} = \"{}\"", &project.id, &field.name, &field_value.text_value.as_ref().expect("Expected a text value."));
+  let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  assert_eq!(retrieved_resources.len(), 1);
+  assert_fields_are_equal(&item, &retrieved_resources[0]);
+
+  let query = format!("fields.{} = \"{}\"", &field.name, &field_value.text_value.as_ref().expect("Expected a text value."));
+  let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  assert_eq!(retrieved_resources.len(), 2);
+
+  // let query = format!("fields.{} = \"{}\"", &field.name, &Utc::now().to_rfc3339());
+  // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  // assert_eq!(retrieved_resources.len(), 0);
+
+  // let query = format!("fields.{} = {}", &field.name, true);
+  // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  // assert_eq!(retrieved_resources.len(), 0);
+
+  // let query = format!("fields.{} = {}", &field.name, 2);
+  // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+  // assert_eq!(retrieved_resources.len(), 0);
+
+  return Ok(());
+
 }
 
 /// Verifies that a list of resources can be retrieved with a query.
@@ -160,7 +227,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_resources: Vec<Item> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_item().await?;
+    let resource = test_environment.create_random_item(None).await?;
     created_resources.push(resource);
 
   }
@@ -193,19 +260,18 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_resources: Vec<Item> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let item = test_environment.create_random_item().await?;
+    let item = test_environment.create_random_item(None).await?;
     created_resources.push(item);
 
   }
 
   let retrieved_resources = Item::list("", &test_environment.database_pool, None, None).await?;
   assert_eq!(created_resources.len(), retrieved_resources.len());
-  for i in 0..created_resources.len() {
 
-    let created_item = &created_resources[i];
-    let retrieved_resource = &retrieved_resources[i];
+  for created_resource in created_resources {
 
-    assert_fields_are_equal(created_item, retrieved_resource);
+    let retrieved_resource = retrieved_resources.iter().find(|retrieved_resource| retrieved_resource.id == created_resource.id).expect("Expected a retrieved resource with the same ID.");
+    assert_fields_are_equal(&created_resource, retrieved_resource);
 
   }
 
@@ -229,7 +295,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let item = test_environment.create_random_item().await?;
+      let item = test_environment.create_random_item(None).await?;
       current_resources.push(item);
 
     }

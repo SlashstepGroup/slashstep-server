@@ -55,7 +55,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
 
   let parent_view_id = test_environment.create_random_view().await?.id;
-  let field_id = test_environment.create_random_field().await?.id;
+  let field_id = test_environment.create_random_field(None).await?.id;
   let view_field_properties = InitialViewFieldProperties {
     parent_view_id,
     field_id,
