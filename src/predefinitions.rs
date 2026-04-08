@@ -398,6 +398,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "groups.join".to_string(),
+      display_name: "Join groups".to_string(),
+      description: "Join a specific group on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "groups.update".to_string(),
       display_name: "Update groups".to_string(),
       description: "Update groups on a particular scope.".to_string(),
@@ -650,6 +656,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "membershipInvitations.accept".to_string(),
+      display_name: "Accept membership invitations".to_string(),
+      description: "Accept membership invitations on a particular scope. This action allows principals to accept invitations to join groups or roles.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "membershipInvitations.get".to_string(),
       display_name: "Get membership invitations".to_string(),
       description: "Get a specific membership invitation on a particular scope.".to_string(),
@@ -743,6 +755,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       name: "roles.get".to_string(),
       display_name: "Get roles".to_string(),
       description: "Get roles on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "roles.join".to_string(),
+      display_name: "Join roles".to_string(),
+      description: "Join a specific role on a particular scope.".to_string(),
       ..Default::default()
     },
     InitialActionProperties {
