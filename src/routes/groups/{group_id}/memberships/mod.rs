@@ -73,6 +73,13 @@ pub async fn handle_create_membership_request(
     let membership_invitation = get_membership_invitation_by_id(&membership_invitation_id, &http_transaction, &state.database_pool).await?;
     verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::MembershipInvitation, Some(&membership_invitation.id), &accept_membership_invitations_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
+    if let Err(error) = membership_invitation.delete(&state.database_pool).await {
+      
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete membership invitation: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
   } else {
 
     // If the principal can create memberships but doesn't have the permission to add themselves to the group,
