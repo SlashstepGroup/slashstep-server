@@ -66,6 +66,7 @@ pub async fn handle_create_membership_request(
   let app_authorization_id = authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id);
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  let mut can_principal_add_self = false;
   if let Some(membership_invitation_id) = query_parameters.membership_invitation_id {
 
     let membership_invitation_id = get_uuid_from_string(&membership_invitation_id, "membership invitation", &http_transaction, &state.database_pool).await?;
@@ -95,6 +96,8 @@ pub async fn handle_create_membership_request(
       ..Default::default()
     }, &state.database_pool).await.ok();
 
+    can_principal_add_self = true;
+
   } else {
 
     // If the principal can create memberships but doesn't have the permission to add themselves to the group,
@@ -106,7 +109,7 @@ pub async fn handle_create_membership_request(
 
     };
 
-    let can_principal_add_self = is_user_only_adding_self && can_principal_perform_action(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &join_groups_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+    can_principal_add_self = is_user_only_adding_self && can_principal_perform_action(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &join_groups_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
     if !can_principal_add_self {
 
       verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &create_memberships_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
@@ -139,7 +142,7 @@ pub async fn handle_create_membership_request(
 
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: if is_user_only_adding_self { join_groups_action.id } else { create_memberships_action.id },
+    action_id: if can_principal_add_self { join_groups_action.id } else { create_memberships_action.id },
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.

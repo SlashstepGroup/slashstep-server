@@ -19,7 +19,8 @@ begin
     invitee_principal_type membership_invitation_invitee_principal_type NOT NULL,
     invitee_principal_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     invitee_principal_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    invitee_principal_app_id UUID REFERENCES apps(id) ON DELETE CASCADE
+    invitee_principal_app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
+    UNIQUE (parent_resource_type, parent_group_id, parent_role_id, invitee_principal_type, invitee_principal_user_id, invitee_principal_group_id, invitee_principal_app_id)
   );
 
 END

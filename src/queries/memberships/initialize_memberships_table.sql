@@ -24,7 +24,8 @@ begin
     principal_type membership_principal_type NOT NULL,
     principal_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     principal_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    principal_app_id UUID REFERENCES apps(id) ON DELETE CASCADE
+    principal_app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
+    UNIQUE (parent_resource_type, parent_group_id, parent_role_id, principal_type, principal_user_id, principal_group_id, principal_app_id)
   );
 
 END
