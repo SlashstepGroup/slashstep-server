@@ -28,11 +28,13 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "description",
   "start_date",
   "end_date",
-  "parent_workspace_id"
+  "parent_workspace_id",
+  "parent_project_id",
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "parent_workspace_id"
+  "parent_workspace_id",
+  "parent_project_id"
 ];
 pub const RESOURCE_NAME: &str = "Milestone";
 pub const DATABASE_TABLE_NAME: &str = "milestones";
@@ -75,13 +77,33 @@ pub struct InitialMilestoneProperties {
 
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct EditableMilestoneProperties {
+
+  /// The milestone's name.
+  pub name: Option<String>,
+
+  /// The milestone's display name.
+  pub display_name: Option<String>,
+
+  /// The milestone's description.
+  pub description: Option<Option<String>>,
+
+  /// The milestone's start date.
+  pub start_date: Option<Option<DateTime<Utc>>>,
+
+  /// The milestone's end date.
+  pub end_date: Option<Option<DateTime<Utc>>>
+
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Milestone {
 
   /// The milestone's ID.
   pub id: Uuid,
 
-    /// The milestone's name.
+  /// The milestone's name.
   pub name: String,
 
   /// The milestone's display name.

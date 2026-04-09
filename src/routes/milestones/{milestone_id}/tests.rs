@@ -12,17 +12,17 @@
 use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
-use chrono::DateTime;
 use ntest::timeout;
 use reqwest::StatusCode;
+use rust_decimal::Decimal;
+use uuid::Uuid;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
-    access_policy::
-      ActionPermissionLevel
-    , milestone::{Milestone},
+    ResourceError, access_policy::
+      ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, milestone::{EditableMilestoneProperties, Milestone}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -36,6 +36,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -65,12 +66,11 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   assert_eq!(response_milestone.name, milestone.name);
   assert_eq!(response_milestone.display_name, milestone.display_name);
   assert_eq!(response_milestone.description, milestone.description);
-  assert_eq!(response_milestone.start_date.and_then(|start_date| DateTime::from_timestamp_millis(start_date.timestamp_millis())), milestone.start_date.and_then(|start_date| DateTime::from_timestamp_millis(start_date.timestamp_millis())));
-  assert_eq!(response_milestone.end_date.and_then(|end_date| DateTime::from_timestamp_millis(end_date.timestamp_millis())), milestone.end_date.and_then(|end_date| DateTime::from_timestamp_millis(end_date.timestamp_millis())));
+  assert_eq!(response_milestone.start_date, milestone.start_date);
+  assert_eq!(response_milestone.end_date, milestone.end_date);
   assert_eq!(response_milestone.parent_resource_type, milestone.parent_resource_type);
   assert_eq!(response_milestone.parent_workspace_id, milestone.parent_workspace_id);
   assert_eq!(response_milestone.parent_project_id, milestone.parent_project_id);
-  
 
   return Ok(());
   
@@ -85,6 +85,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -111,6 +112,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -176,7 +178,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-
+  
   // Create the user and the session.
   let user = test_environment.create_random_user().await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -201,453 +203,604 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 
 }
 
-// /// Verifies that the router can return a 204 status code if the action is successfully deleted.
-// #[tokio::test]
-// async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 204 status code if the action is successfully deleted.
+#[tokio::test]
+async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_random_session(Some(&user.id)).await?;
-//   let json_web_token_private_key = get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Grant access to the "milestones.delete" action to the user.
-//   let delete_fields_action = Action::get_by_name("milestones.delete", &test_environment.database_pool).await?;
-//   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: delete_fields_action.id,
-//     permission_level: ActionPermissionLevel::User,
-//     is_inheritance_enabled: true,
-//     principal_type: AccessPolicyPrincipalType::User,
-//     principal_user_id: Some(user.id),
-//     scoped_resource_type: ResourceType::Server,
-//     ..Default::default()
-//   }, &test_environment.database_pool).await?;
+  // Grant access to the "milestones.delete" action to the user.
+  let delete_milestones_action = Action::get_by_name("milestones.delete", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_milestones_action.id, &ActionPermissionLevel::User).await?;
 
-//   // Set up the server and send the request.
-//   let milestone = test_environment.create_random_milestone().await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.delete(&format!("/milestones/{}", milestone.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let milestone = test_environment.create_random_milestone().await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.delete(&format!("/milestones/{}", milestone.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
+  assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
 
-//   match App::get_by_id(&milestone.id, &test_environment.database_pool).await.expect_err("Expected an app not found error.") {
+  match Milestone::get_by_id(&milestone.id, &test_environment.database_pool).await.expect_err("Expected a milestone not found error.") {
 
-//     ResourceError::NotFoundError(_) => {},
+    ResourceError::NotFoundError(_) => {},
 
-//     error => return Err(TestSlashstepServerError::ResourceError(error))
+    error => return Err(TestSlashstepServerError::ResourceError(error))
 
-//   }
+  }
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 400 status code if the ID is not a UUID.
-// #[tokio::test]
-// async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
 
-//   let response = test_server.delete("/milestones/not-a-uuid")
-//     .await;
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+
+  let response = test_server.delete("/milestones/not-a-uuid")
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 401 status code if the user needs authentication.
-// #[tokio::test]
-// async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   // Create a dummy app.
-//   let milestone = test_environment.create_random_milestone().await?;
+  // Create a dummy milestone.
+  let milestone = test_environment.create_random_milestone().await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.delete(&format!("/milestones/{}", milestone.id))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.delete(&format!("/milestones/{}", milestone.id))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
-// #[tokio::test]
-// async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
+#[tokio::test]
+async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_random_session(Some(&user.id)).await?;
-//   let json_web_token_private_key = get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
-//   // Create a dummy app.
-//   let milestone = test_environment.create_random_milestone().await?;
+  // Create a dummy milestone.
+  let milestone = test_environment.create_random_milestone().await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.delete(&format!("/milestones/{}", milestone.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.delete(&format!("/milestones/{}", milestone.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 404 status code if the resource does not exist.
-// #[tokio::test]
-// async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 404 status code if the resource does not exist.
+#[tokio::test]
+async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_random_session(Some(&user.id)).await?;
-//   let json_web_token_private_key = get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.delete(&format!("/milestones/{}", uuid::Uuid::now_v7()))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.delete(&format!("/milestones/{}", uuid::Uuid::now_v7()))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 200 status code if the resource is successfully patched.
-// #[tokio::test]
-// async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 200 status code if the resource is successfully patched.
+#[tokio::test]
+async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let update_milestones_action = Action::get_by_name("milestones.update", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &update_milestones_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let original_milestone = test_environment.create_random_milestone().await?;
+  let updated_milestone_properties = EditableMilestoneProperties {
+    name: Some(Uuid::now_v7().to_string()),
+    display_name: Some(Uuid::now_v7().to_string()),
+    description: Some(Some("Updated Milestone Description".to_string())),
+    start_date: Some(Some(chrono::Utc::now())),
+    end_date: Some(Some(chrono::Utc::now())),
+    ..Default::default()
+  };
+
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/milestones/{}", original_milestone.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_milestone_properties))
+    .await;
   
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_random_session(Some(&user.id)).await?;
-//   let json_web_token_private_key = get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-//   let update_fields_action = Action::get_by_name("milestones.update", &test_environment.database_pool).await?;
-//   AccessPolicy::create(&InitialAccessPolicyProperties {
-//     action_id: update_fields_action.id,
-//     permission_level: ActionPermissionLevel::Editor,
-//     is_inheritance_enabled: true,
-//     principal_type: AccessPolicyPrincipalType::User,
-//     principal_user_id: Some(user.id),
-//     scoped_resource_type: ResourceType::Server,
-//     ..Default::default()
-//   }, &test_environment.database_pool).await?;
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::OK);
 
-//   // Set up the server and send the request.
-//   let original_app = test_environment.create_random_app().await?;
-//   let new_name = Uuid::now_v7().to_string();
-//   let new_display_name = Uuid::now_v7().to_string();
-//   let new_description = Some(Uuid::now_v7().to_string());
-//   let new_client_type = AppClientType::Confidential;
+  let updated_milestone: Milestone = response.json();
+  assert_eq!(updated_milestone.id, original_milestone.id);
+  assert_eq!(updated_milestone.field_id, original_milestone.field_id);
+  assert_eq!(updated_milestone.parent_resource_type, original_milestone.parent_resource_type);
+  assert_eq!(updated_milestone.parent_field_id, original_milestone.parent_field_id);
+  assert_eq!(updated_milestone.parent_item_id, original_milestone.parent_item_id);
+  assert_eq!(updated_milestone.value_type, original_milestone.value_type);
+  assert_eq!(updated_milestone.text_value, updated_milestone_properties.text_value.expect("Expected text_value to be set in the updated milestone properties."));
+  assert_eq!(updated_milestone.number_value, original_milestone.number_value);
+  assert_eq!(updated_milestone.boolean_value, original_milestone.boolean_value);
+  assert_eq!(updated_milestone.timestamp_value, original_milestone.timestamp_value);
+  assert_eq!(updated_milestone.stakeholder_type, original_milestone.stakeholder_type);
+  assert_eq!(updated_milestone.stakeholder_user_id, original_milestone.stakeholder_user_id);
+  assert_eq!(updated_milestone.stakeholder_group_id, original_milestone.stakeholder_group_id);
+  assert_eq!(updated_milestone.stakeholder_app_id, original_milestone.stakeholder_app_id);
 
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.patch(&format!("/milestones/{}", original_field.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .json(&serde_json::json!({
-//       "name": new_name.clone(),
-//       "display_name": new_display_name.clone(),
-//       "description": new_description.clone(),
-//       "client_type": new_client_type.clone()
-//     }))
-//     .await;
+  return Ok(());
+
+}
+
+/// Verifies that the router can return a 400 status code if the request doesn't have a valid content type.
+#[tokio::test]
+async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch("/milestones/not-a-uuid")
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::OK);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-//   let updated_app: Field = response.json();
-//   assert_eq!(original_field.id, updated_field.id);
-//   assert_eq!(updated_app.name, new_name);
-//   assert_eq!(updated_app.display_name, new_display_name);
-//   assert_eq!(updated_app.description, new_description);
-//   assert_eq!(updated_app.client_type, new_client_type);
-//   assert_eq!(original_app.parent_resource_type, updated_app.parent_resource_type);
-//   assert_eq!(original_app.parent_workspace_id, updated_app.parent_workspace_id);
-//   assert_eq!(original_app.parent_user_id, updated_app.parent_user_id);
+}
 
-//   return Ok(());
+/// Verifies that the router can return a 400 status code if the request body is not valid JSON.
+#[tokio::test]
+async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
 
-// }
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-// /// Verifies that the router can return a 400 status code if the request doesn't have a valid content type.
-// #[tokio::test]
-// async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
-
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.patch("/milestones/not-a-uuid")
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch("/milestones/not-a-uuid")
+    .add_header("Content-Type", "application/json")
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 400 status code if the request body is not valid JSON.
-// #[tokio::test]
-// async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 400 status code if the request body includes unwanted data.
+#[tokio::test]
+async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.patch("/milestones/not-a-uuid")
-//     .add_header("Content-Type", "application/json")
-//     .await;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  // Create a dummy delegation policy to patch.
+  let milestone = test_environment.create_random_milestone().await?;
 
-// }
-
-// /// Verifies that the router can return a 400 status code if the request body includes unwanted data.
-// #[tokio::test]
-// async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
-
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/milestones/{}", milestone.id))
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!({
+      "text_value": true
+    }))
+    .await;
   
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.patch(&format!("/milestones/{}", uuid::Uuid::now_v7()))
-//     .add_header("Content-Type", "application/json")
-//     .json(&serde_json::json!({
-//       "name": "Super Duper Admin",
-//       "display_name": "true",
-//       "description": true,
-//     }))
-//     .await;
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
+
+}
+
+/// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch("/milestones/not-a-uuid")
+    .add_header("Content-Type", "application/json")
+    .json(&serde_json::json!({
+      "display_name": Uuid::now_v7().to_string()
+    }))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
+  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
-// #[tokio::test]
-// async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.patch("/milestones/not-a-uuid")
-//     .add_header("Content-Type", "application/json")
-//     .json(&serde_json::json!({
-//       "display_name": Uuid::now_v7().to_string()
-//     }))
-//     .await;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-//   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-//   return Ok(());
-
-// }
-
-// /// Verifies that the router can return a 401 status code if the user needs authentication.
-// #[tokio::test]
-// async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
-
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  // Set up the server and send the request.
+  let milestone = test_environment.create_random_milestone().await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/milestones/{}", milestone.id))
+    .json(&serde_json::json!({
+      "display_name": Uuid::now_v7().to_string()
+    }))
+    .await;
   
-//   // Set up the server and send the request.
-//   let milestone = test_environment.create_random_milestone().await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.patch(&format!("/milestones/{}", milestone.id))
-//     .json(&serde_json::json!({
-//       "display_name": Uuid::now_v7().to_string()
-//     }))
-//     .await;
+  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+
+  return Ok(());
+
+}
+
+/// Verifies that the router can return a 403 status code if the user does not have permission to patch the resource.
+#[tokio::test]
+async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Create the user and the session.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+
+  // Set up the server and send the request.
+  let milestone = test_environment.create_random_milestone().await?;
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/milestones/{}", milestone.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!({
+      "display_name": Uuid::now_v7().to_string()
+    }))
+    .await;
   
-//   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 403 status code if the user does not have permission to patch the resource.
-// #[tokio::test]
-// async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the router can return a 404 status code if the resource does not exist.
+#[tokio::test]
+async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-//   // Create the user and the session.
-//   let user = test_environment.create_random_user().await?;
-//   let session = test_environment.create_random_session(Some(&user.id)).await?;
-//   let json_web_token_private_key = get_json_web_token_private_key().await?;
-//   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-
-//   // Set up the server and send the request.
-//   let milestone = test_environment.create_random_milestone().await?;
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.patch(&format!("/milestones/{}", milestone.id))
-//     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-//     .json(&serde_json::json!({
-//       "display_name": Uuid::now_v7().to_string()
-//     }))
-//     .await;
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/milestones/{}", Uuid::now_v7()))
+    .json(&serde_json::json!({
+      "display_name": Uuid::now_v7().to_string()
+    }))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
 
-// /// Verifies that the router can return a 404 status code if the resource does not exist.
-// #[tokio::test]
-// async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServerError> {
+/// Verifies that the server returns a 422 status code when the milestone text is over the maximum length.
+#[tokio::test]
+async fn verify_text_value_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
 
-//   let test_environment = TestEnvironment::new().await?;
-//   initialize_required_tables(&test_environment.database_pool).await?;
-//   initialize_predefined_actions(&test_environment.database_pool).await?;
-//   initialize_predefined_roles(&test_environment.database_pool).await?;
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-//   // Set up the server and send the request.
-//   let state = AppState {
-//     database_pool: test_environment.database_pool.clone(),
-//   };
-//   let router = super::get_router(state.clone())
-//     .with_state(state)
-//     .into_make_service_with_connect_info::<SocketAddr>();
-//   let test_server = TestServer::new(router);
-//   let response = test_server.patch(&format!("/milestones/{}", Uuid::now_v7()))
-//     .json(&serde_json::json!({
-//       "display_name": Uuid::now_v7().to_string()
-//     }))
-//     .await;
+  // Give the user access to the "apps.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let create_milestones_action = Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let dummy_milestone = test_environment.create_random_milestone().await?;
+  let maximum_milestone_text_length_configuration = Configuration::get_by_name("milestones.maximumTextValueLength", &test_environment.database_pool).await?;
+  maximum_milestone_text_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let updated_milestone_properties = EditableMilestoneProperties {
+    text_value: Some(Some(Uuid::now_v7().to_string())),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/milestones/{}", dummy_milestone.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_milestone_properties))
+    .await;
   
-//   // Verify the response.
-//   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
-//   return Ok(());
+  return Ok(());
 
-// }
+}
+
+/// Verifies that the server returns a 422 status code when the field choice number is under the minimum value.
+#[tokio::test]
+async fn verify_number_value_is_at_least_at_minimum_value() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "fieldChoices.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let create_field_choices_action = Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let dummy_milestone = test_environment.create_random_milestone().await?;
+  let minimum_milestone_number_length_configuration = Configuration::get_by_name("milestones.minimumNumberValue", &test_environment.database_pool).await?;
+  minimum_milestone_number_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(i64::MIN as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let updated_milestone_properties = EditableMilestoneProperties {
+    number_value: Some(Some(Decimal::from(i64::MIN as i128 - 1))),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/milestones/{}", dummy_milestone.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_milestone_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the field choice number is over the maximum value.
+#[tokio::test]
+async fn verify_number_value_is_at_most_at_maximum_value() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "fieldChoices.create" action.
+  let user = test_environment.create_random_user().await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let create_field_choices_action = Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let dummy_milestone = test_environment.create_random_milestone().await?;
+  let maximum_milestone_number_length_configuration = Configuration::get_by_name("milestones.maximumNumberValue", &test_environment.database_pool).await?;
+  maximum_milestone_number_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(i64::MAX as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let updated_milestone_properties = EditableMilestoneProperties {
+    number_value: Some(Some(Decimal::from(i64::MAX as i128 + 1))),
+    ..Default::default()
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.patch(&format!("/milestones/{}", dummy_milestone.id))
+    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(updated_milestone_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
