@@ -80,6 +80,21 @@ pub async fn handle_create_membership_request(
       return Err(http_error);
 
     }
+
+    let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(&InitialActionLogEntryProperties {
+      action_id: accept_membership_invitations_action.id,
+      http_transaction_id: Some(http_transaction.id),
+      expiration_timestamp: expiration_timestamp,
+      reason: None, // TODO: Support reasons.
+      actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+      actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+      actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
+      target_resource_type: ResourceType::MembershipInvitation,
+      target_membership_invitation_id: Some(membership_invitation.id),
+      ..Default::default()
+    }, &state.database_pool).await.ok();
+
   } else {
 
     // If the principal can create memberships but doesn't have the permission to add themselves to the group,
@@ -124,7 +139,7 @@ pub async fn handle_create_membership_request(
 
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: create_memberships_action.id,
+    action_id: if is_user_only_adding_self { join_groups_action.id } else { create_memberships_action.id },
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp: expiration_timestamp,
     reason: None, // TODO: Support reasons.
