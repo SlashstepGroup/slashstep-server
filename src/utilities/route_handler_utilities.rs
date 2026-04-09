@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, iteration::Iteration, membership::Membership, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
+use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -161,13 +161,13 @@ pub fn is_authenticated_user_anonymous(authenticated_user: Option<&Arc<User>>) -
 
 }
 
-pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn can_delegate_perform_action(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<bool, HTTPError> {
 
   let app_authorization_id = match app_authorization_id {
 
     Some(app_authorization_id) => app_authorization_id,
 
-    None => return Ok(())
+    None => return Ok(false)
 
   };
 
@@ -180,19 +180,19 @@ pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, ac
 
         Some(delegation_policy) => delegation_policy.clone(),
 
-        None => return Err(HTTPError::ForbiddenError(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id))))
+        None => return Ok(false)
 
       };
 
       delegation_policy
 
     },
-
+    
     Err(error) => {
 
       let http_error = match error {
 
-        ResourceError::NotFoundError(_) => HTTPError::ForbiddenError(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id))),
+        ResourceError::NotFoundError(_) => return Ok(false),
 
         _ => HTTPError::InternalServerError(Some(error.to_string()))
 
@@ -207,9 +207,27 @@ pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, ac
 
   if delegation_policy.maximum_permission_level < *required_permission_level {
 
-    let http_error = HTTPError::ForbiddenError(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id)));
-    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-    return Err(http_error);
+    return Ok(false);
+
+  }
+
+  return Ok(true);
+
+}
+
+pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+
+  let app_authorization_id = match app_authorization_id {
+
+    Some(app_authorization_id) => app_authorization_id,
+
+    None => return Ok(())
+
+  };
+
+  if !can_delegate_perform_action(Some(app_authorization_id), action_id, http_transaction_id, required_permission_level, database_pool).await? {
+
+    return Err(HTTPError::ForbiddenError(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id))))
 
   }
 
@@ -217,10 +235,9 @@ pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, ac
 
 }
 
-pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, is_principal_anonymous: bool, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn can_principal_perform_action(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, is_principal_anonymous: bool, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<bool, HTTPError> {
 
-  ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
-
+  ServerLogEntry::trace(&format!("Checking whether principal can use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
   let database_client = match database_pool.get().await {
 
     Ok(database_client) => database_client,
@@ -244,18 +261,44 @@ pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipal
 
     Ok(permission_level_row) => permission_level_row,
 
-    Err(error) => {
+    Err(error) => match error.as_db_error() {
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to verify permissions for principal {} with ID {}: {:?}", principal_type, principal_id, error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(http_error);
+      Some(db_error) => match db_error.code() {
+
+        &SqlState::NO_DATA_FOUND => return Ok(false),
+
+        _ => {
+
+          let http_error = HTTPError::InternalServerError(Some(format!("Failed to verify permissions for principal {} with ID {}: {:?}", principal_type, principal_id, error)));
+          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+          return Err(http_error);
+
+        }
+
+      },
+
+      _ => {
+
+        let http_error = HTTPError::InternalServerError(Some(format!("Failed to verify permissions for principal {} with ID {}: {:?}", principal_type, principal_id, error)));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+        return Err(http_error);
+
+      } 
 
     }
 
   };
   let actual_permission_level: ActionPermissionLevel = permission_level_row.get(0);
 
-  if &actual_permission_level < minimum_permission_level {
+  return Ok(&actual_permission_level >= minimum_permission_level);
+
+}
+
+pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, is_principal_anonymous: bool, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+
+  ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
+
+  if !can_principal_perform_action(principal_type, principal_id, is_principal_anonymous, resource_type, resource_id, action, http_transaction, minimum_permission_level, database_pool).await? {
 
     let location = match resource_type {
 
@@ -452,6 +495,13 @@ pub async fn get_membership_by_id(membership_id: &Uuid, http_transaction: &HTTPT
   let target_membership = get_resource_by_id::<Membership, _>("membership", &membership_id, &http_transaction, &database_pool, |membership_id, database_pool| Box::new(Membership::get_by_id(membership_id, database_pool))).await?;
   return Ok(target_membership);
   
+}
+
+pub async fn get_membership_invitation_by_id(membership_invitation_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<MembershipInvitation, HTTPError> {
+
+  let target_membership_invitation = get_resource_by_id::<MembershipInvitation, _>("membership invitation", &membership_invitation_id, &http_transaction, &database_pool, |membership_invitation_id, database_pool| Box::new(MembershipInvitation::get_by_id(membership_invitation_id, database_pool))).await?;
+  return Ok(target_membership_invitation);
+
 }
 
 pub async fn get_milestone_by_id(milestone_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Milestone, HTTPError> {

@@ -163,7 +163,7 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
 
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HTTPError {
   GoneError(Option<String>),
   ForbiddenError(Option<String>),
