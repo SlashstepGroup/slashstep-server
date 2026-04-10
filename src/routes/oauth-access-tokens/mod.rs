@@ -23,7 +23,7 @@ use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware::get_decoding_key, http_transaction_middleware}, resources::{ResourceError, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, AppClientType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialClaims, InitialAppAuthorizationCredentialProperties}, configuration::Configuration, http_transaction::HTTPTransaction, oauth_authorization::{EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims}, server_log_entry::ServerLogEntry}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_json_web_token_private_key, get_json_web_token_public_key}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware::get_decoding_key, http_transaction_middleware}, resources::{ResourceError, ResourceType, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, AppClientType}, app_authorization::{AppAuthorization, AppAuthorizationAuthorizingResourceType, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, AppAuthorizationCredentialClaims, InitialAppAuthorizationCredentialProperties}, configuration::Configuration, http_transaction::HTTPTransaction, oauth_authorization::{EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims}, server_log_entry::ServerLogEntry}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_json_web_token_private_key, get_json_web_token_public_key}};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct CreateOAuthAccessTokenQueryParameters {
@@ -358,24 +358,18 @@ pub async fn verify_client_secret(client_secret: Option<&str>, client_secret_has
   };
 
   ServerLogEntry::trace("Verifying client secret is correct...", Some(&http_transaction_id), &database_pool).await.ok();
-  match Argon2::default().verify_password(client_secret.as_bytes(), &client_secret_hash) {
+  if let Err(error) = Argon2::default().verify_password(client_secret.as_bytes(), &client_secret_hash) {
 
-    Ok(_) => {},
+    let oauth_error_response = match error {
 
-    Err(error) => {
+      password_hash::Error::Password => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidClient, "The client ID or client secret is incorrect.", None, None),
 
-      let oauth_error_response = match error {
+      _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, format!("Failed to verify client secret: {:?}", error).as_str(), None, None)
 
-        password_hash::Error::Password => OAuthTokenErrorResponse::new(&OAuthTokenError::InvalidClient, "The client ID or client secret is incorrect.", None, None),
-
-        _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, format!("Failed to verify client secret: {:?}", error).as_str(), None, None)
-
-      };
-      let http_error = oauth_error_response.clone().into();
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(oauth_error_response);
-
-    }
+    };
+    let http_error = oauth_error_response.clone().into();
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
+    return Err(oauth_error_response);
 
   }
 
@@ -387,20 +381,14 @@ pub async fn update_oauth_authorization_usage_date(oauth_authorization: &OAuthAu
 
   ServerLogEntry::trace(&format!("Updating OAuth authorization {} with a usage date...", oauth_authorization.id), Some(&http_transaction_id), &database_pool).await.ok();
   
-  match oauth_authorization.update(&EditableOAuthAuthorizationProperties {
+  if let Err(error) = oauth_authorization.update(&EditableOAuthAuthorizationProperties {
     usage_date: Some(Utc::now())
   }, &database_pool).await {
 
-    Ok(_) => {},
-
-    Err(error) => {
-
-      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to update OAuth authorization: {:?}", error), None, None);
-      let http_error = oauth_error_response.clone().into();
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
-      return Err(oauth_error_response);
-
-    }
+    let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to update OAuth authorization: {:?}", error), None, None);
+    let http_error = oauth_error_response.clone().into();
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
+    return Err(oauth_error_response);
 
   }
 
@@ -524,18 +512,12 @@ pub async fn delete_oauth_authorization(oauth_authorization: &OAuthAuthorization
 
   ServerLogEntry::trace(&format!("Deleting OAuth authorization {}...", oauth_authorization.id), Some(&oauth_authorization.id), database_pool).await.ok();
 
-  match oauth_authorization.delete(database_pool).await {
+  if let Err(error) = oauth_authorization.delete(database_pool).await {
 
-    Ok(_) => {},
-
-    Err(error) => {
-
-      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete OAuth authorization: {:?}", error), None, None);
-      let http_error = oauth_error_response.clone().into();
-      ServerLogEntry::from_http_error(&http_error, Some(&oauth_authorization.id), database_pool).await.ok();
-      return Err(oauth_error_response);
-
-    }
+    let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete OAuth authorization: {:?}", error), None, None);
+    let http_error = oauth_error_response.clone().into();
+    ServerLogEntry::from_http_error(&http_error, Some(&oauth_authorization.id), database_pool).await.ok();
+    return Err(oauth_error_response);
 
   };
 
@@ -687,18 +669,12 @@ pub async fn find_app_authorization_by_oauth_authorization_id(oauth_authorizatio
 
 pub async fn delete_app_authorization(app_authorization: &AppAuthorization, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), OAuthTokenErrorResponse> {
 
-  match app_authorization.delete(&database_pool).await {
+  if let Err(error) = app_authorization.delete(&database_pool).await {
 
-    Ok(_) => {},
-
-    Err(error) => {
-
-      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete app authorization: {:?}", error), None, None);
-      let http_error = oauth_error_response.clone().into();
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
-      return Err(oauth_error_response);
-
-    }
+    let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete app authorization: {:?}", error), None, None);
+    let http_error = oauth_error_response.clone().into();
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+    return Err(oauth_error_response);
 
   }
 
@@ -917,18 +893,12 @@ async fn handle_create_oauth_access_token_request(
       }
 
     };
-    match app_authorization_credential.delete(&state.database_pool).await {
+    if let Err(error) = app_authorization_credential.delete(&state.database_pool).await {
 
-      Ok(_) => {},
-
-      Err(error) => {
-
-        let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete app authorization credential with the ID \"{}\": {:?}", app_authorization_credential_id, error), None, None);
-        let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-        return Err(oauth_error_response);
-
-      }
+      let oauth_error_response = OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to delete app authorization credential with the ID \"{}\": {:?}", app_authorization_credential_id, error), None, None);
+      let http_error = oauth_error_response.clone().into();
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(oauth_error_response);
 
     }
     let delete_app_authorization_credentials_action = match get_action_by_name("appAuthorizationCredentials.delete", &http_transaction, &state.database_pool).await {
