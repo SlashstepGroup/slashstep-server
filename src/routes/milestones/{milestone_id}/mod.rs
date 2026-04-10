@@ -17,9 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    ResourceType, access_policy::{ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, milestone::{EditableMilestoneProperties, Milestone}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, milestone::{EditableMilestoneProperties, Milestone}, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_milestone_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_milestone_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -127,14 +127,20 @@ async fn handle_patch_milestone_request(
 ) -> Result<Json<Milestone>, HTTPError> {
 
   let updated_milestone_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
-  if let Some(Some(milestone_text_value)) = &updated_milestone_properties.text_value { 
+  if let Some(Some(milestone_description)) = &updated_milestone_properties.description { 
 
-    validate_field_length(milestone_text_value, "milestones.maximumTextValueLength", "text_value", &http_transaction, &state.database_pool).await?;
+    validate_field_length(milestone_description, "milestones.maximumDescriptionLength", "description", &http_transaction, &state.database_pool).await?;
 
   }
-  if let Some(Some(milestone_number_value)) = &updated_milestone_properties.number_value {
+  if let Some(milestone_display_name) = &updated_milestone_properties.display_name {
 
-    validate_decimal_is_within_range(milestone_number_value, "milestones.minimumNumberValue", "milestones.maximumNumberValue", "number_value", &http_transaction, &state.database_pool).await?;
+    validate_field_length(milestone_display_name, "milestones.maximumDisplayNameLength", "display_name", &http_transaction, &state.database_pool).await?;
+
+  }
+  if let Some(milestone_name) = &updated_milestone_properties.name {
+
+    validate_field_length(milestone_name, "milestones.maximumNameLength", "name", &http_transaction, &state.database_pool).await?;
+    validate_resource_name(milestone_name, "milestones.allowedNameRegex", "milestone", &http_transaction, &state.database_pool).await?;
 
   }
   let milestone_id = get_uuid_from_string(&milestone_id, "milestone", &http_transaction, &state.database_pool).await?;
