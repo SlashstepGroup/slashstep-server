@@ -235,7 +235,7 @@ pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, ac
 
 }
 
-pub async fn can_principal_perform_action(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, is_principal_anonymous: bool, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<bool, HTTPError> {
+pub async fn can_principal_perform_action(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<bool, HTTPError> {
 
   ServerLogEntry::trace(&format!("Checking whether principal can use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
   let database_client = match database_pool.get().await {
@@ -298,7 +298,7 @@ pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipal
 
   ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
 
-  if !can_principal_perform_action(principal_type, principal_id, is_principal_anonymous, resource_type, resource_id, action, http_transaction, minimum_permission_level, database_pool).await? {
+  if !can_principal_perform_action(principal_type, principal_id, resource_type, resource_id, action, http_transaction, minimum_permission_level, database_pool).await? {
 
     let location = match resource_type {
 

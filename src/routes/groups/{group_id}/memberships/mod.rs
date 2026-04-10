@@ -109,7 +109,7 @@ pub async fn handle_create_membership_request(
 
     };
 
-    can_principal_add_self = is_user_only_adding_self && can_principal_perform_action(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &join_groups_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+    can_principal_add_self = is_user_only_adding_self && can_principal_perform_action(&principal_type, &principal_id, &ResourceType::Group, Some(&target_group.id), &join_groups_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
     if !can_principal_add_self {
 
       verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &create_memberships_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
