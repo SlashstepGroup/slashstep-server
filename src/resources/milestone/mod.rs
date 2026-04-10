@@ -24,15 +24,16 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "name",
   "display_name",
-  "key",
   "description",
   "start_date",
   "end_date",
-  "parent_workspace_id"
+  "parent_workspace_id",
+  "parent_project_id",
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "parent_workspace_id"
+  "parent_workspace_id",
+  "parent_project_id"
 ];
 pub const RESOURCE_NAME: &str = "Milestone";
 pub const DATABASE_TABLE_NAME: &str = "milestones";
@@ -75,13 +76,33 @@ pub struct InitialMilestoneProperties {
 
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct EditableMilestoneProperties {
+
+  /// The milestone's name.
+  pub name: Option<String>,
+
+  /// The milestone's display name.
+  pub display_name: Option<String>,
+
+  /// The milestone's description.
+  pub description: Option<Option<String>>,
+
+  /// The milestone's start date.
+  pub start_date: Option<Option<DateTime<Utc>>>,
+
+  /// The milestone's end date.
+  pub end_date: Option<Option<DateTime<Utc>>>
+
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Milestone {
 
   /// The milestone's ID.
   pub id: Uuid,
 
-    /// The milestone's name.
+  /// The milestone's name.
   pub name: String,
 
   /// The milestone's display name.
@@ -281,6 +302,32 @@ impl Milestone {
     }
 
     return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
+
+  }
+
+  /// Updates this milestone and returns a new instance of the milestone.
+  pub async fn update(&self, properties: &EditableMilestoneProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE milestones SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "start_date", properties.start_date.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "end_date", properties.end_date.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let iteration = Self::convert_from_row(&row);
+    return Ok(iteration);
 
   }
 
