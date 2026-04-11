@@ -26,20 +26,32 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.0
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - run: cargo test --no-run
         env:
           RUSTFLAGS: "-Awarnings"
+
       - name: Install mkcert
         run: |
           MKCERT_VERSION="v1.4.4"
           wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64
           chmod +x mkcert
           sudo mv mkcert /usr/local/bin/mkcert
+
       - run: mkdir secrets
+
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
+
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      - name: Cache Rust dependencies
+      
+      - run: |
+          docker pull postgres:18
+          mkdir -p ~/image-cache
+          docker image save postgres:18 -o ~/image-cache/postgres.tar
+
+      - name: Cache dependencies
         uses: actions/cache/save@v5
         with:
           path: |
@@ -47,6 +59,7 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
+            ~/image-cache
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
   test-routes:
@@ -88,8 +101,11 @@ jobs:
           # - views
           # - workspaces
     steps:
+
       - uses: actions/checkout@v6.0.0
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - name: Restore cached dependencies
         uses: actions/cache/restore@v5
         with:
@@ -98,19 +114,27 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
+            ~/image-cache
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+
+      - name: Load Docker images
+        run: docker image load --input ~/image-cache/postgres.tar
+
       - name: Install mkcert CA
-        run: |
-          mkcert -install
+        run: mkcert -install
+
       - name: Generate SSL certificates
         run: |
           mkdir tls
           cd tls
           mkcert localhost 127.0.0.1 ::1
           cd ..
-      - uses: taiki-e/install-action@v2.75.5
+
+      - name: Install nextest
+        uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
+
       - run: cargo nextest run --no-tests pass routes::${{ matrix.route-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
@@ -161,8 +185,11 @@ jobs:
           # - webhook
           # - workspace
     steps:
+
       - uses: actions/checkout@v6.0.0
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+      
       - name: Restore cached dependencies
         uses: actions/cache/restore@v5
         with:
@@ -171,19 +198,26 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
+            ~/image-cache
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+
+      - name: Load Docker images
+        run: docker image load --input ~/image-cache/postgres.tar
+
       - name: Install mkcert CA
-        run: |
-          mkcert -install
+        run: mkcert -install
+
       - name: Generate SSL certificates
         run: |
           mkdir tls
           cd tls
           mkcert localhost 127.0.0.1 ::1
           cd ..
+
       - uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
+
       - run: cargo nextest run --no-tests pass resources::${{ matrix.resource-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
