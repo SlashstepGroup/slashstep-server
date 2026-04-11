@@ -12,6 +12,8 @@
 #[cfg(test)]
 mod tests;
 
+use std::{str::FromStr};
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
@@ -45,6 +47,24 @@ pub enum ItemConnectionTypeParentResourceType {
   Workspace
 }
 
+impl FromStr for ItemConnectionTypeParentResourceType {
+
+  type Err = ResourceError;
+
+  fn from_str(string: &str) -> Result<Self, Self::Err> {
+
+    match string {
+
+      "Project" => Ok(Self::Project),
+      "Workspace" => Ok(Self::Workspace),
+      _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
+
+    }
+
+  }
+
+}
+
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct InitialItemConnectionTypeProperties {
 
@@ -65,6 +85,20 @@ pub struct InitialItemConnectionTypeProperties {
 
   /// The item connection type's parent workspace ID, if applicable.
   pub parent_workspace_id: Option<Uuid>
+
+}
+
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InitialItemConnectionTypePropertiesWithPredefinedParent {
+
+  /// The item connection type's display name.
+  pub display_name: String,
+
+  /// The item connection type's inward description.
+  pub inward_description: String,
+
+  /// The item connection type's outward description.
+  pub outward_description: String
 
 }
 
@@ -236,7 +270,24 @@ impl ItemConnectionType {
 
     }
 
-    return Ok(Box::new(value));
+    match key {
+
+      "parent_resource_type" => {
+
+        let scoped_resource_type = match ItemConnectionTypeParentResourceType::from_str(value) {
+
+          Ok(scoped_resource_type) => scoped_resource_type,
+          Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))
+
+        };
+
+        return Ok(Box::new(scoped_resource_type));
+
+      },
+
+      _ => return Ok(Box::new(value))
+      
+    };
 
   }
 
