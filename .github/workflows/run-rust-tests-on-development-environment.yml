@@ -24,9 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      # Not using `cargo test --no-run -r` because it just needs to compile the code here.
-      # Compiling each test as needed is faster than compiling all of them at once.
-      - run: RUSTFLAGS="-Awarnings" cargo build -r
+      - run: RUSTFLAGS="-Awarnings" cargo test --no-run -r
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
