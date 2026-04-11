@@ -20,15 +20,31 @@ jobs:
   compile-rust-code:
     name: Compile Rust code
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: RUSTFLAGS="-Awarnings" cargo build -r --tests
+      - run: cargo test -r --no-run
+        env:
+          RUSTFLAGS: "-Awarnings"
+      - name: Install mkcert
+        run: |
+          MKCERT_VERSION="v1.4.4"
+          wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64
+          chmod +x mkcert
+          sudo mv mkcert /usr/local/bin/mkcert
+      - run: mkdir secrets
+      - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
+      - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: actions/cache/save@v5
         with:
-          shared-key: ${{ github.workflow }}-${{ github.ref }}
+          path: |
+            /usr/local/bin/mkcert
+            ./secrets
+            ./target
+            ~/.cargo
+          key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
   test-routes:
     name: Test routes
@@ -38,32 +54,32 @@ jobs:
     strategy:
       matrix:
         route-name: 
-          - access-policies
-          - action-log-entries
+          - access_policies
+          - action_log_entries
           - actions
-          - app-authorization-credentials
-          - app-authorizations
-          - app-credentials
+          - app_authorization_credentials
+          - app_authorizations
+          - app_credentials
           - apps
           - configurations
-          - delegation-policies
-          - field-choices
-          - field-values
+          - delegation_policies
+          - field_choices
+          - field_values
           - fields
           - groups
-          - http-transactions
-          - item-connection-types
-          - item-connections
-          - item-types
+          - http_transactions
+          - item_connection_types
+          - item_connections
+          - item_types
           - items
           - iterations
-          - membership-invitations
+          - membership_invitations
           - memberships
           - milestones
-          - oauth-access-tokens
+          - oauth_access_tokens
           - projects
           # - routes
-          # - server-log-entries
+          # - server_log_entries
           # - sessions
           # - users
           # - views
@@ -72,16 +88,14 @@ jobs:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Restore cached dependencies
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: actions/cache/restore@v5
         with:
-          save-if: false 
-          shared-key: ${{ github.workflow }}-${{ github.ref }}
-      - name: Install mkcert
-        run: |
-          MKCERT_VERSION="v1.4.4"
-          wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64
-          chmod +x mkcert
-          sudo mv mkcert /usr/local/bin/mkcert
+          path: |
+            /usr/local/bin/mkcert
+            ./secrets
+            ./target
+            ~/.cargo
+          key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
       - name: Install mkcert CA
         run: |
           mkcert -install
@@ -91,13 +105,15 @@ jobs:
           cd tls
           mkcert localhost 127.0.0.1 ::1
           cd ..
-      - run: mkdir secrets
-      - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
-      - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      - run: RUSTFLAGS="-Awarnings" cargo test -r routes::${{ matrix.route-name }}
+      - uses: taiki-e/install-action@v2.75.5
+        with:
+          tool: nextest@0.9.132
+      - run: cargo nextest run -r --no-tests pass routes::${{ matrix.route-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+          RUSTFLAGS: "-Awarnings"
+          CARGO_TERM_COLOR: always
     
   test-resources:
     name: Test resources
@@ -145,16 +161,14 @@ jobs:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Restore cached dependencies
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: actions/cache/restore@v5
         with:
-          save-if: false 
-          shared-key: ${{ github.workflow }}-${{ github.ref }}
-      - name: Install mkcert
-        run: |
-          MKCERT_VERSION="v1.4.4"
-          wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64
-          chmod +x mkcert
-          sudo mv mkcert /usr/local/bin/mkcert
+          path: |
+            /usr/local/bin/mkcert
+            ./secrets
+            ./target
+            ~/.cargo
+          key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
       - name: Install mkcert CA
         run: |
           mkcert -install
@@ -164,11 +178,13 @@ jobs:
           cd tls
           mkcert localhost 127.0.0.1 ::1
           cd ..
-      - run: mkdir secrets
-      - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
-      - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      - run: RUSTFLAGS="-Awarnings" cargo test -r routes::${{ matrix.resource-name }}
+      - uses: taiki-e/install-action@v2.75.5
+        with:
+          tool: nextest@0.9.132
+      - run: cargo nextest run -r --no-tests pass resources::${{ matrix.resource-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+          RUSTFLAGS: "-Awarnings"
+          CARGO_TERM_COLOR: always
   
