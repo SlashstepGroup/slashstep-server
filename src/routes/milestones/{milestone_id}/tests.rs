@@ -51,7 +51,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let get_milestones_action = Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_milestones_action.id, &ActionPermissionLevel::User).await?;
   
-  let milestone = test_environment.create_random_milestone().await?;
+  let milestone = test_environment.create_random_milestone(None).await?;
 
   let response = test_server.get(&format!("/milestones/{}", milestone.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -117,7 +117,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let milestone = test_environment.create_random_milestone().await?;
+  let milestone = test_environment.create_random_milestone(None).await?;
 
   let response = test_server.get(&format!("/milestones/{}", milestone.id))
     .await;
@@ -143,7 +143,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let milestone = test_environment.create_random_milestone().await?;
+  let milestone = test_environment.create_random_milestone(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -219,7 +219,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   test_environment.create_server_access_policy(&user.id, &delete_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let milestone = test_environment.create_random_milestone().await?;
+  let milestone = test_environment.create_random_milestone(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -283,7 +283,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create a dummy app.
-  let milestone = test_environment.create_random_milestone().await?;
+  let milestone = test_environment.create_random_milestone(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -319,7 +319,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
   // Create a dummy app.
-  let milestone = test_environment.create_random_milestone().await?;
+  let milestone = test_environment.create_random_milestone(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -392,7 +392,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   test_environment.create_server_access_policy(&user.id, &update_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let original_milestone = test_environment.create_random_milestone().await?;
+  let original_milestone = test_environment.create_random_milestone(None).await?;
   let updated_milestone_properties = EditableMilestoneProperties {
     name: Some(Uuid::now_v7().to_string()),
     display_name: Some(Uuid::now_v7().to_string()),
@@ -552,7 +552,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
-  let milestone = test_environment.create_random_milestone().await?;
+  let milestone = test_environment.create_random_milestone(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -590,7 +590,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Set up the server and send the request.
-  let milestone = test_environment.create_random_milestone().await?;
+  let milestone = test_environment.create_random_milestone(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -662,7 +662,7 @@ async fn verify_milestone_display_name_is_at_most_at_maximum_length() -> Result<
   test_environment.create_server_access_policy(&user.id, &update_milestone_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let original_milestone = test_environment.create_random_milestone().await?; 
+  let original_milestone = test_environment.create_random_milestone(None).await?; 
   let maximum_milestone_display_name_length_configuration = Configuration::get_by_name("milestones.maximumDisplayNameLength", &test_environment.database_pool).await?;
   maximum_milestone_display_name_length_configuration.update(&EditableConfigurationProperties {
     number_value: Some(Decimal::from(0 as i64)),
@@ -711,7 +711,7 @@ async fn verify_milestone_description_is_at_most_at_maximum_length() -> Result<(
   test_environment.create_server_access_policy(&user.id, &update_milestone_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let original_milestone = test_environment.create_random_milestone().await?; 
+  let original_milestone = test_environment.create_random_milestone(None).await?; 
   let maximum_milestone_display_name_length_configuration = Configuration::get_by_name("milestones.maximumDescriptionLength", &test_environment.database_pool).await?;
   maximum_milestone_display_name_length_configuration.update(&EditableConfigurationProperties {
     number_value: Some(Decimal::from(0 as i64)),

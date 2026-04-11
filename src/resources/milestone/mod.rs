@@ -76,6 +76,26 @@ pub struct InitialMilestoneProperties {
 
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct InitialMilestonePropertiesWithPredefinedParent {
+
+  /// The milestone's name.
+  pub name: String,
+
+  /// The milestone's display name.
+  pub display_name: String,
+
+  /// The milestone's description.
+  pub description: Option<String>,
+
+  /// The milestone's start date.
+  pub start_date: Option<DateTime<Utc>>,
+
+  /// The milestone's end date.
+  pub end_date: Option<DateTime<Utc>>,
+
+}
+
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct EditableMilestoneProperties {
 

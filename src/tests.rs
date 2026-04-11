@@ -488,15 +488,15 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_milestone(&self) -> Result<Milestone, TestSlashstepServerError> {
+  pub async fn create_random_milestone(&self, project_id: Option<&Uuid>) -> Result<Milestone, TestSlashstepServerError> {
 
-    let project = self.create_random_project().await?;
+    let project_id = project_id.copied().unwrap_or(self.create_random_project().await?.id);
     let milestone_properties = InitialMilestoneProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
       description: Some(Uuid::now_v7().to_string()),
       parent_resource_type: crate::resources::milestone::MilestoneParentResourceType::Project,
-      parent_project_id: Some(project.id),
+      parent_project_id: Some(project_id),
       ..Default::default()
     };
 
