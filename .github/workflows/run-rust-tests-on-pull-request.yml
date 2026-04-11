@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: cargo build --tests
+      - run: cargo test --no-run
         env:
           RUSTFLAGS: "-Awarnings"
       - name: Install mkcert
@@ -57,32 +57,32 @@ jobs:
     strategy:
       matrix:
         route-name: 
-          - access-policies
-          - action-log-entries
+          - access_policies
+          - action_log_entries
           - actions
-          - app-authorization-credentials
-          - app-authorizations
-          - app-credentials
+          - app_authorization_credentials
+          - app_authorizations
+          - app_credentials
           - apps
           - configurations
-          - delegation-policies
-          - field-choices
-          - field-values
+          - delegation_policies
+          - field_choices
+          - field_values
           - fields
           - groups
-          - http-transactions
-          - item-connection-types
-          - item-connections
-          - item-types
+          - http_transactions
+          - item_connection_types
+          - item_connections
+          - item_types
           - items
           - iterations
-          - membership-invitations
+          - membership_invitations
           - memberships
           - milestones
-          - oauth-access-tokens
+          - oauth_access_tokens
           - projects
           # - routes
-          # - server-log-entries
+          # - server_log_entries
           # - sessions
           # - users
           # - views
@@ -184,7 +184,7 @@ jobs:
       - uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
-      - run: cargo nextest run --no-tests pass routes::${{ matrix.resource-name }}
+      - run: cargo nextest run --no-tests pass resources::${{ matrix.resource-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
