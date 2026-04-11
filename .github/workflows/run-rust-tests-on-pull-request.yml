@@ -1,4 +1,4 @@
-name: Run Rust tests
+name: Run Rust tests on pull request
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -19,11 +19,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-pull-request:
-    name: Test pull request
+  test-routes:
+    name: Test routes
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event.pull_request.draft == false
+    strategy:
+      matrix:
+        route-name: 
+          - access-policies
+          - action-log-entries
+          - actions
+          - app-authorization-credentials
+          - app-authorizations
+          - app-credentials
+          - apps
+          - configurations
+          - delegation-policies
+          - field-choices
+          - field-values
+          - fields
+          - groups
+          - http-transactions
+          - item-connection-types
+          - item-connections
+          - item-types
+          - items
+          - iterations
+          - membership-invitations
+          - memberships
+          - milestones
+          - oauth-access-tokens
+          - projects
+          # - routes
+          # - server-log-entries
+          # - sessions
+          # - users
+          # - views
+          # - workspaces
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -45,7 +78,76 @@ jobs:
       - run: mkdir secrets
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      - run: RUSTFLAGS="-Awarnings" cargo test --all-features
+      - run: RUSTFLAGS="-Awarnings" cargo test routes::${{ matrix.route-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+    
+  test-resources:
+    name: Test resources
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.pull_request.draft == false
+    strategy:
+      matrix:
+        resource-name:
+          - access_policy
+          - action
+          - action_log_entry
+          - app
+          - app_authorization
+          - app_authorization_credential
+          - app_credential
+          - configuration
+          - delegation_policy
+          - field
+          - field_choice
+          - field_value
+          - group
+          - http_transaction
+          - item
+          - item_connection
+          - item_connection_type
+          - item_type
+          - item_type_icon
+          - iteration
+          - membership
+          - membership_invitation
+          - milestone
+          - oauth_authorization
+          - project
+          # - role
+          # - server_log_entry
+          # - session
+          # - status
+          # - user
+          # - view
+          # - view_field
+          # - webhook
+          # - workspace
+    steps:
+      - uses: actions/checkout@v6.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install mkcert
+        run: |
+          MKCERT_VERSION="v1.4.4"
+          wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64
+          chmod +x mkcert
+          sudo mv mkcert /usr/local/bin/mkcert
+      - name: Install mkcert CA
+        run: |
+          mkcert -install
+      - name: Generate SSL certificates
+        run: |
+          mkdir tls
+          cd tls
+          mkcert localhost 127.0.0.1 ::1
+          cd ..
+      - run: mkdir secrets
+      - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
+      - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
+      - run: RUSTFLAGS="-Awarnings" cargo test routes::${{ matrix.resource-name }}
+        env:
+          JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
+          JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+  

@@ -73,18 +73,6 @@ impl TestEnvironment {
 
   pub async fn start_postgresql_container() -> Arc<ContainerAsync<testcontainers_modules::postgres::Postgres>> {
 
-    let mut guard = POSTGRES_CONTAINER_LOCK
-      .get_or_init(|| Mutex::new(Weak::new()))
-      .lock()
-      .unwrap();
-
-    if let Some(container) = guard.upgrade() {
-
-      println!("Reusing existing PostgreSQL test server...");
-      return container;
-
-    }
-
     println!("Starting PostgreSQL test server...");
     let postgres_container = Arc::new(
       testcontainers_modules::postgres::Postgres::default()
@@ -94,7 +82,6 @@ impl TestEnvironment {
         .expect("Failed to start PostgreSQL test server")
     );
 
-    *guard = Arc::downgrade(&postgres_container);
     return postgres_container;
 
   }
@@ -113,16 +100,10 @@ impl TestEnvironment {
     postgres_config.port(postgres_port);
     postgres_config.user("postgres");
     postgres_config.password("postgres");
+    postgres_config.dbname("postgres");
     let manager_config = deadpool_postgres::ManagerConfig {
       recycling_method: deadpool_postgres::RecyclingMethod::Fast
     };
-    let manager = deadpool_postgres::Manager::from_config(postgres_config.clone(), NoTls, manager_config.clone());
-    let database_pool = deadpool_postgres::Pool::builder(manager).max_size(1).build()?;
-    let database_client = database_pool.get().await?;
-    let database_name = Uuid::now_v7().to_string();
-    database_client.query(&format!("CREATE DATABASE \"{}\"", database_name), &[]).await?;
-
-    postgres_config.dbname(database_name);
     let manager = deadpool_postgres::Manager::from_config(postgres_config.clone(), NoTls, manager_config.clone());
     let database_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT as usize).build()?;
 
