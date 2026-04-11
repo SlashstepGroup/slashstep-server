@@ -225,11 +225,13 @@ jobs:
           RUSTFLAGS: "-Awarnings"
           CARGO_TERM_COLOR: always
   
-  notify-success:
-    name: Notify success 
+  # This job is here for branch protection rules.
+  # If GitHub adds a feature to require all jobs from matrix strategies to pass, then we can remove this job and make those test jobs required instead.
+  announce-success:
+    name: Announce success
     runs-on: ubuntu-latest
     timeout-minutes: 1
     needs: [test-routes, test-resources]
     steps:
-      - name: Notify success
+      - name: Announce success
         run: echo "All tests passed successfully!"
