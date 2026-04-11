@@ -27,7 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: RUSTFLAGS="-Awarnings" cargo build -r --tests
+      - run: cargo test --no-run
+        env:
+          RUSTFLAGS: "-Awarnings"
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2.9.1
         with:
@@ -100,7 +102,7 @@ jobs:
       - uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
-      - run: cargo nextest -r routes::${{ matrix.route-name }}
+      - run: cargo nextest run routes::${{ matrix.route-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
@@ -177,7 +179,7 @@ jobs:
       - uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
-      - run: cargo nextest -r routes::${{ matrix.resource-name }}
+      - run: cargo nextest run routes::${{ matrix.resource-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
