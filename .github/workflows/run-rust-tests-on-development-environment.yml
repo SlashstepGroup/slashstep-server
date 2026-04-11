@@ -1,4 +1,5 @@
 name: Run Rust tests on development environment
+
 on:
   push:
     paths:
@@ -21,10 +22,11 @@ jobs:
     name: Compile Rust code
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: Development
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: cargo test -r --no-run
+      - run: cargo test --no-run
         env:
           RUSTFLAGS: "-Awarnings"
       - name: Install mkcert
@@ -51,6 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: compile-rust-code
+    environment: Development
     strategy:
       matrix:
         route-name: 
@@ -108,7 +111,7 @@ jobs:
       - uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
-      - run: cargo nextest run -r --no-tests pass routes::${{ matrix.route-name }}
+      - run: cargo nextest run --no-tests pass routes::${{ matrix.route-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
@@ -120,6 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: compile-rust-code
+    environment: Development
     strategy:
       matrix:
         resource-name:
@@ -181,7 +185,7 @@ jobs:
       - uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
-      - run: cargo nextest run -r --no-tests pass resources::${{ matrix.resource-name }}
+      - run: cargo nextest run --no-tests pass resources::${{ matrix.resource-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem

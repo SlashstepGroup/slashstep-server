@@ -1,0 +1,189 @@
+name: Run Rust tests on staging environment
+
+on:
+  push:
+    tags:
+      - 'v*.*.*-rc\.\d+'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-rust-code:
+    name: Compile Rust code
+    runs-on: ubuntu-latest
+    environment: Staging
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo test -r --no-run
+        env:
+          RUSTFLAGS: "-Awarnings"
+      - name: Install mkcert
+        run: |
+          MKCERT_VERSION="v1.4.4"
+          wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64
+          chmod +x mkcert
+          sudo mv mkcert /usr/local/bin/mkcert
+      - run: mkdir secrets
+      - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
+      - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
+      - name: Cache Rust dependencies
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            /usr/local/bin/mkcert
+            ./secrets
+            ./target
+            ~/.cargo
+          key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+
+  test-routes:
+    name: Test routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Staging
+    needs: compile-rust-code
+    strategy:
+      matrix:
+        route-name: 
+          - access_policies
+          - action_log_entries
+          - actions
+          - app_authorization_credentials
+          - app_authorizations
+          - app_credentials
+          - apps
+          - configurations
+          - delegation_policies
+          - field_choices
+          - field_values
+          - fields
+          - groups
+          - http_transactions
+          - item_connection_types
+          - item_connections
+          - item_types
+          - items
+          - iterations
+          - membership_invitations
+          - memberships
+          - milestones
+          - oauth_access_tokens
+          - projects
+          # - routes
+          # - server_log_entries
+          # - sessions
+          # - users
+          # - views
+          # - workspaces
+    steps:
+      - uses: actions/checkout@v6.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            /usr/local/bin/mkcert
+            ./secrets
+            ./target
+            ~/.cargo
+          key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+      - name: Install mkcert CA
+        run: |
+          mkcert -install
+      - name: Generate SSL certificates
+        run: |
+          mkdir tls
+          cd tls
+          mkcert localhost 127.0.0.1 ::1
+          cd ..
+      - uses: taiki-e/install-action@v2.75.5
+        with:
+          tool: nextest@0.9.132
+      - run: cargo nextest run -r --no-tests pass routes::${{ matrix.route-name }}
+        env:
+          JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
+          JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+          RUSTFLAGS: "-Awarnings"
+          CARGO_TERM_COLOR: always
+    
+  test-resources:
+    name: Test resources
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Staging
+    needs: compile-rust-code
+    strategy:
+      matrix:
+        resource-name:
+          - access_policy
+          - action
+          - action_log_entry
+          - app
+          - app_authorization
+          - app_authorization_credential
+          - app_credential
+          - configuration
+          - delegation_policy
+          - field
+          - field_choice
+          - field_value
+          - group
+          - http_transaction
+          - item
+          - item_connection
+          - item_connection_type
+          - item_type
+          - item_type_icon
+          - iteration
+          - membership
+          - membership_invitation
+          - milestone
+          - oauth_authorization
+          - project
+          # - role
+          # - server_log_entry
+          # - session
+          # - status
+          # - user
+          # - view
+          # - view_field
+          # - webhook
+          # - workspace
+    steps:
+      - uses: actions/checkout@v6.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            /usr/local/bin/mkcert
+            ./secrets
+            ./target
+            ~/.cargo
+          key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+      - name: Install mkcert CA
+        run: |
+          mkcert -install
+      - name: Generate SSL certificates
+        run: |
+          mkdir tls
+          cd tls
+          mkcert localhost 127.0.0.1 ::1
+          cd ..
+      - uses: taiki-e/install-action@v2.75.5
+        with:
+          tool: nextest@0.9.132
+      - run: cargo nextest run -r --no-tests pass resources::${{ matrix.resource-name }}
+        env:
+          JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
+          JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+          RUSTFLAGS: "-Awarnings"
+          CARGO_TERM_COLOR: always
+  
