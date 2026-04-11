@@ -41,7 +41,7 @@ pub const RESOURCE_NAME: &str = "Role";
 pub const DATABASE_TABLE_NAME: &str = "roles";
 pub const GET_RESOURCE_ACTION_NAME: &str = "roles.get";
 
-#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default)]
 #[postgres(name = "role_parent_resource_type")]
 pub enum RoleParentResourceType {
   #[default]

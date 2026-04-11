@@ -988,7 +988,7 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 ELSIF selected_resource_parent_type = 'Project' THEN
 
                     SELECT
-                        project_id
+                        parent_project_id
                     INTO
                         selected_resource_parent_id
                     FROM
