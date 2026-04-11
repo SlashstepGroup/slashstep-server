@@ -22,11 +22,12 @@ jobs:
   compile-rust-code:
     name: Compile Rust code
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: RUSTFLAGS="-Awarnings" cargo build --release
+      - run: RUSTFLAGS="-Awarnings" cargo test --no-run -r
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
@@ -37,7 +38,6 @@ jobs:
     name: Test routes
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event.pull_request.draft == false
     needs: compile-rust-code
     strategy:
       matrix:
@@ -99,7 +99,7 @@ jobs:
       - run: mkdir secrets
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      - run: RUSTFLAGS="-Awarnings" cargo test routes::${{ matrix.route-name }}
+      - run: RUSTFLAGS="-Awarnings" cargo test routes::${{ matrix.route-name }} --release
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
@@ -108,7 +108,6 @@ jobs:
     name: Test resources
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event.pull_request.draft == false
     needs: compile-rust-code
     strategy:
       matrix:
@@ -174,7 +173,7 @@ jobs:
       - run: mkdir secrets
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      - run: RUSTFLAGS="-Awarnings" cargo test routes::${{ matrix.resource-name }}
+      - run: RUSTFLAGS="-Awarnings" cargo test routes::${{ matrix.resource-name }} --release
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
