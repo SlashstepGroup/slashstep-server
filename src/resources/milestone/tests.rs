@@ -46,7 +46,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_resources: Vec<Milestone> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_milestone().await?;
+    let resource = test_environment.create_random_milestone(None).await?;
     created_resources.push(resource);
 
   }
@@ -92,7 +92,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_milestone = test_environment.create_random_milestone().await?;
+  let created_milestone = test_environment.create_random_milestone(None).await?;
   
   created_milestone.delete(&test_environment.database_pool).await?;
 
@@ -131,7 +131,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_milestone = test_environment.create_random_milestone().await?;
+  let created_milestone = test_environment.create_random_milestone(None).await?;
   let retrieved_resource = Milestone::get_by_id(&created_milestone.id, &test_environment.database_pool).await?;
   assert_milestones_are_equal(&created_milestone, &retrieved_resource);
 
@@ -150,7 +150,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut milestones: Vec<Milestone> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let milestone = test_environment.create_random_milestone().await?;
+    let milestone = test_environment.create_random_milestone(None).await?;
     milestones.push(milestone);
 
   }
@@ -174,7 +174,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_resources: Vec<Milestone> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_milestone().await?;
+    let resource = test_environment.create_random_milestone(None).await?;
     created_resources.push(resource);
 
   }
@@ -207,7 +207,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_resources: Vec<Milestone> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let milestone = test_environment.create_random_milestone().await?;
+    let milestone = test_environment.create_random_milestone(None).await?;
     created_resources.push(milestone);
 
   }
@@ -243,7 +243,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let milestone = test_environment.create_random_milestone().await?;
+      let milestone = test_environment.create_random_milestone(None).await?;
       current_resources.push(milestone);
 
     }
