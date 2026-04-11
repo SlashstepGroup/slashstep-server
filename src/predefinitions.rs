@@ -1415,6 +1415,48 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       value_type: ConfigurationValueType::Text,
       default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
       ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "projects.maximumNameLength".to_string(),
+      description: Some("The maximum length of project names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "projects.maximumDisplayNameLength".to_string(),
+      description: Some("The maximum length of project display names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "projects.maximumKeyLength".to_string(),
+      description: Some("The maximum length of project keys in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(4))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "projects.maximumDescriptionLength".to_string(),
+      description: Some("The maximum length of project descriptions in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(8))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "projects.allowedNameRegex".to_string(),
+      description: Some("A regular expression that project names must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "projects.allowedKeyRegex".to_string(),
+      description: Some("A regular expression that project keys must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
+      ..Default::default()
     }
   ];
 

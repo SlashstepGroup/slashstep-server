@@ -5,6 +5,7 @@ use deadpool_postgres::tokio_postgres;
 use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePublicKey, spki::der::pem::LineEnding}};
 use local_ip_address::local_ip;
 use postgres::NoTls;
+use rand::distr::{Alphanumeric, SampleString};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
@@ -531,7 +532,7 @@ impl TestEnvironment {
     let project_properties = InitialProjectProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
-      key: Uuid::now_v7().to_string(),
+      key: Alphanumeric.sample_string(&mut rand::rng(), 16),
       description: Some(Uuid::now_v7().to_string()),
       start_date: Some(Utc::now()),
       end_date: Some(Utc::now()),

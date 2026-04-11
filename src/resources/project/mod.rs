@@ -93,6 +93,29 @@ pub struct Project {
 
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct EditableProjectProperties {
+
+  /// The project's name.
+  pub name: Option<String>,
+  
+  /// The project's display name.
+  pub display_name: Option<String>,
+
+  /// The project's key.
+  pub key: Option<String>,
+
+  /// The project's description, if applicable.
+  pub description: Option<Option<String>>,
+
+  /// The project's start date, if applicable.
+  pub start_date: Option<Option<DateTime<Utc>>>,
+
+  /// The project's end date, if applicable.
+  pub end_date: Option<Option<DateTime<Utc>>>
+
+}
+
 impl Project {
 
   /// Counts the number of projects based on a query.
@@ -271,6 +294,33 @@ impl Project {
     }
 
     return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
+
+  }
+
+  /// Updates this project and returns a new instance of the project.
+  pub async fn update(&self, properties: &EditableProjectProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE projects SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "key", properties.key.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "start_date", properties.start_date.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "end_date", properties.end_date.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let iteration = Self::convert_from_row(&row);
+    return Ok(iteration);
 
   }
 
