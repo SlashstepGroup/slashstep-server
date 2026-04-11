@@ -51,7 +51,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
   
-  let role = test_environment.create_random_role().await?;
+  let role = test_environment.create_random_role(None, None).await?;
 
   let response = test_server.get(&format!("/roles/{}", role.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -117,7 +117,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let role = test_environment.create_random_role().await?;
+  let role = test_environment.create_random_role(None, None).await?;
 
   let response = test_server.get(&format!("/roles/{}", role.id))
     .await;
@@ -143,7 +143,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let role = test_environment.create_random_role().await?;
+  let role = test_environment.create_random_role(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -226,7 +226,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   }, &test_environment.database_pool).await?;
 
 //   // Set up the server and send the request.
-//   let role = test_environment.create_random_role().await?;
+//   let role = test_environment.create_random_role(None, None).await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -287,7 +287,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
   
 //   // Create a dummy app.
-//   let role = test_environment.create_random_role().await?;
+//   let role = test_environment.create_random_role(None, None).await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -322,7 +322,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
 //   // Create a dummy app.
-//   let role = test_environment.create_random_role().await?;
+//   let role = test_environment.create_random_role(None, None).await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -561,7 +561,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
   
 //   // Set up the server and send the request.
-//   let role = test_environment.create_random_role().await?;
+//   let role = test_environment.create_random_role(None, None).await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
@@ -597,7 +597,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
 //   // Set up the server and send the request.
-//   let role = test_environment.create_random_role().await?;
+//   let role = test_environment.create_random_role(None, None).await?;
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
