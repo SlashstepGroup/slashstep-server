@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: RUSTFLAGS="-Awarnings" cargo build
+      - run: RUSTFLAGS="-Awarnings" cargo build -r --tests
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2.9.1
         with:
@@ -94,7 +94,7 @@ jobs:
       - run: mkdir secrets
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      - run: RUSTFLAGS="-Awarnings" cargo test routes::${{ matrix.route-name }}
+      - run: RUSTFLAGS="-Awarnings" cargo test -r routes::${{ matrix.route-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
@@ -167,7 +167,7 @@ jobs:
       - run: mkdir secrets
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      - run: RUSTFLAGS="-Awarnings" cargo test routes::${{ matrix.resource-name }}
+      - run: RUSTFLAGS="-Awarnings" cargo test -r routes::${{ matrix.resource-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
