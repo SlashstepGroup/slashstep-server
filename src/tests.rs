@@ -1,17 +1,16 @@
-use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::sync::{Arc};
 
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
 use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePublicKey, spki::der::pem::LineEnding}};
 use local_ip_address::local_ip;
 use postgres::NoTls;
+use rand::distr::{Alphanumeric, SampleString};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
 use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, item_type::{InitialItemTypeProperties, ItemType}, item_type_icon::{InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType}, iteration::{InitialIterationProperties, Iteration}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, status::{InitialStatusProperties, Status, StatusType}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, view_field::{InitialViewFieldProperties, ViewField}, webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}};
 use thiserror::Error;
-
-static POSTGRES_CONTAINER_LOCK: OnceLock<Mutex<Weak<ContainerAsync<testcontainers_modules::postgres::Postgres>>>> = OnceLock::new();
 
 #[derive(Debug, Error)]
 pub enum TestSlashstepServerError {
@@ -72,18 +71,6 @@ impl TestEnvironment {
 
   pub async fn start_postgresql_container() -> Arc<ContainerAsync<testcontainers_modules::postgres::Postgres>> {
 
-    let mut guard = POSTGRES_CONTAINER_LOCK
-      .get_or_init(|| Mutex::new(Weak::new()))
-      .lock()
-      .unwrap();
-
-    if let Some(container) = guard.upgrade() {
-
-      println!("Reusing existing PostgreSQL test server...");
-      return container;
-
-    }
-
     println!("Starting PostgreSQL test server...");
     let postgres_container = Arc::new(
       testcontainers_modules::postgres::Postgres::default()
@@ -93,7 +80,6 @@ impl TestEnvironment {
         .expect("Failed to start PostgreSQL test server")
     );
 
-    *guard = Arc::downgrade(&postgres_container);
     return postgres_container;
 
   }
@@ -112,16 +98,10 @@ impl TestEnvironment {
     postgres_config.port(postgres_port);
     postgres_config.user("postgres");
     postgres_config.password("postgres");
+    postgres_config.dbname("postgres");
     let manager_config = deadpool_postgres::ManagerConfig {
       recycling_method: deadpool_postgres::RecyclingMethod::Fast
     };
-    let manager = deadpool_postgres::Manager::from_config(postgres_config.clone(), NoTls, manager_config.clone());
-    let database_pool = deadpool_postgres::Pool::builder(manager).max_size(1).build()?;
-    let database_client = database_pool.get().await?;
-    let database_name = Uuid::now_v7().to_string();
-    database_client.query(&format!("CREATE DATABASE \"{}\"", database_name), &[]).await?;
-
-    postgres_config.dbname(database_name);
     let manager = deadpool_postgres::Manager::from_config(postgres_config.clone(), NoTls, manager_config.clone());
     let database_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT as usize).build()?;
 
@@ -531,7 +511,7 @@ impl TestEnvironment {
     let project_properties = InitialProjectProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
-      key: Uuid::now_v7().to_string(),
+      key: Alphanumeric.sample_string(&mut rand::rng(), 16),
       description: Some(Uuid::now_v7().to_string()),
       start_date: Some(Utc::now()),
       end_date: Some(Utc::now()),

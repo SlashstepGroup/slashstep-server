@@ -35,7 +35,7 @@ mod iterations;
 mod milestones;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
-// mod projects;
+mod projects;
 // mod roles;
 // #[path = "./server-log-entries/mod.rs"]
 // mod server_log_entries;
@@ -92,7 +92,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(membership_invitations::get_router(state.clone()))
     .merge(milestones::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))
-    // .merge(projects::get_router(state.clone()))
+    .merge(projects::get_router(state.clone()))
     // .merge(roles::get_router(state.clone()))
     // .merge(server_log_entries::get_router(state.clone()))
     // .merge(sessions::get_router(state.clone()))
