@@ -23,7 +23,7 @@ jobs:
     name: Compile Rust code
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -34,6 +34,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.1
         with:
           shared-key: ${{ github.workflow }}-${{ github.ref }}
+          cache-all-crates: true
 
   test-routes:
     name: Test routes
@@ -107,6 +108,7 @@ jobs:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
           RUSTFLAGS: "-Awarnings"
+          CARGO_TERM_COLOR: always
     
   test-resources:
     name: Test resources
@@ -184,4 +186,5 @@ jobs:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
           RUSTFLAGS: "-Awarnings"
+          CARGO_TERM_COLOR: always
   
