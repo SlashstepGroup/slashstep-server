@@ -27,12 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - run: RUSTFLAGS="-Awarnings" cargo test --no-run -r
+      # Not using `cargo test --no-run -r` because it just needs to compile the code here.
+      # Compiling each test as needed is faster than compiling all of them at once.
+      - run: RUSTFLAGS="-Awarnings" cargo build -r
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
-        with:
-          # Use a shared key so other jobs can access this specific cache
-          shared-key: "shared-rust-cache"
 
   test-routes:
     name: Test routes
@@ -78,8 +77,6 @@ jobs:
       - name: Restore cached dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "shared-rust-cache"
-          # Optional: only restore, don't save updates in this job
           save-if: false 
       - name: Install mkcert
         run: |
@@ -152,9 +149,7 @@ jobs:
       - name: Restore cached dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "shared-rust-cache"
-          # Optional: only restore, don't save updates in this job
-          save-if: false 
+          save-if: false
       - name: Install mkcert
         run: |
           MKCERT_VERSION="v1.4.4"
