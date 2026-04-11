@@ -19,11 +19,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  compile-rust-code:
+    name: Compile Rust code
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo build --release
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Use a shared key so other jobs can access this specific cache
+          shared-key: "shared-rust-cache"
+
   test-routes:
     name: Test routes
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event.pull_request.draft == false
+    needs: compile-rust-code
     strategy:
       matrix:
         route-name: 
@@ -60,6 +75,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Restore cached dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "shared-rust-cache"
+          # Optional: only restore, don't save updates in this job
+          save-if: false 
       - name: Install mkcert
         run: |
           MKCERT_VERSION="v1.4.4"
@@ -88,6 +109,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.event.pull_request.draft == false
+    needs: compile-rust-code
     strategy:
       matrix:
         resource-name:
@@ -128,6 +150,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Restore cached dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "shared-rust-cache"
+          # Optional: only restore, don't save updates in this job
+          save-if: false 
       - name: Install mkcert
         run: |
           MKCERT_VERSION="v1.4.4"
