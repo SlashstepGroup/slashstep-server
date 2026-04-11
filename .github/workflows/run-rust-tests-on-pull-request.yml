@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: |
-            /usr/local/cargo/registry
+            /usr/local/bin/mkcert
             ./secrets
             ./target
             ~/.cargo
@@ -94,7 +94,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: |
-            /usr/local/cargo/registry
+            /usr/local/bin/mkcert
             ./secrets
             ./target
             ~/.cargo
@@ -167,7 +167,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: |
-            /usr/local/cargo/registry
+            /usr/local/bin/mkcert
             ./secrets
             ./target
             ~/.cargo
