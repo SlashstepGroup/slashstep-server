@@ -280,7 +280,7 @@ impl TestEnvironment {
     let field_properties = InitialFieldProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
-      description: Uuid::now_v7().to_string(),
+      description: Some(Uuid::now_v7().to_string()),
       field_value_type: FieldValueType::Text,
       parent_project_id: parent_project_id,
       ..Default::default()

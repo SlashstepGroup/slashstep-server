@@ -5,7 +5,7 @@ BEGIN
     id UUID DEFAULT uuidv7() PRIMARY KEY,
     name TEXT NOT NULL,
     display_name TEXT NOT NULL,
-    description TEXT NOT NULL,
+    description TEXT,
     type field_value_type NOT NULL, /* Defined in general types */
     minimum_value DECIMAL,
     maximum_value DECIMAL,

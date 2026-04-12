@@ -73,7 +73,7 @@ pub struct InitialFieldProperties {
   pub display_name: String,
 
   /// The field's description.
-  pub description: String,
+  pub description: Option<String>,
 
   /// The field's type.
   pub field_value_type: FieldValueType,
@@ -99,6 +99,38 @@ pub struct InitialFieldProperties {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSql, FromSql, Default)]
+pub struct InitialFieldPropertiesWithPredefinedParent {
+
+  /// The field's name.
+  pub name: String,
+
+  /// The field's display name.
+  pub display_name: String,
+
+  /// The field's description.
+  pub description: Option<String>,
+
+  /// The field's type.
+  pub field_value_type: FieldValueType,
+
+  /// The field's minimum value.
+  pub minimum_value: Option<Decimal>,
+
+  /// The field's maximum value.
+  pub maximum_value: Option<Decimal>,
+
+  /// The field's minimum choice count.
+  pub minimum_choice_count: Option<i32>,
+
+  /// The field's maximum choice count.
+  pub maximum_choice_count: Option<i32>,
+
+  /// Whether the field is a deadline.
+  pub is_deadline: Option<bool>
+
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSql, FromSql, Default)]
 pub struct EditableFieldProperties {
 
   /// The field's name.
@@ -108,7 +140,7 @@ pub struct EditableFieldProperties {
   pub display_name: Option<String>,
 
   /// The field's description.
-  pub description: Option<String>,
+  pub description: Option<Option<String>>,
 
   /// The field's minimum value.
   pub minimum_value: Option<Option<Decimal>>,
@@ -140,7 +172,7 @@ pub struct Field {
   pub display_name: String,
 
   /// The field's description.
-  pub description: String,
+  pub description: Option<String>,
 
   /// The field's type.
   pub field_value_type: FieldValueType,

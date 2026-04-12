@@ -24,9 +24,10 @@ use crate::{
 
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
-mod milestones;
+mod fields;
 #[path = "./item-connection-types/mod.rs"]
 mod item_connection_types;
+mod milestones;
 mod roles;
 #[cfg(test)]
 mod tests;
@@ -205,6 +206,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
     .merge(access_policies::get_router(state.clone()))
+    .merge(fields::get_router(state.clone()))
     .merge(milestones::get_router(state.clone()))
     .merge(item_connection_types::get_router(state.clone()))
     .merge(roles::get_router(state.clone()));

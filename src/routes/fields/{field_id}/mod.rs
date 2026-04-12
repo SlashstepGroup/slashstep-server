@@ -141,7 +141,11 @@ async fn handle_patch_field_request(
     validate_resource_display_name(field_display_name, "fields.allowedDisplayNameRegex", "Field", &http_transaction, &state.database_pool).await?;
   
   };
-  if let Some(field_description) = &updated_field_properties.description { validate_field_length(field_description, "fields.maximumDescriptionLength", "description", &http_transaction, &state.database_pool).await?; };
+  if let Some(Some(field_description)) = &updated_field_properties.description { 
+
+    validate_field_length(field_description, "fields.maximumDescriptionLength", "description", &http_transaction, &state.database_pool).await?; 
+
+  };
   let field_id = get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
   let original_target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("fields.update", &http_transaction, &state.database_pool).await?;

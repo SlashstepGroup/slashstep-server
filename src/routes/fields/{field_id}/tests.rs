@@ -411,7 +411,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let updated_field_properties = EditableFieldProperties {
     name: Some(Uuid::now_v7().to_string()),
     display_name: Some(Uuid::now_v7().to_string()),
-    description: Some(Uuid::now_v7().to_string()),
+    description: Some(Some(Uuid::now_v7().to_string())),
     ..Default::default()
   };
 
