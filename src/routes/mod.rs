@@ -41,7 +41,7 @@ mod projects;
 // mod server_log_entries;
 mod sessions;
 // mod users;
-// mod views;
+mod views;
 // mod workspaces;
 
 use axum::{Router, response::IntoResponse};
@@ -97,7 +97,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     // .merge(server_log_entries::get_router(state.clone()))
     .merge(sessions::get_router(state.clone()))
     // .merge(users::get_router(state.clone()))
-    // .merge(views::get_router(state.clone()))
+    .merge(views::get_router(state.clone()))
     // .merge(workspaces::get_router(state.clone()))
     .fallback(fallback);
   return router;
