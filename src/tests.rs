@@ -577,11 +577,13 @@ impl TestEnvironment {
 
     let project_id = project_id.copied().unwrap_or(self.create_random_project().await?.id);
     let status_properties = InitialStatusProperties {
+      name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
       description: Some(Uuid::now_v7().to_string()),
-      status_type: StatusType::ToDo,
+      r#type: StatusType::ToDo,
       parent_project_id: project_id,
-      ..Default::default()
+      decimal_color: None,
+      next_status_id: None
     };
 
     let status = Status::create(&status_properties, &self.database_pool).await?;

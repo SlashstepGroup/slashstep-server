@@ -13,7 +13,7 @@ fn assert_statuses_are_equal(status_1: &Status, status_2: &Status) {
 
   assert_eq!(status_1.id, status_2.id);
   assert_eq!(status_1.display_name, status_2.display_name);
-  assert_eq!(status_1.status_type, status_2.status_type);
+  assert_eq!(status_1.r#type, status_2.r#type);
   assert_eq!(status_1.decimal_color, status_2.decimal_color);
   assert_eq!(status_1.description, status_2.description);
   assert_eq!(status_1.next_status_id, status_2.next_status_id);
@@ -24,7 +24,7 @@ fn assert_statuses_are_equal(status_1: &Status, status_2: &Status) {
 fn assert_status_is_equal_to_initial_properties(status: &Status, initial_properties: &InitialStatusProperties) {
 
   assert_eq!(status.display_name, initial_properties.display_name);
-  assert_eq!(status.status_type, initial_properties.status_type);
+  assert_eq!(status.r#type, initial_properties.r#type);
   assert_eq!(status.decimal_color, initial_properties.decimal_color);
   assert_eq!(status.description, initial_properties.description);
   assert_eq!(status.next_status_id, initial_properties.next_status_id);
@@ -66,7 +66,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let status_properties = InitialStatusProperties {
     display_name: Uuid::now_v7().to_string(),
     description: Some(Uuid::now_v7().to_string()),
-    status_type: StatusType::ToDo,
+    r#type: StatusType::ToDo,
     parent_project_id: project_id,
     ..Default::default()
   };

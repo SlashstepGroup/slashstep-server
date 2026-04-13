@@ -1,6 +1,7 @@
 INSERT INTO statuses (
+  name,
   display_name,
-  status_type,
+  type,
   decimal_color,
   description,
   next_status_id,
@@ -11,5 +12,6 @@ INSERT INTO statuses (
   $3,
   $4,
   $5,
-  $6
+  $6,
+  $7
 ) RETURNING *;
