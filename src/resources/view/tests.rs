@@ -12,7 +12,8 @@ fn assert_fields_are_equal(view_1: &View, view_2: &View) {
   assert_eq!(view_1.id, view_2.id);
   assert_eq!(view_1.name, view_2.name);
   assert_eq!(view_1.display_name, view_2.display_name);
-  assert_eq!(view_1.default_query, view_2.default_query);
+  assert_eq!(view_1.description, view_2.description);
+  assert_eq!(view_1.default_filter_query, view_2.default_filter_query);
   assert_eq!(view_1.r#type, view_2.r#type);
   assert_eq!(view_1.parent_resource_type, view_2.parent_resource_type);
   assert_eq!(view_1.parent_workspace_id, view_2.parent_workspace_id);
@@ -24,7 +25,8 @@ fn assert_field_is_equal_to_initial_properties(view: &View, initial_properties: 
 
   assert_eq!(view.name, initial_properties.name);
   assert_eq!(view.display_name, initial_properties.display_name);
-  assert_eq!(view.default_query, initial_properties.default_query);
+  assert_eq!(view.description, initial_properties.description);
+  assert_eq!(view.default_filter_query, initial_properties.default_filter_query);
   assert_eq!(view.r#type, initial_properties.r#type);
   assert_eq!(view.parent_resource_type, initial_properties.parent_resource_type);
   assert_eq!(view.parent_workspace_id, initial_properties.parent_workspace_id);
@@ -42,7 +44,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_resources: Vec<View> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_view().await?;
+    let resource = test_environment.create_random_view(None, None).await?;
     created_resources.push(resource);
 
   }
@@ -87,7 +89,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_view = test_environment.create_random_view().await?;
+  let created_view = test_environment.create_random_view(None, None).await?;
   
   created_view.delete(&test_environment.database_pool).await?;
 
@@ -126,7 +128,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_view = test_environment.create_random_view().await?;
+  let created_view = test_environment.create_random_view(None, None).await?;
   let retrieved_resource = View::get_by_id(&created_view.id, &test_environment.database_pool).await?;
   assert_fields_are_equal(&created_view, &retrieved_resource);
 
@@ -145,7 +147,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut fields: Vec<View> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let view = test_environment.create_random_view().await?;
+    let view = test_environment.create_random_view(None, None).await?;
     fields.push(view);
 
   }
@@ -169,7 +171,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_resources: Vec<View> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_view().await?;
+    let resource = test_environment.create_random_view(None, None).await?;
     created_resources.push(resource);
 
   }
@@ -202,7 +204,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_resources: Vec<View> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let view = test_environment.create_random_view().await?;
+    let view = test_environment.create_random_view(None, None).await?;
     created_resources.push(view);
 
   }
@@ -238,7 +240,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let view = test_environment.create_random_view().await?;
+      let view = test_environment.create_random_view(None, None).await?;
       current_resources.push(view);
 
     }

@@ -606,12 +606,11 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_view(&self) -> Result<View, TestSlashstepServerError> {
+  pub async fn create_random_view(&self, parent_resource_type: Option<&ViewParentResourceType>, parent_resource_id: Option<&Uuid>) -> Result<View, TestSlashstepServerError> {
 
-    let project = self.create_random_project().await?;
     let view_properties = InitialViewProperties {
-      parent_resource_type: ViewParentResourceType::Project,
-      parent_project_id: Some(project.id),
+      parent_resource_type: *parent_resource_type.unwrap_or(&ViewParentResourceType::Project),
+      parent_project_id: Some(parent_resource_id.copied().unwrap_or(self.create_random_project().await?.id)),
       ..Default::default()
     };
 
@@ -623,7 +622,7 @@ impl TestEnvironment {
 
   pub async fn create_random_view_field(&self, parent_view_id: Option<&Uuid>, field_id: Option<&Uuid>) -> Result<ViewField, TestSlashstepServerError> {
 
-    let parent_view_id = parent_view_id.copied().unwrap_or(self.create_random_view().await?.id);
+    let parent_view_id = parent_view_id.copied().unwrap_or(self.create_random_view(None, None).await?.id);
     let field_id = field_id.copied().unwrap_or(self.create_random_field(None).await?.id);
     let view_field_properties = InitialViewFieldProperties {
       parent_view_id,
