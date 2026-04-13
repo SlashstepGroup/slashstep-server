@@ -29,6 +29,7 @@ mod fields;
 mod item_connection_types;
 mod milestones;
 mod roles;
+mod statuses;
 #[cfg(test)]
 mod tests;
 mod views;
@@ -211,6 +212,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(milestones::get_router(state.clone()))
     .merge(item_connection_types::get_router(state.clone()))
     .merge(roles::get_router(state.clone()))
+    .merge(statuses::get_router(state.clone()))
     .merge(views::get_router(state.clone()));
   return router;
 

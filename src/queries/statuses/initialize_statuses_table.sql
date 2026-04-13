@@ -11,12 +11,14 @@ BEGIN
 
   CREATE TABLE IF NOT EXISTS statuses (
     id UUID DEFAULT uuidv7() PRIMARY KEY,
+    name TEXT NOT NULL,
     display_name TEXT NOT NULL,
-    status_type status_type NOT NULL,
+    type status_type NOT NULL,
     decimal_color INTEGER,
     description TEXT,
     next_status_id UUID REFERENCES statuses(id) ON DELETE SET NULL,
-    parent_project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE
+    parent_project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    UNIQUE (parent_project_id, name)
   );
 
 END

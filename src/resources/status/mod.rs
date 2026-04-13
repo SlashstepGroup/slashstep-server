@@ -13,7 +13,6 @@
 mod tests;
 
 use std::str::FromStr;
-
 use postgres::error::SqlState;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -24,14 +23,18 @@ pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
-  "parent_view_id",
-  "field_id",
-  "next_status_id"
+  "name",
+  "display_name",
+  "status_type",
+  "decimal_color",
+  "description",
+  "next_status_id",
+  "parent_project_id"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
-  "parent_view_id",
-  "next_status_id"
+  "next_status_id",
+  "parent_project_id"
 ];
 pub const RESOURCE_NAME: &str = "Status";
 pub const DATABASE_TABLE_NAME: &str = "statuses";
@@ -75,11 +78,14 @@ impl FromStr for StatusType {
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct InitialStatusProperties {
 
+  /// The status's name.
+  pub name: String,
+
   /// The status's display name.
   pub display_name: String,
 
   /// The status's status type.
-  pub status_type: StatusType,
+  pub r#type: StatusType,
 
   /// The status's decimal color, if applicable. If not provided, clients should provide a default color.
   pub decimal_color: Option<i32>,
@@ -97,14 +103,42 @@ pub struct InitialStatusProperties {
 
 }
 
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InitialStatusPropertiesWithPredefinedParent {
+
+  /// The status's name.
+  pub name: String,
+
+  /// The status's display name.
+  pub display_name: String,
+
+  /// The status's status type.
+  pub r#type: StatusType,
+
+  /// The status's decimal color, if applicable. If not provided, clients should provide a default color.
+  pub decimal_color: Option<i32>,
+
+  /// The status's description, if applicable.
+  pub description: Option<String>,
+
+  /// The status's next status ID, if applicable. 
+  /// 
+  /// This is the next status in the list. If not provided, one can assume that this status is at the end of the list.
+  pub next_status_id: Option<Uuid>
+
+}
+
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct EditableStatusProperties {
+
+  /// The status's name.
+  pub name: Option<String>,
 
   /// The status's display name.
   pub display_name: Option<String>,
 
   /// The status's status type.
-  pub status_type: Option<StatusType>,
+  pub r#type: Option<StatusType>,
 
   /// The status's decimal color, if applicable. If not provided, clients should provide a default color.
   pub decimal_color: Option<Option<i32>>,
@@ -125,11 +159,14 @@ pub struct Status {
   /// The status's ID.
   pub id: Uuid,
 
+  /// The status's name.
+  pub name: String,
+
   /// The status's display name.
   pub display_name: String,
 
   /// The status's status type.
-  pub status_type: StatusType,
+  pub r#type: StatusType,
 
   /// The status's decimal color, if applicable. If not provided, clients should provide a default color.
   pub decimal_color: Option<i32>,
@@ -205,8 +242,9 @@ impl Status {
 
     return Self {
       id: row.get("id"),
+      name: row.get("name"),
       display_name: row.get("display_name"),
-      status_type: row.get("status_type"),
+      r#type: row.get("type"),
       decimal_color: row.get("decimal_color"),
       description: row.get("description"),
       next_status_id: row.get("next_status_id"),
@@ -237,8 +275,9 @@ impl Status {
 
     let query = include_str!("../../queries/statuses/insert_status_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
+      &initial_properties.name,
       &initial_properties.display_name,
-      &initial_properties.status_type,
+      &initial_properties.r#type,
       &initial_properties.decimal_color,
       &initial_properties.description,
       &initial_properties.next_status_id,
@@ -330,7 +369,7 @@ impl Status {
 
     match key {
 
-      "status_type" => {
+      "type" => {
 
         let scoped_resource_type = match StatusType::from_str(value) {
 
@@ -374,8 +413,9 @@ impl Status {
     let database_client = database_pool.get().await?;
 
     database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
-    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "status_type", properties.status_type.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "type", properties.r#type.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "decimal_color", properties.decimal_color.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
     let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "next_status_id", properties.next_status_id.as_ref());
