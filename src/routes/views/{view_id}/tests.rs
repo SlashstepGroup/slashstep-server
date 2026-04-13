@@ -63,7 +63,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   assert_eq!(response_view.id, view.id);
   assert_eq!(response_view.name, view.name);
   assert_eq!(response_view.display_name, view.display_name);
-  assert_eq!(response_view.default_query, view.default_query);
+  assert_eq!(response_view.default_filter_query, view.default_filter_query);
   assert_eq!(response_view.r#type, view.r#type);
   assert_eq!(response_view.parent_resource_type, view.parent_resource_type);
   assert_eq!(response_view.parent_workspace_id, view.parent_workspace_id);

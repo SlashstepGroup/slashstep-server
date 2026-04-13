@@ -21,11 +21,13 @@ DO $$
       id UUID DEFAULT uuidv7() PRIMARY KEY,
       name TEXT NOT NULL,
       display_name TEXT NOT NULL,
-      default_query TEXT,
+      default_filter_query TEXT,
+      description TEXT,
       type view_type NOT NULL,
       parent_resource_type view_parent_resource_type,
       parent_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
-      parent_project_id UUID REFERENCES projects(id) ON DELETE CASCADE
+      parent_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+      UNIQUE (name, parent_resource_type, parent_workspace_id, parent_project_id)
     );
 
   END

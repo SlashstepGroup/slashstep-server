@@ -23,7 +23,8 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "name",
   "display_name",
-  "default_query",
+  "default_filter_query",
+  "description",
   "type",
   "parent_resource_type",
   "parent_workspace_id",
@@ -48,7 +49,7 @@ pub enum ViewType {
   Timeline
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromSql, ToSql, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromSql, ToSql, Default, PartialEq, Eq)]
 #[postgres(name = "view_parent_resource_type")]
 pub enum ViewParentResourceType {
   #[default]
@@ -69,7 +70,10 @@ pub struct View {
   pub display_name: String,
   
   /// The default query of the view, if applicable.
-  pub default_query: Option<String>,
+  pub default_filter_query: Option<String>,
+
+  /// The description of the view, if applicable.
+  pub description: Option<String>,
 
   /// The type of the view.
   pub r#type: ViewType,
@@ -95,7 +99,10 @@ pub struct InitialViewProperties {
   pub display_name: String,
 
   /// The default query of the view, if applicable.
-  pub default_query: Option<String>,
+  pub default_filter_query: Option<String>,
+
+  /// The description of the view, if applicable.
+  pub description: Option<String>,
 
   /// The type of the view.
   pub r#type: ViewType,
@@ -109,6 +116,26 @@ pub struct InitialViewProperties {
   /// The ID of the parent project, if applicable.
   pub parent_project_id: Option<Uuid>,
 
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct InitialViewPropertiesWithPredefinedParent {
+
+  /// The name of the view.
+  pub name: String,
+
+  /// The display name of the view.
+  pub display_name: String,
+
+  /// The default query of the view, if applicable.
+  pub default_filter_query: Option<String>,
+
+  /// The description of the view, if applicable.
+  pub description: Option<String>,
+
+  /// The type of the view.
+  pub r#type: ViewType,
+  
 }
 
 impl View {
@@ -171,7 +198,8 @@ impl View {
       id: row.get("id"),
       name: row.get("name"),
       display_name: row.get("display_name"),
-      default_query: row.get("default_query"),
+      default_filter_query: row.get("default_filter_query"),
+      description: row.get("description"),
       r#type: row.get("type"),
       parent_resource_type: row.get("parent_resource_type"),
       parent_workspace_id: row.get("parent_workspace_id"),
@@ -197,7 +225,8 @@ impl View {
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.name,
       &initial_properties.display_name,
-      &initial_properties.default_query,
+      &initial_properties.default_filter_query,
+      &initial_properties.description,
       &initial_properties.r#type,
       &initial_properties.parent_resource_type,
       &initial_properties.parent_workspace_id,

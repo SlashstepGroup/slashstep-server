@@ -32,7 +32,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_resources: Vec<ViewField> = Vec::new();
-  let view_id = test_environment.create_random_view().await?.id;
+  let view_id = test_environment.create_random_view(None, None).await?.id;
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
     let resource = test_environment.create_random_view_field(Some(&view_id), None).await?;
@@ -54,7 +54,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let parent_view_id = test_environment.create_random_view().await?.id;
+  let parent_view_id = test_environment.create_random_view(None, None).await?.id;
   let field_id = test_environment.create_random_field(None).await?.id;
   let view_field_properties = InitialViewFieldProperties {
     parent_view_id,
@@ -76,7 +76,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let view_id = test_environment.create_random_view().await?.id;
+  let view_id = test_environment.create_random_view(None, None).await?.id;
   let created_view_field = test_environment.create_random_view_field(Some(&view_id), None).await?;
   
   created_view_field.delete(&test_environment.database_pool).await?;
@@ -116,7 +116,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let view_id = test_environment.create_random_view().await?.id;
+  let view_id = test_environment.create_random_view(None, None).await?.id;
   let created_view_field = test_environment.create_random_view_field(Some(&view_id), None).await?;
   let retrieved_resource = ViewField::get_by_id(&created_view_field.id, &test_environment.database_pool).await?;
   assert_view_fields_are_equal(&created_view_field, &retrieved_resource);
@@ -134,7 +134,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut view_fields: Vec<ViewField> = Vec::new();
-  let view_id = test_environment.create_random_view().await?.id;
+  let view_id = test_environment.create_random_view(None, None).await?.id;
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
     let view_field = test_environment.create_random_view_field(Some(&view_id), None).await?;
@@ -159,7 +159,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 5;
   let mut created_resources: Vec<ViewField> = Vec::new();
-  let view_id = test_environment.create_random_view().await?.id;
+  let view_id = test_environment.create_random_view(None, None).await?.id;
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
     let resource = test_environment.create_random_view_field(Some(&view_id), None).await?;
@@ -201,7 +201,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 25;
   let mut created_resources: Vec<ViewField> = Vec::new();
-  let view_id = test_environment.create_random_view().await?.id;
+  let view_id = test_environment.create_random_view(None, None).await?.id;
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
     let view_field = test_environment.create_random_view_field(Some(&view_id), None).await?;
@@ -244,7 +244,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   let mut current_resources = ViewField::list("", &test_environment.database_pool, None, None).await?;
   if current_resources.len() < MINIMUM_RESOURCE_COUNT as usize {
 
-    let view_id = test_environment.create_random_view().await?.id;
+    let view_id = test_environment.create_random_view(None, None).await?.id;
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
     for _ in 0..remaining_action_count {
 
