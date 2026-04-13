@@ -17,19 +17,19 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, EditableAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User, view::View
+    ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, view::{EditableViewProperties, View}, server_log_entry::ServerLogEntry, user::User
   }, 
-  utilities::{route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_uuid_from_string, get_view_by_id, verify_delegate_permissions, verify_principal_permissions}}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_view_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}
 };
 
-// #[path = "./access-policies/mod.rs"]
-// mod access_policies;
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
 #[cfg(test)]
 mod tests;
 
 /// GET /views/{view_id}
 /// 
-/// Gets an view by its ID.
+/// Gets a view by its ID.
 #[axum::debug_handler]
 async fn handle_get_view_request(
   Path(view_id): Path<String>,
@@ -45,7 +45,7 @@ async fn handle_get_view_request(
   let get_views_action = get_action_by_name("views.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_views_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &get_views_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::View, Some(&target_view.id), &get_views_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -65,130 +65,132 @@ async fn handle_get_view_request(
 
 }
 
-// /// DELETE /views/{view_id}
-// /// 
-// /// Deletes an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_delete_app_request(
-//   Path(view_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-// ) -> Result<StatusCode, HTTPError> {
+/// DELETE /views/{view_id}
+/// 
+/// Deletes a view by its ID.
+#[axum::debug_handler]
+async fn handle_delete_view_request(
+  Path(view_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+) -> Result<StatusCode, HTTPError> {
 
-//   let view_id = get_uuid_from_string(&view_id, "app", &http_transaction, &state.database_pool).await?;
-//   let response = delete_resource(
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
-//     Extension(authenticated_app_authorization),
-//     Some(&ResourceType::App),
-//     &view_id, 
-//     "apps.delete",
-//     "app",
-//     &ResourceType::App,
-//     |view_id, database_pool| Box::new(App::get_by_id(view_id, database_pool))
-//   ).await;
+  let view_id = get_uuid_from_string(&view_id, "view", &http_transaction, &state.database_pool).await?;
+  let target_view = get_view_by_id(&view_id, &http_transaction, &state.database_pool).await?;
+  let delete_views_action = get_action_by_name("views.delete", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_views_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::View, Some(&target_view.id), &delete_views_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-//   return response;
+  if let Err(error) = target_view.delete(&state.database_pool).await {
 
-// }
+    let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete view: {:?}", error)));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
 
-// /// PATCH /views/{view_id}
-// /// 
-// /// Updates an app by its ID.
-// #[axum::debug_handler]
-// async fn handle_patch_app_request(
-//   Path(view_id): Path<String>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>,
-//   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-//   body: Result<Json<EditableAppProperties>, JsonRejection>
-// ) -> Result<Json<App>, HTTPError> {
+  }
 
-//   let http_transaction = http_transaction.clone();
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: delete_views_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp: expiration_timestamp,
+    reason: None, // TODO: Support reasons.
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
+    target_resource_type: ResourceType::View,
+    target_view_id: Some(target_view.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
 
-//   ServerLogEntry::trace("Verifying request body...", Some(&http_transaction.id), &state.database_pool).await.ok();
-//   let updated_app_properties = match body {
+  ServerLogEntry::success(&format!("Successfully deleted view {}.", target_view.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  return Ok(StatusCode::NO_CONTENT);
 
-//     Ok(updated_app_properties) => updated_app_properties,
+}
 
-//     Err(error) => {
+/// PATCH /views/{view_id}
+/// 
+/// Updates a view by its ID.
+#[axum::debug_handler]
+async fn handle_patch_view_request(
+  Path(view_id): Path<String>,
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+  body: Result<Json<EditableViewProperties>, JsonRejection>
+) -> Result<Json<View>, HTTPError> {
 
-//       let http_error = match error {
+  let updated_view_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  if let Some(Some(view_description)) = &updated_view_properties.description { 
 
-//         JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
+    validate_field_length(view_description, "views.maximumDescriptionLength", "description", &http_transaction, &state.database_pool).await?;
 
-//         JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+  }
+  if let Some(view_display_name) = &updated_view_properties.display_name {
 
-//         JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
+    validate_field_length(view_display_name, "views.maximumDisplayNameLength", "display_name", &http_transaction, &state.database_pool).await?;
 
-//         JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
+  }
+  if let Some(view_name) = &updated_view_properties.name {
 
-//         _ => HTTPError::InternalServerError(Some(error.to_string()))
+    validate_field_length(view_name, "views.maximumNameLength", "name", &http_transaction, &state.database_pool).await?;
+    validate_resource_name(view_name, "views.allowedNameRegex", "view", &http_transaction, &state.database_pool).await?;
 
-//       };
-      
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-//       return Err(http_error);
+  }
+  let view_id = get_uuid_from_string(&view_id, "view", &http_transaction, &state.database_pool).await?;
+  let original_target_view = get_view_by_id(&view_id, &http_transaction, &state.database_pool).await?;
+  let update_access_policy_action = get_action_by_name("views.update", &http_transaction, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::View, Some(&original_target_view.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
-//     }
+  ServerLogEntry::trace(&format!("Updating view {}...", original_target_view.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  let updated_target_view = match original_target_view.update(&updated_view_properties, &state.database_pool).await {
 
-//   };
+    Ok(updated_target_view) => updated_target_view,
 
-//   let original_target_field = get_app_by_id(&view_id, &http_transaction, &state.database_pool).await?;
-//   let resource_hierarchy = get_resource_hierarchy(&original_target_field, &ResourceType::App, &original_target_field.id, &http_transaction, &state.database_pool).await?;
-//   let update_access_policy_action = get_action_by_name("apps.update", &http_transaction, &state.database_pool).await?;
-//   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-//   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-//   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+    Err(error) => {
 
-//   ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-//   let updated_target_action = match original_target_field.update(&updated_app_properties, &state.database_pool).await {
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to update view {}: {:?}", original_target_view.id, error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
 
-//     Ok(updated_target_action) => updated_target_action,
+    }
 
-//     Err(error) => {
+  };
 
-//       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update authenticated_app: {:?}", error)));
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-//       return Err(http_error);
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: update_access_policy_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
+    target_resource_type: ResourceType::View,
+    target_view_id: Some(updated_target_view.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+  ServerLogEntry::success(&format!("Successfully updated view {}.", updated_target_view.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 
-//     }
+  return Ok(Json(updated_target_view));
 
-//   };
-
-//   ActionLogEntry::create(&InitialActionLogEntryProperties {
-//     action_id: update_access_policy_action.id,
-//     http_transaction_id: Some(http_transaction.id),
-//     actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-//     actor_user_id: if let AuthenticatedPrincipal::User(authenticated_user) = &authenticated_principal { Some(authenticated_user.id.clone()) } else { None },
-//     actor_view_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
-//     target_resource_type: ResourceType::Action,
-//     target_action_id: Some(updated_target_action.id),
-//     ..Default::default()
-//   }, &state.database_pool).await.ok();
-//   ServerLogEntry::success(&format!("Successfully updated action {}.", updated_target_action.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-
-//   return Ok(Json(updated_target_action));
-
-// }
+}
 
 pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/views/{view_id}", axum::routing::get(handle_get_view_request))
-    // .route("/views/{view_id}", axum::routing::delete(handle_delete_app_request))
-    // .route("/views/{view_id}", axum::routing::patch(handle_patch_app_request))
+    .route("/views/{view_id}", axum::routing::delete(handle_delete_view_request))
+    .route("/views/{view_id}", axum::routing::patch(handle_patch_view_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));
+    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
+    .merge(access_policies::get_router(state.clone()));
   return router;
 
 }

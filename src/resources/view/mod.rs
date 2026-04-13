@@ -138,6 +138,23 @@ pub struct InitialViewPropertiesWithPredefinedParent {
   
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct EditableViewProperties {
+
+  /// The name of the view.
+  pub name: Option<String>,
+
+  /// The display name of the view.
+  pub display_name: Option<String>,
+
+  /// The default query of the view, if applicable.
+  pub default_filter_query: Option<Option<String>>,
+
+  /// The description of the view, if applicable.
+  pub description: Option<Option<String>>
+
+}
+
 impl View {
 
   /// Counts the number of roles based on a query.
@@ -311,6 +328,31 @@ impl View {
     }
 
     return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
+
+  }
+
+  /// Updates this view and returns a new instance of the view.
+  pub async fn update(&self, properties: &EditableViewProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE views SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "default_filter_query", properties.default_filter_query.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let status = Self::convert_from_row(&row);
+    return Ok(status);
 
   }
 
