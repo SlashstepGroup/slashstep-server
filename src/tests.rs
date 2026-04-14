@@ -407,12 +407,13 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_item_type(&self) -> Result<ItemType, TestSlashstepServerError> {
+  pub async fn create_random_item_type(&self, parent_project_id: Option<&Uuid>) -> Result<ItemType, TestSlashstepServerError> {
 
+    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project().await?.id);
     let item_type_properties = InitialItemTypeProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
-      parent_project_id: self.create_random_project().await?.id,
+      parent_project_id: parent_project_id,
       item_type_icon_id: None,
       description: Some(Uuid::now_v7().to_string())
     };

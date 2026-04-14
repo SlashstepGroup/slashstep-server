@@ -52,7 +52,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let get_item_types_action = Action::get_by_name("itemTypes.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_item_types_action.id, &ActionPermissionLevel::User).await?;
   
-  let item_type = test_environment.create_random_item_type().await?;
+  let item_type = test_environment.create_random_item_type(None).await?;
 
   let response = test_server.get(&format!("/item-types/{}", item_type.id))
     .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
@@ -118,7 +118,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let item_type = test_environment.create_random_item_type().await?;
+  let item_type = test_environment.create_random_item_type(None).await?;
 
   let response = test_server.get(&format!("/item-types/{}", item_type.id))
     .await;
@@ -144,7 +144,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let item_type = test_environment.create_random_item_type().await?;
+  let item_type = test_environment.create_random_item_type(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -220,7 +220,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   test_environment.create_server_access_policy(&user.id, &delete_item_types_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let item_type = test_environment.create_random_item_type().await?;
+  let item_type = test_environment.create_random_item_type(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -284,7 +284,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create a dummy app.
-  let item_type = test_environment.create_random_item_type().await?;
+  let item_type = test_environment.create_random_item_type(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -320,7 +320,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
   
   // Create a dummy app.
-  let item_type = test_environment.create_random_item_type().await?;
+  let item_type = test_environment.create_random_item_type(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -393,7 +393,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let original_item_type = test_environment.create_random_item_type().await?;
+  let original_item_type = test_environment.create_random_item_type(None).await?;
   let updated_item_type_properties = EditableItemTypeProperties {
     name: Some(Uuid::now_v7().to_string()),
     display_name: Some(Uuid::now_v7().to_string()),
@@ -555,7 +555,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
-  let item_type = test_environment.create_random_item_type().await?;
+  let item_type = test_environment.create_random_item_type(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -592,7 +592,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
 
   // Set up the server and send the request.
-  let item_type = test_environment.create_random_item_type().await?;
+  let item_type = test_environment.create_random_item_type(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -670,7 +670,7 @@ async fn verify_item_type_name_is_at_most_at_maximum_length() -> Result<(), Test
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let dummy_item_type = test_environment.create_random_item_type().await?;
+  let dummy_item_type = test_environment.create_random_item_type(None).await?;
   let updated_item_type_properties = EditableItemTypeProperties {
     name: Some(Uuid::now_v7().to_string()),
     ..Default::default()
@@ -718,7 +718,7 @@ async fn verify_item_type_name_matches_regex() -> Result<(), TestSlashstepServer
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let dummy_item_type = test_environment.create_random_item_type().await?;
+  let dummy_item_type = test_environment.create_random_item_type(None).await?;
   let editable_item_type_properties = EditableItemTypeProperties {
     name: Some(Uuid::now_v7().to_string()),
     ..Default::default()
@@ -767,7 +767,7 @@ async fn verify_item_type_display_name_is_at_most_at_maximum_length() -> Result<
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let dummy_item_type = test_environment.create_random_item_type().await?;
+  let dummy_item_type = test_environment.create_random_item_type(None).await?;
   let updated_item_type_properties = EditableItemTypeProperties {
     display_name: Some(Uuid::now_v7().to_string()),
     ..Default::default()
@@ -816,7 +816,7 @@ async fn verify_item_type_description_is_at_most_at_maximum_length() -> Result<(
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let dummy_item_type = test_environment.create_random_item_type().await?;
+  let dummy_item_type = test_environment.create_random_item_type(None).await?;
   let updated_item_type_properties = EditableItemTypeProperties {
     description: Some(Some(Uuid::now_v7().to_string())),
     ..Default::default()
