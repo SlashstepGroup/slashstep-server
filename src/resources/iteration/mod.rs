@@ -60,6 +60,26 @@ pub struct InitialIterationProperties {
 
 }
 
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InitialIterationPropertiesWithPredefinedParent {
+
+  /// The iteration's display name.
+  pub display_name: String,
+
+  /// The iteration's start date.
+  pub start_date: DateTime<Utc>,
+
+  /// The iteration's end date.
+  pub end_date: DateTime<Utc>,
+
+  /// The iteration's actual start date, if applicable.
+  pub actual_start_date: Option<DateTime<Utc>>,
+
+  /// The iteration's actual end date, if applicable.
+  pub actual_end_date: Option<DateTime<Utc>>
+
+}
+
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct EditableIterationProperties {
 
