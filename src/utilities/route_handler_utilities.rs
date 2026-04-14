@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
+use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, view_field::ViewField, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -543,6 +543,13 @@ pub async fn get_view_by_id(view_id: &Uuid, http_transaction: &HTTPTransaction, 
 
   let view = get_resource_by_id::<View, _>("view", &view_id, &http_transaction, &database_pool, |view_id, database_pool| Box::new(View::get_by_id(view_id, database_pool))).await?;
   return Ok(view);
+
+}
+
+pub async fn get_view_field_by_id(view_field_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<ViewField, HTTPError> {
+
+  let view_field = get_resource_by_id::<ViewField, _>("view field", &view_field_id, &http_transaction, &database_pool, |view_field_id, database_pool| Box::new(ViewField::get_by_id(view_field_id, database_pool))).await?;
+  return Ok(view_field);
 
 }
 
