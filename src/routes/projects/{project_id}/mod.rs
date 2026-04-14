@@ -27,6 +27,7 @@ mod access_policies;
 mod fields;
 #[path = "./item-connection-types/mod.rs"]
 mod item_connection_types;
+mod iterations;
 mod milestones;
 mod roles;
 mod statuses;
@@ -211,6 +212,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(fields::get_router(state.clone()))
     .merge(milestones::get_router(state.clone()))
     .merge(item_connection_types::get_router(state.clone()))
+    .merge(iterations::get_router(state.clone()))
     .merge(roles::get_router(state.clone()))
     .merge(statuses::get_router(state.clone()))
     .merge(views::get_router(state.clone()));
