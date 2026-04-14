@@ -123,7 +123,7 @@ impl ViewField {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(format!("A field value with the ID \"{}\" does not exist.", id)))
+        None => return Err(ResourceError::NotFoundError(format!("A view field with the ID \"{}\" does not exist.", id)))
 
       },
 

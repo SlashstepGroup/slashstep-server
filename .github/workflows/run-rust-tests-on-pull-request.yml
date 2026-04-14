@@ -94,11 +94,11 @@ jobs:
           - milestones
           - oauth_access_tokens
           - projects
-          # - routes
           # - server_log_entries
-          # - sessions
+          - sessions
           # - users
-          # - views
+          - views
+          - view_fields
           # - workspaces
     steps:
 
@@ -177,11 +177,11 @@ jobs:
           - project
           # - role
           # - server_log_entry
-          # - session
+          - session
           # - status
           # - user
-          # - view
-          # - view_field
+          - view
+          - view_field
           # - webhook
           # - workspace
     steps:
