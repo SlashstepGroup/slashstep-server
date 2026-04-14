@@ -40,7 +40,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_resources: Vec<ItemType> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_item_type().await?;
+    let resource = test_environment.create_random_item_type(None).await?;
     created_resources.push(resource);
 
   }
@@ -81,7 +81,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_item_type = test_environment.create_random_item_type().await?;
+  let created_item_type = test_environment.create_random_item_type(None).await?;
   
   created_item_type.delete(&test_environment.database_pool).await?;
 
@@ -120,7 +120,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_item_type = test_environment.create_random_item_type().await?;
+  let created_item_type = test_environment.create_random_item_type(None).await?;
   let retrieved_resource = ItemType::get_by_id(&created_item_type.id, &test_environment.database_pool).await?;
   assert_item_types_are_equal(&created_item_type, &retrieved_resource);
 
@@ -139,7 +139,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut item_types: Vec<ItemType> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let item_type = test_environment.create_random_item_type().await?;
+    let item_type = test_environment.create_random_item_type(None).await?;
     item_types.push(item_type);
 
   }
@@ -163,7 +163,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_resources: Vec<ItemType> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_item_type().await?;
+    let resource = test_environment.create_random_item_type(None).await?;
     created_resources.push(resource);
 
   }
@@ -196,7 +196,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_resources: Vec<ItemType> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let item_type = test_environment.create_random_item_type().await?;
+    let item_type = test_environment.create_random_item_type(None).await?;
     created_resources.push(item_type);
 
   }
@@ -232,7 +232,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let item_type = test_environment.create_random_item_type().await?;
+      let item_type = test_environment.create_random_item_type(None).await?;
       current_resources.push(item_type);
 
     }

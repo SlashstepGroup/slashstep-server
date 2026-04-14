@@ -56,6 +56,23 @@ pub struct InitialItemTypeProperties {
 
 }
 
+#[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InitialItemTypePropertiesWithPredefinedParent {
+
+  /// The item type's name.
+  pub name: String,
+
+  /// The item type's display name.
+  pub display_name: String,
+
+  /// The item type's description, if applicable.
+  pub description: Option<String>,
+
+  /// The item type's item type icon ID, if applicable.
+  pub item_type_icon_id: Option<Uuid>
+
+}
+
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct EditableItemTypeProperties {
 
