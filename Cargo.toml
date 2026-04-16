@@ -34,7 +34,7 @@ axum-extra = { version = "0.12.5", features = ["cookie", "erased-json"] }
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 axum-macros = "0.5.1"
 ed25519-dalek = { version = "2.2.0", features = ["pkcs8", "pem", "rand_core"] }
-rand = "0.10.0"
+rand = "0.10.1"
 argon2 = "0.5.3"
 sha2 = "0.11.0"
 base64 = "0.22.1"
