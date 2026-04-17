@@ -19,6 +19,7 @@ use deadpool_postgres::Pool;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use tokio::fs::create_dir_all;
+use usvg::Tree;
 use uuid::Uuid;
 use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{ActionPermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, configuration::Configuration, http_transaction::HTTPTransaction, item_type_icon::{InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_project_by_id, get_uuid_from_string, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, verify_delegate_permissions, verify_principal_permissions}};
 
@@ -189,9 +190,11 @@ async fn handle_create_item_type_icon_request(
 
     ServerLogEntry::trace(&format!("Verifying content type {} matches file contents...", content_type), Some(&http_transaction.id), &database_pool).await.ok();
 
-    if !tree_magic::match_u8(content_type, contents) {
+    let kind = infer::get(contents);
+    let actual_mime_type = kind.and_then(|kind| Some(kind.mime_type())).unwrap_or("unknown");
+    if actual_mime_type != content_type && !(content_type == "image/svg+xml" && Tree::from_data(contents, &usvg::Options::default()).is_ok()) {
 
-      let http_error = HTTPError::UnsupportedMediaType(Some(format!("The file provided in the \"icon_data\" field must match the expected format for {}.", content_type)));
+      let http_error = HTTPError::UnsupportedMediaType(Some(format!("The file provided in the \"icon_data\" field must match the expected format for {}. The content type provided was {}.", content_type, actual_mime_type)));
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
       return Err(http_error);
 

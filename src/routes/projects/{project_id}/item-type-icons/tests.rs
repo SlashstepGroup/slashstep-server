@@ -12,7 +12,7 @@
 use std::{io::Cursor, net::SocketAddr};
 use axum_extra::extract::cookie::Cookie;
 use axum_test::{TestServer, multipart::{MultipartForm, Part}};
-use image::{ImageBuffer, RgbImage};
+use image::{ImageBuffer, ImageFormat, RgbImage};
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
@@ -41,32 +41,75 @@ async fn verify_successful_item_type_icon_creation() -> Result<(), TestSlashstep
     database_pool: test_environment.database_pool.clone(),
   };
 
-  let display_name = Uuid::now_v7().to_string();
-  let display_name_part = Part::text(&display_name);
-  let icon_data: RgbImage = ImageBuffer::new(100, 100);
-  let dynamic_image = image::DynamicImage::ImageRgb8(icon_data.clone());
-  let mut icon_data_bytes: Vec<u8> = Vec::new();
-  dynamic_image.write_to(&mut Cursor::new(&mut icon_data_bytes), image::ImageFormat::Png).unwrap();
-  let icon_data_part = Part::bytes(icon_data_bytes).file_name("icon.png").mime_type("image/png");
-  let multipart_form = MultipartForm::new()
-    .add_part("display_name", display_name_part)
-    .add_part("icon_data", icon_data_part);
+  struct TestImageMetadata {
+    file_extension: String,
+    mime_type: String,
+    image_format: Option<ImageFormat>
+  }
+
+  let test_image_metadata_list = vec![
+    TestImageMetadata {
+      file_extension: "png".to_string(),
+      mime_type: "image/png".to_string(),
+      image_format: Some(ImageFormat::Png)
+    },
+    TestImageMetadata {
+      file_extension: "jpg".to_string(),
+      mime_type: "image/jpeg".to_string(),
+      image_format: Some(ImageFormat::Jpeg)
+    },
+    TestImageMetadata {
+      file_extension: "svg".to_string(),
+      mime_type: "image/svg+xml".to_string(),
+      image_format: None
+    }
+  ];
 
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/item-type-icons", dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-    .multipart(multipart_form)
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::CREATED);
 
-  let response_item_type_icon: ItemTypeIcon = response.json();
-  assert_eq!(response_item_type_icon.display_name, display_name);
-  assert_eq!(response_item_type_icon.parent_resource_type, ItemTypeIconParentResourceType::Project);
-  assert_eq!(response_item_type_icon.parent_project_id, Some(dummy_project.id));
+  for test_image_metadata in test_image_metadata_list {
+
+    let display_name = Uuid::now_v7().to_string();
+    let display_name_part = Part::text(&display_name);
+    let icon_data_part = match test_image_metadata.image_format {
+      
+      Some(image_format) => {
+        
+        let icon_data_buffer: RgbImage = ImageBuffer::new(16, 16);
+        let mut icon_data_bytes = Vec::new();
+        icon_data_buffer.write_to(&mut Cursor::new(&mut icon_data_bytes), image_format).unwrap();
+        Part::bytes(icon_data_bytes)
+
+      },
+
+      None => {
+        
+        let svg_data = r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#000000"/></svg>"##;
+        Part::bytes(svg_data.as_bytes().to_vec())
+
+      }
+      
+    }.file_name(format!("icon.{}", test_image_metadata.file_extension)).mime_type(&test_image_metadata.mime_type);
+    let multipart_form = MultipartForm::new()
+      .add_part("display_name", display_name_part)
+      .add_part("icon_data", icon_data_part);
+
+    let response = test_server.post(&format!("/projects/{}/item-type-icons", dummy_project.id))
+      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .multipart(multipart_form)
+      .await;
+    
+    assert_eq!(response.status_code(), StatusCode::CREATED);
+
+    let response_item_type_icon: ItemTypeIcon = response.json();
+    assert_eq!(response_item_type_icon.display_name, display_name);
+    assert_eq!(response_item_type_icon.parent_resource_type, ItemTypeIconParentResourceType::Project);
+    assert_eq!(response_item_type_icon.parent_project_id, Some(dummy_project.id));
+
+  }
 
   return Ok(());
   
