@@ -1382,6 +1382,20 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       ..Default::default()
     },
     InitialConfigurationProperties {
+      name: "itemTypeIcons.maximumDisplayNameLength".to_string(),
+      description: Some("The maximum length of item type icon display names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "itemTypeIcons.storageDirectoryPath".to_string(),
+      description: Some("The file system directory path where item type icons are stored. If the directory doesn't exist, it will be created when it's needed.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("./media/item-type-icons".to_string()),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
       name: "iterations.maximumDisplayNameLength".to_string(),
       description: Some("The maximum length of iteration display names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
       value_type: ConfigurationValueType::Number,

@@ -428,10 +428,10 @@ impl TestEnvironment {
 
     let parent_project_id = parent_project_id.copied();
     let item_type_icon_properties = InitialItemTypeIconProperties {
+      id: None,
       display_name: Uuid::now_v7().to_string(),
       parent_resource_type: if parent_project_id.is_some() { ItemTypeIconParentResourceType::Project } else { ItemTypeIconParentResourceType::Server },
-      parent_project_id: parent_project_id,
-      local_file_path: "./src/icons/default-item-type-icon.svg".to_string()
+      parent_project_id: parent_project_id
     };
 
     let item_type_icon = ItemTypeIcon::create(&item_type_icon_properties, &self.database_pool).await?;

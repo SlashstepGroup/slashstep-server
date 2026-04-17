@@ -64,6 +64,9 @@ impl FromStr for ItemTypeIconParentResourceType {
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct InitialItemTypeIconProperties {
 
+  /// The item type icon's ID, if applicable. The database will generate a new ID if this is not provided.
+  pub id: Option<Uuid>,
+
   /// The item type icon's display name.
   pub display_name: String,
 
@@ -71,10 +74,7 @@ pub struct InitialItemTypeIconProperties {
   pub parent_resource_type: ItemTypeIconParentResourceType,
 
   /// The item type icon's parent project ID, if applicable.
-  pub parent_project_id: Option<Uuid>,
-
-  /// The item type icon's local file path.
-  pub local_file_path: String
+  pub parent_project_id: Option<Uuid>
 
 }
 
@@ -99,12 +99,7 @@ pub struct ItemTypeIcon {
   pub parent_resource_type: ItemTypeIconParentResourceType,
 
   /// The item type icon's parent project ID.
-  pub parent_project_id: Option<Uuid>,
-
-  /// The item type icon's local file path.
-  /// 
-  /// This is a private field that should not be exposed to clients, as it may contain sensitive information about the server's file system. It's intended to be only used internally to access the icon file when needed.
-  local_file_path: String
+  pub parent_project_id: Option<Uuid>
 
 }
 
@@ -168,8 +163,7 @@ impl ItemTypeIcon {
       id: row.get("id"),
       display_name: row.get("display_name"),
       parent_resource_type: row.get("parent_resource_type"),
-      parent_project_id: row.get("parent_project_id"),
-      local_file_path: row.get("local_file_path")
+      parent_project_id: row.get("parent_project_id")
     };
 
   }
@@ -189,10 +183,10 @@ impl ItemTypeIcon {
 
     let query = include_str!("../../queries/item_type_icons/insert_item_type_icon_row.sql");
     let parameters: &[&(dyn ToSql + Sync)] = &[
+      &initial_properties.id,
       &initial_properties.display_name,
       &initial_properties.parent_resource_type,
-      &initial_properties.parent_project_id,
-      &initial_properties.local_file_path
+      &initial_properties.parent_project_id
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {
@@ -215,13 +209,6 @@ impl ItemTypeIcon {
     let query = include_str!("../../queries/item_type_icons/delete_item_type_icon_row_by_id.sql");
     database_client.execute(query, &[&self.id]).await?;
     return Ok(());
-
-  }
-
-  /// Gets the local file path for this item type icon.
-  pub async fn get_local_file_path(&self) -> String {
-
-    return self.local_file_path.clone();
 
   }
 
