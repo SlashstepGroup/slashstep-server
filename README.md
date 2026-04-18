@@ -1,4 +1,8 @@
 # Slashstep Server
+<p align="center">
+  <img src="banner.png" alt="Slashstep Server banner" width="400" />
+</p>
+
 **Slashstep Server** is the backend of Slashstep, an open-source, project and issue tracking software.
 
 ## Features
