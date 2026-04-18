@@ -87,6 +87,7 @@ jobs:
           - item_connection_types
           - item_connections
           - item_types
+          - item_type_icons
           - items
           - iterations
           - membership_invitations

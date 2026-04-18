@@ -28,6 +28,8 @@ mod item_connections;
 mod item_connection_types;
 #[path = "./item-types/mod.rs"]
 mod item_types;
+#[path = "./item-type-icons/mod.rs"]
+mod item_type_icons;
 mod memberships;
 #[path = "./membership-invitations/mod.rs"]
 mod membership_invitations;
