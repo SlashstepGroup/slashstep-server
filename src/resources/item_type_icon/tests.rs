@@ -15,7 +15,6 @@ fn assert_item_type_icons_are_equal(item_type_icon_1: &ItemTypeIcon, item_type_i
   assert_eq!(item_type_icon_1.display_name, item_type_icon_2.display_name);
   assert_eq!(item_type_icon_1.parent_resource_type, item_type_icon_2.parent_resource_type);
   assert_eq!(item_type_icon_1.parent_project_id, item_type_icon_2.parent_project_id);
-  assert_eq!(item_type_icon_1.local_file_path, item_type_icon_2.local_file_path);
 
 }
 
@@ -24,7 +23,6 @@ fn assert_item_type_icon_is_equal_to_initial_properties(item_type_icon: &ItemTyp
   assert_eq!(item_type_icon.display_name, initial_properties.display_name);
   assert_eq!(item_type_icon.parent_resource_type, initial_properties.parent_resource_type);
   assert_eq!(item_type_icon.parent_project_id, initial_properties.parent_project_id);
-  assert_eq!(item_type_icon.local_file_path, initial_properties.local_file_path);
 
 }
 
@@ -58,10 +56,10 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
 
   let item_type_icon_properties = InitialItemTypeIconProperties {
+    id: None,
     display_name: Uuid::now_v7().to_string(),
     parent_resource_type: ItemTypeIconParentResourceType::Server,
-    parent_project_id: None,
-    local_file_path: "./src/icons/default-item-type-icon.svg".to_string()
+    parent_project_id: None
   };
 
   let item_type_icon = ItemTypeIcon::create(&item_type_icon_properties, &test_environment.database_pool).await?;

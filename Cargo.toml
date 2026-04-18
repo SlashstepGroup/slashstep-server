@@ -11,7 +11,7 @@ keywords = ["project management", "problem management", "issue tracking"]
 publish = false
 
 [dependencies]
-axum = { version = "0.8.9", features = ["macros"] }
+axum = { version = "0.8.9", features = ["macros", "multipart"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 colored = "3.1.1"
 deadpool-postgres = { version = "0.14.1", features = ["serde"] }
@@ -41,6 +41,12 @@ base64 = "0.22.1"
 rust_decimal = { version = "1.41.0", features = ["rand", "db-postgres", "db-tokio-postgres"] }
 axum-server = { version = "0.8.0", features = ["tls-rustls"] }
 rpassword = "7.4.0"
+axum_typed_multipart = "0.16.5"
+little_exif = "0.6.23"
+image = "0.25.10"
+infer = "0.19.0"
+usvg = "0.47.0"
+svg-hush = "0.9.6"
 
 [dev-dependencies]
 testcontainers = { version = "0.26.3" }
