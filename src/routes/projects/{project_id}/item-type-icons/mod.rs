@@ -12,7 +12,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::{collections::HashSet, io::{Cursor, Read}, sync::Arc, vec};
+use std::{io::Cursor, sync::Arc, vec};
 use axum::{Extension, Json, Router, body::Bytes, extract::{Path, Query, State}};
 use axum_typed_multipart::{BaseMultipart, FieldData, TryFromMultipart, TypedMultipartError};
 use deadpool_postgres::Pool;
@@ -233,7 +233,7 @@ async fn handle_create_item_type_icon_request(
         svg_filter_result = svg_filter.filter(&mut svg_string.as_bytes(), &mut cleaned_bytes)
       }
       
-      if let Err(error) = svg_filter_result {
+      if svg_filter_result.is_err() {
 
         let http_error = HTTPError::BadRequestError(Some(format!("The SVG file could not be parsed.")));
         ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
