@@ -87,7 +87,7 @@ async fn verify_successful_item_type_icon_creation() -> Result<(), TestSlashstep
 
       None => {
         
-        let svg_data = r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#000000"/></svg>"##;
+        let svg_data = r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><script>alert(2);</script><rect width="16" height="16" fill="#000000"/></svg>"##;
         Part::bytes(svg_data.as_bytes().to_vec())
 
       }

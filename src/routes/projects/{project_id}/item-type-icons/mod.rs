@@ -12,12 +12,13 @@
 #[cfg(test)]
 mod tests;
 
-use std::{collections::HashSet, io::Cursor, sync::Arc, vec};
+use std::{collections::HashSet, io::{Cursor, Read}, sync::Arc, vec};
 use axum::{Extension, Json, Router, body::Bytes, extract::{Path, Query, State}};
 use axum_typed_multipart::{BaseMultipart, FieldData, TryFromMultipart, TypedMultipartError};
 use deadpool_postgres::Pool;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
+use svg_hush::data_url_filter;
 use tokio::fs::create_dir_all;
 use usvg::Tree;
 use uuid::Uuid;
@@ -224,22 +225,21 @@ async fn handle_create_item_type_icon_request(
 
       };
 
-      let mut allowed_tags = HashSet::new();
-      allowed_tags.insert("svg");
-      allowed_tags.insert("g");
-      allowed_tags.insert("path");
-      allowed_tags.insert("rect");
-      allowed_tags.insert("circle");
-      allowed_tags.insert("ellipse");
-      allowed_tags.insert("line");
-      allowed_tags.insert("polyline");
-      allowed_tags.insert("polygon");
+      let svg_filter_result;
+      let mut cleaned_bytes = Vec::new();
+      {
+        let mut svg_filter = svg_hush::Filter::new();
+        svg_filter.set_data_url_filter(data_url_filter::allow_standard_images);
+        svg_filter_result = svg_filter.filter(&mut svg_string.as_bytes(), &mut cleaned_bytes)
+      }
+      
+      if let Err(error) = svg_filter_result {
 
-      let cleaned_bytes = ammonia::Builder::default()
-        .add_tags(&["svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon"])
-        .clean(&svg_string)
-        .to_string()
-        .into_bytes();
+        let http_error = HTTPError::BadRequestError(Some(format!("The SVG file could not be parsed.")));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+        return Err(http_error);
+
+      }
 
       return Ok(cleaned_bytes);
       
