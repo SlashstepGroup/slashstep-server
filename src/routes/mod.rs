@@ -41,6 +41,7 @@ mod projects;
 // mod roles;
 // #[path = "./server-log-entries/mod.rs"]
 // mod server_log_entries;
+mod statuses;
 mod sessions;
 // mod users;
 mod views;
