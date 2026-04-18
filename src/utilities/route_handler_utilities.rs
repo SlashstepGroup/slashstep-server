@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, user::User, view::View, view_field::ViewField, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
+use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::User, view::View, view_field::ViewField, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -543,6 +543,13 @@ pub async fn get_session_by_id(session_id: &Uuid, http_transaction: &HTTPTransac
 
   let session = get_resource_by_id::<Session, _>("session", &session_id, &http_transaction, &database_pool, |session_id, database_pool| Box::new(Session::get_by_id(session_id, database_pool))).await?;
   return Ok(session);
+
+}
+
+pub async fn get_status_by_id(status_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Status, HTTPError> {
+
+  let status = get_resource_by_id::<Status, _>("status", &status_id, &http_transaction, &database_pool, |status_id, database_pool| Box::new(Status::get_by_id(status_id, database_pool))).await?;
+  return Ok(status);
 
 }
 
