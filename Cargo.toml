@@ -30,7 +30,7 @@ uuid = { version = "1.23.0", features = ["v7", "serde"] }
 reqwest = { version = "0.13.2", features = ["json"] }
 tower = "0.5.3"
 ntest = "0.9.5"
-axum-extra = { version = "0.12.5", features = ["cookie", "erased-json"] }
+axum-extra = { version = "0.12.6", features = ["cookie", "erased-json"] }
 jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 axum-macros = "0.5.1"
 ed25519-dalek = { version = "2.2.0", features = ["pkcs8", "pem", "rand_core"] }
