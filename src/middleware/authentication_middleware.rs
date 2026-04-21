@@ -50,12 +50,12 @@ async fn get_decoded_claims(http_transaction_id: &Uuid, database_pool: &deadpool
 
       let http_error = match &error.kind() {
 
-        jsonwebtoken::errors::ErrorKind::InvalidToken => HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string())),
+        jsonwebtoken::errors::ErrorKind::InvalidToken => HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string())),
 
         jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(claims) => {
          
           ServerLogEntry::warning(&format!("Missing required claim \"{}\" in session token.", claims), Some(&http_transaction_id), database_pool).await.ok();
-          HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string()))
+          HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()))
           
         },
 
@@ -82,7 +82,7 @@ async fn get_user_by_id(http_transaction_id: &Uuid, database_pool: &deadpool_pos
       let http_error = match error {
 
         // For this middleware, signalling that the token is invalid is a higher priority than the user not existing.
-        ResourceError::NotFoundError(_) => HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string())),
+        ResourceError::NotFoundError(_) => HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string())),
         _ => HTTPError::InternalServerError(Some(error.to_string()))
         
       };
@@ -105,7 +105,7 @@ async fn get_session_by_id(http_transaction_id: &Uuid, database_pool: &deadpool_
     Err(error) => {
 
       let http_error = match error {
-        ResourceError::NotFoundError(_) => HTTPError::UnauthorizedError(Some(format!("Session with ID {} not found.", session_id))),
+        ResourceError::NotFoundError(_) => HTTPError::Unauthorized(Some(format!("Session with ID {} not found.", session_id))),
         ResourceError::PostgresError(error) => match error.as_db_error() {
           
           Some(db_error) => HTTPError::InternalServerError(Some(format!("{:?}", db_error))),
@@ -245,7 +245,7 @@ pub async fn authenticate_user(
 
   if !session_token.value().starts_with("Bearer ") {
 
-    let http_error = HTTPError::UnauthorizedError(Some("Please provide a valid session token.".to_string()));
+    let http_error = HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
     return Err(http_error);
 
@@ -267,7 +267,7 @@ pub async fn authenticate_user(
     Ok(user_id) => user_id,
     Err(_) => {
 
-      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the user ID.".to_string()));
+      let http_error = HTTPError::BadRequest(Some("You must provide a valid UUID for the user ID.".to_string()));
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
       return Err(http_error);
 
@@ -279,7 +279,7 @@ pub async fn authenticate_user(
     Ok(user_id) => user_id,
     Err(_) => {
 
-      let http_error = HTTPError::BadRequestError(Some("You must provide a valid UUID for the user ID.".to_string()));
+      let http_error = HTTPError::BadRequest(Some("You must provide a valid UUID for the user ID.".to_string()));
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
       return Err(http_error);
 
@@ -328,7 +328,7 @@ pub async fn authenticate_app(
 
     Err(_) => {
 
-      let http_error = HTTPError::BadRequestError(Some("Please provide a valid app token.".to_string()));
+      let http_error = HTTPError::BadRequest(Some("Please provide a valid app token.".to_string()));
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
       return Err(http_error);
 
@@ -338,7 +338,7 @@ pub async fn authenticate_app(
 
   if !authorization_token.starts_with("App ") {
 
-    let http_error = HTTPError::UnauthorizedError(Some("Please provide a valid app token.".to_string()));
+    let http_error = HTTPError::Unauthorized(Some("Please provide a valid app token.".to_string()));
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
     return Err(http_error);
 
@@ -375,9 +375,9 @@ pub async fn authenticate_app(
 
     Err(error) => match error {
 
-      HTTPError::BadRequestError(_) | HTTPError::NotFoundError(_) => {
+      HTTPError::BadRequest(_) | HTTPError::NotFoundError(_) => {
 
-        let http_error = HTTPError::UnauthorizedError(Some("Please provide a valid app token.".to_string()));
+        let http_error = HTTPError::Unauthorized(Some("Please provide a valid app token.".to_string()));
         ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
         return Err(http_error);
 
@@ -395,9 +395,9 @@ pub async fn authenticate_app(
 
     Err(error) => match error {
 
-      HTTPError::BadRequestError(_) | HTTPError::NotFoundError(_) => {
+      HTTPError::BadRequest(_) | HTTPError::NotFoundError(_) => {
 
-        let http_error = HTTPError::UnauthorizedError(Some("Please provide a valid app token.".to_string()));
+        let http_error = HTTPError::Unauthorized(Some("Please provide a valid app token.".to_string()));
         ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
         return Err(http_error);
 

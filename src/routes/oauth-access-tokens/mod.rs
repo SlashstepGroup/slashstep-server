@@ -115,7 +115,7 @@ impl From<OAuthTokenErrorResponse> for HTTPError {
 
       OAuthTokenError::NotImplementedError => HTTPError::NotImplementedError(Some(error_response.error_description)),
       
-      _ => HTTPError::BadRequestError(Some(error_response.error_description))
+      _ => HTTPError::BadRequest(Some(error_response.error_description))
 
     };
 

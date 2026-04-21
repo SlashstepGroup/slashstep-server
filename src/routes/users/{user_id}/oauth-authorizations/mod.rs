@@ -21,41 +21,6 @@ use uuid::Uuid;
 use std::str::FromStr;
 use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_json_web_token_private_key, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}};
 
-
-// /// GET /apps
-// /// 
-// /// Lists apps.
-// #[axum::debug_handler]
-// async fn handle_list_apps_request(
-//   Query(query_parameters): Query<ResourceListQueryParameters>,
-//   State(state): State<AppState>, 
-//   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-//   Extension(authenticated_user): Extension<Option<Arc<User>>>,
-//   Extension(authenticated_app): Extension<Option<Arc<App>>>
-// ) -> Result<ErasedJson, HTTPError> {
-
-//   let resource_hierarchy = vec![(ResourceType::Server, None)];
-//   let response = list_resources(
-//     Query(query_parameters), 
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
-//     resource_hierarchy, 
-//     ResourceType::Server, 
-//     None, 
-//     |query, database_pool, individual_principal| Box::new(App::count(query, database_pool, individual_principal)),
-//     |query, database_pool, individual_principal| Box::new(App::list(query, database_pool, individual_principal)),
-//     "apps.list", 
-//     DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
-//     "apps",
-//     "app"
-//   ).await;
-
-//   return response;
-
-// }
-
 pub async fn create_regex(string: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Regex, HTTPError> {
 
   let regex = match Regex::new(string) {
@@ -105,11 +70,11 @@ async fn handle_create_oauth_authorization_request(
 
       let http_error = match error {
 
-        JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
+        JsonRejection::JsonDataError(error) => HTTPError::BadRequest(Some(error.to_string())),
 
-        JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+        JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
 
-        JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
+        JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some(format!("Missing request body content type. It should be \"application/json\"."))),
 
         JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
 
@@ -126,7 +91,7 @@ async fn handle_create_oauth_authorization_request(
 
   if initial_oauth_authorization_properties_json.code_challenge.is_some() && initial_oauth_authorization_properties_json.code_challenge_method.as_ref().is_none_or(|code_challenge_method| code_challenge_method != "S256") {
 
-    let http_error = HTTPError::BadRequestError(Some("The code challenge method must be \"S256\" if a code challenge is provided.".to_string()));
+    let http_error = HTTPError::BadRequest(Some("The code challenge method must be \"S256\" if a code challenge is provided.".to_string()));
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
     return Err(http_error);
 
@@ -138,7 +103,7 @@ async fn handle_create_oauth_authorization_request(
 
   if !full_string_regex.is_match(&scope) {
 
-    let http_error = HTTPError::BadRequestError(Some("The scope must be a space-separated list of action IDs and permission levels.".to_string()));
+    let http_error = HTTPError::BadRequest(Some("The scope must be a space-separated list of action IDs and permission levels.".to_string()));
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
     return Err(http_error);
 
@@ -156,7 +121,7 @@ async fn handle_create_oauth_authorization_request(
 
         Err(_) => {
 
-          let http_error = HTTPError::BadRequestError(Some(format!("The action ID \"{}\" is not a valid UUID. Check your scope string.", action_id.as_str())));
+          let http_error = HTTPError::BadRequest(Some(format!("The action ID \"{}\" is not a valid UUID. Check your scope string.", action_id.as_str())));
           ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
           return Err(http_error);
 
@@ -166,7 +131,7 @@ async fn handle_create_oauth_authorization_request(
 
       None => {
 
-        let http_error = HTTPError::BadRequestError(Some("The scope must be a space-separated list of action IDs and permission levels.".to_string()));
+        let http_error = HTTPError::BadRequest(Some("The scope must be a space-separated list of action IDs and permission levels.".to_string()));
         ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
         return Err(http_error);
 
@@ -182,7 +147,7 @@ async fn handle_create_oauth_authorization_request(
 
         Err(_) => {
 
-          let http_error = HTTPError::BadRequestError(Some(format!("The maximum permission level \"{}\" is not valid. Check your scope string.", maximum_permission_level.as_str())));
+          let http_error = HTTPError::BadRequest(Some(format!("The maximum permission level \"{}\" is not valid. Check your scope string.", maximum_permission_level.as_str())));
           ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
           return Err(http_error);
 
@@ -192,7 +157,7 @@ async fn handle_create_oauth_authorization_request(
 
       None => {
 
-        let http_error = HTTPError::BadRequestError(Some("The scope must be a space-separated list of action IDs and permission levels.".to_string()));
+        let http_error = HTTPError::BadRequest(Some("The scope must be a space-separated list of action IDs and permission levels.".to_string()));
         ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
         return Err(http_error);
 

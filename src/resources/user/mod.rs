@@ -11,7 +11,7 @@
 mod tests;
 
 use std::net::IpAddr;
-use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, rand_core::OsRng}};
+use argon2::{Argon2, PasswordHasher, PasswordVerifier, password_hash::{SaltString, rand_core::OsRng}};
 use postgres::error::SqlState;
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
@@ -74,6 +74,31 @@ pub struct InitialUserProperties {
 
   /// The user's IP address, if applicable. Only anonymous users have an IP address.
   pub ip_address: Option<IpAddr>
+
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct EditableUserProperties {
+
+  /// The user's username, if applicable. Only non-anonymous users have a username.
+  pub username: Option<Option<String>>,
+
+  /// The user's display name, if applicable. Only non-anonymous users have a display name.
+  pub display_name: Option<Option<String>>,
+
+  /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
+  pub hashed_password: Option<Option<String>>
+
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct EditableUserPropertiesRequestBody {
+
+  /// The user's username, if applicable. Only non-anonymous users have a username.
+  pub username: Option<Option<String>>,
+
+  /// The user's display name, if applicable. Only non-anonymous users have a display name.
+  pub display_name: Option<Option<String>>
 
 }
 
@@ -341,6 +366,44 @@ impl User {
     }
 
     return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
+
+  }
+
+  /// Updates this user and returns a new instance of the user.
+  pub async fn update(&self, properties: &EditableUserProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE users SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "username", properties.username.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "hashed_password", properties.hashed_password.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let status = Self::convert_from_row(&row);
+    return Ok(status);
+
+  }
+
+  pub fn verify_password(&self, plain_text_password: &str) -> Result<(), ResourceError> {
+
+    let hashed_password = self.get_hashed_password();
+    let parsed_hashed_password = match argon2::PasswordHash::new(hashed_password) {
+
+      Ok(parsed_hashed_password) => parsed_hashed_password,
+      Err(error) => return Err(ResourceError::Argon2PasswordHashError(error))
+
+    };
+    let argon2 = Argon2::default();
+    return argon2.verify_password(plain_text_password.as_bytes(), &parsed_hashed_password).map_err(|error| ResourceError::Argon2PasswordHashError(error));
 
   }
 

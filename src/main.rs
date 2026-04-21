@@ -169,11 +169,11 @@ pub enum HTTPError {
   ForbiddenError(Option<String>),
   NotFoundError(Option<String>),
   ConflictError(Option<String>),
-  BadRequestError(Option<String>),
+  BadRequest(Option<String>),
   UnsupportedMediaType(Option<String>),
   NotImplementedError(Option<String>),
   InternalServerError(Option<String>),
-  UnauthorizedError(Option<String>),
+  Unauthorized(Option<String>),
   UnprocessableEntity(Option<String>),
   PayloadTooLarge(Option<String>)
 }
@@ -191,10 +191,10 @@ impl fmt::Display for HTTPError {
       HTTPError::ConflictError(message) => write!(f, "{}", message.to_owned().unwrap_or("Conflict.".to_string())),
       HTTPError::ForbiddenError(message) => write!(f, "{}", message.to_owned().unwrap_or("Forbidden.".to_string())),
       HTTPError::GoneError(message) => write!(f, "{}", message.to_owned().unwrap_or("Gone.".to_string())),
-      HTTPError::BadRequestError(message) => write!(f, "{}", message.to_owned().unwrap_or("Bad request.".to_string())),
+      HTTPError::BadRequest(message) => write!(f, "{}", message.to_owned().unwrap_or("Bad request.".to_string())),
       HTTPError::NotImplementedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Not implemented.".to_string())),
       HTTPError::InternalServerError(message) => write!(f, "{}", message.to_owned().unwrap_or("Internal server error.".to_string())),
-      HTTPError::UnauthorizedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Unauthorized.".to_string())),
+      HTTPError::Unauthorized(message) => write!(f, "{}", message.to_owned().unwrap_or("Unauthorized.".to_string())),
       HTTPError::UnsupportedMediaType(message) => write!(f, "{}", message.to_owned().unwrap_or("Unsupported media type.".to_string())),
       HTTPError::UnprocessableEntity(message) => write!(f, "{}", message.to_owned().unwrap_or("Unprocessable entity.".to_string())),
       HTTPError::PayloadTooLarge(message) => write!(f, "{}", message.to_owned().unwrap_or("Payload too large.".to_string()))
@@ -215,11 +215,11 @@ impl IntoResponse for HTTPError {
 
       HTTPError::ForbiddenError(message) => (StatusCode::FORBIDDEN, message.unwrap_or("Forbidden.".to_string())),
 
-      HTTPError::BadRequestError(message) => (StatusCode::BAD_REQUEST, message.unwrap_or("Bad request.".to_string())),
+      HTTPError::BadRequest(message) => (StatusCode::BAD_REQUEST, message.unwrap_or("Bad request.".to_string())),
 
       HTTPError::ConflictError(message) => (StatusCode::CONFLICT, message.unwrap_or("Conflict.".to_string())),
 
-      HTTPError::UnauthorizedError(message) => (StatusCode::UNAUTHORIZED, message.unwrap_or("Unauthorized.".to_string())),
+      HTTPError::Unauthorized(message) => (StatusCode::UNAUTHORIZED, message.unwrap_or("Unauthorized.".to_string())),
 
       HTTPError::UnsupportedMediaType(message) => (StatusCode::UNSUPPORTED_MEDIA_TYPE, message.unwrap_or("Unsupported media type.".to_string())),
 

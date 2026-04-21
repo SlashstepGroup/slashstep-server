@@ -43,7 +43,7 @@ mod projects;
 // mod server_log_entries;
 mod statuses;
 mod sessions;
-// mod users;
+mod users;
 mod views;
 #[path = "./view-fields/mod.rs"]
 mod view_fields;
