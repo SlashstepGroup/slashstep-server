@@ -28,6 +28,7 @@ BEGIN
       'MembershipInvitation',
       'Milestone',
       'OAuthAuthorization',
+      'PasswordResetAuthorization',
       'Project',
       'Role',
       'ServerLogEntry',

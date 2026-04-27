@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles
   }, resources::{
-    ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, user::{EditableUserProperties, User}
+    ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, user::{EditableUserProperties, EditableUserPropertiesRequestBody, User}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -62,11 +62,10 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
 
   let response_user: User = response.json();
   assert_eq!(response_user.id, user.id);
-  assert_eq!(response_user.name, user.name);
+  assert_eq!(response_user.username, user.username);
   assert_eq!(response_user.display_name, user.display_name);
-  assert_eq!(response_user.description, user.description);
-  assert_eq!(response_user.user_icon_id, user.user_icon_id);
-  assert_eq!(response_user.parent_project_id, user.parent_project_id);
+  assert_eq!(response_user.is_anonymous, user.is_anonymous);
+  assert_eq!(response_user.ip_address, user.ip_address);
 
   return Ok(());
   
@@ -394,11 +393,9 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
 
   // Set up the server and send the request.
   let original_user = test_environment.create_random_user().await?;
-  let updated_user_properties = EditableUserProperties {
-    name: Some(Uuid::now_v7().to_string()),
-    display_name: Some(Uuid::now_v7().to_string()),
-    description: Some(Some(Uuid::now_v7().to_string())),
-    user_icon_id: None
+  let updated_user_properties = EditableUserPropertiesRequestBody {
+    username: Some(None),
+    display_name: Some(Some(Uuid::now_v7().to_string()))
   };
 
   let state = AppState {
@@ -418,10 +415,10 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
 
   let updated_user: User = response.json();
   assert_eq!(original_user.id, updated_user.id);
-  assert_eq!(updated_user_properties.name.expect("Expected an updated name."), updated_user.name);
+  assert_eq!(updated_user_properties.username.expect("Expected an updated username."), updated_user.username);
   assert_eq!(updated_user_properties.display_name.expect("Expected an updated display name."), updated_user.display_name);
-  assert_eq!(updated_user_properties.description.expect("Expected an updated description."), updated_user.description);
-  assert_eq!(original_user.parent_project_id, updated_user.parent_project_id);
+  assert_eq!(updated_user.is_anonymous, original_user.is_anonymous);
+  assert_eq!(updated_user.ip_address, original_user.ip_address);
 
   return Ok(());
 
@@ -671,8 +668,8 @@ async fn verify_user_name_is_at_most_at_maximum_length() -> Result<(), TestSlash
   }, &test_environment.database_pool).await?;
 
   let dummy_user = test_environment.create_random_user().await?;
-  let updated_user_properties = EditableUserProperties {
-    name: Some(Uuid::now_v7().to_string()),
+  let updated_user_properties = EditableUserPropertiesRequestBody {
+    username: Some(Some(Uuid::now_v7().to_string())),
     ..Default::default()
   };
   let state = AppState {
@@ -719,8 +716,8 @@ async fn verify_user_name_matches_regex() -> Result<(), TestSlashstepServerError
   }, &test_environment.database_pool).await?;
 
   let dummy_user = test_environment.create_random_user().await?;
-  let editable_user_properties = EditableUserProperties {
-    name: Some(Uuid::now_v7().to_string()),
+  let editable_user_properties = EditableUserPropertiesRequestBody {
+    username: Some(Some(Uuid::now_v7().to_string())),
     ..Default::default()
   };
   let state = AppState {
@@ -768,57 +765,8 @@ async fn verify_user_display_name_is_at_most_at_maximum_length() -> Result<(), T
   }, &test_environment.database_pool).await?;
 
   let dummy_user = test_environment.create_random_user().await?;
-  let updated_user_properties = EditableUserProperties {
-    display_name: Some(Uuid::now_v7().to_string()),
-    ..Default::default()
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/users/{}", dummy_user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(updated_user_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
-
-  return Ok(());
-
-}
-
-/// Verifies that the server returns a 422 status code when the user description is over the maximum length.
-#[tokio::test]
-async fn verify_user_description_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
-
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-
-  // Give the user access to the "users.update" action.
-  let user = test_environment.create_random_user().await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let update_users_action = Action::get_by_name("users.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_users_action.id, &ActionPermissionLevel::User).await?;
-
-  // Set up the server and send the request.
-  let maximum_user_description_length_configuration = Configuration::get_by_name("users.maximumDescriptionLength", &test_environment.database_pool).await?;
-  maximum_user_description_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(0 as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
-
-  let dummy_user = test_environment.create_random_user().await?;
-  let updated_user_properties = EditableUserProperties {
-    description: Some(Some(Uuid::now_v7().to_string())),
+  let updated_user_properties = EditableUserPropertiesRequestBody {
+    display_name: Some(Some(Uuid::now_v7().to_string())),
     ..Default::default()
   };
   let state = AppState {

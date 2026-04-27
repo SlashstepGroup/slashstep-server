@@ -17,9 +17,9 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::{EditableUserProperties, User}, server_log_entry::ServerLogEntry, user::User
+    ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::{EditableUserProperties, EditableUserPropertiesRequestBody, User}
   }, 
-  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_user_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}
+  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}
 };
 
 #[path = "./access-policies/mod.rs"]
@@ -150,10 +150,11 @@ async fn handle_patch_user_request(
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::User, Some(&original_target_user.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
+  println!("{:?}", updated_user_properties);
   ServerLogEntry::trace(&format!("Updating user {}...", original_target_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_user = match original_target_user.update(&EditableUserProperties {
-    username: updated_user_properties.username,
-    display_name: updated_user_properties.display_name,
+    username: updated_user_properties.username.clone(),
+    display_name: updated_user_properties.display_name.clone(),
     hashed_password: None
   }, &state.database_pool).await {
 

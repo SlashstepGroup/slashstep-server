@@ -19,7 +19,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::str::FromStr;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_json_web_token_private_key, get_user_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, oauth_authorization::{InitialOAuthAuthorizationProperties, InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization}, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_json_web_token_private_key, get_principal_type_and_id_from_principal, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
 
 pub async fn create_regex(string: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Regex, HTTPError> {
 
@@ -175,12 +175,11 @@ async fn handle_create_oauth_authorization_request(
   let create_oauth_authorizations_action = get_action_by_name("oauthAuthorizations.create", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_oauth_authorizations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &create_oauth_authorizations_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::User, Some(&target_user.id), &create_oauth_authorizations_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
   let target_app = get_app_by_id(&initial_oauth_authorization_properties_json.app_id, &http_transaction, &state.database_pool).await?;
   let authorize_app_action = get_action_by_name("apps.authorize", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &authorize_app_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &authorize_app_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::User, Some(&target_user.id), &authorize_app_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Create the action.
   ServerLogEntry::trace(&format!("Creating OAuth authorization for user {}...", target_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
@@ -228,9 +227,9 @@ async fn handle_create_oauth_authorization_request(
     action_id: authorize_app_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if principal_type == AccessPolicyPrincipalType::User { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ResourceType::App,
     target_app_id: Some(target_app.id),
     ..Default::default()
@@ -240,9 +239,9 @@ async fn handle_create_oauth_authorization_request(
     action_id: create_oauth_authorizations_action.id,
     http_transaction_id: Some(http_transaction.id),
     expiration_timestamp,
-    actor_type: if let AuthenticatedPrincipal::User(_) = &authenticated_principal { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let AuthenticatedPrincipal::User(user) = &authenticated_principal { Some(user.id.clone()) } else { None },
-    actor_app_id: if let AuthenticatedPrincipal::App(authenticated_app) = &authenticated_principal { Some(authenticated_app.id.clone()) } else { None },
+    actor_type: if principal_type == AccessPolicyPrincipalType::User { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
     target_resource_type: ResourceType::OAuthAuthorization,
     target_oauth_authorization_id: Some(created_oauth_authorization.id),
     ..Default::default()

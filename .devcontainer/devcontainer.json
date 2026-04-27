@@ -6,7 +6,7 @@
 		"dockerfile": "Containerfile"
 	},
 	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
-
+	
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	// "image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie"
 

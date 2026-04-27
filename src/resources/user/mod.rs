@@ -52,7 +52,10 @@ pub struct User {
   /// Whether the user is anonymous.
   pub is_anonymous: bool,
 
-  /// The user's IP address, if applicable. Only anonymous users have an IP address.
+  /// The user's IP address, if applicable. This will only be populated for anonymous users.
+  /// 
+  /// If you need the IP address of a registered user, you might be able to find it 
+  /// by searching HTTP transactions and filtering by user ID.
   pub ip_address: Option<IpAddr>
 
 }
@@ -91,7 +94,7 @@ pub struct EditableUserProperties {
 
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct EditableUserPropertiesRequestBody {
 
   /// The user's username, if applicable. Only non-anonymous users have a username.

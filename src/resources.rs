@@ -22,6 +22,7 @@ pub mod item_type_icon;
 pub mod iteration;
 pub mod milestone;
 pub mod oauth_authorization;
+pub mod password_reset_authorization;
 pub mod project;
 pub mod role;
 pub mod server_log_entry;
@@ -78,6 +79,7 @@ pub enum ResourceType {
   MembershipInvitation,
   Milestone,
   OAuthAuthorization,
+  PasswordResetAuthorization,
   Project,
   Role,
   #[default]
@@ -123,6 +125,7 @@ impl fmt::Display for ResourceType {
       ResourceType::MembershipInvitation => write!(formatter, "MembershipInvitation"),
       ResourceType::Milestone => write!(formatter, "Milestone"),
       ResourceType::OAuthAuthorization => write!(formatter, "OAuthAuthorization"),
+      ResourceType::PasswordResetAuthorization => write!(formatter, "PasswordResetAuthorization"),
       ResourceType::Project => write!(formatter, "Project"),
       ResourceType::Role => write!(formatter, "Role"),
       ResourceType::ServerLogEntry => write!(formatter, "ServerLogEntry"),
@@ -172,6 +175,7 @@ impl FromStr for ResourceType {
       "MembershipInvitation" => Ok(ResourceType::MembershipInvitation),
       "Milestone" => Ok(ResourceType::Milestone),
       "OAuthAuthorization" => Ok(ResourceType::OAuthAuthorization),
+      "PasswordResetAuthorization" => Ok(ResourceType::PasswordResetAuthorization),
       "Project" => Ok(ResourceType::Project),
       "Role" => Ok(ResourceType::Role),
       "ServerLogEntry" => Ok(ResourceType::ServerLogEntry),

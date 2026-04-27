@@ -1,10 +1,11 @@
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
+use jsonwebtoken::TokenData;
 use reqwest::StatusCode;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use serde::Deserialize;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::{EditableUserProperties, User}}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware::{self, get_decoding_key}, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, password_reset_authorization::PasswordResetAuthorizationClaims, server_log_entry::ServerLogEntry, user::{EditableUserProperties, User}}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_public_key, get_password_reset_authorization_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateUserPasswordRequestBody {
@@ -70,6 +71,37 @@ async fn handle_update_user_password_request(
     target_user: &User
   ) -> Result<(), HTTPError> {
 
+    pub async fn decode_password_reset_token_jwt_claims(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool, json_web_token_public_key: &str, token: &str) -> Result<TokenData<PasswordResetAuthorizationClaims>, HTTPError> {
+
+      ServerLogEntry::trace("Decoding and verifying password reset token...", Some(&http_transaction_id), &database_pool).await.ok();
+
+      let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
+      let decoding_key = get_decoding_key(&http_transaction_id, &database_pool, &json_web_token_public_key).await?;
+      let decoded_claims = match jsonwebtoken::decode::<PasswordResetAuthorizationClaims>(token, &decoding_key, &validation) {
+
+        Ok(decoded_claims) => decoded_claims,
+
+        Err(error) => {
+
+          let http_error = match error.kind() {
+
+            jsonwebtoken::errors::ErrorKind::InvalidToken | jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(_) => HTTPError::Unauthorized(Some("The authorization code is invalid.".to_string())),
+
+            _ => HTTPError::InternalServerError(Some(format!("Failed to decode and verify password reset token: {:?}", error)))
+
+          };
+
+          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool).await.ok();
+          return Err(http_error);
+
+        }
+
+      };
+
+      return Ok(decoded_claims);
+
+    }
+
     if update_user_password_request_body.should_bypass_password_validation {
 
       let bypass_password_validation_action = get_action_by_name("users.bypassPasswordValidation", &http_transaction, &database_pool).await?;
@@ -78,7 +110,35 @@ async fn handle_update_user_password_request(
 
     } else if let Some(password_reset_token) = &update_user_password_request_body.password_reset_token {
 
+      let jwt_public_key = get_json_web_token_public_key(&http_transaction.id, &database_pool).await?;
+      let password_reset_token_claims = decode_password_reset_token_jwt_claims(&http_transaction.id, &database_pool, &jwt_public_key, password_reset_token).await?;
+      let password_reset_token_id = get_uuid_from_string(&password_reset_token_claims.claims.jti, "password reset token", &http_transaction, &database_pool).await?;
+      let password_reset_user_id = get_uuid_from_string(&password_reset_token_claims.claims.sub, "password reset token subject", &http_transaction, &database_pool).await?;
+      if password_reset_user_id != target_user.id {
 
+        let http_error = HTTPError::Unauthorized(Some("The provided password reset token is invalid.".to_string()));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+        return Err(http_error);
+
+      }
+      let password_reset_authorization = get_password_reset_authorization_by_id(&password_reset_token_id, &http_transaction, &database_pool).await;
+      if let Ok(password_reset_authorization) = password_reset_authorization {
+
+        if let Err(error) = password_reset_authorization.delete(&database_pool).await {
+
+          let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete password reset authorization: {:?}", error)));
+          ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+          return Err(http_error);
+
+        }
+
+      } else {
+
+        let http_error = HTTPError::Unauthorized(Some("The provided password reset token is invalid.".to_string()));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+        return Err(http_error);
+
+      }
 
     } else if let Some(current_password) = &update_user_password_request_body.current_password {
 
@@ -105,7 +165,7 @@ async fn handle_update_user_password_request(
 
     } else {
 
-      let http_error = HTTPError::BadRequest(Some("Either current_password or password_reset_token must be provided in the request body, unless should_bypass_password_validation is true.".to_string()));
+      let http_error = HTTPError::BadRequest(Some("Either current_password or password_reset_authorization must be provided in the request body, unless should_bypass_password_validation is true.".to_string()));
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
       return Err(http_error);
 
