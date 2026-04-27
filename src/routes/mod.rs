@@ -101,7 +101,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     // .merge(roles::get_router(state.clone()))
     // .merge(server_log_entries::get_router(state.clone()))
     .merge(sessions::get_router(state.clone()))
-    // .merge(users::get_router(state.clone()))
+    .merge(users::get_router(state.clone()))
     .merge(views::get_router(state.clone()))
     .merge(view_fields::get_router(state.clone()))
     // .merge(workspaces::get_router(state.clone()))
