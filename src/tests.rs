@@ -91,11 +91,10 @@ impl TestEnvironment {
     let postgres_container = Self::start_postgresql_container().await;
     let postgres_host = postgres_container.get_host().await?;
     let postgres_port = postgres_container.get_host_port_ipv4(5432).await?;
-    println!("PostgreSQL test server started at {}:{}", postgres_host, postgres_port);
 
     println!("Signing into PostgreSQL test server...");
     let mut postgres_config = tokio_postgres::Config::new();
-    postgres_config.host("host.docker.internal");
+    postgres_config.host(postgres_host.to_string());
     postgres_config.port(postgres_port);
     postgres_config.user("postgres");
     postgres_config.password("postgres");

@@ -13,7 +13,7 @@
 		"type=bind,source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,readonly"
 	],
 	
-	"runArgs": ["--add-host=host.docker.internal:host-gateway"],
+	"runArgs": ["--network=host"],
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
