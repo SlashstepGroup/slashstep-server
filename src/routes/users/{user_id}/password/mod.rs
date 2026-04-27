@@ -5,7 +5,7 @@ use reqwest::StatusCode;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use serde::Deserialize;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware::{self, get_decoding_key}, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, password_reset_authorization::PasswordResetAuthorizationClaims, server_log_entry::ServerLogEntry, user::{EditableUserProperties, User}}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_public_key, get_password_reset_authorization_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware::{self, get_decoding_key}, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, password_reset_authorization::PasswordResetAuthorizationClaims, server_log_entry::ServerLogEntry, session::Session, user::{EditableUserProperties, User}}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_public_key, get_password_reset_authorization_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateUserPasswordRequestBody {
@@ -33,10 +33,11 @@ pub struct UpdateUserPasswordRequestBody {
   /// If true, all of the user's sessions will be deleted after their password is updated, except for the current session. This is useful in case the user's account was compromised and the user wants to quickly log out of all other sessions after updating their password.
   pub should_delete_other_sessions: bool,
 
-  /// Whether to require the user to change their password on their next login.
-  /// 
-  /// If true, the user will be prevented from creating a new session until they change their password. This is useful for forcing a user to change their password after an administrator has updated it for them.
-  pub should_require_password_change_on_next_login: bool,
+  // Whether to require the user to change their password on their next login.
+  // 
+  // If true, the user will be prevented from creating a new session until they change their password. This is useful for forcing a user to change their password after an administrator has updated it for them.
+  // TODO: Implement in a future update.
+  // pub should_require_password_change_on_next_login: bool,
 
 }
 
@@ -57,6 +58,7 @@ async fn handle_update_user_password_request(
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+  Extension(session): Extension<Option<Arc<Session>>>,
   body: Result<Json<UpdateUserPasswordRequestBody>, JsonRejection>
 ) -> Result<(StatusCode, Json<User>), HTTPError> {
 
@@ -294,6 +296,35 @@ async fn handle_update_user_password_request(
     target_user_id: Some(target_user.id),
     ..Default::default()
   }, &state.database_pool).await.ok();
+
+  if update_user_password_request_body.should_delete_other_sessions {
+
+    ServerLogEntry::trace("Deleting user's other sessions...", Some(&http_transaction.id), &state.database_pool).await.ok();
+
+    let database_client = match (&state.database_pool).get().await {
+
+      Ok(database_client) => database_client,
+
+      Err(error) => {
+
+        let http_error = HTTPError::InternalServerError(Some(format!("Failed to get database client from pool: {:?}", error)));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(http_error);
+
+      }
+
+    };
+
+    let delete_all_user_session_rows_except_one_query = include_str!("../../../../queries/sessions/delete_all_user_session_rows_except_one.sql");
+    if let Err(error) = database_client.execute(delete_all_user_session_rows_except_one_query, &[&target_user.id, &session.and_then(|s| Some(s.id))]).await {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete user's other sessions: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  }
 
   ServerLogEntry::success(&format!("Successfully updated user {}'s password.", target_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   return Ok((StatusCode::OK, Json(updated_user)));
