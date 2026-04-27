@@ -5,8 +5,10 @@
 	"build": {
 		"dockerfile": "Containerfile"
 	},
-	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
-	
+	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+	"mounts": [
+		"type=bind,source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,readonly"
+	]
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	// "image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie"
 
