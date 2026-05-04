@@ -98,9 +98,11 @@ pub struct EditableUserProperties {
 pub struct EditableUserPropertiesRequestBody {
 
   /// The user's username, if applicable. Only non-anonymous users have a username.
+  #[serde(default, skip_serializing_if = "Option::is_none", with = "serde_with::rust::double_option")]
   pub username: Option<Option<String>>,
 
   /// The user's display name, if applicable. Only non-anonymous users have a display name.
+  #[serde(default, skip_serializing_if = "Option::is_none", with = "serde_with::rust::double_option")]
   pub display_name: Option<Option<String>>
 
 }
