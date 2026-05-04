@@ -129,17 +129,17 @@ impl From<TypedMultipartError> for HTTPError {
 
       TypedMultipartError::FieldTooLarge { field_name, limit_bytes } => HTTPError::PayloadTooLarge(Some(format!("The file provided for {} exceeds the maximum allowed size of {} bytes.", field_name, limit_bytes))),
 
-      TypedMultipartError::InvalidRequest { source: _ } => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+      TypedMultipartError::InvalidRequest { source: _ } => HTTPError::BadRequest(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
 
-      TypedMultipartError::InvalidRequestBody { source: _ } => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+      TypedMultipartError::InvalidRequestBody { source: _ } => HTTPError::BadRequest(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
 
-      TypedMultipartError::DuplicateField { field_name } => HTTPError::BadRequestError(Some(format!("The \"{}\" field is duplicated. There should only be one.", field_name))),
+      TypedMultipartError::DuplicateField { field_name } => HTTPError::BadRequest(Some(format!("The \"{}\" field is duplicated. There should only be one.", field_name))),
 
-      TypedMultipartError::MissingField { field_name } => HTTPError::BadRequestError(Some(format!("The \"{}\" field is required. Provide it, then try again.", field_name))),
+      TypedMultipartError::MissingField { field_name } => HTTPError::BadRequest(Some(format!("The \"{}\" field is required. Provide it, then try again.", field_name))),
 
-      TypedMultipartError::NamelessField => HTTPError::BadRequestError(Some(format!("One of the fields in the multipart form data is missing a name. Ensure all fields have names, then try again."))),
+      TypedMultipartError::NamelessField => HTTPError::BadRequest(Some(format!("One of the fields in the multipart form data is missing a name. Ensure all fields have names, then try again."))),
 
-      TypedMultipartError::WrongFieldType { field_name, wanted_type, source: _ } => HTTPError::BadRequestError(Some(format!("The field \"{}\" must be of type {}.", field_name, wanted_type))),
+      TypedMultipartError::WrongFieldType { field_name, wanted_type, source: _ } => HTTPError::BadRequest(Some(format!("The field \"{}\" must be of type {}.", field_name, wanted_type))),
 
       _ => HTTPError::InternalServerError(Some(format!("Failed to parse multipart form data: {:?}", error)))
 
@@ -217,7 +217,7 @@ async fn handle_create_item_type_icon_request(
 
         Err(_) => {
 
-          let http_error = HTTPError::BadRequestError(Some(format!("The SVG file provided in the \"icon_data\" field is not valid UTF-8.")));
+          let http_error = HTTPError::BadRequest(Some(format!("The SVG file provided in the \"icon_data\" field is not valid UTF-8.")));
           ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
           return Err(http_error);
 
@@ -235,7 +235,7 @@ async fn handle_create_item_type_icon_request(
       
       if svg_filter_result.is_err() {
 
-        let http_error = HTTPError::BadRequestError(Some(format!("The SVG file could not be parsed.")));
+        let http_error = HTTPError::BadRequest(Some(format!("The SVG file could not be parsed.")));
         ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
         return Err(http_error);
 
@@ -252,7 +252,7 @@ async fn handle_create_item_type_icon_request(
 
         Err(error) => {
 
-          let http_error = HTTPError::BadRequestError(Some(format!("The file provided in the \"icon_data\" field is not a valid image: {:?}", error)));
+          let http_error = HTTPError::BadRequest(Some(format!("The file provided in the \"icon_data\" field is not a valid image: {:?}", error)));
           ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
           return Err(http_error);
 
@@ -404,7 +404,7 @@ async fn handle_create_item_type_icon_request(
 
     None => {
 
-      let http_error = HTTPError::BadRequestError(Some(format!("The field \"icon_data\" must have a content type.")));
+      let http_error = HTTPError::BadRequest(Some(format!("The field \"icon_data\" must have a content type.")));
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
       return Err(http_error);
 

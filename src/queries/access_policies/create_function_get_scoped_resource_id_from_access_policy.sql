@@ -50,6 +50,8 @@ CREATE OR REPLACE FUNCTION get_scoped_resource_id_from_access_policy(access_poli
         RETURN access_policy_record.scoped_milestone_id;
       WHEN 'OAuthAuthorization' THEN 
         RETURN access_policy_record.scoped_app_authorization_id;
+      WHEN 'PasswordResetAuthorization' THEN 
+        RETURN access_policy_record.scoped_password_reset_authorization_id;
       WHEN 'Project' THEN 
         RETURN access_policy_record.scoped_project_id;
       WHEN 'Role' THEN 

@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::User, view::View, view_field::ViewField, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
+use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, password_reset_authorization::PasswordResetAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::User, view::View, view_field::ViewField, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -308,7 +308,7 @@ pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipal
 
     };
     let message = format!("You need at least {} permission to the \"{}\" action on {}.", minimum_permission_level.to_string(), action.name, location);
-    let http_error = if is_principal_anonymous { HTTPError::UnauthorizedError(Some(message)) } else { HTTPError::ForbiddenError(Some(message)) };
+    let http_error = if is_principal_anonymous { HTTPError::Unauthorized(Some(message)) } else { HTTPError::ForbiddenError(Some(message)) };
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
     return Err(http_error);
 
@@ -408,7 +408,7 @@ pub async fn get_uuid_from_string(string: &str, resource_type_name_singular: &st
 
     Err(_) => {
 
-      let http_error = HTTPError::BadRequestError(Some(format!("You must provide a valid UUID for the {} ID.", resource_type_name_singular)));
+      let http_error = HTTPError::BadRequest(Some(format!("You must provide a valid UUID for the {} ID.", resource_type_name_singular)));
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
       return Err(http_error);
 
@@ -518,6 +518,13 @@ pub async fn get_milestone_by_id(milestone_id: &Uuid, http_transaction: &HTTPTra
 
 }
 
+pub async fn get_password_reset_authorization_by_id(password_reset_authorization_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<PasswordResetAuthorization, HTTPError> {
+
+  let password_reset_authorization = get_resource_by_id::<PasswordResetAuthorization, _>("password reset authorization", &password_reset_authorization_id, &http_transaction, &database_pool, |password_reset_authorization_id, database_pool| Box::new(PasswordResetAuthorization::get_by_id(password_reset_authorization_id, database_pool))).await?;
+  return Ok(password_reset_authorization);
+
+}
+
 pub async fn get_project_by_id(project_id: &Uuid, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Project, HTTPError> {
 
   let project = get_resource_by_id::<Project, _>("project", &project_id, &http_transaction, &database_pool, |project_id, database_pool| Box::new(Project::get_by_id(project_id, database_pool))).await?;
@@ -624,7 +631,7 @@ pub fn match_slashstepql_error(error: &SlashstepQLError, maximum_limit: &i64, re
 
     SlashstepQLError::InvalidFieldError(field) => HTTPError::UnprocessableEntity(Some(format!("The provided query is invalid. The field \"{}\" is not allowed.", field))),
 
-    SlashstepQLError::InvalidQueryError(()) => HTTPError::BadRequestError(Some(format!("The provided query is invalid."))),
+    SlashstepQLError::InvalidQueryError(()) => HTTPError::BadRequest(Some(format!("The provided query is invalid."))),
 
     _ => HTTPError::InternalServerError(Some(format!("Failed to list {}: {:?}", resource_type_plural, error)))
 
@@ -640,7 +647,7 @@ pub fn match_db_error(error: &postgres::Error, resource_type: &str) -> HTTPError
 
     Some(db_error) => match db_error.code() {
 
-      &SqlState::UNDEFINED_FUNCTION => HTTPError::BadRequestError(Some(format!("The provided query is invalid."))),
+      &SqlState::UNDEFINED_FUNCTION => HTTPError::BadRequest(Some(format!("The provided query is invalid."))),
 
       _ => HTTPError::InternalServerError(Some(format!("Failed to list {}: {:?}", resource_type, error)))
 
@@ -681,11 +688,11 @@ pub async fn get_request_body_without_json_rejection<T>(request_body: Result<Jso
 
       let http_error = match error {
 
-        JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
+        JsonRejection::JsonDataError(error) => HTTPError::BadRequest(Some(error.to_string())),
 
-        JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+        JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
 
-        JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
+        JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some(format!("Missing request body content type. It should be \"application/json\"."))),
 
         JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
 

@@ -136,7 +136,8 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(
                     access_policies.scoped_membership_id = parameter_resource_id OR
                     access_policies.scoped_membership_invitation_id = parameter_resource_id OR
                     access_policies.scoped_milestone_id = parameter_resource_id OR
-                    access_policies.scoped_app_authorization_id = parameter_resource_id OR
+                    access_policies.scoped_oauth_authorization_id = parameter_resource_id OR
+                    access_policies.scoped_password_reset_authorization_id = parameter_resource_id OR
                     access_policies.scoped_project_id = parameter_resource_id OR
                     access_policies.scoped_role_id = parameter_resource_id OR
                     access_policies.scoped_server_log_entry_id = parameter_resource_id OR

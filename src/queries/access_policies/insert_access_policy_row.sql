@@ -32,6 +32,7 @@ INSERT INTO access_policies (
   scoped_membership_invitation_id,
   scoped_milestone_id,
   scoped_oauth_authorization_id,
+  scoped_password_reset_authorization_id,
   scoped_project_id,
   scoped_role_id,
   scoped_server_log_entry_id,
@@ -85,5 +86,6 @@ INSERT INTO access_policies (
   $40,
   $41,
   $42,
-  $43
+  $43,
+  $44
 ) RETURNING *;

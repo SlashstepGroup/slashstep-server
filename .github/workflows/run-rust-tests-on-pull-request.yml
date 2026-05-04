@@ -97,7 +97,7 @@ jobs:
           - projects
           # - server_log_entries
           - sessions
-          # - users
+          - users
           - views
           - view_fields
           # - workspaces
@@ -180,7 +180,7 @@ jobs:
           # - server_log_entry
           - session
           # - status
-          # - user
+          - user
           - view
           - view_field
           # - webhook

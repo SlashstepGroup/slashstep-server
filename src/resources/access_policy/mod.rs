@@ -61,6 +61,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "scoped_membership_invitation_id",
   "scoped_milestone_id", 
   "scoped_oauth_authorization_id",
+  "scoped_password_reset_authorization_id",
   "scoped_project_id", 
   "scoped_role_id",
   "scoped_server_log_entry_id",
@@ -105,6 +106,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
   "scoped_membership_invitation_id",
   "scoped_milestone_id", 
   "scoped_oauth_authorization_id",
+  "scoped_password_reset_authorization_id",
   "scoped_project_id", 
   "scoped_role_id",
   "scoped_server_log_entry_id",
@@ -276,6 +278,8 @@ pub struct InitialAccessPolicyProperties {
 
   pub scoped_oauth_authorization_id: Option<Uuid>,
 
+  pub scoped_password_reset_authorization_id: Option<Uuid>,
+
   pub scoped_project_id: Option<Uuid>,
 
   pub scoped_role_id: Option<Uuid>,
@@ -394,6 +398,8 @@ pub struct AccessPolicy {
 
   pub scoped_oauth_authorization_id: Option<Uuid>,
 
+  pub scoped_password_reset_authorization_id: Option<Uuid>,
+
   pub scoped_project_id: Option<Uuid>,
 
   pub scoped_role_id: Option<Uuid>,
@@ -485,6 +491,7 @@ impl AccessPolicy {
       &initial_properties.scoped_membership_invitation_id,
       &initial_properties.scoped_milestone_id,
       &initial_properties.scoped_oauth_authorization_id,
+      &initial_properties.scoped_password_reset_authorization_id,
       &initial_properties.scoped_project_id,
       &initial_properties.scoped_role_id,
       &initial_properties.scoped_server_log_entry_id,
@@ -594,6 +601,7 @@ impl AccessPolicy {
       scoped_membership_invitation_id: row.get("scoped_membership_invitation_id"),
       scoped_milestone_id: row.get("scoped_milestone_id"),
       scoped_oauth_authorization_id: row.get("scoped_oauth_authorization_id"),
+      scoped_password_reset_authorization_id: row.get("scoped_password_reset_authorization_id"),
       scoped_project_id: row.get("scoped_project_id"),
       scoped_role_id: row.get("scoped_role_id"),
       scoped_server_log_entry_id: row.get("scoped_server_log_entry_id"),
@@ -788,6 +796,7 @@ impl AccessPolicy {
       ResourceType::MembershipInvitation => self.scoped_membership_invitation_id,
       ResourceType::Milestone => self.scoped_milestone_id,
       ResourceType::OAuthAuthorization => self.scoped_oauth_authorization_id,
+      ResourceType::PasswordResetAuthorization => self.scoped_password_reset_authorization_id,
       ResourceType::Project => self.scoped_project_id,
       ResourceType::Role => self.scoped_role_id,
       ResourceType::ServerLogEntry => self.scoped_server_log_entry_id,

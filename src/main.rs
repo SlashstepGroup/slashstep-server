@@ -25,7 +25,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::{Configuration, EditableConfigurationProperties}, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::MembershipInvitation, milestone::Milestone, oauth_authorization::OAuthAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::{InitialUserProperties, User}, view::View, view_field::ViewField, webhook::Webhook, workspace::Workspace
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::{Configuration, EditableConfigurationProperties}, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::MembershipInvitation, milestone::Milestone, oauth_authorization::OAuthAuthorization, password_reset_authorization::PasswordResetAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::{InitialUserProperties, User}, view::View, view_field::ViewField, webhook::Webhook, workspace::Workspace
   }
 };
 
@@ -122,6 +122,7 @@ pub async fn initialize_required_tables(database_pool: &deadpool_postgres::Pool)
   ServerLogEntry::initialize_resource_table(database_pool).await?;
   Workspace::initialize_resource_table(database_pool).await?;
   User::initialize_resource_table(database_pool).await?;
+  PasswordResetAuthorization::initialize_resource_table(database_pool).await?;
   Session::initialize_resource_table(database_pool).await?;
   Group::initialize_resource_table(database_pool).await?;
   App::initialize_resource_table(database_pool).await?;
@@ -169,11 +170,11 @@ pub enum HTTPError {
   ForbiddenError(Option<String>),
   NotFoundError(Option<String>),
   ConflictError(Option<String>),
-  BadRequestError(Option<String>),
+  BadRequest(Option<String>),
   UnsupportedMediaType(Option<String>),
   NotImplementedError(Option<String>),
   InternalServerError(Option<String>),
-  UnauthorizedError(Option<String>),
+  Unauthorized(Option<String>),
   UnprocessableEntity(Option<String>),
   PayloadTooLarge(Option<String>)
 }
@@ -191,10 +192,10 @@ impl fmt::Display for HTTPError {
       HTTPError::ConflictError(message) => write!(f, "{}", message.to_owned().unwrap_or("Conflict.".to_string())),
       HTTPError::ForbiddenError(message) => write!(f, "{}", message.to_owned().unwrap_or("Forbidden.".to_string())),
       HTTPError::GoneError(message) => write!(f, "{}", message.to_owned().unwrap_or("Gone.".to_string())),
-      HTTPError::BadRequestError(message) => write!(f, "{}", message.to_owned().unwrap_or("Bad request.".to_string())),
+      HTTPError::BadRequest(message) => write!(f, "{}", message.to_owned().unwrap_or("Bad request.".to_string())),
       HTTPError::NotImplementedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Not implemented.".to_string())),
       HTTPError::InternalServerError(message) => write!(f, "{}", message.to_owned().unwrap_or("Internal server error.".to_string())),
-      HTTPError::UnauthorizedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Unauthorized.".to_string())),
+      HTTPError::Unauthorized(message) => write!(f, "{}", message.to_owned().unwrap_or("Unauthorized.".to_string())),
       HTTPError::UnsupportedMediaType(message) => write!(f, "{}", message.to_owned().unwrap_or("Unsupported media type.".to_string())),
       HTTPError::UnprocessableEntity(message) => write!(f, "{}", message.to_owned().unwrap_or("Unprocessable entity.".to_string())),
       HTTPError::PayloadTooLarge(message) => write!(f, "{}", message.to_owned().unwrap_or("Payload too large.".to_string()))
@@ -215,11 +216,11 @@ impl IntoResponse for HTTPError {
 
       HTTPError::ForbiddenError(message) => (StatusCode::FORBIDDEN, message.unwrap_or("Forbidden.".to_string())),
 
-      HTTPError::BadRequestError(message) => (StatusCode::BAD_REQUEST, message.unwrap_or("Bad request.".to_string())),
+      HTTPError::BadRequest(message) => (StatusCode::BAD_REQUEST, message.unwrap_or("Bad request.".to_string())),
 
       HTTPError::ConflictError(message) => (StatusCode::CONFLICT, message.unwrap_or("Conflict.".to_string())),
 
-      HTTPError::UnauthorizedError(message) => (StatusCode::UNAUTHORIZED, message.unwrap_or("Unauthorized.".to_string())),
+      HTTPError::Unauthorized(message) => (StatusCode::UNAUTHORIZED, message.unwrap_or("Unauthorized.".to_string())),
 
       HTTPError::UnsupportedMediaType(message) => (StatusCode::UNSUPPORTED_MEDIA_TYPE, message.unwrap_or("Unsupported media type.".to_string())),
 

@@ -121,11 +121,11 @@ async fn handle_get_role_request(
 
 //       let http_error = match error {
 
-//         JsonRejection::JsonDataError(error) => HTTPError::BadRequestError(Some(error.to_string())),
+//         JsonRejection::JsonDataError(error) => HTTPError::BadRequest(Some(error.to_string())),
 
-//         JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequestError(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
+//         JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some(format!("Failed to parse request body. Ensure the request body is valid JSON."))),
 
-//         JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequestError(Some(format!("Missing request body content type. It should be \"application/json\"."))),
+//         JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some(format!("Missing request body content type. It should be \"application/json\"."))),
 
 //         JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(format!("Failed to parse request body: {:?}", error))),
 

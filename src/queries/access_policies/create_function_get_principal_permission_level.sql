@@ -1,5 +1,14 @@
 -- This function returns the permission level of a principal for a given resource.
 -- It's helpful for filtering access policies on the database level, making offsets more consistent.
+-- 
+-- # Explicit "None" permission levels
+-- If the principal has an explicit "None" permission level on the initial resource or its ancestors
+-- due to a direct assignment, group assignment, or role assignment, then "None" will be returned
+-- regardless of any access policies that exist on the same level. This is to deter privilege escalation.
+-- 
+-- For example, if a user has "Admin" permission to the projects.get action on the server level, 
+-- but they have a role on the server level that has an explicit "None" permission to the same action,
+-- then the function will return "None" instead of "Admin", even though "Admin" is higher than "None".
 CREATE OR REPLACE FUNCTION get_principal_permission_level(
     parameter_principal_type principal_type, 
     parameter_principal_id UUID,
@@ -64,13 +73,19 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                     )
                 ORDER BY
                     CASE matching_access_policies.permission_level
-                        WHEN 'Admin' THEN 1
-                        WHEN 'Editor' THEN 2
-                        WHEN 'User' THEN 3
-                        WHEN 'None' THEN 4
+                        WHEN 'None' THEN 1
+                        WHEN 'Admin' THEN 2
+                        WHEN 'Editor' THEN 3
+                        WHEN 'User' THEN 4
                         ELSE 5
                     END
                 LIMIT 1;
+
+                IF individual_permission_level = 'None' THEN
+
+                    RETURN 'None';
+
+                END IF;
 
                 can_update_individual_permission_level = individual_permission_level IS NULL;
                 individual_permission_level := COALESCE(individual_permission_level, original_permission_level);
@@ -97,13 +112,19 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                     )
                 ORDER BY
                     CASE matching_access_policies.permission_level
-                        WHEN 'Admin' THEN 1
-                        WHEN 'Editor' THEN 2
-                        WHEN 'User' THEN 3
-                        WHEN 'None' THEN 4
+                        WHEN 'None' THEN 1
+                        WHEN 'Admin' THEN 2
+                        WHEN 'Editor' THEN 3
+                        WHEN 'User' THEN 4
                         ELSE 5
                     END
                 LIMIT 1;
+
+                IF role_permission_level = 'None' THEN
+
+                    RETURN 'None';
+
+                END IF;
 
                 can_update_role_permission_level = role_permission_level IS NULL;
                 role_permission_level := COALESCE(role_permission_level, original_permission_level);
@@ -130,13 +151,19 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                     )
                 ORDER BY
                     CASE matching_access_policies.permission_level
-                        WHEN 'Admin' THEN 1
-                        WHEN 'Editor' THEN 2
-                        WHEN 'User' THEN 3
-                        WHEN 'None' THEN 4
+                        WHEN 'None' THEN 1
+                        WHEN 'Admin' THEN 2
+                        WHEN 'Editor' THEN 3
+                        WHEN 'User' THEN 4
                         ELSE 5
                     END
                 LIMIT 1;
+
+                IF group_permission_level = 'None' THEN
+
+                    RETURN 'None';
+
+                END IF;
 
                 can_update_group_permission_level = group_permission_level IS NULL;
                 group_permission_level := COALESCE(group_permission_level, original_permission_level);
@@ -926,6 +953,27 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 -- OAuthAuthorization -> Server
                 selected_resource_type := 'Server';
                 selected_resource_id := NULL;
+
+            ELSIF selected_resource_type = 'PasswordResetAuthorization' THEN
+
+                -- PasswordResetAuthorization -> User
+                SELECT
+                    user_id
+                INTO
+                    selected_resource_parent_id
+                FROM
+                    password_reset_authorizations
+                WHERE
+                    password_reset_authorizations.id = selected_resource_id;
+
+                IF selected_resource_parent_id IS NULL THEN
+
+                    RAISE EXCEPTION 'Couldn''t find a parent user for password reset token %.', selected_resource_id;
+
+                END IF;
+
+                selected_resource_type := 'User';
+                selected_resource_id := selected_resource_parent_id;
 
             ELSIF selected_resource_type = 'Project' THEN
 

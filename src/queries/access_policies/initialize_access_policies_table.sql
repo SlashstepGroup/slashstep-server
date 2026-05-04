@@ -46,6 +46,7 @@ DO $$
       scoped_membership_invitation_id UUID REFERENCES membership_invitations(id) ON DELETE CASCADE,
       scoped_milestone_id UUID REFERENCES milestones(id) ON DELETE CASCADE,
       scoped_oauth_authorization_id UUID REFERENCES oauth_authorizations(id) ON DELETE CASCADE,
+      scoped_password_reset_authorization_id UUID REFERENCES password_reset_authorizations(id) ON DELETE CASCADE,
       scoped_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
       scoped_role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
       scoped_server_log_entry_id UUID REFERENCES server_log_entries(id) ON DELETE CASCADE,
@@ -96,6 +97,8 @@ DO $$
           AND scoped_membership_id IS NULL
           AND scoped_membership_invitation_id IS NULL
           AND scoped_milestone_id IS NULL
+          AND scoped_oauth_authorization_id IS NULL
+          AND scoped_password_reset_authorization_id IS NULL
           AND scoped_project_id IS NULL
           AND scoped_role_id IS NULL
           AND scoped_server_log_entry_id IS NULL
@@ -129,6 +132,8 @@ DO $$
           (scoped_membership_id IS NOT NULL)::INTEGER +
           (scoped_membership_invitation_id IS NOT NULL)::INTEGER +
           (scoped_milestone_id IS NOT NULL)::INTEGER +
+          (scoped_oauth_authorization_id IS NOT NULL)::INTEGER +
+          (scoped_password_reset_authorization_id IS NOT NULL)::INTEGER +
           (scoped_project_id IS NOT NULL)::INTEGER +
           (scoped_role_id IS NOT NULL)::INTEGER +
           (scoped_server_log_entry_id IS NOT NULL)::INTEGER +
@@ -167,6 +172,8 @@ DO $$
         OR (scoped_resource_type = 'Membership' AND scoped_membership_id IS NOT NULL)
         OR (scoped_resource_type = 'MembershipInvitation' AND scoped_membership_invitation_id IS NOT NULL)
         OR (scoped_resource_type = 'Milestone' AND scoped_milestone_id IS NOT NULL)
+        OR (scoped_resource_type = 'OAuthAuthorization' AND scoped_oauth_authorization_id IS NOT NULL)
+        OR (scoped_resource_type = 'PasswordResetAuthorization' AND scoped_password_reset_authorization_id IS NOT NULL)
         OR (scoped_resource_type = 'Project' AND scoped_project_id IS NOT NULL)
         OR (scoped_resource_type = 'Role' AND scoped_role_id IS NOT NULL)
         OR (scoped_resource_type = 'ServerLogEntry' AND scoped_server_log_entry_id IS NOT NULL)
