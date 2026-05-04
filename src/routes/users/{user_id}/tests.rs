@@ -394,7 +394,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   // Set up the server and send the request.
   let original_user = test_environment.create_random_user().await?;
   let updated_user_properties = EditableUserPropertiesRequestBody {
-    username: Some(None),
+    username: Some(Some(Uuid::now_v7().to_string())),
     display_name: Some(Some(Uuid::now_v7().to_string()))
   };
 
