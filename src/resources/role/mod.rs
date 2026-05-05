@@ -126,6 +126,49 @@ pub struct InitialRoleProperties {
   
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EditableRoleProperties {
+
+  /// The role's name.
+  pub name: Option<String>,
+
+  /// The role's display name.
+  pub display_name: Option<String>,
+
+  /// The role's description.
+  pub description: Option<Option<String>>
+  
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct EditableRolePropertiesRequestBody {
+
+  /// The role's name.
+  pub name: Option<String>,
+
+  /// The role's display name.
+  pub display_name: Option<String>,
+
+  /// The role's description.
+  #[serde(default, skip_serializing_if = "Option::is_none", with = "serde_with::rust::double_option")]
+  pub description: Option<Option<String>>
+
+}
+
+impl From<EditableRolePropertiesRequestBody> for EditableRoleProperties {
+
+  fn from(request_body: EditableRolePropertiesRequestBody) -> Self {
+
+    return EditableRoleProperties {
+      name: request_body.name,
+      display_name: request_body.display_name,
+      description: request_body.description
+    };
+
+  }
+
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct InitialRolePropertiesWithPredefinedParent {
 
@@ -391,6 +434,30 @@ impl Role {
     }
 
     return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
+
+  }
+
+  /// Updates this role and returns a new instance of the role.
+  pub async fn update(&self, properties: &EditableRoleProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let query = String::from("UPDATE roles SET ");
+    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+    let database_client = database_pool.get().await?;
+
+    database_client.query("BEGIN;", &[]).await?;
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "name", properties.name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
+    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "description", properties.description.as_ref());
+    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+    parameter_boxes.push(Box::new(&self.id));
+    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+    let row = database_client.query_one(&query, &parameters).await?;
+    database_client.query("COMMIT;", &[]).await?;
+
+    let status = Self::convert_from_row(&row);
+    return Ok(status);
 
   }
 

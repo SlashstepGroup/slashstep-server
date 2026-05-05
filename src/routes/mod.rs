@@ -30,15 +30,15 @@ mod item_connection_types;
 mod item_types;
 #[path = "./item-type-icons/mod.rs"]
 mod item_type_icons;
+mod iterations;
 mod memberships;
 #[path = "./membership-invitations/mod.rs"]
 mod membership_invitations;
-mod iterations;
 mod milestones;
 #[path = "./oauth-access-tokens/mod.rs"]
 mod oauth_access_tokens;
 mod projects;
-// mod roles;
+mod roles;
 // #[path = "./server-log-entries/mod.rs"]
 // mod server_log_entries;
 mod statuses;
@@ -98,7 +98,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(milestones::get_router(state.clone()))
     .merge(oauth_access_tokens::get_router(state.clone()))
     .merge(projects::get_router(state.clone()))
-    // .merge(roles::get_router(state.clone()))
+    .merge(roles::get_router(state.clone()))
     // .merge(server_log_entries::get_router(state.clone()))
     .merge(sessions::get_router(state.clone()))
     .merge(users::get_router(state.clone()))

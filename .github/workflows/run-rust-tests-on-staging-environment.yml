@@ -90,9 +90,11 @@ jobs:
           - milestones
           - oauth_access_tokens
           - projects
+          - roles
           # - server_log_entries
           - sessions
-          # - users
+          - statuses
+          - users
           - views
           - view_fields
           # - workspaces
@@ -172,11 +174,11 @@ jobs:
           - milestone
           - oauth_authorization
           - project
-          # - role
+          - role
           # - server_log_entry
           - session
-          # - status
-          # - user
+          - status
+          - user
           - view
           - view_field
           # - webhook
