@@ -1,4 +1,4 @@
-use crate::resources::{ResourceError, action::{Action, InitialActionProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, role::{InitialRoleProperties, ProtectedRoleType, Role}};
+use crate::resources::{ResourceError, access_policy::ActionPermissionLevel, action::{Action, InitialActionProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, role::{InitialRoleProperties, ProtectedRoleType, Role}};
 use colored::Colorize;
 use rust_decimal::Decimal;
 
