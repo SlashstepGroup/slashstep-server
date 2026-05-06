@@ -97,7 +97,7 @@ jobs:
           - users
           - views
           - view_fields
-          # - workspaces
+          - workspaces
     steps:
 
       - uses: actions/checkout@v6.0.0
@@ -182,7 +182,7 @@ jobs:
           - view
           - view_field
           # - webhook
-          # - workspace
+          - workspace
     steps:
 
       - uses: actions/checkout@v6.0.0
