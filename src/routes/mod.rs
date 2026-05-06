@@ -47,7 +47,7 @@ mod users;
 mod views;
 #[path = "./view-fields/mod.rs"]
 mod view_fields;
-// mod workspaces;
+mod workspaces;
 
 use axum::{Router, response::IntoResponse};
 use serde::{Deserialize, Serialize};
@@ -104,7 +104,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .merge(users::get_router(state.clone()))
     .merge(views::get_router(state.clone()))
     .merge(view_fields::get_router(state.clone()))
-    // .merge(workspaces::get_router(state.clone()))
+    .merge(workspaces::get_router(state.clone()))
     .fallback(fallback);
   return router;
 

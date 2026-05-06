@@ -1584,6 +1584,34 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
       ..Default::default()
     },
+    InitialConfigurationProperties {
+      name: "workspaces.maximumNameLength".to_string(),
+      description: Some("The maximum length of workspace names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "workspaces.maximumDisplayNameLength".to_string(),
+      description: Some("The maximum length of workspace display names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "workspaces.maximumDescriptionLength".to_string(),
+      description: Some("The maximum length of workspace descriptions in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(11))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "workspaces.allowedNameRegex".to_string(),
+      description: Some("A regular expression that workspace names must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
+      value_type: ConfigurationValueType::Text,
+      default_text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
+      ..Default::default()
+    }
   ];
 
   let mut configurations: Vec<Configuration> = Vec::new();
