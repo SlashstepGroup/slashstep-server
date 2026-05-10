@@ -237,7 +237,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Get the "groups.get" action one time.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let get_groups_action = Action::get_by_name(GET_RESOURCE_ACTION_NAME, &test_environment.database_pool).await?;
 
   // Grant access to the "groups.get" action to the user for half of the actions.

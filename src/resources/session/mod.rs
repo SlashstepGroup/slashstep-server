@@ -58,7 +58,8 @@ pub struct Session {
 pub struct SessionTokenClaims {
   pub sub: String,
   pub jti: String,
-  pub exp: usize
+  pub exp: usize,
+  pub r#type: String
 }
 
 pub struct InitialSessionProperties {
@@ -186,12 +187,28 @@ impl Session {
 
   }
 
-  pub async fn generate_json_web_token(&self, private_key: &str) -> Result<String, ResourceError> {
+  pub async fn generate_access_token(&self, private_key: &str, expiration_date: DateTime<Utc>) -> Result<String, ResourceError> {
 
     let claims = SessionTokenClaims {
       sub: self.user_id.to_string(),
       jti: self.id.to_string(),
-      exp: (Utc::now() + Duration::days(30)).timestamp() as usize
+      exp: expiration_date.timestamp() as usize,
+      r#type: "Access".to_string()
+    };
+    let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
+    let token = jsonwebtoken::encode(&Header::new(jsonwebtoken::Algorithm::EdDSA), &claims, &encoding_key)?;
+
+    return Ok(token);
+
+  }
+
+  pub async fn generate_refresh_token(&self, private_key: &str) -> Result<String, ResourceError> {
+
+    let claims = SessionTokenClaims {
+      sub: self.user_id.to_string(),
+      jti: self.id.to_string(),
+      exp: self.expiration_date.timestamp() as usize,
+      r#type: "Refresh".to_string()
     };
     let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
     let token = jsonwebtoken::encode(&Header::new(jsonwebtoken::Algorithm::EdDSA), &claims, &encoding_key)?;

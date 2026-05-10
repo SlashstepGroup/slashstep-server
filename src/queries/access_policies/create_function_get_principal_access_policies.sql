@@ -89,14 +89,17 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(
                 )
             LEFT JOIN
                 memberships role_memberships ON (
-                    role_memberships.parent_resource_type = 'Role' AND (
-                        role_memberships.principal_group_id = all_group_memberships.parent_group_id
-                    ) OR (
-                        parameter_principal_type = 'User' AND
-                        role_memberships.principal_user_id = variable_principal_user_id
-                    ) OR (
-                        parameter_principal_type = 'App' AND
-                        role_memberships.principal_app_id = variable_principal_app_id
+                    role_memberships.parent_resource_type = 'Role' 
+                    AND (
+                        (
+                            role_memberships.principal_group_id = all_group_memberships.parent_group_id
+                        ) OR (
+                            parameter_principal_type = 'User' AND
+                            role_memberships.principal_user_id = variable_principal_user_id
+                        ) OR (
+                            parameter_principal_type = 'App' AND
+                            role_memberships.principal_app_id = variable_principal_app_id
+                        )
                     )
                 )
             WHERE

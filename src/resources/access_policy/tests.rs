@@ -82,7 +82,7 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
   let action = test_environment.create_random_action(None).await?;
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,
     permission_level: ActionPermissionLevel::User,
@@ -161,7 +161,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
 
   // Create dummy access policies.
@@ -223,7 +223,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
   while remaining_action_count > 0 {
 
     let action = test_environment.create_random_action(None).await?;
-    let user = test_environment.create_random_user().await?;
+    let user = test_environment.create_random_user(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
       permission_level: ActionPermissionLevel::User,
@@ -298,7 +298,7 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
   while remaining_action_count > 0 {
 
     let action = test_environment.create_random_action(None).await?;
-    let user = test_environment.create_random_user().await?;
+    let user = test_environment.create_random_user(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
       permission_level: ActionPermissionLevel::User,
@@ -351,7 +351,7 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   let action = test_environment.create_random_action(None).await?;
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,
     permission_level: ActionPermissionLevel::User,

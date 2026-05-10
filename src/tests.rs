@@ -137,7 +137,7 @@ impl TestEnvironment {
 
     let oauth_authorization_properties = InitialOAuthAuthorizationProperties {
       app_id: app_id.copied().unwrap_or(self.create_random_app().await?.id),
-      authorizing_user_id: self.create_random_user().await?.id,
+      authorizing_user_id: self.create_random_user(None).await?.id,
       code_challenge: code_challenge.map(|code_challenge| code_challenge.to_string()),
       code_challenge_method: code_challenge.and(Some("S256".to_string())),
       redirect_uri: None,
@@ -227,7 +227,7 @@ impl TestEnvironment {
   pub async fn create_random_action_log_entry(&self) -> Result<ActionLogEntry, TestSlashstepServerError> {
 
     let action = self.create_random_action(None).await?;
-    let user = self.create_random_user().await?;
+    let user = self.create_random_user(None).await?;
 
     let action_log_entry_properties = InitialActionLogEntryProperties {
       action_id: action.id,
@@ -258,7 +258,7 @@ impl TestEnvironment {
   pub async fn create_random_delegation_policy(&self) -> Result<DelegationPolicy, TestSlashstepServerError> {
 
     let action = self.create_random_action(None).await?;
-    let user = self.create_random_user().await?;
+    let user = self.create_random_user(None).await?;
 
     let delegation_policy_properties = InitialDelegationPolicyProperties {
       action_id: action.id,
@@ -477,9 +477,9 @@ impl TestEnvironment {
       parent_resource_type: MembershipParentResourceType::Group,
       parent_group_id: Some(self.create_random_group().await?.id),
       invitee_principal_type: MembershipInvitationInviteePrincipalType::User,
-      invitee_principal_user_id: Some(self.create_random_user().await?.id),
+      invitee_principal_user_id: Some(self.create_random_user(None).await?.id),
       inviter_principal_type: MembershipPrincipalType::User,
-      inviter_principal_user_id: Some(self.create_random_user().await?.id),
+      inviter_principal_user_id: Some(self.create_random_user(None).await?.id),
       ..Default::default()
     };
 
@@ -509,7 +509,7 @@ impl TestEnvironment {
 
   pub async fn create_random_password_reset_authorization(&self, user_id: Option<&Uuid>) -> Result<PasswordResetAuthorization, TestSlashstepServerError> {
 
-    let user_id = user_id.copied().unwrap_or(self.create_random_user().await?.id);
+    let user_id = user_id.copied().unwrap_or(self.create_random_user(None).await?.id);
     let password_reset_authorization_properties = InitialPasswordResetAuthorizationProperties {
       user_id: user_id,
       expiration_date: Utc::now() + Duration::days(1),
@@ -575,7 +575,7 @@ impl TestEnvironment {
   pub async fn create_random_session(&self, user_id: Option<&Uuid>) -> Result<Session, TestSlashstepServerError> {
 
     let local_ip = local_ip()?;
-    let user_id = user_id.copied().unwrap_or(self.create_random_user().await?.id);
+    let user_id = user_id.copied().unwrap_or(self.create_random_user(None).await?.id);
     let session_properties = InitialSessionProperties {
       user_id: user_id,
       expiration_date: (Utc::now() + Duration::days(30)),
@@ -607,12 +607,14 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_user(&self) -> Result<User, TestSlashstepServerError> {
+  pub async fn create_random_user(&self, plain_text_password: Option<&String>) -> Result<User, TestSlashstepServerError> {
+
+    let hashed_password = User::hash_password(plain_text_password.unwrap_or(&Uuid::now_v7().to_string()))?;
 
     let user_properties = InitialUserProperties {
       username: Some(Uuid::now_v7().to_string()),
       display_name: Some(Uuid::now_v7().to_string()),
-      hashed_password: Some(Uuid::now_v7().to_string()),
+      hashed_password: Some(hashed_password),
       is_anonymous: false,
       ip_address: None
     };
@@ -656,7 +658,7 @@ impl TestEnvironment {
   pub async fn create_random_access_policy(&self) -> Result<AccessPolicy, TestSlashstepServerError> {
 
     let action = self.create_random_action(None).await?;
-    let user = self.create_random_user().await?;
+    let user = self.create_random_user(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
       permission_level: crate::resources::access_policy::ActionPermissionLevel::User,

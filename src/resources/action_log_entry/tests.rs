@@ -48,7 +48,7 @@ async fn verify_action_log_entry_creation() -> Result<(), TestSlashstepServerErr
 
   // Create the access policy.
   let action = test_environment.create_random_action(None).await?;
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let action_log_entry_properties = InitialActionLogEntryProperties {
     action_id: action.id,
     actor_type: ActionLogEntryActorType::User,

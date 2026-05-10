@@ -37,7 +37,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_resources: Vec<User> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_user().await?;
+    let resource = test_environment.create_random_user(None).await?;
     created_resources.push(resource);
 
   }
@@ -77,7 +77,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_user = test_environment.create_random_user().await?;
+  let created_user = test_environment.create_random_user(None).await?;
   
   created_user.delete(&test_environment.database_pool).await?;
 
@@ -116,7 +116,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_user = test_environment.create_random_user().await?;
+  let created_user = test_environment.create_random_user(None).await?;
   let retrieved_resource = User::get_by_id(&created_user.id, &test_environment.database_pool).await?;
   assert_server_log_entries_are_equal(&created_user, &retrieved_resource);
 
@@ -135,7 +135,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut server_log_entries: Vec<User> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let user = test_environment.create_random_user().await?;
+    let user = test_environment.create_random_user(None).await?;
     server_log_entries.push(user);
 
   }
@@ -159,7 +159,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_resources: Vec<User> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_user().await?;
+    let resource = test_environment.create_random_user(None).await?;
     created_resources.push(resource);
 
   }
@@ -192,7 +192,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_resources: Vec<User> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let user = test_environment.create_random_user().await?;
+    let user = test_environment.create_random_user(None).await?;
     created_resources.push(user);
 
   }
@@ -228,7 +228,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let user = test_environment.create_random_user().await?;
+      let user = test_environment.create_random_user(None).await?;
       current_resources.push(user);
 
     }
@@ -236,7 +236,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Get the "server_log_entries.get" action one time.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let get_server_log_entries_action = Action::get_by_name(GET_RESOURCE_ACTION_NAME, &test_environment.database_pool).await?;
 
   // Grant access to the "server_log_entries.get" action to the user for half of the actions.

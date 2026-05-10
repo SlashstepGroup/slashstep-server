@@ -45,17 +45,17 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_users_action = Action::get_by_name("users.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_users_action.id, &ActionPermissionLevel::User).await?;
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
 
   let response = test_server.get(&format!("/users/{}", user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::OK);
@@ -117,7 +117,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
 
   let response = test_server.get(&format!("/users/{}", user.id))
     .await;
@@ -139,11 +139,11 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user, the session, and the action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
-  let user = test_environment.create_random_user().await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+  let user = test_environment.create_random_user(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -154,7 +154,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/users/{}", user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -175,10 +175,10 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -189,7 +189,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/users/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -209,17 +209,17 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Grant access to the "users.delete" action to the user.
   let delete_users_action = Action::get_by_name("users.delete", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &delete_users_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -228,7 +228,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/users/{}", user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
@@ -283,7 +283,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create a dummy app.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -313,13 +313,13 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   
   // Create a dummy app.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -330,7 +330,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/users/{}", user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -350,10 +350,10 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -364,7 +364,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/users/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -384,15 +384,15 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_fields_action = Action::get_by_name("users.update", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let original_user = test_environment.create_random_user().await?;
+  let original_user = test_environment.create_random_user(None).await?;
   let updated_user_properties = EditableUserPropertiesRequestBody {
     username: Some(Some(Uuid::now_v7().to_string())),
     display_name: Some(Some(Uuid::now_v7().to_string()))
@@ -406,7 +406,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/users/{}", original_user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(updated_user_properties))
     .await;
   
@@ -552,7 +552,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -583,13 +583,13 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Set up the server and send the request.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -598,7 +598,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/users/{}", user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!({
       "display_name": Uuid::now_v7().to_string()
     }))
@@ -653,10 +653,10 @@ async fn verify_user_name_is_at_most_at_maximum_length() -> Result<(), TestSlash
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "users.update" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_users_action = Action::get_by_name("users.update", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &update_users_action.id, &ActionPermissionLevel::User).await?;
 
@@ -667,7 +667,7 @@ async fn verify_user_name_is_at_most_at_maximum_length() -> Result<(), TestSlash
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let dummy_user = test_environment.create_random_user().await?;
+  let dummy_user = test_environment.create_random_user(None).await?;
   let updated_user_properties = EditableUserPropertiesRequestBody {
     username: Some(Some(Uuid::now_v7().to_string())),
     ..Default::default()
@@ -680,7 +680,7 @@ async fn verify_user_name_is_at_most_at_maximum_length() -> Result<(), TestSlash
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/users/{}", dummy_user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(updated_user_properties))
     .await;
   
@@ -701,10 +701,10 @@ async fn verify_user_name_matches_regex() -> Result<(), TestSlashstepServerError
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "users.create" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_users_action = Action::get_by_name("users.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_users_action.id, &ActionPermissionLevel::User).await?;
 
@@ -715,7 +715,7 @@ async fn verify_user_name_matches_regex() -> Result<(), TestSlashstepServerError
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let dummy_user = test_environment.create_random_user().await?;
+  let dummy_user = test_environment.create_random_user(None).await?;
   let editable_user_properties = EditableUserPropertiesRequestBody {
     username: Some(Some(Uuid::now_v7().to_string())),
     ..Default::default()
@@ -728,7 +728,7 @@ async fn verify_user_name_matches_regex() -> Result<(), TestSlashstepServerError
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/users/{}", dummy_user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(editable_user_properties))
     .await;
   
@@ -750,10 +750,10 @@ async fn verify_user_display_name_is_at_most_at_maximum_length() -> Result<(), T
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "users.update" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_users_action = Action::get_by_name("users.update", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &update_users_action.id, &ActionPermissionLevel::User).await?;
 
@@ -764,7 +764,7 @@ async fn verify_user_display_name_is_at_most_at_maximum_length() -> Result<(), T
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let dummy_user = test_environment.create_random_user().await?;
+  let dummy_user = test_environment.create_random_user(None).await?;
   let updated_user_properties = EditableUserPropertiesRequestBody {
     display_name: Some(Some(Uuid::now_v7().to_string())),
     ..Default::default()
@@ -777,7 +777,7 @@ async fn verify_user_display_name_is_at_most_at_maximum_length() -> Result<(), T
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/users/{}", dummy_user.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(updated_user_properties))
     .await;
   

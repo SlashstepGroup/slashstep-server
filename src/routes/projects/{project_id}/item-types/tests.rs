@@ -27,10 +27,10 @@ async fn verify_successful_item_type_creation() -> Result<(), TestSlashstepServe
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "itemTypes.create" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_item_types_action = Action::get_by_name("itemTypes.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_item_types_action.id, &ActionPermissionLevel::User).await?;
 
@@ -50,7 +50,7 @@ async fn verify_successful_item_type_creation() -> Result<(), TestSlashstepServe
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/projects/{}/item-types", dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_item_type_properties))
     .await;
   
@@ -78,10 +78,10 @@ async fn verify_returned_item_type_list_without_query() -> Result<(), TestSlashs
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "itemTypes.get" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_types_action = Action::get_by_name("itemTypes.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_item_types_action.id, &ActionPermissionLevel::User).await?;
 
@@ -102,7 +102,7 @@ async fn verify_returned_item_type_list_without_query() -> Result<(), TestSlashs
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/item-types", &dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .await;
   
   // Verify the response.
@@ -136,10 +136,10 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "itemTypes.get" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_types_action = Action::get_by_name("itemTypes.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_item_types_action.id, &ActionPermissionLevel::User).await?;
 
@@ -161,7 +161,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/item-types", &dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .add_query_param("query", &additional_query)
     .await;
   
@@ -196,10 +196,10 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "itemTypes.get" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_types_action = Action::get_by_name("itemTypes.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_item_types_action.id, &ActionPermissionLevel::User).await?;
 
@@ -223,7 +223,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/item-types", &dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::OK);
@@ -246,10 +246,10 @@ async fn verify_maximum_item_type_list_limit() -> Result<(), TestSlashstepServer
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_types_action = Action::get_by_name("itemTypes.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_item_types_action.id, &ActionPermissionLevel::User).await?;
   let list_item_types_action = Action::get_by_name("itemTypes.list", &test_environment.database_pool).await?;
@@ -268,7 +268,7 @@ async fn verify_maximum_item_type_list_limit() -> Result<(), TestSlashstepServer
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/item-types", &dummy_project.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -289,10 +289,10 @@ async fn verify_query_when_listing_item_types() -> Result<(), TestSlashstepServe
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_types_action = Action::get_by_name("itemTypes.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_item_types_action.id, &ActionPermissionLevel::User).await?;
 
@@ -323,7 +323,7 @@ async fn verify_query_when_listing_item_types() -> Result<(), TestSlashstepServe
   for request in bad_requests {
 
     let response = request
-      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
       .await;
 
     assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -340,7 +340,7 @@ async fn verify_query_when_listing_item_types() -> Result<(), TestSlashstepServe
   for request in unprocessable_entity_requests {
 
     let response = request
-      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
       .await;
 
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -393,10 +393,10 @@ async fn verify_permission_when_listing_item_types() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Create a dummy action.
   let dummy_project = test_environment.create_random_project().await?;
@@ -410,7 +410,7 @@ async fn verify_permission_when_listing_item_types() -> Result<(), TestSlashstep
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/item-types", &dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);

@@ -46,10 +46,10 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_actions_action = Action::get_by_name("actions.get", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
@@ -65,7 +65,7 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
   let action = test_environment.create_random_action(None).await?;
 
   let response = test_server.get(&format!("/actions/{}", action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::OK);
@@ -147,10 +147,10 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user, the session, and the action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let action = test_environment.create_random_action(None).await?;
 
   // Set up the server and send the request.
@@ -162,7 +162,7 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/actions/{}", action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -183,10 +183,10 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashste
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -197,7 +197,7 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashste
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/actions/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -217,10 +217,10 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Grant access to the "actions.delete" action to the user.
   let delete_actions_action = Action::get_by_name("actions.delete", &test_environment.database_pool).await?;
@@ -244,7 +244,7 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/actions/{}", action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
@@ -329,10 +329,10 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   
   // Create a dummy action.
   let action = test_environment.create_random_action(None).await?;
@@ -346,7 +346,7 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/actions/{}", action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -366,10 +366,10 @@ async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSla
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -380,7 +380,7 @@ async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSla
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.delete(&format!("/actions/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -400,10 +400,10 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_actions_action = Action::get_by_name("actions.update", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_actions_action.id, &ActionPermissionLevel::User).await?;
 
@@ -421,7 +421,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/actions/{}", original_action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!({
       "name": new_name,
       "display_name": new_display_name,
@@ -602,10 +602,10 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Set up the server and send the request.
   let action = test_environment.create_random_action(None).await?;
@@ -617,7 +617,7 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/actions/{}", action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!({
       "display_name": Uuid::now_v7().to_string()
     }))
@@ -671,10 +671,10 @@ async fn verify_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepS
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "actions.update" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_actions_action = Action::get_by_name("actions.update", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &update_actions_action.id, &ActionPermissionLevel::User).await?;
 
@@ -694,7 +694,7 @@ async fn verify_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/actions/{}", dummy_action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!({
       "name": "a"
     }))
@@ -718,10 +718,10 @@ async fn verify_display_name_is_at_most_at_maximum_length() -> Result<(), TestSl
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "actions.update" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_actions_action = Action::get_by_name("actions.update", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &update_actions_action.id, &ActionPermissionLevel::User).await?;
 
@@ -741,7 +741,7 @@ async fn verify_display_name_is_at_most_at_maximum_length() -> Result<(), TestSl
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/actions/{}", dummy_action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!({
       "display_name": "a"
     }))
@@ -764,10 +764,10 @@ async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerErr
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "actions.create" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_actions_action = Action::get_by_name("actions.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_actions_action.id, &ActionPermissionLevel::User).await?;
 
@@ -791,7 +791,7 @@ async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerErr
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/actions/{}", dummy_action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(editable_action_properties))
     .await;
   
@@ -812,10 +812,10 @@ async fn verify_action_display_name_matches_regex() -> Result<(), TestSlashstepS
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "actions.create" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_actions_action = Action::get_by_name("actions.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_actions_action.id, &ActionPermissionLevel::User).await?;
 
@@ -839,7 +839,7 @@ async fn verify_action_display_name_matches_regex() -> Result<(), TestSlashstepS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.patch(&format!("/actions/{}", dummy_action.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(editable_action_properties))
     .await;
   

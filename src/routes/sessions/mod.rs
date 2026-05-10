@@ -16,9 +16,195 @@ mod tests;
 
 use std::sync::Arc;
 
-use axum::{Extension, Json, Router, extract::{Query, State}};
+use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
+use axum_extra::extract::{CookieJar, cookie::{Cookie, Expiration, SameSite}};
+use chrono::Utc;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, ResourceError, access_policy::{ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Session}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
+use rust_decimal::prelude::ToPrimitive;
+use serde::{Deserialize, Serialize};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialSessionProperties, Session}, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_private_key, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_username, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LoginCredentials {
+  pub username: String,
+  pub password: String
+}
+
+/// POST /sessions
+/// 
+/// Creates a session for the authenticated user.
+#[axum::debug_handler]
+async fn handle_create_session_request(
+  State(state): State<AppState>, 
+  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+  Extension(authenticated_user): Extension<Option<Arc<User>>>,
+  Extension(authenticated_app): Extension<Option<Arc<App>>>,
+  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+  cookie_jar: CookieJar,
+  body: Result<Json<LoginCredentials>, JsonRejection>
+) -> Result<(StatusCode, CookieJar, Json<Session>), HTTPError> {
+
+  // Make sure the requestor can create sessions on the target user.
+  let login_credentials = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+  let target_user = get_user_by_username(&login_credentials.username, &http_transaction, &state.database_pool).await?;
+  let create_sessions_action = get_action_by_name("sessions.create", &http_transaction, &state.database_pool).await?;
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_sessions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::User, Some(&target_user.id), &create_sessions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+
+  // Verify login credentials.
+  if let Err(error) = target_user.verify_password(&login_credentials.password) {
+
+    let http_error = match error {
+
+      ResourceError::Argon2PasswordHashError(error) => match error {
+        
+        argon2::password_hash::Error::Password => Some(HTTPError::Unauthorized(Some("Invalid username or password. Check your credentials and try again.".to_string()))),
+
+        _ => None
+
+      }
+
+      _ => None
+
+    }.unwrap_or(HTTPError::InternalServerError(Some(format!("Failed to verify user password: {:?}", error))));
+
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
+  // Make sure the user can create sessions on themself.
+  verify_principal_permissions(&principal_type, &principal_id, false, &ResourceType::User, Some(&target_user.id), &create_sessions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+
+  // Create the authenticated session.
+  ServerLogEntry::trace(&format!("Creating session for user {}...", target_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+
+  let maximum_refresh_token_lifetime_milliseconds = match get_configuration_by_name("sessions.maximumRefreshTokenLifetimeMilliseconds", &http_transaction, &state.database_pool).await {
+
+    Ok(configuration) => {
+
+      let number_value = configuration.number_value.or(configuration.default_number_value);
+      if let Some(maximum_refresh_token_lifetime_milliseconds) = number_value && let Some(maximum_refresh_token_lifetime_milliseconds) = maximum_refresh_token_lifetime_milliseconds.to_i64() {
+
+        maximum_refresh_token_lifetime_milliseconds
+
+      } else {
+
+        let http_error = HTTPError::InternalServerError(Some("The sessions.maximumRefreshTokenLifetimeMilliseconds configuration must have a number value.".to_string()));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(http_error);
+
+      }
+
+    }
+
+    Err(http_error) => return Err(http_error)
+
+  };
+
+  let created_session = match Session::create(&InitialSessionProperties {
+    user_id: target_user.id,
+    expiration_date: Utc::now() + chrono::Duration::milliseconds(maximum_refresh_token_lifetime_milliseconds),
+    creation_ip_address: http_transaction.ip_address.clone()
+  }, &state.database_pool).await {
+
+    Ok(created_session) => created_session,
+
+    Err(error) => {
+
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create session: {:?}", error)));
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      return Err(http_error)
+
+    }
+
+  };
+
+  // Add the session token to the client's cookies.
+  let jwt_private_key = get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await?;
+  let maximum_access_token_lifetime_milliseconds = match get_configuration_by_name("sessions.maximumAccessTokenLifetimeMilliseconds", &http_transaction, &state.database_pool).await {
+
+    Ok(configuration) => {
+
+      let number_value = configuration.number_value.or(configuration.default_number_value);
+      if let Some(maximum_access_token_lifetime_milliseconds) = number_value && let Some(maximum_access_token_lifetime_milliseconds) = maximum_access_token_lifetime_milliseconds.to_i64() {
+
+        maximum_access_token_lifetime_milliseconds
+
+      } else {
+
+        let http_error = HTTPError::InternalServerError(Some("The sessions.maximumAccessTokenLifetimeMilliseconds configuration must have a number value.".to_string()));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+        return Err(http_error);
+
+      }
+
+    }
+
+    Err(http_error) => return Err(http_error)
+
+  };
+  
+  let access_token = if let Ok(token) = created_session.generate_access_token(&jwt_private_key, Utc::now() + chrono::Duration::milliseconds(maximum_access_token_lifetime_milliseconds)).await {
+    
+    token
+
+  } else {
+    
+    let http_error = HTTPError::InternalServerError(Some("Failed to generate session token.".to_string()));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  };
+
+  let refresh_token = if let Ok(token) = created_session.generate_refresh_token(&jwt_private_key).await {
+    
+    token
+
+  } else {
+    
+    let http_error = HTTPError::InternalServerError(Some("Failed to generate refresh token.".to_string()));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  };
+
+  let session_access_token_cookie = Cookie::build(("session_access_token", access_token))
+    .http_only(true)
+    .secure(true)
+    .same_site(SameSite::Strict)
+    .max_age(time::Duration::milliseconds(maximum_access_token_lifetime_milliseconds))
+    .build();
+
+  let session_refresh_token_cookie = Cookie::build(("session_refresh_token", refresh_token))
+    .http_only(true)
+    .secure(true)
+    .same_site(SameSite::Strict)
+    .max_age(time::Duration::milliseconds(maximum_refresh_token_lifetime_milliseconds))
+    .build();
+
+  let cookie_jar = cookie_jar
+    .add(session_access_token_cookie)
+    .add(session_refresh_token_cookie);
+
+  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+  ActionLogEntry::create(&InitialActionLogEntryProperties {
+    action_id: create_sessions_action.id,
+    http_transaction_id: Some(http_transaction.id),
+    expiration_timestamp,
+    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
+    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
+    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
+    target_resource_type: ResourceType::Session,
+    target_session_id: Some(created_session.id),
+    ..Default::default()
+  }, &state.database_pool).await.ok();
+  ServerLogEntry::success(&format!("Successfully created session {}.", created_session.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+
+  return Ok((StatusCode::CREATED, cookie_jar, Json(created_session)));
+
+}
 
 /// GET /sessions
 /// 
@@ -107,6 +293,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/sessions", axum::routing::get(handle_list_sessions_request))
+    .route("/sessions", axum::routing::post(handle_create_session_request))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))

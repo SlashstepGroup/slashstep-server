@@ -29,10 +29,10 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "roles.get" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
 
@@ -59,7 +59,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/roles", &dummy_group.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .await;
   
   // Verify the response.
@@ -93,10 +93,10 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "roles.get" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
 
@@ -124,7 +124,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/roles", &dummy_role.parent_group_id.unwrap()))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .add_query_param("query", &additional_query)
     .await;
   
@@ -159,10 +159,10 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "roles.get" action to the user.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
 
@@ -194,7 +194,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/roles", &dummy_group.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -218,10 +218,10 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "roles.get" action to the user.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
 
@@ -242,7 +242,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/roles", &dummy_group.id))
     .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -262,10 +262,10 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "roles.get" action to the user.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
 
@@ -298,7 +298,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   for request in bad_requests {
 
     let response = request
-      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
       .await;
 
     assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -315,7 +315,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   for request in unprocessable_entity_requests {
 
     let response = request
-      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
       .await;
 
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -368,10 +368,10 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a user and a session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Create dummy resources.
   let dummy_group = test_environment.create_random_group().await?;
@@ -386,7 +386,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/groups/{}/roles", &dummy_group.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -435,10 +435,10 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "apps.create" action.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
 
@@ -459,7 +459,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/groups/{}/roles", dummy_group.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_role_properties))
     .await;
   
@@ -562,10 +562,10 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   
   // Create a dummy resource.
   let dummy_group = test_environment.create_random_group().await?;
@@ -584,7 +584,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/groups/{}/roles", dummy_group.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .add_header("Content-Type", "application/json")
     .json(&serde_json::json!(initial_role_properties))
     .await;

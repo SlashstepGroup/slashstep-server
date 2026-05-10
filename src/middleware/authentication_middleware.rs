@@ -137,7 +137,7 @@ pub async fn authenticate_user(
 ) -> Result<Response, HTTPError> {
 
   // Get the cookie from the request.
-  let Some(session_token) = cookie_jar.get("sessionToken") else {
+  let Some(session_token) = cookie_jar.get("session_access_token") else {
 
     // Use an anonymous user.
     ServerLogEntry::trace("No user token found in request. Checking for existing anonymous user...", Some(&http_transaction.id), &state.database_pool).await.ok();

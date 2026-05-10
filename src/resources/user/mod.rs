@@ -283,6 +283,42 @@ impl User {
 
   }
 
+  pub async fn get_by_username(username: &str, database_pool: &deadpool_postgres::Pool) -> Result<User, ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/users/get_user_row_by_username.sql");
+    let row = match database_client.query_opt(query, &[&username]).await {
+
+      Ok(row) => match row {
+
+        Some(row) => row,
+
+        None => return Err(ResourceError::NotFoundError(format!("A user with the username \"{}\" does not exist.", username)))
+
+      },
+
+      Err(error) => match error.as_db_error() {
+
+        Some(db_error) => match db_error.code() {
+
+          &SqlState::NO_DATA_FOUND => return Err(ResourceError::NotFoundError(format!("A user with the username \"{}\" does not exist.", username))),
+
+          _ => return Err(ResourceError::PostgresError(error))
+
+        },
+
+        None => return Err(ResourceError::PostgresError(error))
+
+      }
+
+    };
+
+    let user = User::convert_from_row(&row);
+
+    return Ok(user);
+
+  }
+
   pub fn get_hashed_password(&self) -> &str {
 
     let hashed_password = self.hashed_password.as_ref().expect("User does not have a hashed password.");

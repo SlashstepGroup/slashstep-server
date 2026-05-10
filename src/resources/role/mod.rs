@@ -416,9 +416,29 @@ impl Role {
 
       return Ok(Box::new(uuid));
 
-    }
+    } 
 
-    return Ok(Box::new(value));
+    match key {
+
+      "protected_role_type" => {
+
+        let protected_role_type = match value {
+
+          "AnonymousUsers" => ProtectedRoleType::AnonymousUsers,
+          "GroupAdmins" => ProtectedRoleType::GroupAdmins,
+          "GroupMembers" => ProtectedRoleType::GroupMembers,
+          "ServerAdmins" => ProtectedRoleType::ServerAdmins,
+          _ => return Err(SlashstepQLError::StringParserError(format!("Failed to parse protected role type from \"{}\" for key \"{}\".", value, key)))
+
+        };
+
+        return Ok(Box::new(protected_role_type));
+
+      },
+
+      _ => return Ok(Box::new(value.to_string()))
+
+    }
 
   }
 

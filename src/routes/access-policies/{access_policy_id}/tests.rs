@@ -46,10 +46,10 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
@@ -63,7 +63,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
 
   let response = test_server.get(&format!("/access-policies/{}", access_policy.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   assert_eq!(response.status_code(), StatusCode::OK);
 
@@ -168,14 +168,14 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let access_policy = test_environment.create_random_access_policy().await?;
 
   let response = test_server.get(&format!("/access-policies/{}", access_policy.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
@@ -203,13 +203,13 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   let response = test_server.get(&format!("/access-policies/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
@@ -235,10 +235,10 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let delete_access_policies_action = Action::get_by_name("accessPolicies.delete", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: delete_access_policies_action.id,
@@ -252,7 +252,7 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
 
   let response = test_server.delete(&format!("/access-policies/{}", access_policy.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
@@ -342,14 +342,14 @@ async fn verify_permission_when_deleting_access_policy_by_id() -> Result<(), Tes
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let access_policy = test_environment.create_random_access_policy().await?;
 
   let response = test_server.delete(&format!("/access-policies/{}", access_policy.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
@@ -376,13 +376,13 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id() -> Resu
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   let response = test_server.delete(&format!("/access-policies/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
@@ -409,10 +409,10 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_access_policies_action = Action::get_by_name("accessPolicies.update", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
@@ -426,7 +426,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
 
   let response = test_server.patch(&format!("/access-policies/{}", access_policy.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!({
       "permission_level": "User",
       "is_inheritance_enabled": false
@@ -594,7 +594,7 @@ async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(),
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let get_access_policies_action = Action::get_by_name("accessPolicies.update", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
@@ -638,10 +638,10 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_access_policies_action = Action::get_by_name("accessPolicies.update", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: update_access_policies_action.id,
@@ -655,7 +655,7 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
   let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
 
   let response = test_server.patch(&format!("/access-policies/{}", access_policy.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!({
       "permission_level": "User",
       "is_inheritance_enabled": false
