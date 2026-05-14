@@ -55,4 +55,3 @@ testcontainers = { version = "0.26.3" }
 testcontainers-modules = { version = "0.14.0", features = ["postgres", "blocking"] }
 axum-test = "20.0.0"
 anyhow = "1.0.102"
-fakedata_generator = "0.7.1"
