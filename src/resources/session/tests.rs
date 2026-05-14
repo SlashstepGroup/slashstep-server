@@ -56,7 +56,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
 
   let session_properties = InitialSessionProperties {
-    user_id: test_environment.create_random_user().await?.id,
+    user_id: test_environment.create_random_user(None).await?.id,
     expiration_date: chrono::Utc::now() + chrono::Duration::days(30),
     creation_ip_address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
   };
@@ -233,7 +233,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Get the "server_log_entries.get" action one time.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let get_server_log_entries_action = Action::get_by_name(GET_RESOURCE_ACTION_NAME, &test_environment.database_pool).await?;
 
   // Grant access to the "server_log_entries.get" action to the user for half of the actions.

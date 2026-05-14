@@ -64,13 +64,8 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 FROM
                     get_principal_access_policies(parameter_principal_type, parameter_principal_id, parameter_action_id, selected_resource_type, selected_resource_id, needs_inheritance) matching_access_policies
                 WHERE
-                    (
-                        matching_access_policies.principal_type = 'User' OR
-                        matching_access_policies.principal_type = 'App'
-                    ) AND (
-                        individual_permission_level IS NULL OR
-                        matching_access_policies.permission_level > individual_permission_level
-                    )
+                    individual_permission_level IS NULL
+                    OR matching_access_policies.permission_level > individual_permission_level
                 ORDER BY
                     CASE matching_access_policies.permission_level
                         WHEN 'None' THEN 1
@@ -103,13 +98,8 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 FROM
                     get_principal_access_policies(parameter_principal_type, parameter_principal_id, parameter_action_id, selected_resource_type, selected_resource_id, needs_inheritance) matching_access_policies
                 WHERE
-                    (
-                        matching_access_policies.principal_type = 'User' OR
-                        matching_access_policies.principal_type = 'App'
-                    ) AND (
-                        role_permission_level IS NULL OR
-                        matching_access_policies.permission_level > role_permission_level
-                    )
+                    role_permission_level IS NULL
+                    OR matching_access_policies.permission_level > role_permission_level
                 ORDER BY
                     CASE matching_access_policies.permission_level
                         WHEN 'None' THEN 1
@@ -142,13 +132,8 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 FROM
                     get_principal_access_policies(parameter_principal_type, parameter_principal_id, parameter_action_id, selected_resource_type, selected_resource_id, needs_inheritance) matching_access_policies
                 WHERE
-                    (
-                        matching_access_policies.principal_type = 'User' OR
-                        matching_access_policies.principal_type = 'App'
-                    ) AND (
-                        group_permission_level IS NULL OR
-                        matching_access_policies.permission_level > group_permission_level
-                    )
+                    group_permission_level IS NULL
+                    OR matching_access_policies.permission_level > group_permission_level
                 ORDER BY
                     CASE matching_access_policies.permission_level
                         WHEN 'None' THEN 1

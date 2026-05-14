@@ -28,6 +28,7 @@ mod access_policies;
 #[path = "./oauth-authorizations/mod.rs"]
 mod oauth_authorizations;
 mod password;
+mod sessions;
 #[cfg(test)]
 mod tests;
 
@@ -226,7 +227,8 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
     .merge(access_policies::get_router(state.clone()))
     .merge(oauth_authorizations::get_router(state.clone()))
-    .merge(password::get_router(state.clone()));
+    .merge(password::get_router(state.clone()))
+    .merge(sessions::get_router(state.clone()));
   return router;
 
 }

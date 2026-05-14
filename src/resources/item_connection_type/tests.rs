@@ -242,7 +242,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Get the "item_connection_type_types.get" action one time.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let get_item_connection_type_types_action = Action::get_by_name(GET_RESOURCE_ACTION_NAME, &test_environment.database_pool).await?;
 
   // Grant access to the "item_connection_type_types.get" action to the user for half of the actions.

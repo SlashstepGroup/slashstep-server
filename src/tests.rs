@@ -1,11 +1,11 @@
-use std::sync::{Arc};
+use std::{net::{IpAddr, Ipv6Addr}, sync::Arc};
 
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
 use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePublicKey, spki::der::pem::LineEnding}};
 use local_ip_address::local_ip;
 use postgres::NoTls;
-use rand::distr::{Alphanumeric, SampleString};
+use rand::{RngExt, distr::{Alphanumeric, SampleString}, rngs::ThreadRng};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
@@ -137,7 +137,7 @@ impl TestEnvironment {
 
     let oauth_authorization_properties = InitialOAuthAuthorizationProperties {
       app_id: app_id.copied().unwrap_or(self.create_random_app().await?.id),
-      authorizing_user_id: self.create_random_user().await?.id,
+      authorizing_user_id: self.create_random_user(None).await?.id,
       code_challenge: code_challenge.map(|code_challenge| code_challenge.to_string()),
       code_challenge_method: code_challenge.and(Some("S256".to_string())),
       redirect_uri: None,
@@ -227,7 +227,7 @@ impl TestEnvironment {
   pub async fn create_random_action_log_entry(&self) -> Result<ActionLogEntry, TestSlashstepServerError> {
 
     let action = self.create_random_action(None).await?;
-    let user = self.create_random_user().await?;
+    let user = self.create_random_user(None).await?;
 
     let action_log_entry_properties = InitialActionLogEntryProperties {
       action_id: action.id,
@@ -258,7 +258,7 @@ impl TestEnvironment {
   pub async fn create_random_delegation_policy(&self) -> Result<DelegationPolicy, TestSlashstepServerError> {
 
     let action = self.create_random_action(None).await?;
-    let user = self.create_random_user().await?;
+    let user = self.create_random_user(None).await?;
 
     let delegation_policy_properties = InitialDelegationPolicyProperties {
       action_id: action.id,
@@ -477,9 +477,9 @@ impl TestEnvironment {
       parent_resource_type: MembershipParentResourceType::Group,
       parent_group_id: Some(self.create_random_group().await?.id),
       invitee_principal_type: MembershipInvitationInviteePrincipalType::User,
-      invitee_principal_user_id: Some(self.create_random_user().await?.id),
+      invitee_principal_user_id: Some(self.create_random_user(None).await?.id),
       inviter_principal_type: MembershipPrincipalType::User,
-      inviter_principal_user_id: Some(self.create_random_user().await?.id),
+      inviter_principal_user_id: Some(self.create_random_user(None).await?.id),
       ..Default::default()
     };
 
@@ -509,7 +509,7 @@ impl TestEnvironment {
 
   pub async fn create_random_password_reset_authorization(&self, user_id: Option<&Uuid>) -> Result<PasswordResetAuthorization, TestSlashstepServerError> {
 
-    let user_id = user_id.copied().unwrap_or(self.create_random_user().await?.id);
+    let user_id = user_id.copied().unwrap_or(self.create_random_user(None).await?.id);
     let password_reset_authorization_properties = InitialPasswordResetAuthorizationProperties {
       user_id: user_id,
       expiration_date: Utc::now() + Duration::days(1),
@@ -575,7 +575,19 @@ impl TestEnvironment {
   pub async fn create_random_session(&self, user_id: Option<&Uuid>) -> Result<Session, TestSlashstepServerError> {
 
     let local_ip = local_ip()?;
-    let user_id = user_id.copied().unwrap_or(self.create_random_user().await?.id);
+    let user_id = match user_id.copied() {
+
+      Some(user_id) => user_id,
+
+      None => {
+
+        let user = self.create_random_user(None).await?;
+        user.id.clone()
+
+      }
+
+    };
+    
     let session_properties = InitialSessionProperties {
       user_id: user_id,
       expiration_date: (Utc::now() + Duration::days(30)),
@@ -607,14 +619,32 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_user(&self) -> Result<User, TestSlashstepServerError> {
+  pub async fn create_random_user(&self, plain_text_password: Option<&String>) -> Result<User, TestSlashstepServerError> {
+
+    let hashed_password = if let Some(plain_text_password) = plain_text_password {
+      Some(User::hash_password(plain_text_password)?)
+    } else {
+      None
+    };
+
+    let is_anonymous = plain_text_password.is_none();
+    let ip_address = if is_anonymous {
+
+      let random_bytes: [u8; 16] = rand::rng().random();
+      Some(IpAddr::V6(Ipv6Addr::from(random_bytes)))
+
+    } else {
+
+      None
+
+    };
 
     let user_properties = InitialUserProperties {
-      username: Some(Uuid::now_v7().to_string()),
+      username: if is_anonymous { None } else { Some(Uuid::now_v7().to_string()) },
       display_name: Some(Uuid::now_v7().to_string()),
-      hashed_password: Some(Uuid::now_v7().to_string()),
-      is_anonymous: false,
-      ip_address: None
+      hashed_password: hashed_password,
+      is_anonymous,
+      ip_address
     };
 
     let user = User::create(&user_properties, &self.database_pool).await?;
@@ -656,7 +686,7 @@ impl TestEnvironment {
   pub async fn create_random_access_policy(&self) -> Result<AccessPolicy, TestSlashstepServerError> {
 
     let action = self.create_random_action(None).await?;
-    let user = self.create_random_user().await?;
+    let user = self.create_random_user(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
       permission_level: crate::resources::access_policy::ActionPermissionLevel::User,

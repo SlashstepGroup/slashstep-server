@@ -14,8 +14,8 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use rust_decimal::Decimal;
 use uuid::Uuid;
+use rust_decimal::Decimal;
 use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, status::{DEFAULT_RESOURCE_LIST_LIMIT, InitialStatusPropertiesWithPredefinedParent, Status, StatusType}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
 
 #[tokio::test]
@@ -28,10 +28,11 @@ async fn verify_successful_status_creation() -> Result<(), TestSlashstepServerEr
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "statuses.create" action.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -53,7 +54,7 @@ async fn verify_successful_status_creation() -> Result<(), TestSlashstepServerEr
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/projects/{}/statuses", dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_status_properties))
     .await;
   
@@ -82,10 +83,11 @@ async fn verify_status_name_is_at_most_at_maximum_length() -> Result<(), TestSla
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "statuses.create" action.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -113,7 +115,7 @@ async fn verify_status_name_is_at_most_at_maximum_length() -> Result<(), TestSla
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/projects/{}/statuses", project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_status_properties))
     .await;
   
@@ -134,10 +136,11 @@ async fn verify_status_display_name_is_at_most_at_maximum_length() -> Result<(),
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "statuses.create" action.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -165,7 +168,7 @@ async fn verify_status_display_name_is_at_most_at_maximum_length() -> Result<(),
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/projects/{}/statuses", project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_status_properties))
     .await;
   
@@ -186,10 +189,11 @@ async fn verify_status_description_is_at_most_at_maximum_length() -> Result<(), 
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "statuses.create" action.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -217,7 +221,7 @@ async fn verify_status_description_is_at_most_at_maximum_length() -> Result<(), 
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/projects/{}/statuses", project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_status_properties))
     .await;
   
@@ -238,10 +242,11 @@ async fn verify_status_name_matches_regex() -> Result<(), TestSlashstepServerErr
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "statuses.create" action.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -269,7 +274,7 @@ async fn verify_status_name_matches_regex() -> Result<(), TestSlashstepServerErr
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.post(&format!("/projects/{}/statuses", project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .json(&serde_json::json!(initial_status_properties))
     .await;
   
@@ -291,10 +296,11 @@ async fn verify_returned_status_list_without_query() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "statuses.get" action.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -315,7 +321,7 @@ async fn verify_returned_status_list_without_query() -> Result<(), TestSlashstep
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .await;
   
   // Verify the response.
@@ -349,10 +355,11 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "statuses.get" action.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -374,7 +381,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", &session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .add_query_param("query", &additional_query)
     .await;
   
@@ -409,10 +416,11 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "statuses.get" action.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -436,7 +444,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::OK);
@@ -459,10 +467,11 @@ async fn verify_maximum_status_list_limit() -> Result<(), TestSlashstepServerErr
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
   let list_statuses_action = Action::get_by_name("statuses.list", &test_environment.database_pool).await?;
@@ -481,7 +490,7 @@ async fn verify_maximum_status_list_limit() -> Result<(), TestSlashstepServerErr
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -502,10 +511,11 @@ async fn verify_query_when_listing_statuses() -> Result<(), TestSlashstepServerE
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
   test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
 
@@ -536,7 +546,7 @@ async fn verify_query_when_listing_statuses() -> Result<(), TestSlashstepServerE
   for request in bad_requests {
 
     let response = request
-      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
       .await;
 
     assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -553,7 +563,7 @@ async fn verify_query_when_listing_statuses() -> Result<(), TestSlashstepServerE
   for request in unprocessable_entity_requests {
 
     let response = request
-      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
       .await;
 
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -606,10 +616,11 @@ async fn verify_permission_when_listing_statuses() -> Result<(), TestSlashstepSe
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Create a dummy action.
   let dummy_project = test_environment.create_random_project().await?;
@@ -623,7 +634,7 @@ async fn verify_permission_when_listing_statuses() -> Result<(), TestSlashstepSe
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);

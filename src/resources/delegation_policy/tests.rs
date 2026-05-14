@@ -58,7 +58,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 
   // Create the access policy.
   let action = test_environment.create_random_action(None).await?;
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
 
   let delegation_policy_properties = InitialDelegationPolicyProperties {
     action_id: action.id,
@@ -241,7 +241,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Get the "delegation_policies.get" action one time.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let get_delegation_policies_action = Action::get_by_name(GET_RESOURCE_ACTION_NAME, &test_environment.database_pool).await?;
 
   // Grant access to the "delegation_policies.get" action to the user for half of the actions.

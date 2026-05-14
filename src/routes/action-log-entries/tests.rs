@@ -14,6 +14,7 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
+use uuid::Uuid;
 use crate::{
   AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, 
@@ -37,10 +38,11 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "actionLogEntries.get" action to the user.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
@@ -76,7 +78,7 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -129,10 +131,11 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "actionLogEntries.get" action to the user.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
@@ -169,7 +172,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   let test_server = TestServer::new(router);
   let query = format!("action_id = {}", quote_literal(&dummy_action_log_entry.action_id.to_string()));
   let response = test_server.get(&format!("/action-log-entries"))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .add_query_param("query", &query)
     .await;
   
@@ -209,10 +212,11 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "actionLogEntries.get" action to the user.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
@@ -253,7 +257,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
@@ -277,10 +281,11 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "actionLogEntries.get" action to the user.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
@@ -314,7 +319,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
     .add_query_param("query", format!("limit {}", DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT + 1))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -334,10 +339,11 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "actionLogEntries.get" action to the user.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
@@ -383,7 +389,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
   for request in bad_requests {
 
     let response = request
-      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
       .await;
 
     assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -400,7 +406,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
   for request in unprocessable_entity_requests {
 
     let response = request
-      .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
       .await;
 
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -450,10 +456,11 @@ async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestS
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a user and a session.
-  let user = test_environment.create_random_user().await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_json_web_token(&json_web_token_private_key).await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -465,7 +472,7 @@ async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestS
   let test_server = TestServer::new(router);
   let response = test_server.get(&format!("/action-log-entries"))
     .add_query_param("query", format!("limit {}", DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT + 1))
-    .add_cookie(Cookie::new("sessionToken", format!("Bearer {}", session_token)))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.

@@ -227,7 +227,7 @@ pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, ac
 
   if !can_delegate_perform_action(Some(app_authorization_id), action_id, http_transaction_id, required_permission_level, database_pool).await? {
 
-    return Err(HTTPError::ForbiddenError(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id))))
+    return Err(HTTPError::Forbidden(Some(format!("The app authorization {} does not have access to the action {}.", app_authorization_id, action_id))))
 
   }
 
@@ -308,7 +308,7 @@ pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipal
 
     };
     let message = format!("You need at least {} permission to the \"{}\" action on {}.", minimum_permission_level.to_string(), action.name, location);
-    let http_error = if is_principal_anonymous { HTTPError::Unauthorized(Some(message)) } else { HTTPError::ForbiddenError(Some(message)) };
+    let http_error = if is_principal_anonymous { HTTPError::Unauthorized(Some(message)) } else { HTTPError::Forbidden(Some(message)) };
     ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
     return Err(http_error);
 
@@ -380,6 +380,34 @@ pub async fn get_user_by_id(user_id: &Uuid, http_transaction: &HTTPTransaction, 
         ResourceError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
 
         error => HTTPError::InternalServerError(Some(format!("Failed to get user {}: {:?}", user_id, error)))
+
+      };
+      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();
+      return Err(http_error);
+
+    }
+
+  };
+
+  return Ok(user);
+
+}
+
+pub async fn get_user_by_username(username: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<User, HTTPError> {
+
+  ServerLogEntry::trace(&format!("Getting user with username \"{}\"...", username), Some(&http_transaction.id), &database_pool).await.ok();
+
+  let user = match User::get_by_username(&username, database_pool).await {
+
+    Ok(user) => user,
+
+    Err(resource_error) => {
+
+      let http_error = match resource_error {
+        
+        ResourceError::NotFoundError(message) => HTTPError::NotFoundError(Some(message)),
+
+        error => HTTPError::InternalServerError(Some(format!("Failed to get user \"{}\": {:?}", username, error)))
 
       };
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool).await.ok();

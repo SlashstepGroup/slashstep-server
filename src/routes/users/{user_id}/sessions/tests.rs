@@ -1,6 +1,6 @@
 /**
  * 
- * Any test cases for /field-choices should be handled here.
+ * Any test cases for /sessions/{user_id}/sessions should be handled here.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -15,16 +15,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{
-  AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles
-  }, resources::{
-    access_policy::{
-      AccessPolicyPrincipalType, ActionPermissionLevel
-    }, action::Action, field_choice::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, FieldChoice},
-  }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
-};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Session}}, routes::{ListResourcesResponseBody}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -35,22 +26,22 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
-
-  // Grant access to the "fieldChoices.get" action to the user.
+  
+  // Give the user access to the "sessions.get" action.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_field_choices_action = Action::get_by_name("fieldChoices.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
 
-  // Grant access to the "fieldChoices.list" action to the user.
-  let list_field_choices_action = Action::get_by_name("fieldChoices.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  // Give the user access to the "sessions.list" action.
+  let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
 
-  // Create a dummy delegation policy.
-  test_environment.create_random_field_choice(None).await?;
+  // Create dummy resources.
+  let dummy_session = test_environment.create_random_session(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -60,29 +51,25 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/field-choices"))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
+  let response = test_server.get(&format!("/users/{}/sessions", &dummy_session.user_id))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .await;
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_json: ListResourcesResponseBody::<FieldChoice> = response.json();
-  assert!(response_json.total_count > 0);
-  assert!(response_json.resources.len() > 0);
+  let response_body: ListResourcesResponseBody::<Session> = response.json();
+  assert_eq!(response_body.total_count, 1);
+  assert_eq!(response_body.resources.len(), 1);
 
-  let actual_field_choice_count = FieldChoice::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.total_count, actual_field_choice_count);
+  let query = format!("user_id = {}", quote_literal(&dummy_session.user_id.to_string()));
+  let actual_session_count = Session::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
+  assert_eq!(response_body.total_count, actual_session_count);
 
-  let actual_field_choices = FieldChoice::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.resources.len(), actual_field_choices.len());
-
-  for actual_field_choice in actual_field_choices {
-
-    let found_access_policy = response_json.resources.iter().find(|field_choice| field_choice.id == actual_field_choice.id);
-    assert!(found_access_policy.is_some());
-
-  }
+  let actual_sessions = Session::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
+  assert_eq!(response_body.resources.len(), actual_sessions.len());
+  assert_eq!(response_body.resources[0].id, actual_sessions[0].id);
+  assert_eq!(response_body.resources[0].id, dummy_session.id);
 
   return Ok(());
 
@@ -98,56 +85,51 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Grant access to the "apps.get" action to the user.
+  // Give the user access to the "sessions.get" action.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_field_choices_action = Action::get_by_name("fieldChoices.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
 
-  // Grant access to the "apps.list" action to the user.
-  let list_field_choices_action = Action::get_by_name("fieldChoices.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  // Give the user access to the "sessions.list" action.
+  let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
 
-  // Create a dummy delegation policy.
-  let dummy_field_choice = test_environment.create_random_field_choice(None).await?;
+  // Create dummy resources.
+  let dummy_session = test_environment.create_random_session(None).await?;
 
   // Set up the server and send the request.
+  let additional_query = format!("id = {}", quote_literal(&dummy_session.id.to_string()));
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
-
   let router = super::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let query = format!("id = {}", quote_literal(&dummy_field_choice.id.to_string()));
-  let response = test_server.get(&format!("/field-choices"))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .add_query_param("query", &query)
+  let response = test_server.get(&format!("/users/{}/sessions", &dummy_session.user_id))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
+    .add_query_param("query", &additional_query)
     .await;
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_json: ListResourcesResponseBody::<FieldChoice> = response.json();
-  assert!(response_json.total_count > 0);
-  assert!(response_json.resources.len() > 0);
+  let response_body: ListResourcesResponseBody::<Session> = response.json();
+  assert_eq!(response_body.total_count, 1);
+  assert_eq!(response_body.resources.len(), 1);
 
-  let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.total_count, actual_field_choice_count);
+  let query = format!("user_id = {} AND ({})", quote_literal(&dummy_session.user_id.to_string()), &additional_query);
+  let actual_session_count = Session::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
+  assert_eq!(response_body.total_count, actual_session_count);
 
-  let actual_field_choices = FieldChoice::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.resources.len(), actual_field_choices.len());
-
-  for actual_field_choice in actual_field_choices {
-
-    let found_action = response_json.resources.iter().find(|field_choice| field_choice.id == actual_field_choice.id);
-    assert!(found_action.is_some());
-
-  }
+  let actual_sessions = Session::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
+  assert_eq!(response_body.resources.len(), actual_sessions.len());
+  assert_eq!(response_body.resources[0].id, actual_sessions[0].id);
+  assert_eq!(response_body.resources[0].id, dummy_session.id);
 
   return Ok(());
 
@@ -163,24 +145,25 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Grant access to the "fieldChoices.get" action to the user.
+  // Grant access to the "sessions.get" action to the user.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_field_choices_action = Action::get_by_name("fieldChoices.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
 
-  // Grant access to the "fieldChoices.list" action to the user.
-  let list_field_choices_action = Action::get_by_name("fieldChoices.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  // Grant access to the "sessions.list" action to the user.
+  let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
 
-  // Create dummy delegation policies.
-  let field_choice_count = FieldChoice::count("", &test_environment.database_pool, None, None).await?;
-  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - field_choice_count + 1) {
+  // Create dummy resources.
+  let dummy_user = test_environment.create_random_user(None).await?;
+  let session_count = Session::count(format!("user_id = {}", quote_literal(&dummy_user.id.to_string())).as_str(), &test_environment.database_pool, None, None).await?;
+  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - session_count + 1) {
 
-    test_environment.create_random_field_choice(None).await?;
+    test_environment.create_random_session(Some(&dummy_user.id)).await?;
 
   }
 
@@ -192,14 +175,14 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/field-choices"))
+  let response = test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListResourcesResponseBody::<FieldChoice> = response.json();
+  let response_body: ListResourcesResponseBody::<Session> = response.json();
   assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
@@ -216,18 +199,21 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Grant access to the "fieldChoices.get" action to the user.
+  // Grant access to the "sessions.get" action to the user.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_field_choices_action = Action::get_by_name("fieldChoices.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
 
-  // Grant access to the "apps.list" action to the user.
-  let list_field_choices_action = Action::get_by_name("fieldChoices.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  // Grant access to the "sessions.list" action to the user.
+  let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+
+  // Create dummy resources.
+  let dummy_user = test_environment.create_random_user(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -237,7 +223,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/field-choices"))
+  let response = test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
     .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
@@ -250,7 +236,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
 
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
-async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
+async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -258,18 +244,21 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Grant access to the "fieldChoices.get" action to the user.
+  // Grant access to the "sessions.get" action to the user.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_field_choices_action = Action::get_by_name("fieldChoices.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
 
-  // Grant access to the "fieldChoices.list" action to the user.
-  let list_field_choices_action = Action::get_by_name("fieldChoices.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  // Grant access to the "sessions.list" action to the user.
+  let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+
+  // Create dummy resources.
+  let dummy_user = test_environment.create_random_user(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -282,14 +271,12 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let test_server = TestServer::new(router);
 
   let bad_requests = vec![
-    test_server.get(&format!("/field-choices"))
-      .add_query_param("query", format!("id ~ {}", quote_literal(&get_field_choices_action.id.to_string()))),
-    test_server.get(&format!("/field-choices"))
-      .add_query_param("query", format!("SELECT * FROM field_choices")),
-    test_server.get(&format!("/field-choices"))
+    test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
+      .add_query_param("query", format!("SELECT * FROM sessions")),
+    test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
       .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
-    test_server.get(&format!("/field-choices"))
-      .add_query_param("query", format!("id = null; SELECT * FROM field_choices WHERE id = {}", quote_literal(&get_field_choices_action.id.to_string())))
+    test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
+      .add_query_param("query", format!("SELECT * FROM sessions WHERE id = {}", get_sessions_action.id))
   ];
   
   for request in bad_requests {
@@ -303,8 +290,10 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   }
 
   let unprocessable_entity_requests = vec![
-    test_server.get(&format!("/field-choices"))
-      .add_query_param("query", format!("1 = 1")),
+    test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
+      .add_query_param("query", format!("app_ied = {}", get_sessions_action.id)),
+    test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
+      .add_query_param("query", format!("1 = 1"))
   ];
 
   for request in unprocessable_entity_requests {
@@ -323,13 +312,16 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
 
 /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
 #[tokio::test]
-async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
+async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Create dummy resources.
+  let dummy_user = test_environment.create_random_user(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -339,7 +331,7 @@ async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/field-choices"))
+  let response = test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
     .await;
   
   // Verify the response.
@@ -351,7 +343,7 @@ async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
 
 /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 #[tokio::test]
-async fn verify_permission() -> Result<(), TestSlashstepServerError> {
+async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -366,6 +358,9 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
+  // Create dummy resources.
+  let dummy_user = test_environment.create_random_user(None).await?;
+
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
@@ -374,12 +369,41 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/field-choices"))
+  let response = test_server.get(&format!("/users/{}/sessions", &dummy_user.id))
+    .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 404 status code when the parent resource is not found.
+#[tokio::test]
+async fn verify_parent_resource_not_found_when_listing_resources() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.get(&format!("/users/{}/sessions", &Uuid::now_v7()))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
   return Ok(());
 

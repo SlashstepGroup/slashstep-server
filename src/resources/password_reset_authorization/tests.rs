@@ -55,7 +55,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let password_reset_authorization_properties = InitialPasswordResetAuthorizationProperties {
     user_id: user.id,
     expiration_date: Utc::now() + Duration::days(30)
@@ -76,7 +76,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_app_authorization = test_environment.create_random_user().await?;
+  let created_app_authorization = test_environment.create_random_user(None).await?;
   
   created_app_authorization.delete(&test_environment.database_pool).await?;
 
@@ -235,7 +235,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   }
 
   // Get the "appAuthorizations.get" action one time.
-  let user = test_environment.create_random_user().await?;
+  let user = test_environment.create_random_user(None).await?;
   let get_password_reset_authorizations_action = Action::get_by_name("passwordResetAuthorizations.get", &test_environment.database_pool).await?;
 
   // Grant access to the "appAuthorizations.get" action to the user for half of the actions.

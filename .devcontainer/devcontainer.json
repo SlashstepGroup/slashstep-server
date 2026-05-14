@@ -7,6 +7,10 @@
 		"dockerfile": "Containerfile"
 	},
 
+	"containerEnv": {
+		"RUSTFLAGS": "-C linker=clang -C link-arg=-fuse-ld=mold"
+	},
+
 	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
 
 	"mounts": [
@@ -20,6 +24,15 @@
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1.9.1": {
 			"version": "latest",
 			"moby": false
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"github.vscode-github-actions",
+				"vadimcn.vscode-lldb",
+				"rust-lang.rust-analyzer"
+			]
 		}
 	}
 

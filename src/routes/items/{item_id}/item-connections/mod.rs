@@ -138,7 +138,7 @@ async fn handle_create_item_connection_request(
 
     match error {
 
-      HTTPError::ForbiddenError(_) => verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Item, Some(&inward_item.id), &create_item_connections_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?,
+      HTTPError::Forbidden(_) => verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Item, Some(&inward_item.id), &create_item_connections_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?,
 
       error => return Err(error)
 
