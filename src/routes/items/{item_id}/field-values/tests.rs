@@ -43,7 +43,8 @@ async fn verify_successful_field_value_creation() -> Result<(), TestSlashstepSer
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "fieldValues.create" action.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -107,7 +108,8 @@ async fn verify_returned_field_value_list_without_query() -> Result<(), TestSlas
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "fieldValues.get" action.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -165,7 +167,8 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "fieldValues.get" action.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -225,7 +228,8 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Give the user access to the "fieldValues.get" action.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -275,7 +279,8 @@ async fn verify_maximum_field_value_list_limit() -> Result<(), TestSlashstepServ
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -318,7 +323,8 @@ async fn verify_query_when_listing_field_values() -> Result<(), TestSlashstepSer
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -422,7 +428,8 @@ async fn verify_permission_when_listing_field_values() -> Result<(), TestSlashst
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;

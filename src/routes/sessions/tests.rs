@@ -14,8 +14,8 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use ntest::timeout;
 use uuid::Uuid;
+use ntest::timeout;
 use crate::{
   AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, 
@@ -126,9 +126,22 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
   initialize_predefined_roles(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
+  let create_sessions_action = Action::get_by_name("sessions.create", &test_environment.database_pool).await?;
+  let anonymous_users_role = Role::list("protected_role_type = 'AnonymousUsers' LIMIT 1", &test_environment.database_pool, None, None).await?.first().expect("There should be an anonymous users role.").clone();
+  AccessPolicy::create(&InitialAccessPolicyProperties {
+    principal_type: AccessPolicyPrincipalType::Role,
+    principal_role_id: Some(anonymous_users_role.id),
+    action_id: create_sessions_action.id,
+    permission_level: ActionPermissionLevel::User,
+    scoped_resource_type: ResourceType::Server,
+    is_inheritance_enabled: true,
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
   // Create the user.
   let plain_text_password = Uuid::now_v7().to_string();
   let dummy_user = test_environment.create_random_user(Some(&plain_text_password)).await?;
+  test_environment.create_server_access_policy(&dummy_user.id, &create_sessions_action.id, &ActionPermissionLevel::None).await?;
   let login_credentials = LoginCredentials {
     username: dummy_user.username.expect("User should have a username.").clone(),
     password: plain_text_password,
@@ -164,7 +177,8 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Grant access to the "sessions.get" action to the user.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -225,7 +239,8 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "apps.get" action to the user.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -290,7 +305,8 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "sessions.get" action to the user.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -303,10 +319,9 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 
   // Create dummy delegation policies.
   let session_count = Session::count("", &test_environment.database_pool, None, None).await?;
-  for index in 0..(DEFAULT_RESOURCE_LIST_LIMIT - session_count + 1) {
+  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - session_count + 1) {
 
-    println!("Creating session {}...", index + 1);
-    test_environment.create_random_session(None).await?;
+    test_environment.create_random_session(Some(&user.id)).await?;
 
   }
 
@@ -343,7 +358,8 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "sessions.get" action to the user.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -384,7 +400,8 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "sessions.get" action to the user.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
@@ -484,7 +501,8 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a user and a session.
-  let user = test_environment.create_random_user(None).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;

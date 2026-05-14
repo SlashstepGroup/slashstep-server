@@ -22,7 +22,7 @@ use chrono::Utc;
 use reqwest::StatusCode;
 use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialSessionProperties, Session}, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_private_key, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_username, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialSessionProperties, Session}, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_private_key, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_username, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoginCredentials {
@@ -75,6 +75,7 @@ async fn handle_create_session_request(
   }
 
   // Make sure the user can create sessions on themself.
+  let (principal_type, principal_id) = (AccessPolicyPrincipalType::User, target_user.id.clone());
   verify_principal_permissions(&principal_type, &principal_id, false, &ResourceType::User, Some(&target_user.id), &create_sessions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
   // Create the authenticated session.

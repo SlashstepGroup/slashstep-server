@@ -1,11 +1,11 @@
-use std::sync::{Arc};
+use std::{net::{IpAddr, Ipv6Addr}, sync::Arc};
 
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
 use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePublicKey, spki::der::pem::LineEnding}};
 use local_ip_address::local_ip;
 use postgres::NoTls;
-use rand::distr::{Alphanumeric, SampleString};
+use rand::{RngExt, distr::{Alphanumeric, SampleString}, rngs::ThreadRng};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
@@ -575,7 +575,19 @@ impl TestEnvironment {
   pub async fn create_random_session(&self, user_id: Option<&Uuid>) -> Result<Session, TestSlashstepServerError> {
 
     let local_ip = local_ip()?;
-    let user_id = user_id.copied().unwrap_or(self.create_random_user(None).await?.id);
+    let user_id = match user_id.copied() {
+
+      Some(user_id) => user_id,
+
+      None => {
+
+        let user = self.create_random_user(None).await?;
+        user.id.clone()
+
+      }
+
+    };
+    
     let session_properties = InitialSessionProperties {
       user_id: user_id,
       expiration_date: (Utc::now() + Duration::days(30)),
@@ -609,14 +621,30 @@ impl TestEnvironment {
 
   pub async fn create_random_user(&self, plain_text_password: Option<&String>) -> Result<User, TestSlashstepServerError> {
 
-    let hashed_password = User::hash_password(plain_text_password.unwrap_or(&Uuid::now_v7().to_string()))?;
+    let hashed_password = if let Some(plain_text_password) = plain_text_password {
+      Some(User::hash_password(plain_text_password)?)
+    } else {
+      None
+    };
+
+    let is_anonymous = plain_text_password.is_none();
+    let ip_address = if is_anonymous {
+
+      let random_bytes: [u8; 16] = rand::rng().random();
+      Some(IpAddr::V6(Ipv6Addr::from(random_bytes)))
+
+    } else {
+
+      None
+
+    };
 
     let user_properties = InitialUserProperties {
-      username: Some(Uuid::now_v7().to_string()),
+      username: if is_anonymous { None } else { Some(Uuid::now_v7().to_string()) },
       display_name: Some(Uuid::now_v7().to_string()),
-      hashed_password: Some(hashed_password),
-      is_anonymous: false,
-      ip_address: None
+      hashed_password: hashed_password,
+      is_anonymous,
+      ip_address
     };
 
     let user = User::create(&user_properties, &self.database_pool).await?;
