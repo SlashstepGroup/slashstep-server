@@ -18,8 +18,9 @@ use std::sync::Arc;
 
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
+use serde::Deserialize;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, ResourceError, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /groups
 /// 
@@ -289,6 +290,20 @@ async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTr
 
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreateGroupRequestBody {
+
+  /// The group's name.
+  pub name: String,
+
+  /// The group's display name.
+  pub display_name: String,
+
+  /// The group's description, if applicable.
+  pub description: Option<String>
+
+}
+
 /// POST /groups
 /// 
 /// Creates a group on the server level.
@@ -299,7 +314,7 @@ async fn handle_create_group_request(
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
   Extension(authenticated_app): Extension<Option<Arc<App>>>,
   Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-  body: Result<Json<InitialGroupProperties>, JsonRejection>
+  body: Result<Json<CreateGroupRequestBody>, JsonRejection>
 ) -> Result<(StatusCode, Json<Group>), HTTPError> {
 
   // TODO: Add configurations to verify inputs.
@@ -321,7 +336,14 @@ async fn handle_create_group_request(
 
   // Create the group.
   ServerLogEntry::trace("Creating group...", Some(&http_transaction.id), &state.database_pool).await.ok();
-  let group = match Group::create(&initial_group_properties, &state.database_pool).await {
+  let group = match Group::create(&InitialGroupProperties {
+    name: initial_group_properties.name.clone(),
+    display_name: initial_group_properties.display_name.clone(),
+    description: initial_group_properties.description.clone(),
+    parent_resource_type: GroupParentResourceType::Server,
+    parent_group_id: None,
+    protected_group_type: None
+  }, &state.database_pool).await {
 
     Ok(group) => group,
 

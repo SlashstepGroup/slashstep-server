@@ -149,6 +149,7 @@ async fn handle_create_role_request(
     parent_project_id: Some(target_project.id),
     parent_group_id: None,
     parent_workspace_id: None,
+    parent_user_id: None,
     protected_role_type: None
   }, &state.database_pool).await {
 

@@ -12,6 +12,8 @@
 #[cfg(test)]
 mod tests;
 
+use core::fmt;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use postgres_types::{FromSql, ToSql};
@@ -23,10 +25,14 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "id",
   "name",
   "display_name",
-  "description"
+  "description",
+  "parent_resource_type",
+  "parent_group_id",
+  "protected_group_type"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
-  "id"
+  "id",
+  "parent_group_id"
 ];
 pub const RESOURCE_NAME: &str = "Group";
 pub const DATABASE_TABLE_NAME: &str = "groups";
@@ -40,6 +46,35 @@ pub enum GroupParentResourceType {
   Group
 }
 
+#[derive(Debug, Clone, Serialize, ToSql, FromSql, Deserialize, PartialEq, Eq)]
+#[postgres(name = "protected_group_type")]
+pub enum ProtectedGroupType {
+  
+  /// A group intended for unauthenticated users.
+  /// 
+  /// This group is automatically created when Slashstep Server is initialized. 
+  /// 
+  /// This group should be protected from deletion because deleting this group may cause the server to break.
+  AnonymousUsers,
+
+  /// A group intended for registered users.
+  /// 
+  /// This group is automatically created when Slashstep Server is initialized.
+  /// 
+  /// This group should be protected from deletion because deleting this group may cause the server to break.
+  RegisteredUsers
+
+}
+
+impl fmt::Display for ProtectedGroupType {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    match self {
+      ProtectedGroupType::AnonymousUsers => write!(f, "AnonymousUsers"),
+      ProtectedGroupType::RegisteredUsers => write!(f, "RegisteredUsers")
+    }
+  }
+}
+
 #[derive(Debug, Clone, ToSql, FromSql, Default, Serialize, Deserialize)]
 pub struct InitialGroupProperties {
 
@@ -50,7 +85,16 @@ pub struct InitialGroupProperties {
   pub display_name: String,
 
   /// The group's description, if applicable.
-  pub description: Option<String>
+  pub description: Option<String>,
+
+  /// The group's parent resource type.
+  pub parent_resource_type: GroupParentResourceType,
+
+  /// The group's parent group ID, if applicable.
+  pub parent_group_id: Option<Uuid>,
+
+  /// The group's protected group type, if applicable.
+  pub protected_group_type: Option<ProtectedGroupType>
 
 }
 
@@ -81,7 +125,16 @@ pub struct Group {
   pub display_name: String,
 
   /// The group's description, if applicable.
-  pub description: Option<String>
+  pub description: Option<String>,
+
+  /// The group's parent resource type.
+  pub parent_resource_type: GroupParentResourceType,
+
+  /// The group's parent group ID, if applicable.
+  pub parent_group_id: Option<Uuid>,
+
+  /// The group's protected group type, if applicable.
+  pub protected_group_type: Option<ProtectedGroupType>
 
 }
 
@@ -138,6 +191,34 @@ impl Group {
 
   }
 
+  pub async fn get_protected_group_by_type(parent_resource_type: &GroupParentResourceType, parent_resource_id: Option<&Uuid>, protected_group_type: &ProtectedGroupType, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/groups/get_group_row_by_protected_group_type.sql");
+    let row = match database_client.query_opt(query, &[
+      &protected_group_type,
+      &parent_resource_type,
+      &parent_resource_id
+    ]).await {
+
+      Ok(row) => match row {
+
+        Some(row) => row,
+
+        None => return Err(ResourceError::NotFoundError(format!("A protected server group with the type \"{}\" does not exist.", protected_group_type)))
+
+      },
+
+      Err(error) => return Err(ResourceError::PostgresError(error))
+
+    };
+
+    let group = Self::convert_from_row(&row);
+
+    return Ok(group);
+
+  }
+
   /// Converts a row into a field.
   fn convert_from_row(row: &postgres::Row) -> Self {
 
@@ -145,7 +226,10 @@ impl Group {
       id: row.get("id"),
       name: row.get("name"),
       display_name: row.get("display_name"),
-      description: row.get("description")
+      description: row.get("description"),
+      parent_resource_type: row.get("parent_resource_type"),
+      parent_group_id: row.get("parent_group_id"),
+      protected_group_type: row.get("protected_group_type")
     };
 
   }
@@ -167,7 +251,10 @@ impl Group {
     let parameters: &[&(dyn ToSql + Sync)] = &[
       &initial_properties.name,
       &initial_properties.display_name,
-      &initial_properties.description
+      &initial_properties.description,
+      &initial_properties.parent_resource_type,
+      &initial_properties.parent_group_id,
+      &initial_properties.protected_group_type
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| {
@@ -231,9 +318,27 @@ impl Group {
 
       return Ok(Box::new(uuid));
 
-    }
+    } 
 
-    return Ok(Box::new(value));
+    match key {
+
+      "protected_group_type" => {
+
+        let protected_group_type = match value {
+
+          "AnonymousUsers" => ProtectedGroupType::AnonymousUsers,
+          "RegisteredUsers" => ProtectedGroupType::RegisteredUsers,
+          _ => return Err(SlashstepQLError::StringParserError(format!("Failed to parse protected group type from \"{}\" for key \"{}\".", value, key)))
+
+        };
+
+        return Ok(Box::new(protected_group_type));
+
+      },
+
+      _ => return Ok(Box::new(value.to_string()))
+
+    }
 
   }
 

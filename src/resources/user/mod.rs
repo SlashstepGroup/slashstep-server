@@ -56,7 +56,7 @@ pub struct User {
   /// 
   /// If you need the IP address of a registered user, you might be able to find it 
   /// by searching HTTP transactions and filtering by user ID.
-  pub ip_address: Option<IpAddr>
+  ip_address: Option<IpAddr>
 
 }
 

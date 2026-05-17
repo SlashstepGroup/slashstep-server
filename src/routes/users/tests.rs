@@ -14,16 +14,16 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
+use rust_decimal::Decimal;
 use uuid::Uuid;
 use crate::{
   AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles
+    initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles
   }, resources::{
-    access_policy::{
-      AccessPolicyPrincipalType, ActionPermissionLevel
-    }, action::Action, user::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, User},
-  }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
+    ResourceType, access_policy::{
+      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+    }, action::Action, configuration::{Configuration, EditableConfigurationProperties}, group::{Group, GroupParentResourceType, ProtectedGroupType}, user::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, User}
+  }, routes::{ListResourcesResponseBody, users::CreateUserRequestBody}, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested list.
@@ -34,6 +34,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Grant access to the "users.get" action to the user.
@@ -96,6 +97,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "apps.get" action to the user.
@@ -161,6 +163,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "users.get" action to the user.
@@ -214,6 +217,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "users.get" action to the user.
@@ -256,6 +260,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "users.get" action to the user.
@@ -329,6 +334,7 @@ async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
@@ -357,6 +363,7 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a user and a session.
@@ -380,6 +387,276 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server can create a user and return a 201 status code.
+#[tokio::test]
+async fn verify_successful_user_creation() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "users.create" action.
+  let create_users_action = Action::get_by_name("users.create", &test_environment.database_pool).await?;
+  let anonymous_users_group = Group::get_protected_group_by_type(&GroupParentResourceType::Server, None, &ProtectedGroupType::AnonymousUsers, &test_environment.database_pool).await?;
+  AccessPolicy::create(&InitialAccessPolicyProperties {
+    principal_type: AccessPolicyPrincipalType::Group,
+    principal_group_id: Some(anonymous_users_group.id),
+    action_id: create_users_action.id,
+    permission_level: ActionPermissionLevel::User,
+    is_inheritance_enabled: true,
+    scoped_resource_type: ResourceType::Server,
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let initial_user_properties = CreateUserRequestBody {
+    username: Uuid::now_v7().to_string().replace("-", ""),
+    display_name: Some(Uuid::now_v7().to_string()),
+    password: plain_text_password
+  };
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/users"))
+    .json(&serde_json::json!(initial_user_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::CREATED);
+
+  let response_user: User = response.json();
+  assert_eq!(initial_user_properties.username, response_user.username.expect("Username should be present."));
+  assert_eq!(initial_user_properties.display_name, response_user.display_name);
+  assert_eq!(false, response_user.is_anonymous);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the username is over the maximum length.
+#[tokio::test]
+async fn verify_user_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let create_users_action = Action::get_by_name("users.create", &test_environment.database_pool).await?;
+  let anonymous_users_group = Group::get_protected_group_by_type(&GroupParentResourceType::Server, None, &ProtectedGroupType::AnonymousUsers, &test_environment.database_pool).await?;
+  AccessPolicy::create(&InitialAccessPolicyProperties {
+    principal_type: AccessPolicyPrincipalType::Group,
+    principal_group_id: Some(anonymous_users_group.id),
+    action_id: create_users_action.id,
+    permission_level: ActionPermissionLevel::User,
+    is_inheritance_enabled: true,
+    scoped_resource_type: ResourceType::Server,
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let initial_user_properties = CreateUserRequestBody {
+    username: Uuid::now_v7().to_string().replace("-", ""),
+    display_name: Some(Uuid::now_v7().to_string()),
+    password: plain_text_password
+  };
+
+  let maximum_name_length_configuration = Configuration::get_by_name("users.maximumNameLength", &test_environment.database_pool).await?;
+  maximum_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/users"))
+    .json(&serde_json::json!(initial_user_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the group display name is over the maximum length.
+#[tokio::test]
+async fn verify_user_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let create_users_action = Action::get_by_name("users.create", &test_environment.database_pool).await?;
+  let anonymous_users_group = Group::get_protected_group_by_type(&GroupParentResourceType::Server, None, &ProtectedGroupType::AnonymousUsers, &test_environment.database_pool).await?;
+  AccessPolicy::create(&InitialAccessPolicyProperties {
+    principal_type: AccessPolicyPrincipalType::Group,
+    principal_group_id: Some(anonymous_users_group.id),
+    action_id: create_users_action.id,
+    permission_level: ActionPermissionLevel::User,
+    is_inheritance_enabled: true,
+    scoped_resource_type: ResourceType::Server,
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let initial_user_properties = CreateUserRequestBody {
+    username: Uuid::now_v7().to_string().replace("-", ""),
+    display_name: Some(Uuid::now_v7().to_string()),
+    password: plain_text_password
+  };
+
+  let maximum_display_name_length_configuration = Configuration::get_by_name("users.maximumDisplayNameLength", &test_environment.database_pool).await?;
+  maximum_display_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/users"))
+    .json(&serde_json::json!(initial_user_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the user password is over the maximum length.
+#[tokio::test]
+async fn verify_user_password_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let create_users_action = Action::get_by_name("users.create", &test_environment.database_pool).await?;
+  let anonymous_users_group = Group::get_protected_group_by_type(&GroupParentResourceType::Server, None, &ProtectedGroupType::AnonymousUsers, &test_environment.database_pool).await?;
+  AccessPolicy::create(&InitialAccessPolicyProperties {
+    principal_type: AccessPolicyPrincipalType::Group,
+    principal_group_id: Some(anonymous_users_group.id),
+    action_id: create_users_action.id,
+    permission_level: ActionPermissionLevel::User,
+    is_inheritance_enabled: true,
+    scoped_resource_type: ResourceType::Server,
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let initial_user_properties = CreateUserRequestBody {
+    username: Uuid::now_v7().to_string().replace("-", ""),
+    display_name: Some(Uuid::now_v7().to_string()),
+    password: plain_text_password
+  };
+
+  let maximum_password_length_configuration = Configuration::get_by_name("users.maximumPasswordLength", &test_environment.database_pool).await?;
+  maximum_password_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/users"))
+    .json(&serde_json::json!(initial_user_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the username doesn't match the allowed regex pattern.
+#[tokio::test]
+async fn verify_username_matches_regex() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let create_users_action = Action::get_by_name("users.create", &test_environment.database_pool).await?;
+  let anonymous_users_group = Group::get_protected_group_by_type(&GroupParentResourceType::Server, None, &ProtectedGroupType::AnonymousUsers, &test_environment.database_pool).await?;
+  AccessPolicy::create(&InitialAccessPolicyProperties {
+    principal_type: AccessPolicyPrincipalType::Group,
+    principal_group_id: Some(anonymous_users_group.id),
+    action_id: create_users_action.id,
+    permission_level: ActionPermissionLevel::User,
+    is_inheritance_enabled: true,
+    scoped_resource_type: ResourceType::Server,
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+  let plain_text_password = Uuid::now_v7().to_string();
+  let initial_user_properties = CreateUserRequestBody {
+    username: Uuid::now_v7().to_string().replace("-", ""),
+    display_name: Some(Uuid::now_v7().to_string()),
+    password: plain_text_password
+  };
+
+  let allowed_name_regex_configuration = Configuration::get_by_name("users.allowedNameRegex", &test_environment.database_pool).await?;
+  allowed_name_regex_configuration.update(&EditableConfigurationProperties {
+    text_value: Some("^$".to_string()),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/users"))
+    .json(&serde_json::json!(initial_user_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
   return Ok(());
 
