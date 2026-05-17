@@ -5,16 +5,17 @@ BEGIN
       'Server',
       'Workspace',
       'Project',
-      'Group'
+      'Group',
+      'User'
     );
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'protected_role_type') THEN
     CREATE TYPE protected_role_type AS ENUM (
-      'AnonymousUsers',
       'GroupAdmins',
       'GroupMembers',
-      'ServerAdmins'
+      'ServerAdmins',
+      'UserAccountOwners'
     );
   END IF;
 
@@ -28,14 +29,46 @@ BEGIN
     parent_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     parent_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     parent_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    parent_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     protected_role_type protected_role_type,
 
     /* Constraints */
     CONSTRAINT one_parent_type CHECK (
-      (parent_resource_type = 'Server' AND parent_group_id IS NULL AND parent_workspace_id IS NULL AND parent_project_id IS NULL)
-      OR (parent_resource_type = 'Workspace' AND parent_group_id IS NULL AND parent_workspace_id IS NOT NULL AND parent_project_id IS NULL)
-      OR (parent_resource_type = 'Project' AND parent_group_id IS NULL AND parent_workspace_id IS NULL AND parent_project_id IS NOT NULL)
-      OR (parent_resource_type = 'Group' AND parent_group_id IS NOT NULL AND parent_workspace_id IS NULL AND parent_project_id IS NULL)
+      (
+        parent_resource_type = 'Server' 
+        AND parent_group_id IS NULL 
+        AND parent_workspace_id IS NULL 
+        AND parent_project_id IS NULL
+        AND parent_user_id IS NULL
+      )
+      OR (
+        parent_resource_type = 'Workspace' 
+        AND parent_group_id IS NULL 
+        AND parent_workspace_id IS NOT NULL 
+        AND parent_project_id IS NULL
+        AND parent_user_id IS NULL
+      )
+      OR (
+        parent_resource_type = 'Project' 
+        AND parent_group_id IS NULL 
+        AND parent_workspace_id IS NULL 
+        AND parent_project_id IS NOT NULL
+        AND parent_user_id IS NULL
+      )
+      OR (
+        parent_resource_type = 'Group' 
+        AND parent_group_id IS NOT NULL 
+        AND parent_workspace_id IS NULL 
+        AND parent_project_id IS NULL
+        AND parent_user_id IS NULL
+      )
+      OR (
+        parent_resource_type = 'User' 
+        AND parent_group_id IS NULL 
+        AND parent_workspace_id IS NULL 
+        AND parent_project_id IS NULL
+        AND parent_user_id IS NOT NULL
+      )
     )
   );
 

@@ -3,7 +3,7 @@ use axum::{Extension, body::Body, extract::{Request, State}, http::HeaderMap, mi
 use axum_extra::extract::CookieJar;
 use reqwest::header;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, get_json_web_token_public_key, resources::{ResourceError, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::Role, server_log_entry::ServerLogEntry, session::{Session, SessionTokenClaims}, user::{InitialUserProperties, User}}, utilities::route_handler_utilities::{get_app_by_id, get_app_credential_by_id}};
+use crate::{AppState, HTTPError, get_json_web_token_public_key, resources::{ResourceError, app::App, app_authorization::AppAuthorization, group::{Group, GroupParentResourceType, ProtectedGroupType}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, server_log_entry::ServerLogEntry, session::{Session, SessionTokenClaims}, user::{InitialUserProperties, User}}, utilities::route_handler_utilities::{get_app_by_id, get_app_credential_by_id}};
 
 async fn get_jwt_public_key(http_transaction_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<String, HTTPError> {
 
@@ -142,9 +142,9 @@ pub async fn authenticate_user(
     // Use an anonymous user.
     ServerLogEntry::trace("No user token found in request. Checking for existing anonymous user...", Some(&http_transaction.id), &state.database_pool).await.ok();
 
-    let ip_user = match User::get_by_ip_address(&http_transaction.ip_address, &state.database_pool).await {
+    let anonymous_user = match User::get_by_ip_address(&http_transaction.ip_address, &state.database_pool).await {
     
-      Ok(ip_user) => Arc::new(ip_user),
+      Ok(anonymous_user) => Arc::new(anonymous_user),
     
       Err(error) => {
     
@@ -191,22 +191,22 @@ pub async fn authenticate_user(
     
     };
     
-    ServerLogEntry::trace("Getting anonymous-users role...", Some(&http_transaction.id), &state.database_pool).await.ok();
-    let anonymous_users_role = match Role::get_by_name("anonymous-users", &state.database_pool).await {
+    ServerLogEntry::trace("Getting anonymous users group...", Some(&http_transaction.id), &state.database_pool).await.ok();
+    let anonymous_users_group = match Group::get_protected_group_by_type(&GroupParentResourceType::Server, None, &ProtectedGroupType::AnonymousUsers, &state.database_pool).await {
 
-      Ok(anonymous_users_role) => anonymous_users_role,
+      Ok(anonymous_users_group) => anonymous_users_group,
 
       Err(error) => {
 
-        let http_error = HTTPError::InternalServerError(Some(format!("Failed to get anonymous-users role: {:?}", error)));
+        let http_error = HTTPError::InternalServerError(Some(format!("Failed to get anonymous users group: {:?}", error)));
         ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
         return Err(http_error);
 
       }
 
     };
-    ServerLogEntry::trace(&format!("Checking if user {} has the anonymous-users role...", ip_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-    let memberships = match Membership::list(&format!("parent_role_id = '{}' and principal_type = 'User' and principal_user_id = '{}'", anonymous_users_role.id, ip_user.id), &state.database_pool, None, None).await {
+    ServerLogEntry::trace(&format!("Checking if user {} is in the anonymous users group...", anonymous_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+    let memberships = match Membership::list(&format!("parent_group_id = '{}' and principal_type = 'User' and principal_user_id = '{}'", anonymous_users_group.id, anonymous_user.id), &state.database_pool, None, None).await {
 
       Ok(memberships) => memberships,
 
@@ -222,22 +222,22 @@ pub async fn authenticate_user(
 
     if memberships.len() == 0 {
 
-      ServerLogEntry::trace("User does not have the anonymous-users role. Creating a new role membership...", Some(&http_transaction.id), &state.database_pool).await.ok();
+      ServerLogEntry::trace("User is not in the anonymous users group. Creating a new group membership...", Some(&http_transaction.id), &state.database_pool).await.ok();
       Membership::create(&InitialMembershipProperties {
-        parent_resource_type: MembershipParentResourceType::Role,
-        parent_role_id: Some(anonymous_users_role.id.clone()),
+        parent_resource_type: MembershipParentResourceType::Group,
+        parent_group_id: Some(anonymous_users_group.id.clone()),
         principal_type: MembershipPrincipalType::User,
-        principal_user_id: Some(ip_user.id.clone()),
+        principal_user_id: Some(anonymous_user.id.clone()),
         ..Default::default()
       }, &state.database_pool).await.ok();
     
     }
     
-    ServerLogEntry::trace(&format!("Adding user {} to request extensions...", ip_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+    ServerLogEntry::trace(&format!("Adding user {} to request extensions...", anonymous_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 
-    request.extensions_mut().insert(Some(ip_user.clone()));
+    request.extensions_mut().insert(Some(anonymous_user.clone()));
 
-    ServerLogEntry::info(&format!("Authenticated as anonymous user {}.", ip_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+    ServerLogEntry::info(&format!("Authenticated as anonymous user {}.", anonymous_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 
     return Ok(next.run(request).await);
 

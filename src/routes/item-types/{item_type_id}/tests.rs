@@ -19,7 +19,7 @@ use rust_decimal::Decimal;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles
+    initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, item_type::{EditableItemTypeProperties, ItemType}
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -34,6 +34,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   let state = AppState {
@@ -81,6 +82,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   let state = AppState {
@@ -108,6 +110,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   let state = AppState {
@@ -138,6 +141,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user, the session, and the action.
@@ -175,6 +179,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
@@ -210,6 +215,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
@@ -258,6 +264,7 @@ async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerErro
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   let state = AppState {
@@ -285,6 +292,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create a dummy app.
@@ -315,6 +323,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
@@ -353,6 +362,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
@@ -388,6 +398,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create the user and the session.
@@ -442,6 +453,7 @@ async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepSe
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
@@ -469,6 +481,7 @@ async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlas
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
@@ -497,6 +510,7 @@ async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashs
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
@@ -531,6 +545,7 @@ async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerErro
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
@@ -559,6 +574,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
@@ -590,6 +606,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.
@@ -630,6 +647,7 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
@@ -661,6 +679,7 @@ async fn verify_item_type_name_is_at_most_at_maximum_length() -> Result<(), Test
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "itemTypes.update" action.
@@ -710,6 +729,7 @@ async fn verify_item_type_name_matches_regex() -> Result<(), TestSlashstepServer
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "itemTypes.create" action.
@@ -760,6 +780,7 @@ async fn verify_item_type_display_name_is_at_most_at_maximum_length() -> Result<
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "itemTypes.update" action.
@@ -810,6 +831,7 @@ async fn verify_item_type_description_is_at_most_at_maximum_length() -> Result<(
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Give the user access to the "itemTypes.update" action.

@@ -2,9 +2,9 @@ use uuid::Uuid;
 
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
-    ResourceType, ResourceError, access_policy::{AccessPolicy, InitialAccessPolicyProperties, AccessPolicyPrincipalType}, action::{
+    ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
-    }
+    }, group::GroupParentResourceType
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 use super::{DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, Group, InitialGroupProperties};
@@ -60,7 +60,10 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let group_properties = InitialGroupProperties {
     name: Uuid::now_v7().to_string(),
     display_name: Uuid::now_v7().to_string(),
-    description: Some(Uuid::now_v7().to_string())
+    description: Some(Uuid::now_v7().to_string()),
+    parent_resource_type: GroupParentResourceType::Server,
+    parent_group_id: None,
+    protected_group_type: None
   };
   let group = Group::create(&group_properties, &test_environment.database_pool).await?;
 

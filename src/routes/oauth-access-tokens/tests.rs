@@ -18,7 +18,7 @@ use jsonwebtoken::Header;
 use uuid::Uuid;
 use reqwest::StatusCode;
 use sha2::{Digest, Sha256};
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles}, resources::{app::{App, AppClientType, EditableAppProperties}, app_authorization_credential::AppAuthorizationCredentialClaims}, routes::oauth_access_tokens::{CreateAccessTokenResponseBody, CreateOAuthAccessTokenQueryParameters, OAuthTokenError, OAuthTokenErrorResponse}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{app::{App, AppClientType, EditableAppProperties}, app_authorization_credential::AppAuthorizationCredentialClaims}, routes::oauth_access_tokens::{CreateAccessTokenResponseBody, CreateOAuthAccessTokenQueryParameters, OAuthTokenError, OAuthTokenErrorResponse}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies that the router can return a StatusCode::CREATED status code and the created resource.
 #[tokio::test]
@@ -28,6 +28,7 @@ async fn verify_successful_creation_for_public_client_with_authorization_code() 
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -70,6 +71,7 @@ async fn verify_successful_creation_for_public_client_with_authorization_code_an
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -116,6 +118,7 @@ async fn verify_successful_creation_for_confidential_client_with_authorization_c
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -169,6 +172,7 @@ async fn verify_successful_creation_for_confidential_client_with_authorization_c
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -226,6 +230,7 @@ async fn verify_client_id_is_uuid() -> Result<(), TestSlashstepServerError> {
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -269,6 +274,7 @@ async fn verify_authorization_code_is_valid() -> Result<(), TestSlashstepServerE
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -310,6 +316,7 @@ async fn verify_authorization_code_is_single_use() -> Result<(), TestSlashstepSe
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -361,6 +368,7 @@ async fn verify_client_id_links_to_app() -> Result<(), TestSlashstepServerError>
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -404,6 +412,7 @@ async fn verify_client_secret_is_provided_for_confidential_client() -> Result<()
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -457,6 +466,7 @@ async fn verify_code_verifier_is_provided_when_code_challenge_is_present() -> Re
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -503,6 +513,7 @@ async fn verify_code_verifier_is_correct_when_code_challenge_is_present() -> Res
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -550,6 +561,7 @@ async fn verify_successful_creation_for_public_client_with_refresh_token() -> Re
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -593,6 +605,7 @@ async fn verify_successful_creation_for_confidential_client_with_refresh_token()
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -647,6 +660,7 @@ async fn verify_active_refresh_token_for_public_client() -> Result<(), TestSlash
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -700,6 +714,7 @@ async fn verify_active_refresh_token_for_confidential_client() -> Result<(), Tes
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
@@ -764,6 +779,7 @@ async fn verify_valid_refresh_token_for_public_client() -> Result<(), TestSlashs
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.

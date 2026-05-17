@@ -12,6 +12,8 @@
 #[cfg(test)]
 mod tests;
 
+use core::fmt;
+
 use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
@@ -48,19 +50,13 @@ pub enum RoleParentResourceType {
   Server,
   Workspace,
   Project,
-  Group
+  Group,
+  User
 }
 
 #[derive(Debug, Clone, Serialize, ToSql, FromSql, Deserialize, PartialEq, Eq)]
 #[postgres(name = "protected_role_type")]
 pub enum ProtectedRoleType {
-  
-  /// A role intended for unauthenticated users.
-  /// 
-  /// This role is automatically created when Slashstep Server is initialized. 
-  /// 
-  /// This role should be protected from deletion because deleting this role may cause the server to break.
-  AnonymousUsers,
 
   /// A role intended for group admins.
   /// 
@@ -83,9 +79,29 @@ pub enum ProtectedRoleType {
   /// 
   /// This role is automatically created when Slashstep Server is initialized.
   /// 
-  /// This role should be protected from deletion to ease the transition in case there is an update to the default permissions.
-  ServerAdmins
+  /// This role should be protected from deletion to ease the transition in case there is an update to 
+  /// the default permissions.
+  ServerAdmins,
 
+  /// A role intended for user account owners.
+  /// 
+  /// This role is automatically created when a user account is created.
+  /// 
+  /// This role should be protected from deletion to ease the transition in case there is an update to 
+  /// the default permissions.
+  UserAccountOwners
+
+}
+
+impl fmt::Display for ProtectedRoleType {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    match self {
+      ProtectedRoleType::GroupAdmins => write!(f, "GroupAdmins"),
+      ProtectedRoleType::GroupMembers => write!(f, "GroupMembers"),
+      ProtectedRoleType::ServerAdmins => write!(f, "ServerAdmins"),
+      ProtectedRoleType::UserAccountOwners => write!(f, "UserAccountOwners")
+    }
+  }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -111,6 +127,9 @@ pub struct InitialRoleProperties {
 
   /// The role's parent group ID, if applicable.
   pub parent_group_id: Option<Uuid>,
+
+  /// The role's parent user ID, if applicable.
+  pub parent_user_id: Option<Uuid>,
 
   /// The role's protected role type, if applicable.
   /// 
@@ -210,6 +229,9 @@ pub struct Role {
   /// The role's parent group ID, if applicable.
   pub parent_group_id: Option<Uuid>,
 
+  /// The role's parent user ID, if applicable.
+  pub parent_user_id: Option<Uuid>,
+
   /// The role's protected role type, if applicable.
   /// 
   /// If the role has a protected role type, then the role cannot be deleted directly
@@ -301,6 +323,34 @@ impl Role {
 
   }
 
+  pub async fn get_protected_role_by_type(parent_resource_type: &RoleParentResourceType, parent_resource_id: Option<&Uuid>, protected_role_type: &ProtectedRoleType, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+
+    let database_client = database_pool.get().await?;
+    let query = include_str!("../../queries/roles/get_role_row_by_protected_role_type.sql");
+    let row = match database_client.query_opt(query, &[
+      &protected_role_type,
+      &parent_resource_type,
+      &parent_resource_id
+    ]).await {
+
+      Ok(row) => match row {
+
+        Some(row) => row,
+
+        None => return Err(ResourceError::NotFoundError(format!("A protected server role with the type \"{}\" does not exist.", protected_role_type)))
+
+      },
+
+      Err(error) => return Err(ResourceError::PostgresError(error))
+
+    };
+
+    let role = Self::convert_from_row(&row);
+
+    return Ok(role);
+
+  }
+
   /// Converts a row into a field.
   fn convert_from_row(row: &postgres::Row) -> Self {
 
@@ -313,6 +363,7 @@ impl Role {
       parent_workspace_id: row.get("parent_workspace_id"),
       parent_project_id: row.get("parent_project_id"),
       parent_group_id: row.get("parent_group_id"),
+      parent_user_id: row.get("parent_user_id"),
       protected_role_type: row.get("protected_role_type")
     };
 
@@ -340,6 +391,7 @@ impl Role {
       &initial_properties.parent_group_id,
       &initial_properties.parent_workspace_id,
       &initial_properties.parent_project_id,
+      &initial_properties.parent_user_id,
       &initial_properties.protected_role_type
     ];
     let database_client = database_pool.get().await?;
@@ -424,7 +476,6 @@ impl Role {
 
         let protected_role_type = match value {
 
-          "AnonymousUsers" => ProtectedRoleType::AnonymousUsers,
           "GroupAdmins" => ProtectedRoleType::GroupAdmins,
           "GroupMembers" => ProtectedRoleType::GroupMembers,
           "ServerAdmins" => ProtectedRoleType::ServerAdmins,

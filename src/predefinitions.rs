@@ -1,4 +1,4 @@
-use crate::resources::{ResourceError, access_policy::ActionPermissionLevel, action::{Action, InitialActionProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, role::{InitialRoleProperties, ProtectedRoleType, Role}};
+use crate::resources::{ResourceError, access_policy::ActionPermissionLevel, action::{Action, InitialActionProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties, ProtectedGroupType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}};
 use colored::Colorize;
 use rust_decimal::Decimal;
 
@@ -1062,24 +1062,92 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
 
 }
 
+pub async fn initialize_predefined_groups(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
+
+  println!("{}", "Initializing predefined groups...".dimmed());
+
+  let predefined_groups: Vec<InitialGroupProperties> = vec![
+    InitialGroupProperties {
+      name: "anonymous-users".to_string(),
+      display_name: "Anonymous users".to_string(),
+      description: Some("Users who have not logged in. Registered users should not be assigned this group.".to_string()),
+      parent_resource_type: GroupParentResourceType::Server,
+      protected_group_type: Some(ProtectedGroupType::AnonymousUsers),
+      ..Default::default()
+    },
+    InitialGroupProperties {
+      name: "registered-users".to_string(),
+      display_name: "Registered users".to_string(),
+      description: Some("Users who have a registered identity. Anonymous users should not be assigned this group.".to_string()),
+      parent_resource_type: GroupParentResourceType::Server,
+      protected_group_type: Some(ProtectedGroupType::RegisteredUsers),
+      ..Default::default()
+    },
+  ];
+
+  let mut groups: Vec<Group> = Vec::new();
+  let mut skipped_group_count = 0;
+
+  for predefined_group in predefined_groups {
+
+    // Make sure we didn't go through this group already.
+    let mut should_continue = false;
+    for group in groups.iter() {
+
+      if group.name == predefined_group.name {
+
+        println!("{}", format!("Skipping predefined group \"{}\" because it already exists.", predefined_group.name).yellow());
+        should_continue = true;
+
+      }
+
+    }
+
+    if should_continue {
+
+      continue;
+
+    }
+
+    // Create the group, but if it already exists, add it to the list of groups.
+    let group = match Group::create(&predefined_group, database_pool).await {
+
+      Ok(group) => group,
+
+      Err(error) => match error {
+
+        ResourceError::ConflictError(_) => {
+          
+          skipped_group_count += 1;
+          continue;
+
+        },
+
+        _ => return Err(error)
+
+      }
+
+    };
+    groups.push(group);
+
+  }
+
+  println!("{}", format!("Successfully initialized {} predefined groups. {} groups were skipped because they already existed.", groups.len(), skipped_group_count).blue());
+
+  return Ok(());
+
+}
+
 pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
 
   println!("{}", "Initializing predefined roles...".dimmed());
 
   let predefined_roles: Vec<InitialRoleProperties> = vec![
     InitialRoleProperties {
-      name: "anonymous-users".to_string(),
-      display_name: "Anonymous users".to_string(),
-      description: Some("Users who have not logged in. Registered users should not be assigned this role.".to_string()),
-      parent_resource_type: crate::resources::role::RoleParentResourceType::Server,
-      protected_role_type: Some(ProtectedRoleType::AnonymousUsers),
-      ..Default::default()
-    },
-    InitialRoleProperties {
       name: "server-admins".to_string(),
       display_name: "Server admins".to_string(),
       description: Some("Users who have full access to all resources on the server. This role should be assigned to trusted users only.".to_string()),
-      parent_resource_type: crate::resources::role::RoleParentResourceType::Server,
+      parent_resource_type: RoleParentResourceType::Server,
       protected_role_type: Some(ProtectedRoleType::ServerAdmins),
       ..Default::default()
     }
@@ -1568,6 +1636,20 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
       description: Some("The maximum length of user display names in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance.".to_string()),
       value_type: ConfigurationValueType::Number,
       default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "users.maximumPasswordLength".to_string(),
+      description: Some("The maximum length of user passwords in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance while still allowing for secure passwords.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(7))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "users.maximumPasswordLength".to_string(),
+      description: Some("The maximum length of user passwords in characters. Slashstep Group recommends keeping this value at a reasonable length to maintain performance while still allowing for secure passwords.".to_string()),
+      value_type: ConfigurationValueType::Number,
+      default_number_value: Some(Decimal::from(2_i64.pow(7))),
       ..Default::default()
     },
     InitialConfigurationProperties {

@@ -6,6 +6,7 @@ INSERT INTO roles (
   parent_group_id,
   parent_workspace_id,
   parent_project_id,
+  parent_user_id,
   protected_role_type
 ) VALUES (
   $1,
@@ -15,5 +16,6 @@ INSERT INTO roles (
   $5,
   $6,
   $7,
-  $8
+  $8,
+  $9
 ) RETURNING *;

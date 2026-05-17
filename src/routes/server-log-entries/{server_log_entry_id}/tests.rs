@@ -18,7 +18,7 @@ use uuid::Uuid;
 use crate::{
   Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles
+    initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     access_policy::ActionPermissionLevel, server_log_entry::ServerLogEntry
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -33,6 +33,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
@@ -77,6 +78,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
@@ -103,6 +105,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
@@ -132,6 +135,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user, the session, and the action.
@@ -169,6 +173,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create the user and the session.

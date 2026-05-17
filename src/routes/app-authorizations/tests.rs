@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::{
   AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
     initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles
+    initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     access_policy::{
       AccessPolicyPrincipalType, ActionPermissionLevel
@@ -33,6 +33,7 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "appAuthorizations.get" action to the user.
@@ -95,6 +96,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "appAuthorizations.get" action to the user.
@@ -156,6 +158,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "appAuthorizations.get" action to the user.
@@ -209,6 +212,7 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "appAuthorizations.get" action to the user.
@@ -251,6 +255,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Grant access to the "appAuthorizations.get" action to the user.
@@ -324,6 +329,7 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Set up the server and send the request.
@@ -352,6 +358,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a user and a session.

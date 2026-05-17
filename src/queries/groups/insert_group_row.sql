@@ -1,9 +1,15 @@
 INSERT INTO groups (
   name,
   display_name,
-  description
+  description,
+  parent_resource_type,
+  parent_group_id,
+  protected_group_type
 ) VALUES (
   $1,
   $2,
-  $3
+  $3,
+  $4,
+  $5,
+  $6
 ) RETURNING *;

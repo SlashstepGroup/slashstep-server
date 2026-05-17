@@ -548,9 +548,37 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
 
             ELSIF selected_resource_type = 'Group' THEN
 
-                -- Group -> Server
-                selected_resource_type := 'Server';
-                selected_resource_id := NULL;
+                -- Group -> (Group | Server)
+                SELECT
+                    parent_resource_type
+                INTO
+                    selected_resource_parent_type
+                FROM
+                    groups
+                WHERE
+                    groups.id = selected_resource_id;
+
+                IF selected_resource_parent_type = 'Group' THEN
+
+                    SELECT 
+                        parent_group_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        groups
+                    WHERE
+                        groups.id = selected_resource_id;
+
+                ELSIF selected_resource_parent_type = 'Server' THEN
+
+                    selected_resource_type := 'Server';
+                    selected_resource_id := NULL;
+
+                ELSE
+
+                    RAISE EXCEPTION 'Unknown parent resource type % for group %.', selected_resource_parent_type, selected_resource_id;
+
+                END IF;
 
             ELSIF selected_resource_type = 'HTTPTransaction' THEN
 
@@ -1056,6 +1084,26 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                     END IF;
 
                     selected_resource_type := 'Group';
+                    selected_resource_id := selected_resource_parent_id;
+
+                ELSIF selected_resource_parent_type = 'User' THEN
+
+                    SELECT
+                        parent_user_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        roles
+                    WHERE
+                        roles.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent user for role %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'User';
                     selected_resource_id := selected_resource_parent_id;
 
                 ELSE
