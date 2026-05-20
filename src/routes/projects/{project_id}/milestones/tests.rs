@@ -38,7 +38,7 @@ async fn verify_successful_milestone_creation() -> Result<(), TestSlashstepServe
   test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
   let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
     name: Uuid::now_v7().to_string(),
     display_name: Uuid::now_v7().to_string(),
@@ -92,7 +92,7 @@ async fn verify_milestone_name_is_at_most_at_maximum_length() -> Result<(), Test
   test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let project = test_environment.create_random_project().await?;
+  let project = test_environment.create_random_project(None).await?;
   let maximum_milestone_name_length_configuration = Configuration::get_by_name("milestones.maximumNameLength", &test_environment.database_pool).await?;
   maximum_milestone_name_length_configuration.update(&EditableConfigurationProperties {
     number_value: Some(Decimal::from(0 as i64)),
@@ -142,7 +142,7 @@ async fn verify_milestone_display_name_is_at_most_at_maximum_length() -> Result<
   test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let project = test_environment.create_random_project().await?;
+  let project = test_environment.create_random_project(None).await?;
   let maximum_milestone_display_name_length_configuration = Configuration::get_by_name("milestones.maximumDisplayNameLength", &test_environment.database_pool).await?;
   maximum_milestone_display_name_length_configuration.update(&EditableConfigurationProperties {
     number_value: Some(Decimal::from(0 as i64)),
@@ -192,7 +192,7 @@ async fn verify_milestone_description_is_at_most_at_maximum_length() -> Result<(
   test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let project = test_environment.create_random_project().await?;
+  let project = test_environment.create_random_project(None).await?;
   let maximum_milestone_description_length_configuration = Configuration::get_by_name("milestones.maximumDescriptionLength", &test_environment.database_pool).await?;
   maximum_milestone_description_length_configuration.update(&EditableConfigurationProperties {
     number_value: Some(Decimal::from(0 as i64)),
@@ -243,7 +243,7 @@ async fn verify_milestone_name_matches_regex() -> Result<(), TestSlashstepServer
   test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let project = test_environment.create_random_project().await?;
+  let project = test_environment.create_random_project(None).await?;
   let allowed_milestone_name_regex_configuration = Configuration::get_by_name("milestones.allowedNameRegex", &test_environment.database_pool).await?;
   allowed_milestone_name_regex_configuration.update(&EditableConfigurationProperties {
     text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
@@ -299,7 +299,7 @@ async fn verify_returned_milestone_list_without_query() -> Result<(), TestSlashs
   test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
   let shown_milestone = test_environment.create_random_milestone(Some(&dummy_project.id)).await?;
 
   // Set up the server and send the request.
@@ -359,7 +359,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
   let shown_milestone = test_environment.create_random_milestone(Some(&dummy_project.id)).await?;
 
   // Set up the server and send the request.
@@ -421,7 +421,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy access policies.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
     let _ = test_environment.create_random_milestone(Some(&dummy_project.id)).await?;
@@ -471,7 +471,7 @@ async fn verify_maximum_milestone_list_limit() -> Result<(), TestSlashstepServer
   test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -517,7 +517,7 @@ async fn verify_query_when_listing_milestones() -> Result<(), TestSlashstepServe
   test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -580,7 +580,7 @@ async fn verify_authentication_when_listing_milestones() -> Result<(), TestSlash
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a dummy action.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -619,7 +619,7 @@ async fn verify_permission_when_listing_milestones() -> Result<(), TestSlashstep
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Create a dummy action.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {

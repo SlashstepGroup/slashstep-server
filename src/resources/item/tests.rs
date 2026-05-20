@@ -56,7 +56,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
-  let project = test_environment.create_random_project().await?;
+  let project = test_environment.create_random_project(None).await?;
   let field_properties = InitialItemProperties {
     summary: Uuid::now_v7().to_string(),
     parent_project_id: project.id,
@@ -156,7 +156,7 @@ async fn verify_list_resources_with_query_and_field_references() -> Result<(), T
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
-  let project = test_environment.create_random_project().await?;
+  let project = test_environment.create_random_project(None).await?;
   test_environment.create_random_item(Some(&project.id)).await?;
   let item = test_environment.create_random_item(Some(&project.id)).await?;
   let field = test_environment.create_random_field(Some(&project.id)).await?;

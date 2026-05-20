@@ -62,7 +62,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let item_type_properties = InitialItemTypeProperties {
     name: Uuid::now_v7().to_string(),
     display_name: Uuid::now_v7().to_string(),
-    parent_project_id: test_environment.create_random_project().await?.id,
+    parent_project_id: test_environment.create_random_project(None).await?.id,
     item_type_icon_id: None,
     description: Some(Uuid::now_v7().to_string())
   };

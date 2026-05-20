@@ -62,7 +62,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let parent_project_id = test_environment.create_random_project().await?.id;
+  let parent_project_id = test_environment.create_random_project(None).await?.id;
   let iteration_properties = InitialIterationProperties {
     display_name: Uuid::now_v7().to_string(),
     parent_project_id: parent_project_id,

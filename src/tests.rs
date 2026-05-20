@@ -276,7 +276,7 @@ impl TestEnvironment {
 
   pub async fn create_random_field(&self, parent_project_id: Option<&Uuid>) -> Result<Field, TestSlashstepServerError> {
 
-    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project().await?.id);
+    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project(None).await?.id);
     let field_properties = InitialFieldProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
@@ -364,7 +364,7 @@ impl TestEnvironment {
 
     let item_properties = InitialItemProperties {
       summary: Uuid::now_v7().to_string(),
-      parent_project_id: parent_project_id.copied().unwrap_or(self.create_random_project().await?.id),
+      parent_project_id: parent_project_id.copied().unwrap_or(self.create_random_project(None).await?.id),
       ..Default::default()
     };
 
@@ -412,7 +412,7 @@ impl TestEnvironment {
 
   pub async fn create_random_item_type(&self, parent_project_id: Option<&Uuid>) -> Result<ItemType, TestSlashstepServerError> {
 
-    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project().await?.id);
+    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project(None).await?.id);
     let item_type_properties = InitialItemTypeProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
@@ -445,7 +445,7 @@ impl TestEnvironment {
 
   pub async fn create_random_iteration(&self, parent_project_id: Option<&Uuid>) -> Result<Iteration, TestSlashstepServerError> {
 
-    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project().await?.id);
+    let parent_project_id = parent_project_id.copied().unwrap_or(self.create_random_project(None).await?.id);
     let iteration_properties = InitialIterationProperties {
       display_name: Uuid::now_v7().to_string(),
       parent_project_id: parent_project_id,
@@ -494,7 +494,7 @@ impl TestEnvironment {
 
   pub async fn create_random_milestone(&self, project_id: Option<&Uuid>) -> Result<Milestone, TestSlashstepServerError> {
 
-    let project_id = project_id.copied().unwrap_or(self.create_random_project().await?.id);
+    let project_id = project_id.copied().unwrap_or(self.create_random_project(None).await?.id);
     let milestone_properties = InitialMilestoneProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
@@ -524,7 +524,7 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_project(&self) -> Result<Project, TestSlashstepServerError> {
+  pub async fn create_random_project(&self, parent_workspace_id: Option<&Uuid>) -> Result<Project, TestSlashstepServerError> {
 
     let project_properties = InitialProjectProperties {
       name: Uuid::now_v7().to_string(),
@@ -533,7 +533,7 @@ impl TestEnvironment {
       description: Some(Uuid::now_v7().to_string()),
       start_date: Some(Utc::now()),
       end_date: Some(Utc::now()),
-      parent_workspace_id: self.create_random_workspace().await?.id
+      parent_workspace_id: parent_workspace_id.copied().unwrap_or(self.create_random_workspace().await?.id)
     };
 
     let project = Project::create(&project_properties, &self.database_pool).await?;
@@ -550,7 +550,7 @@ impl TestEnvironment {
       description: Some(Uuid::now_v7().to_string()),
       parent_resource_type: parent_resource_type.copied().unwrap_or(crate::resources::role::RoleParentResourceType::Server),
       parent_group_id: if parent_resource_type == Some(&RoleParentResourceType::Group) { Some(parent_resource_id.copied().unwrap_or(self.create_random_group().await?.id)) } else { None },
-      parent_project_id: if parent_resource_type == Some(&RoleParentResourceType::Project) { Some(parent_resource_id.copied().unwrap_or(self.create_random_project().await?.id)) } else { None },
+      parent_project_id: if parent_resource_type == Some(&RoleParentResourceType::Project) { Some(parent_resource_id.copied().unwrap_or(self.create_random_project(None).await?.id)) } else { None },
       parent_workspace_id: if parent_resource_type == Some(&RoleParentResourceType::Workspace) { Some(parent_resource_id.copied().unwrap_or(self.create_random_workspace().await?.id)) } else { None },
       ..Default::default()
     };
@@ -605,7 +605,7 @@ impl TestEnvironment {
 
   pub async fn create_random_status(&self, project_id: Option<&Uuid>) -> Result<Status, TestSlashstepServerError> {
 
-    let project_id = project_id.copied().unwrap_or(self.create_random_project().await?.id);
+    let project_id = project_id.copied().unwrap_or(self.create_random_project(None).await?.id);
     let status_properties = InitialStatusProperties {
       name: Uuid::now_v7().to_string(),
       display_name: Uuid::now_v7().to_string(),
@@ -660,7 +660,7 @@ impl TestEnvironment {
 
     let view_properties = InitialViewProperties {
       parent_resource_type: *parent_resource_type.unwrap_or(&ViewParentResourceType::Project),
-      parent_project_id: Some(parent_resource_id.copied().unwrap_or(self.create_random_project().await?.id)),
+      parent_project_id: Some(parent_resource_id.copied().unwrap_or(self.create_random_project(None).await?.id)),
       ..Default::default()
     };
 

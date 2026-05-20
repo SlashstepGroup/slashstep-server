@@ -1,6 +1,6 @@
 /**
  * 
- * Any test cases for /projects/{project_id}/statuses should be handled here.
+ * Any test cases for /workspaces/{workspace_id}/projects should be handled here.
  * 
  * Programmers: 
  * - Christian Toney (https://christiantoney.com)
@@ -13,13 +13,14 @@ use std::net::SocketAddr;
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
+use rand::distr::{Alphanumeric, SampleString};
 use reqwest::StatusCode;
 use uuid::Uuid;
 use rust_decimal::Decimal;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, status::{DEFAULT_RESOURCE_LIST_LIMIT, InitialStatusPropertiesWithPredefinedParent, Status, StatusType}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, project::{DEFAULT_RESOURCE_LIST_LIMIT, Project}}, routes::{ListResourcesResponseBody, workspaces::workspace_id::projects::CreateProjectRequestBody}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 #[tokio::test]
-async fn verify_successful_status_creation() -> Result<(), TestSlashstepServerError> {
+async fn verify_successful_project_creation() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -28,24 +29,24 @@ async fn verify_successful_status_creation() -> Result<(), TestSlashstepServerEr
   initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  // Give the user access to the "statuses.create" action.
+  // Give the user access to the "projects.create" action.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let dummy_project = test_environment.create_random_project(None).await?;
-  let initial_status_properties = InitialStatusPropertiesWithPredefinedParent {
+  let dummy_workspace = test_environment.create_random_workspace().await?;
+  let initial_project_properties = CreateProjectRequestBody {
     name: Uuid::now_v7().to_string(),
+    key: Alphanumeric.sample_string(&mut rand::rng(), 16),
     display_name: Uuid::now_v7().to_string(),
     description: Some(Uuid::now_v7().to_string()),
-    r#type: StatusType::ToDo,
-    decimal_color: None,
-    next_status_id: None
+    start_date: Some(chrono::Utc::now()),
+    end_date: Some(chrono::Utc::now() + chrono::Duration::days(7))
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
@@ -54,165 +55,58 @@ async fn verify_successful_status_creation() -> Result<(), TestSlashstepServerEr
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/statuses", dummy_project.id))
+  let response = test_server.post(&format!("/workspaces/{}/projects", dummy_workspace.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_status_properties))
+    .json(&serde_json::json!(initial_project_properties))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::CREATED);
 
-  let response_status: Status = response.json();
-  assert_eq!(response_status.name, initial_status_properties.name);
-  assert_eq!(response_status.display_name, initial_status_properties.display_name);
-  assert_eq!(response_status.description, initial_status_properties.description);
-  assert_eq!(response_status.parent_project_id, dummy_project.id);
-  assert_eq!(response_status.r#type, initial_status_properties.r#type);
-  assert_eq!(response_status.decimal_color, initial_status_properties.decimal_color);
-  assert_eq!(response_status.next_status_id, initial_status_properties.next_status_id);
+  let response_project: Project = response.json();
+  assert_eq!(response_project.name, initial_project_properties.name);
+  assert_eq!(response_project.display_name, initial_project_properties.display_name);
+  assert_eq!(response_project.description, initial_project_properties.description);
+  assert_eq!(response_project.start_date.unwrap().timestamp_millis(), initial_project_properties.start_date.unwrap().timestamp_millis());
+  assert_eq!(response_project.end_date.unwrap().timestamp_millis(), initial_project_properties.end_date.unwrap().timestamp_millis());
+  assert_eq!(response_project.parent_workspace_id, dummy_workspace.id);
 
   return Ok(());
   
 }
 
-/// Verifies that the server returns a 422 status code when the status name is over the maximum length.
+/// Verifies that the server returns a 422 status code when the project name is over the maximum length.
 #[tokio::test]
-async fn verify_status_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+async fn verify_project_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  // Give the user access to the "statuses.create" action.
+  // Give the user access to the "projects.create" action.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let project = test_environment.create_random_project(None).await?;
-  let maximum_status_name_length_configuration = Configuration::get_by_name("statuses.maximumNameLength", &test_environment.database_pool).await?;
-  maximum_status_name_length_configuration.update(&EditableConfigurationProperties {
+  let workspace = test_environment.create_random_workspace().await?;
+  let maximum_project_name_length_configuration = Configuration::get_by_name("projects.maximumNameLength", &test_environment.database_pool).await?;
+  maximum_project_name_length_configuration.update(&EditableConfigurationProperties {
     number_value: Some(Decimal::from(0 as i64)),
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let initial_status_properties = InitialStatusPropertiesWithPredefinedParent {
-    name: Uuid::now_v7().to_string().replace("-", ""),
+  let initial_project_properties = CreateProjectRequestBody {
+    name: Uuid::now_v7().to_string(),
+    key: Alphanumeric.sample_string(&mut rand::rng(), 16),
     display_name: Uuid::now_v7().to_string(),
-    r#type: StatusType::ToDo,
-    decimal_color: None,
-    description: None,
-    next_status_id: None
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/statuses", project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_status_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
-
-  return Ok(());
-
-}
-
-/// Verifies that the server returns a 422 status code when the status display name is over the maximum length.
-#[tokio::test]
-async fn verify_status_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
-
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-
-  // Give the user access to the "statuses.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
-
-  // Set up the server and send the request.
-  let project = test_environment.create_random_project(None).await?;
-  let maximum_status_display_name_length_configuration = Configuration::get_by_name("statuses.maximumDisplayNameLength", &test_environment.database_pool).await?;
-  maximum_status_display_name_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(0 as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
-
-  let initial_status_properties = InitialStatusPropertiesWithPredefinedParent {
-    name: Uuid::now_v7().to_string().replace("-", ""),
-    display_name: Uuid::now_v7().to_string(),
-    r#type: StatusType::ToDo,
-    decimal_color: None,
-    description: None,
-    next_status_id: None
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/statuses", project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_status_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
-
-  return Ok(());
-
-}
-
-/// Verifies that the server returns a 422 status code when the status description is over the maximum length.
-#[tokio::test]
-async fn verify_status_description_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
-
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-
-  // Give the user access to the "statuses.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
-
-  // Set up the server and send the request.
-  let project = test_environment.create_random_project(None).await?;
-  let maximum_status_description_length_configuration = Configuration::get_by_name("statuses.maximumDescriptionLength", &test_environment.database_pool).await?;
-  maximum_status_description_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(0 as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
-
-  let initial_status_properties = InitialStatusPropertiesWithPredefinedParent {
-    name: Uuid::now_v7().to_string().replace("-", ""),
-    display_name: Uuid::now_v7().to_string(),
-    r#type: StatusType::ToDo,
-    decimal_color: None,
     description: Some(Uuid::now_v7().to_string()),
-    next_status_id: None
+    start_date: Some(chrono::Utc::now()),
+    end_date: Some(chrono::Utc::now() + chrono::Duration::days(7))
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
@@ -221,9 +115,9 @@ async fn verify_status_description_is_at_most_at_maximum_length() -> Result<(), 
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/statuses", project.id))
+  let response = test_server.post(&format!("/workspaces/{}/projects", workspace.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_status_properties))
+    .json(&serde_json::json!(initial_project_properties))
     .await;
   
   // Verify the response.
@@ -233,39 +127,145 @@ async fn verify_status_description_is_at_most_at_maximum_length() -> Result<(), 
 
 }
 
-/// Verifies that the server returns a 422 status code when the status name doesn't match the allowed regex pattern.
+/// Verifies that the server returns a 422 status code when the project display name is over the maximum length.
 #[tokio::test]
-async fn verify_status_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+async fn verify_project_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  // Give the user access to the "statuses.create" action.
+  // Give the user access to the "projects.create" action.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let project = test_environment.create_random_project(None).await?;
-  let allowed_status_name_regex_configuration = Configuration::get_by_name("statuses.allowedNameRegex", &test_environment.database_pool).await?;
-  allowed_status_name_regex_configuration.update(&EditableConfigurationProperties {
+  let workspace = test_environment.create_random_workspace().await?;
+  let maximum_project_display_name_length_configuration = Configuration::get_by_name("projects.maximumDisplayNameLength", &test_environment.database_pool).await?;
+  maximum_project_display_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let initial_project_properties = CreateProjectRequestBody {
+    name: Uuid::now_v7().to_string(),
+    key: Alphanumeric.sample_string(&mut rand::rng(), 16),
+    display_name: Uuid::now_v7().to_string(),
+    description: Some(Uuid::now_v7().to_string()),
+    start_date: Some(chrono::Utc::now()),
+    end_date: Some(chrono::Utc::now() + chrono::Duration::days(7))
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/workspaces/{}/projects", workspace.id))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(initial_project_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the project description is over the maximum length.
+#[tokio::test]
+async fn verify_project_description_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "projects.create" action.
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+  let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let workspace = test_environment.create_random_workspace().await?;
+  let maximum_project_description_length_configuration = Configuration::get_by_name("projects.maximumDescriptionLength", &test_environment.database_pool).await?;
+  maximum_project_description_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  let initial_project_properties = CreateProjectRequestBody {
+    name: Uuid::now_v7().to_string(),
+    key: Alphanumeric.sample_string(&mut rand::rng(), 16),
+    display_name: Uuid::now_v7().to_string(),
+    description: Some(Uuid::now_v7().to_string()),
+    start_date: Some(chrono::Utc::now()),
+    end_date: Some(chrono::Utc::now() + chrono::Duration::days(7))
+  };
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/workspaces/{}/projects", workspace.id))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
+    .json(&serde_json::json!(initial_project_properties))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the project name doesn't match the allowed regex pattern.
+#[tokio::test]
+async fn verify_project_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "projects.create" action.
+  let plain_text_password = Uuid::now_v7().to_string();
+  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+  let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let workspace = test_environment.create_random_workspace().await?;
+  let allowed_project_name_regex_configuration = Configuration::get_by_name("projects.allowedNameRegex", &test_environment.database_pool).await?;
+  allowed_project_name_regex_configuration.update(&EditableConfigurationProperties {
     text_value: Some("^$".to_string()),
     ..Default::default()
   }, &test_environment.database_pool).await?;
 
-  let initial_status_properties = InitialStatusPropertiesWithPredefinedParent {
-    name: Uuid::now_v7().to_string().replace("-", ""),
+  let initial_project_properties = CreateProjectRequestBody {
+    name: Uuid::now_v7().to_string(),
+    key: Alphanumeric.sample_string(&mut rand::rng(), 16),
     display_name: Uuid::now_v7().to_string(),
-    r#type: StatusType::ToDo,
-    decimal_color: None,
-    description: None,
-    next_status_id: None
+    description: Some(Uuid::now_v7().to_string()),
+    start_date: Some(chrono::Utc::now()),
+    end_date: Some(chrono::Utc::now() + chrono::Duration::days(7))
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
@@ -274,9 +274,9 @@ async fn verify_status_name_matches_regex() -> Result<(), TestSlashstepServerErr
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/statuses", project.id))
+  let response = test_server.post(&format!("/workspaces/{}/projects", workspace.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_status_properties))
+    .json(&serde_json::json!(initial_project_properties))
     .await;
   
   // Verify the response.
@@ -288,7 +288,7 @@ async fn verify_status_name_matches_regex() -> Result<(), TestSlashstepServerErr
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
-async fn verify_returned_status_list_without_query() -> Result<(), TestSlashstepServerError> {
+async fn verify_returned_project_list_without_query() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -297,22 +297,22 @@ async fn verify_returned_status_list_without_query() -> Result<(), TestSlashstep
   initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Give the user access to the "statuses.get" action.
+  // Give the user access to the "projects.get" action.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
 
-  // Give the user access to the "statuses.list" action.
-  let list_statuses_action = Action::get_by_name("statuses.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_statuses_action.id, &ActionPermissionLevel::User).await?;
+  // Give the user access to the "projects.list" action.
+  let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project(None).await?;
-  let shown_status = test_environment.create_random_status(Some(&dummy_project.id)).await?;
+  let dummy_workspace = test_environment.create_random_workspace().await?;
+  let shown_project = test_environment.create_random_project(Some(&dummy_workspace.id)).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -322,25 +322,25 @@ async fn verify_returned_status_list_without_query() -> Result<(), TestSlashstep
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
+  let response = test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .await;
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_statuses: ListResourcesResponseBody::<Status> = response.json();
-  assert_eq!(response_statuses.total_count, 1);
-  assert_eq!(response_statuses.resources.len(), 1);
+  let response_projects: ListResourcesResponseBody::<Project> = response.json();
+  assert_eq!(response_projects.total_count, 1);
+  assert_eq!(response_projects.resources.len(), 1);
 
-  let query = format!("parent_project_id = {}", quote_literal(&dummy_project.id.to_string()));
-  let actual_status_count = Status::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_statuses.total_count, actual_status_count);
+  let query = format!("parent_workspace_id = {}", quote_literal(&dummy_workspace.id.to_string()));
+  let actual_project_count = Project::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
+  assert_eq!(response_projects.total_count, actual_project_count);
 
-  let actual_statuses = Status::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_statuses.resources.len(), actual_statuses.len());
-  assert_eq!(response_statuses.resources[0].id, actual_statuses[0].id);
-  assert_eq!(response_statuses.resources[0].id, shown_status.id);
+  let actual_projects = Project::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
+  assert_eq!(response_projects.resources.len(), actual_projects.len());
+  assert_eq!(response_projects.resources[0].id, actual_projects[0].id);
+  assert_eq!(response_projects.resources[0].id, shown_project.id);
 
   return Ok(());
 
@@ -357,25 +357,25 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Give the user access to the "statuses.get" action.
+  // Give the user access to the "projects.get" action.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
 
-  // Give the user access to the "statuses.list" action.
-  let list_statuses_action = Action::get_by_name("statuses.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_statuses_action.id, &ActionPermissionLevel::User).await?;
+  // Give the user access to the "projects.list" action.
+  let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
-  let dummy_project = test_environment.create_random_project(None).await?;
-  let shown_status = test_environment.create_random_status(Some(&dummy_project.id)).await?;
+  let dummy_workspace = test_environment.create_random_workspace().await?;
+  let shown_project = test_environment.create_random_project(Some(&dummy_workspace.id)).await?;
 
   // Set up the server and send the request.
-  let additional_query = format!("id = '{}'", shown_status.id);
+  let additional_query = format!("id = '{}'", shown_project.id);
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -383,7 +383,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
+  let response = test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
     .add_query_param("query", &additional_query)
     .await;
@@ -391,18 +391,18 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_statuses: ListResourcesResponseBody::<Status> = response.json();
-  assert_eq!(response_statuses.total_count, 1);
-  assert_eq!(response_statuses.resources.len(), 1);
+  let response_projects: ListResourcesResponseBody::<Project> = response.json();
+  assert_eq!(response_projects.total_count, 1);
+  assert_eq!(response_projects.resources.len(), 1);
 
-  let query = format!("parent_project_id = {} AND ({})", quote_literal(&dummy_project.id.to_string()), additional_query);
-  let actual_status_count = Status::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_statuses.total_count, actual_status_count);
+  let query = format!("parent_workspace_id = {} AND ({})", quote_literal(&dummy_workspace.id.to_string()), additional_query);
+  let actual_project_count = Project::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
+  assert_eq!(response_projects.total_count, actual_project_count);
 
-  let actual_statuses = Status::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_statuses.resources.len(), actual_statuses.len());
-  assert_eq!(response_statuses.resources[0].id, actual_statuses[0].id);
-  assert_eq!(response_statuses.resources[0].id, shown_status.id);
+  let actual_projects = Project::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
+  assert_eq!(response_projects.resources.len(), actual_projects.len());
+  assert_eq!(response_projects.resources[0].id, actual_projects[0].id);
+  assert_eq!(response_projects.resources[0].id, shown_project.id);
 
   return Ok(());
 
@@ -419,24 +419,24 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   initialize_predefined_groups(&test_environment.database_pool).await?;
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
-  // Give the user access to the "statuses.get" action.
+  // Give the user access to the "projects.get" action.
   let plain_text_password = Uuid::now_v7().to_string();
   let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
 
-  // Give the user access to the "statuses.list" action.
-  let list_statuses_action = Action::get_by_name("statuses.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_statuses_action.id, &ActionPermissionLevel::User).await?;
+  // Give the user access to the "projects.list" action.
+  let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy access policies.
-  let dummy_project = test_environment.create_random_project(None).await?;
+  let dummy_workspace = test_environment.create_random_workspace().await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
-    let _ = test_environment.create_random_status(Some(&dummy_project.id)).await?;
+    let _ = test_environment.create_random_project(Some(&dummy_workspace.id)).await?;
 
   }
 
@@ -447,13 +447,13 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
+  let response = test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   
   assert_eq!(response.status_code(), StatusCode::OK);
 
-  let response_body: ListResourcesResponseBody::<Status> = response.json();
+  let response_body: ListResourcesResponseBody::<Project> = response.json();
   assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
@@ -462,7 +462,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 
 /// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
 #[tokio::test]
-async fn verify_maximum_status_list_limit() -> Result<(), TestSlashstepServerError> {
+async fn verify_maximum_project_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -477,13 +477,13 @@ async fn verify_maximum_status_list_limit() -> Result<(), TestSlashstepServerErr
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
-  let list_statuses_action = Action::get_by_name("statuses.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
+  let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project(None).await?;
+  let dummy_workspace = test_environment.create_random_workspace().await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -493,7 +493,7 @@ async fn verify_maximum_status_list_limit() -> Result<(), TestSlashstepServerErr
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
+  let response = test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
     .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
@@ -507,7 +507,7 @@ async fn verify_maximum_status_list_limit() -> Result<(), TestSlashstepServerErr
 
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
-async fn verify_query_when_listing_statuses() -> Result<(), TestSlashstepServerError> {
+async fn verify_query_when_listing_projects() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -522,14 +522,14 @@ async fn verify_query_when_listing_statuses() -> Result<(), TestSlashstepServerE
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
 
-  let list_statuses_action = Action::get_by_name("statuses.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_statuses_action.id, &ActionPermissionLevel::User).await?;
+  let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project(None).await?;
+  let dummy_workspace = test_environment.create_random_workspace().await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -541,12 +541,12 @@ async fn verify_query_when_listing_statuses() -> Result<(), TestSlashstepServerE
   let test_server = TestServer::new(router);
 
   let bad_requests = vec![
-    test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
-      .add_query_param("query", format!("SELECT * FROM statuses")),
-    test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
+    test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+      .add_query_param("query", format!("SELECT * FROM projects")),
+    test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
       .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
-    test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
-      .add_query_param("query", format!("SELECT * FROM statuses WHERE action_id = {}", get_statuses_action.id))
+    test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+      .add_query_param("query", format!("SELECT * FROM projects WHERE action_id = {}", get_projects_action.id))
   ];
   
   for request in bad_requests {
@@ -560,9 +560,9 @@ async fn verify_query_when_listing_statuses() -> Result<(), TestSlashstepServerE
   }
 
   let unprocessable_entity_requests = vec![
-    test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
-      .add_query_param("query", format!("action_ied = {}", get_statuses_action.id)),
-    test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
+    test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+      .add_query_param("query", format!("action_ied = {}", get_projects_action.id)),
+    test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
       .add_query_param("query", format!("1 = 1"))
   ];
 
@@ -582,7 +582,7 @@ async fn verify_query_when_listing_statuses() -> Result<(), TestSlashstepServerE
 
 /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
 #[tokio::test]
-async fn verify_authentication_when_listing_statuses() -> Result<(), TestSlashstepServerError> {
+async fn verify_authentication_when_listing_projects() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -592,7 +592,7 @@ async fn verify_authentication_when_listing_statuses() -> Result<(), TestSlashst
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a dummy action.
-  let dummy_project = test_environment.create_random_project(None).await?;
+  let dummy_workspace = test_environment.create_random_workspace().await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -602,7 +602,7 @@ async fn verify_authentication_when_listing_statuses() -> Result<(), TestSlashst
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
+  let response = test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
     .await;
   
   // Verify the response.
@@ -614,7 +614,7 @@ async fn verify_authentication_when_listing_statuses() -> Result<(), TestSlashst
 
 /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 #[tokio::test]
-async fn verify_permission_when_listing_statuses() -> Result<(), TestSlashstepServerError> {
+async fn verify_permission_when_listing_projects() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
@@ -631,7 +631,7 @@ async fn verify_permission_when_listing_statuses() -> Result<(), TestSlashstepSe
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Create a dummy action.
-  let dummy_project = test_environment.create_random_project(None).await?;
+  let dummy_workspace = test_environment.create_random_workspace().await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -641,7 +641,7 @@ async fn verify_permission_when_listing_statuses() -> Result<(), TestSlashstepSe
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/statuses", &dummy_project.id))
+  let response = test_server.get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;
   

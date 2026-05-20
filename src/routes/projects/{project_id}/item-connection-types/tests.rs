@@ -37,7 +37,7 @@ async fn verify_successful_item_connection_type_creation() -> Result<(), TestSla
   test_environment.create_server_access_policy(&user.id, &create_item_connection_types_action.id, &ActionPermissionLevel::User).await?;
 
   // Set up the server and send the request.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
   let initial_item_connection_type_properties = InitialItemConnectionTypePropertiesWithPredefinedParent {
     display_name: Uuid::now_v7().to_string(),
     inward_description: Uuid::now_v7().to_string(),
@@ -94,7 +94,7 @@ async fn verify_returned_item_connection_type_list_without_query() -> Result<(),
   test_environment.create_server_access_policy(&user.id, &list_item_connection_types_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
   let shown_item_connection_type = ItemConnectionType::create(&InitialItemConnectionTypeProperties {
     display_name: Uuid::now_v7().to_string(),
     inward_description: Uuid::now_v7().to_string(),
@@ -161,7 +161,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   test_environment.create_server_access_policy(&user.id, &list_item_connection_types_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a few dummy access policies.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
   let shown_item_connection_type = ItemConnectionType::create(&InitialItemConnectionTypeProperties {
     display_name: Uuid::now_v7().to_string(),
     inward_description: Uuid::now_v7().to_string(),
@@ -230,7 +230,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   test_environment.create_server_access_policy(&user.id, &list_item_connection_types_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy access policies.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
     ItemConnectionType::create(&InitialItemConnectionTypeProperties {
@@ -287,7 +287,7 @@ async fn verify_maximum_item_connection_type_list_limit() -> Result<(), TestSlas
   test_environment.create_server_access_policy(&user.id, &list_item_connection_types_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -333,7 +333,7 @@ async fn verify_query_when_listing_item_connection_types() -> Result<(), TestSla
   test_environment.create_server_access_policy(&user.id, &list_item_connection_types_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -396,7 +396,7 @@ async fn verify_authentication_when_listing_item_connection_types() -> Result<()
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create a dummy action.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -435,7 +435,7 @@ async fn verify_permission_when_listing_item_connection_types() -> Result<(), Te
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Create a dummy action.
-  let dummy_project = test_environment.create_random_project().await?;
+  let dummy_project = test_environment.create_random_project(None).await?;
 
   // Set up the server and send the request.
   let state = AppState {

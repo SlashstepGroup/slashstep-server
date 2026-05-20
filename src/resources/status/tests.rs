@@ -40,7 +40,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut created_resources: Vec<Status> = Vec::new();
-  let project_id = test_environment.create_random_project().await?.id;
+  let project_id = test_environment.create_random_project(None).await?.id;
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
     let resource = test_environment.create_random_status(Some(&project_id)).await?;
@@ -62,7 +62,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let project_id = test_environment.create_random_project().await?.id;
+  let project_id = test_environment.create_random_project(None).await?.id;
   let status_properties = InitialStatusProperties {
     display_name: Uuid::now_v7().to_string(),
     description: Some(Uuid::now_v7().to_string()),
@@ -141,7 +141,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
   let mut statuses: Vec<Status> = Vec::new();
-  let project_id = test_environment.create_random_project().await?.id;
+  let project_id = test_environment.create_random_project(None).await?.id;
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
     let status = test_environment.create_random_status(Some(&project_id)).await?;
@@ -166,7 +166,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 5;
   let mut created_resources: Vec<Status> = Vec::new();
-  let project_id = test_environment.create_random_project().await?.id;
+  let project_id = test_environment.create_random_project(None).await?.id;
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
     let resource = test_environment.create_random_status(Some(&project_id)).await?;
@@ -208,7 +208,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   initialize_predefined_actions(&test_environment.database_pool).await?;
   const MAXIMUM_RESOURCE_COUNT: i32 = 25;
   let mut created_resources: Vec<Status> = Vec::new();
-  let project_id = test_environment.create_random_project().await?.id;
+  let project_id = test_environment.create_random_project(None).await?.id;
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
     let status = test_environment.create_random_status(Some(&project_id)).await?;
@@ -251,7 +251,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
   let mut current_resources = Status::list("", &test_environment.database_pool, None, None).await?;
   if current_resources.len() < MINIMUM_RESOURCE_COUNT as usize {
 
-    let project_id = test_environment.create_random_project().await?.id;
+    let project_id = test_environment.create_random_project(None).await?.id;
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
     for _ in 0..remaining_action_count {
 
