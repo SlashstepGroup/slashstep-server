@@ -20,7 +20,7 @@ use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejec
 use reqwest::StatusCode;
 use serde::Deserialize;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /groups
 /// 
@@ -155,7 +155,7 @@ async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTr
     description: Some("Group admins can manage the group, including its metadata and its members.".to_string()),
     parent_resource_type: RoleParentResourceType::Group,
     parent_group_id: Some(group.id),
-    protected_role_type: Some(ProtectedRoleType::GroupAdmins),
+    predefined_role_type: Some(PredefinedRoleType::GroupAdmins),
     ..Default::default()
   }, &http_transaction.id, &database_pool).await?;
   let group_admin_action_names = vec![
@@ -230,7 +230,7 @@ async fn create_default_child_resources(group: &Group, http_transaction: &HTTPTr
     description: Some("Group members can view the group's metadata and its members.".to_string()),
     parent_resource_type: RoleParentResourceType::Group,
     parent_group_id: Some(group.id),
-    protected_role_type: Some(ProtectedRoleType::GroupMembers),
+    predefined_role_type: Some(PredefinedRoleType::GroupMembers),
     ..Default::default()
   }, &http_transaction.id, &database_pool).await?;
   let group_member_action_names = vec![

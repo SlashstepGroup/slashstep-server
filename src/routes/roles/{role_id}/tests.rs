@@ -69,7 +69,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   assert_eq!(response_role.parent_resource_type, role.parent_resource_type);
   assert_eq!(response_role.parent_project_id, role.parent_project_id);
   assert_eq!(response_role.parent_workspace_id, role.parent_workspace_id);
-  assert_eq!(response_role.protected_role_type, role.protected_role_type);
+  assert_eq!(response_role.predefined_role_type, role.predefined_role_type);
 
   return Ok(());
   
@@ -441,7 +441,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   assert_eq!(original_role.parent_resource_type, updated_role.parent_resource_type);
   assert_eq!(original_role.parent_workspace_id, updated_role.parent_workspace_id);
   assert_eq!(original_role.parent_project_id, updated_role.parent_project_id);
-  assert_eq!(original_role.protected_role_type, updated_role.protected_role_type);
+  assert_eq!(original_role.predefined_role_type, updated_role.predefined_role_type);
 
   return Ok(());
 

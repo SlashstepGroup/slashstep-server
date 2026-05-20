@@ -1,4 +1,4 @@
-use crate::resources::{ResourceError, access_policy::ActionPermissionLevel, action::{Action, InitialActionProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties, ProtectedGroupType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}};
+use crate::resources::{ResourceError, access_policy::ActionPermissionLevel, action::{Action, InitialActionProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties, ProtectedGroupType}, role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType}};
 use colored::Colorize;
 use rust_decimal::Decimal;
 
@@ -47,6 +47,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       name: "actions.list".to_string(),
       display_name: "List actions".to_string(),
       description: "List all actions on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "actions.create".to_string(),
+      display_name: "Create actions".to_string(),
+      description: "Create new actions on a particular scope.".to_string(),
       ..Default::default()
     },
     InitialActionProperties {
@@ -113,18 +119,6 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       name: "apps.authorize".to_string(),
       display_name: "Authorize apps".to_string(),
       description: "Authorize apps on a particular scope.".to_string(),
-      ..Default::default()
-    },
-    InitialActionProperties {
-      name: "oauthAuthorizations.create".to_string(),
-      display_name: "Create OAuth authorizations".to_string(),
-      description: "Create OAuth authorizations on a particular scope.".to_string(),
-      ..Default::default()
-    },
-    InitialActionProperties {
-      name: "actions.create".to_string(),
-      display_name: "Create actions".to_string(),
-      description: "Create new actions on a particular scope.".to_string(),
       ..Default::default()
     },
     InitialActionProperties {
@@ -722,6 +716,12 @@ pub async fn initialize_predefined_actions(database_pool: &deadpool_postgres::Po
       ..Default::default()
     },
     InitialActionProperties {
+      name: "oauthAuthorizations.create".to_string(),
+      display_name: "Create OAuth authorizations".to_string(),
+      description: "Create OAuth authorizations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "projects.get".to_string(),
       display_name: "Get projects".to_string(),
       description: "Get a specific project on a particular scope.".to_string(),
@@ -1148,7 +1148,7 @@ pub async fn initialize_predefined_roles(database_pool: &deadpool_postgres::Pool
       display_name: "Server admins".to_string(),
       description: Some("Users who have full access to all resources on the server. This role should be assigned to trusted users only.".to_string()),
       parent_resource_type: RoleParentResourceType::Server,
-      protected_role_type: Some(ProtectedRoleType::ServerAdmins),
+      predefined_role_type: Some(PredefinedRoleType::ServerAdmins),
       ..Default::default()
     }
   ];

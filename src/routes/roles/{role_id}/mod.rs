@@ -85,6 +85,14 @@ async fn handle_delete_role_request(
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Role, Some(&target_role.id), &delete_roles_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
 
+  if target_role.predefined_role_type.is_some() {
+
+    let http_error = HTTPError::Forbidden(Some("Predefined roles should only be directly deleted by Slashstep Server. You can indirectly delete roles by deleting the parent resource.".to_string()));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  }
+
   if let Err(error) = target_role.delete(&state.database_pool).await {
 
     let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete role: {:?}", error)));
@@ -143,6 +151,14 @@ async fn handle_patch_role_request(
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Role, Some(&original_target_role.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+
+  if original_target_role.predefined_role_type.is_some() {
+
+    let http_error = HTTPError::Forbidden(Some("Predefined roles should only be updated by Slashstep Server. Use custom roles for more customization.".to_string()));
+    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+    return Err(http_error);
+
+  }
 
   ServerLogEntry::trace(&format!("Updating role {}...", original_target_role.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_role = match original_target_role.update(&EditableRoleProperties {

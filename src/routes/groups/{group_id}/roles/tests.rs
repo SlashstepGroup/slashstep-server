@@ -490,7 +490,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response_role.name, initial_role_properties.name);
   assert_eq!(response_role.display_name, initial_role_properties.display_name);
   assert_eq!(response_role.description, initial_role_properties.description);
-  assert_eq!(response_role.protected_role_type, None);
+  assert_eq!(response_role.predefined_role_type, None);
 
   return Ok(());
   
