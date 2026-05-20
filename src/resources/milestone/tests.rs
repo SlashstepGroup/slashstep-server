@@ -67,7 +67,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
-  let project = test_environment.create_random_project().await?;
+  let project = test_environment.create_random_project(None).await?;
   let milestone_properties = InitialMilestoneProperties {
     name: Uuid::now_v7().to_string(),
     display_name: Uuid::now_v7().to_string(),

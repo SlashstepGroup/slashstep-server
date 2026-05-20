@@ -181,7 +181,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 
   // Create dummy delegation policies.
   let status_count = Status::count("", &test_environment.database_pool, None, None).await?;
-  let parent_project = test_environment.create_random_project().await?;
+  let parent_project = test_environment.create_random_project(None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - status_count + 1) {
 
     test_environment.create_random_status(Some(&parent_project.id)).await?;

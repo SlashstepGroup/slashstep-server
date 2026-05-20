@@ -45,7 +45,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
   let mut created_resources: Vec<Project> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_project().await?;
+    let resource = test_environment.create_random_project(None).await?;
     created_resources.push(resource);
 
   }
@@ -93,7 +93,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_project = test_environment.create_random_project().await?;
+  let created_project = test_environment.create_random_project(None).await?;
   
   created_project.delete(&test_environment.database_pool).await?;
 
@@ -132,7 +132,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
 
-  let created_project = test_environment.create_random_project().await?;
+  let created_project = test_environment.create_random_project(None).await?;
   let retrieved_resource = Project::get_by_id(&created_project.id, &test_environment.database_pool).await?;
   assert_projects_are_equal(&created_project, &retrieved_resource);
 
@@ -151,7 +151,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
   let mut fields: Vec<Project> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let project = test_environment.create_random_project().await?;
+    let project = test_environment.create_random_project(None).await?;
     fields.push(project);
 
   }
@@ -175,7 +175,7 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
   let mut created_resources: Vec<Project> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let resource = test_environment.create_random_project().await?;
+    let resource = test_environment.create_random_project(None).await?;
     created_resources.push(resource);
 
   }
@@ -208,7 +208,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
   let mut created_resources: Vec<Project> = Vec::new();
   for _ in 0..MAXIMUM_RESOURCE_COUNT {
 
-    let project = test_environment.create_random_project().await?;
+    let project = test_environment.create_random_project(None).await?;
     created_resources.push(project);
 
   }
@@ -244,7 +244,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
     let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
     for _ in 0..remaining_action_count {
 
-      let project = test_environment.create_random_project().await?;
+      let project = test_environment.create_random_project(None).await?;
       current_resources.push(project);
 
     }
