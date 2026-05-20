@@ -14,16 +14,16 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
+use rust_decimal::Decimal;
 use uuid::Uuid;
 use crate::{
   AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles, initialize_predefined_groups
+    initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles
   }, resources::{
     access_policy::{
       AccessPolicyPrincipalType, ActionPermissionLevel
-    }, action::Action, workspace::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Workspace},
-  }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
+    }, action::Action, configuration::{Configuration, EditableConfigurationProperties}, workspace::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Workspace}
+  }, routes::{ListResourcesResponseBody, workspaces::CreateWorkspaceRequestBody}, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested list.
@@ -387,6 +387,256 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
   
   // Verify the response.
   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server can create a workspace and return a 201 status code.
+#[tokio::test]
+async fn verify_successful_workspace_creation() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  // Give the user access to the "workspaces.create" action.
+  let user = test_environment.create_random_user(None).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+  let initial_workspace_properties = CreateWorkspaceRequestBody {
+    name: Uuid::now_v7().to_string().replace("-", ""),
+    description: Some(Uuid::now_v7().to_string()),
+    display_name: Uuid::now_v7().to_string(),
+  };
+
+  let create_workspaces_action = Action::get_by_name("workspaces.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_workspaces_action.id, &ActionPermissionLevel::User).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/workspaces"))
+    .json(&serde_json::json!(initial_workspace_properties))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::CREATED);
+
+  let response_workspace: Workspace = response.json();
+  assert_eq!(initial_workspace_properties.name, response_workspace.name);
+  assert_eq!(initial_workspace_properties.description, response_workspace.description);
+  assert_eq!(initial_workspace_properties.display_name, response_workspace.display_name);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the workspace name is over the maximum length.
+#[tokio::test]
+async fn verify_workspace_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let user = test_environment.create_random_user(None).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+  let initial_workspace_properties = CreateWorkspaceRequestBody {
+    name: Uuid::now_v7().to_string().replace("-", ""),
+    description: Some(Uuid::now_v7().to_string()),
+    display_name: Uuid::now_v7().to_string(),
+  };
+
+  let create_workspaces_action = Action::get_by_name("workspaces.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_workspaces_action.id, &ActionPermissionLevel::User).await?;
+
+  let maximum_name_length_configuration = Configuration::get_by_name("workspaces.maximumNameLength", &test_environment.database_pool).await?;
+  maximum_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/workspaces"))
+    .json(&serde_json::json!(initial_workspace_properties))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the workspace display name is over the maximum length.
+#[tokio::test]
+async fn verify_workspace_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let user = test_environment.create_random_user(None).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+  let initial_workspace_properties = CreateWorkspaceRequestBody {
+    name: Uuid::now_v7().to_string().replace("-", ""),
+    description: Some(Uuid::now_v7().to_string()),
+    display_name: Uuid::now_v7().to_string(),
+  };
+
+  let create_workspaces_action = Action::get_by_name("workspaces.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_workspaces_action.id, &ActionPermissionLevel::User).await?;
+
+  let maximum_display_name_length_configuration = Configuration::get_by_name("workspaces.maximumDisplayNameLength", &test_environment.database_pool).await?;
+  maximum_display_name_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/workspaces"))
+    .json(&serde_json::json!(initial_workspace_properties))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the workspace description is over the maximum length.
+#[tokio::test]
+async fn verify_workspace_description_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let user = test_environment.create_random_user(None).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+  let initial_workspace_properties = CreateWorkspaceRequestBody {
+    name: Uuid::now_v7().to_string().replace("-", ""),
+    description: Some(Uuid::now_v7().to_string()),
+    display_name: Uuid::now_v7().to_string(),
+  };
+
+  let create_workspaces_action = Action::get_by_name("workspaces.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_workspaces_action.id, &ActionPermissionLevel::User).await?;
+
+  let maximum_description_length_configuration = Configuration::get_by_name("workspaces.maximumDescriptionLength", &test_environment.database_pool).await?;
+  maximum_description_length_configuration.update(&EditableConfigurationProperties {
+    number_value: Some(Decimal::from(0 as i64)),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/workspaces"))
+    .json(&serde_json::json!(initial_workspace_properties))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+  return Ok(());
+
+}
+
+/// Verifies that the server returns a 422 status code when the workspace name doesn't match the allowed regex pattern.
+#[tokio::test]
+async fn verify_workspace_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+
+  let test_environment = TestEnvironment::new().await?;
+  initialize_required_tables(&test_environment.database_pool).await?;
+  initialize_predefined_actions(&test_environment.database_pool).await?;
+  initialize_predefined_roles(&test_environment.database_pool).await?;
+  initialize_predefined_groups(&test_environment.database_pool).await?;
+  initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+  let user = test_environment.create_random_user(None).await?;
+  let session = test_environment.create_random_session(Some(&user.id)).await?;
+  let json_web_token_private_key = get_json_web_token_private_key().await?;
+  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+  let initial_workspace_properties = CreateWorkspaceRequestBody {
+    name: Uuid::now_v7().to_string().replace("-", ""),
+    description: Some(Uuid::now_v7().to_string()),
+    display_name: Uuid::now_v7().to_string(),
+  };
+
+  let create_workspaces_action = Action::get_by_name("workspaces.create", &test_environment.database_pool).await?;
+  test_environment.create_server_access_policy(&user.id, &create_workspaces_action.id, &ActionPermissionLevel::User).await?;
+
+  let allowed_name_regex_configuration = Configuration::get_by_name("workspaces.allowedNameRegex", &test_environment.database_pool).await?;
+  allowed_name_regex_configuration.update(&EditableConfigurationProperties {
+    text_value: Some("^$".to_string()),
+    ..Default::default()
+  }, &test_environment.database_pool).await?;
+
+  // Set up the server and send the request.
+  let state = AppState {
+    database_pool: test_environment.database_pool.clone(),
+  };
+  let router = super::get_router(state.clone())
+    .with_state(state)
+    .into_make_service_with_connect_info::<SocketAddr>();
+  let test_server = TestServer::new(router);
+  let response = test_server.post(&format!("/workspaces"))
+    .json(&serde_json::json!(initial_workspace_properties))
+    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
+    .await;
+  
+  // Verify the response.
+  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
   return Ok(());
 

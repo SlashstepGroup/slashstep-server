@@ -31,7 +31,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "parent_workspace_id",
   "parent_project_id",
   "parent_group_id",
-  "protected_role_type"
+  "predefined_role_type"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
@@ -55,8 +55,8 @@ pub enum RoleParentResourceType {
 }
 
 #[derive(Debug, Clone, Serialize, ToSql, FromSql, Deserialize, PartialEq, Eq)]
-#[postgres(name = "protected_role_type")]
-pub enum ProtectedRoleType {
+#[postgres(name = "predefined_role_type")]
+pub enum PredefinedRoleType {
 
   /// A role intended for group admins.
   /// 
@@ -89,17 +89,25 @@ pub enum ProtectedRoleType {
   /// 
   /// This role should be protected from deletion to ease the transition in case there is an update to 
   /// the default permissions.
-  UserAccountOwners
+  UserAccountOwners,
 
+  /// A role intended for workspace admins.
+  /// 
+  /// This role is automatically created when a workspace is created.
+  /// 
+  /// This role should be protected from deletion to ease the transition in case there is an update to 
+  /// the default permissions.
+  WorkspaceAdmins
 }
 
-impl fmt::Display for ProtectedRoleType {
+impl fmt::Display for PredefinedRoleType {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match self {
-      ProtectedRoleType::GroupAdmins => write!(f, "GroupAdmins"),
-      ProtectedRoleType::GroupMembers => write!(f, "GroupMembers"),
-      ProtectedRoleType::ServerAdmins => write!(f, "ServerAdmins"),
-      ProtectedRoleType::UserAccountOwners => write!(f, "UserAccountOwners")
+      PredefinedRoleType::GroupAdmins => write!(f, "GroupAdmins"),
+      PredefinedRoleType::GroupMembers => write!(f, "GroupMembers"),
+      PredefinedRoleType::ServerAdmins => write!(f, "ServerAdmins"),
+      PredefinedRoleType::UserAccountOwners => write!(f, "UserAccountOwners"),
+      PredefinedRoleType::WorkspaceAdmins => write!(f, "WorkspaceAdmins")
     }
   }
 }
@@ -131,17 +139,17 @@ pub struct InitialRoleProperties {
   /// The role's parent user ID, if applicable.
   pub parent_user_id: Option<Uuid>,
 
-  /// The role's protected role type, if applicable.
+  /// The role's predefined role type, if applicable.
   /// 
-  /// If the role has a protected role type, then the role cannot be deleted directly
+  /// If the role has a predefined role type, then the role cannot be deleted directly
   /// using Slashstep Server's REST API. 
   ///
-  /// If one *really* needs to delete a protected role, 
+  /// If one *really* needs to delete a predefined role, 
   /// one should delete the parent resource. One technically can delete it through other means 
   /// (i.e. querying the database, editing Slashstep Server source code, etc.); but,
   /// deleting the role may cause a worse user experience, require admin intervention, 
   /// or even break the server.
-  pub protected_role_type: Option<ProtectedRoleType>
+  pub predefined_role_type: Option<PredefinedRoleType>
   
 }
 
@@ -232,17 +240,17 @@ pub struct Role {
   /// The role's parent user ID, if applicable.
   pub parent_user_id: Option<Uuid>,
 
-  /// The role's protected role type, if applicable.
+  /// The role's predefined role type, if applicable.
   /// 
-  /// If the role has a protected role type, then the role cannot be deleted directly
+  /// If the role has a predefined role type, then the role cannot be deleted directly
   /// using Slashstep Server's REST API. 
   ///
-  /// If one *really* needs to delete a protected role, 
+  /// If one *really* needs to delete a predefined role, 
   /// one should delete the parent resource. One technically can delete it through other means 
   /// (i.e. querying the database, editing Slashstep Server source code, etc.); but,
   /// deleting the role may cause a worse user experience, require admin intervention, 
   /// or even break the server.
-  pub protected_role_type: Option<ProtectedRoleType>
+  pub predefined_role_type: Option<PredefinedRoleType>
 }
 
 impl Role {
@@ -323,12 +331,12 @@ impl Role {
 
   }
 
-  pub async fn get_protected_role_by_type(parent_resource_type: &RoleParentResourceType, parent_resource_id: Option<&Uuid>, protected_role_type: &ProtectedRoleType, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+  pub async fn get_by_predefined_role_type(parent_resource_type: &RoleParentResourceType, parent_resource_id: Option<&Uuid>, predefined_role_type: &PredefinedRoleType, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
 
     let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/roles/get_role_row_by_protected_role_type.sql");
+    let query = include_str!("../../queries/roles/get_role_row_by_predefined_role_type.sql");
     let row = match database_client.query_opt(query, &[
-      &protected_role_type,
+      &predefined_role_type,
       &parent_resource_type,
       &parent_resource_id
     ]).await {
@@ -337,7 +345,7 @@ impl Role {
 
         Some(row) => row,
 
-        None => return Err(ResourceError::NotFoundError(format!("A protected server role with the type \"{}\" does not exist.", protected_role_type)))
+        None => return Err(ResourceError::NotFoundError(format!("A protected server role with the type \"{}\" does not exist.", predefined_role_type)))
 
       },
 
@@ -364,7 +372,7 @@ impl Role {
       parent_project_id: row.get("parent_project_id"),
       parent_group_id: row.get("parent_group_id"),
       parent_user_id: row.get("parent_user_id"),
-      protected_role_type: row.get("protected_role_type")
+      predefined_role_type: row.get("predefined_role_type")
     };
 
   }
@@ -392,7 +400,7 @@ impl Role {
       &initial_properties.parent_workspace_id,
       &initial_properties.parent_project_id,
       &initial_properties.parent_user_id,
-      &initial_properties.protected_role_type
+      &initial_properties.predefined_role_type
     ];
     let database_client = database_pool.get().await?;
     let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
@@ -472,18 +480,20 @@ impl Role {
 
     match key {
 
-      "protected_role_type" => {
+      "predefined_role_type" => {
 
-        let protected_role_type = match value {
+        let predefined_role_type = match value {
 
-          "GroupAdmins" => ProtectedRoleType::GroupAdmins,
-          "GroupMembers" => ProtectedRoleType::GroupMembers,
-          "ServerAdmins" => ProtectedRoleType::ServerAdmins,
-          _ => return Err(SlashstepQLError::StringParserError(format!("Failed to parse protected role type from \"{}\" for key \"{}\".", value, key)))
+          "GroupAdmins" => PredefinedRoleType::GroupAdmins,
+          "GroupMembers" => PredefinedRoleType::GroupMembers,
+          "ServerAdmins" => PredefinedRoleType::ServerAdmins,
+          "UserAccountOwners" => PredefinedRoleType::UserAccountOwners,
+          "WorkspaceAdmins" => PredefinedRoleType::WorkspaceAdmins,
+          _ => return Err(SlashstepQLError::StringParserError(format!("Failed to parse predefined role type from \"{}\" for key \"{}\".", value, key)))
 
         };
 
-        return Ok(Box::new(protected_role_type));
+        return Ok(Box::new(predefined_role_type));
 
       },
 

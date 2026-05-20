@@ -22,10 +22,10 @@ use colored::Colorize;
 use thiserror::Error;
 use crate::{
   predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups
+    initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles
   }, 
   resources::{
-    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::{Configuration, EditableConfigurationProperties}, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::MembershipInvitation, milestone::Milestone, oauth_authorization::OAuthAuthorization, password_reset_authorization::PasswordResetAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::{InitialUserProperties, User}, view::View, view_field::ViewField, webhook::Webhook, workspace::Workspace
+    ResourceError, access_policy::AccessPolicy, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::{Configuration, EditableConfigurationProperties}, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::MembershipInvitation, milestone::Milestone, oauth_authorization::OAuthAuthorization, password_reset_authorization::PasswordResetAuthorization, project::Project, role::{PredefinedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, session::Session, status::Status, user::{InitialUserProperties, User}, view::View, view_field::ViewField, webhook::Webhook, workspace::Workspace
   }
 };
 
@@ -481,7 +481,7 @@ pub async fn setup_admin_user_if_necessary(postgres_pool: &deadpool_postgres::Po
 
     };
 
-    let server_admin_role = Role::get_by_name("server-admins", &postgres_pool).await?;
+    let server_admin_role = Role::get_by_predefined_role_type(&RoleParentResourceType::Server, None, &PredefinedRoleType::ServerAdmins, &postgres_pool).await?;
 
     Membership::create(&InitialMembershipProperties {
       parent_resource_type: MembershipParentResourceType::Role,

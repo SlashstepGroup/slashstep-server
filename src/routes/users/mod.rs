@@ -19,7 +19,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{Group, GroupParentResourceType, ProtectedGroupType}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, ProtectedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialUserProperties, User}}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, group::{Group, GroupParentResourceType, ProtectedGroupType}, http_transaction::HTTPTransaction, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialUserProperties, User}}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateUserRequestBody {
@@ -243,7 +243,7 @@ async fn handle_create_user_request(
     parent_project_id: None,
     parent_user_id: Some(user.id),
     parent_workspace_id: None,
-    protected_role_type: Some(ProtectedRoleType::UserAccountOwners)
+    predefined_role_type: Some(PredefinedRoleType::UserAccountOwners)
   }, &state.database_pool).await {
 
     Ok(role) => role,

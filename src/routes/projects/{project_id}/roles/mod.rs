@@ -150,7 +150,7 @@ async fn handle_create_role_request(
     parent_group_id: None,
     parent_workspace_id: None,
     parent_user_id: None,
-    protected_role_type: None
+    predefined_role_type: None
   }, &state.database_pool).await {
 
     Ok(role) => role,

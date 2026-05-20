@@ -3,7 +3,7 @@ SELECT
 FROM
   roles
 WHERE
-  protected_role_type = $1
+  predefined_role_type = $1
   AND parent_resource_type = $2
   AND (
     parent_resource_type = 'Server' 
