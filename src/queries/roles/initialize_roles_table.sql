@@ -2,6 +2,7 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'role_parent_resource_type') THEN
     CREATE TYPE role_parent_resource_type AS ENUM (
+      'App',
       'Server',
       'Workspace',
       'Project',
@@ -12,6 +13,7 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'predefined_role_type') THEN
     CREATE TYPE predefined_role_type AS ENUM (
+      'AppAdmins',
       'GroupAdmins',
       'GroupMembers',
       'ServerAdmins',
@@ -27,6 +29,7 @@ BEGIN
     display_name TEXT NOT NULL,
     description TEXT,
     parent_resource_type role_parent_resource_type NOT NULL,
+    parent_app_id UUID REFERENCES apps(id) ON DELETE CASCADE,
     parent_group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     parent_workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
     parent_project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
@@ -41,6 +44,7 @@ BEGIN
         AND parent_workspace_id IS NULL 
         AND parent_project_id IS NULL
         AND parent_user_id IS NULL
+        AND parent_app_id IS NULL
       )
       OR (
         parent_resource_type = 'Workspace' 
@@ -48,6 +52,7 @@ BEGIN
         AND parent_workspace_id IS NOT NULL 
         AND parent_project_id IS NULL
         AND parent_user_id IS NULL
+        AND parent_app_id IS NULL
       )
       OR (
         parent_resource_type = 'Project' 
@@ -55,6 +60,7 @@ BEGIN
         AND parent_workspace_id IS NULL 
         AND parent_project_id IS NOT NULL
         AND parent_user_id IS NULL
+        AND parent_app_id IS NULL
       )
       OR (
         parent_resource_type = 'Group' 
@@ -62,6 +68,7 @@ BEGIN
         AND parent_workspace_id IS NULL 
         AND parent_project_id IS NULL
         AND parent_user_id IS NULL
+        AND parent_app_id IS NULL
       )
       OR (
         parent_resource_type = 'User' 
@@ -69,6 +76,15 @@ BEGIN
         AND parent_workspace_id IS NULL 
         AND parent_project_id IS NULL
         AND parent_user_id IS NOT NULL
+        AND parent_app_id IS NULL
+      )
+      OR (
+        parent_resource_type = 'App' 
+        AND parent_group_id IS NULL 
+        AND parent_workspace_id IS NULL 
+        AND parent_project_id IS NULL
+        AND parent_user_id IS NULL
+        AND parent_app_id IS NOT NULL
       )
     )
   );
@@ -77,6 +93,8 @@ BEGIN
   CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_workspace ON roles (UPPER(name), parent_workspace_id, parent_resource_type);
   CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_project ON roles (UPPER(name), parent_project_id, parent_resource_type);
   CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_server ON roles (UPPER(name), parent_resource_type) WHERE parent_resource_type = 'Server';
+  CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_app ON roles (UPPER(name), parent_app_id, parent_resource_type);
+  CREATE UNIQUE INDEX IF NOT EXISTS unique_role_name_across_user ON roles (UPPER(name), parent_user_id, parent_resource_type);
 
 END
 $$ LANGUAGE plpgsql;

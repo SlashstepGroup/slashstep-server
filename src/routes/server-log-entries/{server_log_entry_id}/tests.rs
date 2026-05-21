@@ -402,7 +402,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   }, &test_environment.database_pool).await?;
 
 //   // Set up the server and send the request.
-//   let original_app = test_environment.create_random_app().await?;
+//   let original_app = test_environment.create_random_app(None, None).await?;
 //   let new_name = Uuid::now_v7().to_string();
 //   let new_display_name = Uuid::now_v7().to_string();
 //   let new_description = Some(Uuid::now_v7().to_string());

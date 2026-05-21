@@ -164,7 +164,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
   let app_credential_count = AppCredential::count(format!("app_id = {}", quote_literal(&dummy_app.id.to_string())).as_str(), &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - app_credential_count + 1) {
 
@@ -219,7 +219,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -265,7 +265,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &ActionPermissionLevel::User).await?;
 
   // Create dummy resources.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -329,7 +329,7 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
   initialize_predefined_configurations(&test_environment.database_pool).await?;
 
   // Create dummy resources.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -368,7 +368,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Create dummy resources.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -440,7 +440,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   test_environment.create_server_access_policy(&user.id, &create_app_credentials_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a dummy app.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let initial_app_credential_properties = InitialAppCredentialPropertiesForPredefinedScope {
@@ -482,7 +482,7 @@ async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSla
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create a dummy app.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -518,7 +518,7 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create a dummy app.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let initial_app_credential_properties = InitialAppCredentialPropertiesForPredefinedScope {
@@ -562,7 +562,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   
   // Create a dummy app.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let initial_app_credential_properties = InitialAppCredentialPropertiesForPredefinedScope {

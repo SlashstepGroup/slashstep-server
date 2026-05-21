@@ -1026,6 +1026,26 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                     selected_resource_type := 'Server';
                     selected_resource_id := NULL;
 
+                ELSIF selected_resource_parent_type = 'App' THEN
+
+                    SELECT
+                        parent_app_id
+                    INTO
+                        selected_resource_parent_id
+                    FROM
+                        roles
+                    WHERE
+                        roles.id = selected_resource_id;
+
+                    IF selected_resource_parent_id IS NULL THEN
+
+                        RAISE EXCEPTION 'Couldn''t find a parent app for role %.', selected_resource_id;
+
+                    END IF;
+
+                    selected_resource_type := 'App';
+                    selected_resource_id := selected_resource_parent_id;
+
                 ELSIF selected_resource_parent_type = 'Workspace' THEN
 
                     SELECT

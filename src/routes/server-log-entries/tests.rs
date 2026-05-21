@@ -62,7 +62,7 @@
 //   }, &test_environment.database_pool).await?;
 
 //   // Create a dummy app.
-//   test_environment.create_random_app().await?;
+//   test_environment.create_random_app(None, None).await?;
 
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -138,7 +138,7 @@
 //   }, &test_environment.database_pool).await?;
 
 //   // Create a dummy app.
-//   let dummy_app = test_environment.create_random_app().await?;
+//   let dummy_app = test_environment.create_random_app(None, None).await?;
   
 //   // Set up the server and send the request.
 //   let state = AppState {
@@ -220,7 +220,7 @@
 //   let app_count = App::count("", &test_environment.database_pool, None, None).await?;
 //   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - app_count + 1) {
 
-//     test_environment.create_random_app().await?;
+//     test_environment.create_random_app(None, None).await?;
 
 //   }
 

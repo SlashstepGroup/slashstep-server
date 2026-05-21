@@ -51,7 +51,8 @@ mod workspaces;
 
 use axum::{Router, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::http_transaction_middleware};
+use uuid::Uuid;
+use crate::{AppState, HTTPError, middleware::http_transaction_middleware, resources::app::{AppClientType, AppParentResourceType}};
 
 #[derive(Debug, Deserialize)]
 pub struct ResourceListQueryParameters {
@@ -62,6 +63,27 @@ pub struct ResourceListQueryParameters {
 pub struct ListResourcesResponseBody<ResourceStruct> {
   pub resources: Vec<ResourceStruct>,
   pub total_count: i64
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreateAppRequestBody {
+  pub name: String,
+  pub display_name: String,
+  pub description: Option<String>,
+  pub client_type: AppClientType
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppWithClientSecret {
+  pub id: Uuid,
+  pub name: String,
+  pub display_name: String,
+  pub description: Option<String>,
+  pub client_type: AppClientType,
+  pub client_secret: Option<String>,
+  pub parent_resource_type: AppParentResourceType,
+  pub parent_workspace_id: Option<Uuid>,
+  pub parent_user_id: Option<Uuid>
 }
 
 async fn fallback() -> impl IntoResponse {

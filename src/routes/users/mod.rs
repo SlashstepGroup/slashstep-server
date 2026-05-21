@@ -243,6 +243,7 @@ async fn handle_create_user_request(
     parent_project_id: None,
     parent_user_id: Some(user.id),
     parent_workspace_id: None,
+    parent_app_id: None,
     predefined_role_type: Some(PredefinedRoleType::UserAccountOwners)
   }, &state.database_pool).await {
 

@@ -39,7 +39,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   test_environment.create_server_access_policy(&user.id, &authorize_app_action.id, &ActionPermissionLevel::User).await?;
 
   // Create a dummy app.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
   let dummy_user = test_environment.create_random_user(None).await?;
   let dummy_action = test_environment.create_random_action(None).await?;
 

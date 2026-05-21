@@ -30,7 +30,7 @@ async fn verify_update() -> Result<(), TestSlashstepServerError> {
   // Create the app and update everything.
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let original_app = test_environment.create_random_app().await?;
+  let original_app = test_environment.create_random_app(None, None).await?;
   let new_name = Uuid::now_v7().to_string();
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Some(Uuid::now_v7().to_string());
@@ -70,7 +70,7 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let created_app = test_environment.create_random_app().await?;
+  let created_app = test_environment.create_random_app(None, None).await?;
 
   created_app.delete(&test_environment.database_pool).await?;
 
