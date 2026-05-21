@@ -185,6 +185,7 @@ async fn handle_create_workspace_request(
     parent_project_id: None,
     parent_user_id: None,
     parent_workspace_id: Some(workspace.id),
+    parent_app_id: None,
     predefined_role_type: Some(PredefinedRoleType::WorkspaceAdmins)
   }, &state.database_pool).await {
 
@@ -215,11 +216,20 @@ async fn handle_create_workspace_request(
     "actions.delete",
     "actionLogEntries.get",
     "actionLogEntries.list",
+    "apps.authorize",
     "apps.get",
     "apps.list",
     "apps.create",
     "apps.update",
     "apps.delete",
+    "appAuthorizations.create",
+    "appAuthorizations.delete",
+    "appAuthorizations.get",
+    "appAuthorizations.list",
+    "appCredentials.create",
+    "appCredentials.delete",
+    "appCredentials.get",
+    "appCredentials.list",
     "fields.create",
     "fields.delete",
     "fields.get",

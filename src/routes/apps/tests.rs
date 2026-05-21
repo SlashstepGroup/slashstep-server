@@ -17,13 +17,12 @@ use uuid::Uuid;
 use rust_decimal::Decimal;
 use crate::{
   AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles, initialize_predefined_groups
+    initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles
   }, resources::{
     ResourceType, access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
-    }, action::Action, app::{App, AppClientType, DEFAULT_RESOURCE_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, configuration::{Configuration, EditableConfigurationProperties},
-  }, routes::apps::{AppWithClientSecret, InitialAppPropertiesWithoutClientSecretHash}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
+    }, action::Action, app::{App, AppClientType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT}, configuration::{Configuration, EditableConfigurationProperties},
+  }, routes::{AppWithClientSecret, ListResourcesResponseBody, apps::InitialAppPropertiesWithoutClientSecretHash}, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
 /// Verifies that the router can return a 200 status code and the requested list.
@@ -67,7 +66,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   }, &test_environment.database_pool).await?;
 
   // Create a dummy app.
-  test_environment.create_random_app().await?;
+  test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -146,7 +145,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   }, &test_environment.database_pool).await?;
 
   // Create a dummy app.
-  let dummy_app = test_environment.create_random_app().await?;
+  let dummy_app = test_environment.create_random_app(None, None).await?;
   
   // Set up the server and send the request.
   let state = AppState {
@@ -231,7 +230,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let app_count = App::count("", &test_environment.database_pool, None, None).await?;
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - app_count + 1) {
 
-    test_environment.create_random_app().await?;
+    test_environment.create_random_app(None, None).await?;
 
   }
 

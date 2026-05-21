@@ -66,7 +66,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   let mut os_rng = OsRng;
   let signing_key = SigningKey::generate(&mut os_rng);
   let public_key = signing_key.verifying_key().to_public_key_pem(LineEnding::LF)?;
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
   let app_credential_properties = InitialAppCredentialProperties {
     app_id: app.id,
     description: Some(Uuid::now_v7().to_string()),

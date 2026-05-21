@@ -416,7 +416,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //   }, &test_environment.database_pool).await?;
 
 //   // Set up the server and send the request.
-//   let original_app = test_environment.create_random_app().await?;
+//   let original_app = test_environment.create_random_app(None, None).await?;
 //   let new_name = Uuid::now_v7().to_string();
 //   let new_display_name = Uuid::now_v7().to_string();
 //   let new_description = Some(Uuid::now_v7().to_string());

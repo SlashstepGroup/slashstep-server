@@ -5,7 +5,7 @@ use deadpool_postgres::tokio_postgres;
 use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePublicKey, spki::der::pem::LineEnding}};
 use local_ip_address::local_ip;
 use postgres::NoTls;
-use rand::{RngExt, distr::{Alphanumeric, SampleString}, rngs::ThreadRng};
+use rand::{RngExt, distr::{Alphanumeric, SampleString}};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
@@ -114,7 +114,7 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_random_app(&self) -> Result<App, TestSlashstepServerError> {
+  pub async fn create_random_app(&self, parent_resource_type: Option<&AppParentResourceType>, parent_resource_id: Option<&Uuid>) -> Result<App, TestSlashstepServerError> {
 
     let app_properties = InitialAppProperties {
       name: Uuid::now_v7().to_string(),
@@ -122,9 +122,9 @@ impl TestEnvironment {
       description: Some(Uuid::now_v7().to_string()),
       client_type: AppClientType::Public,
       client_secret_hash: Some(Uuid::now_v7().to_string()),
-      parent_resource_type: AppParentResourceType::Server,
-      parent_workspace_id: None,
-      parent_user_id: None
+      parent_resource_type: parent_resource_type.copied().unwrap_or(AppParentResourceType::Server),
+      parent_workspace_id: if parent_resource_type == Some(&AppParentResourceType::Workspace) { Some(parent_resource_id.copied().unwrap_or(self.create_random_workspace().await?.id)) } else { None },
+      parent_user_id: if parent_resource_type == Some(&AppParentResourceType::User) { Some(parent_resource_id.copied().unwrap_or(self.create_random_user(None).await?.id)) } else { None }
     };
 
     let app = App::create(&app_properties, &self.database_pool).await?;
@@ -136,7 +136,7 @@ impl TestEnvironment {
   pub async fn create_random_oauth_authorization(&self, app_id: Option<&Uuid>, code_challenge: Option<&str>) -> Result<OAuthAuthorization, TestSlashstepServerError> {
 
     let oauth_authorization_properties = InitialOAuthAuthorizationProperties {
-      app_id: app_id.copied().unwrap_or(self.create_random_app().await?.id),
+      app_id: app_id.copied().unwrap_or(self.create_random_app(None, None).await?.id),
       authorizing_user_id: self.create_random_user(None).await?.id,
       code_challenge: code_challenge.map(|code_challenge| code_challenge.to_string()),
       code_challenge_method: code_challenge.and(Some("S256".to_string())),
@@ -171,7 +171,7 @@ impl TestEnvironment {
   pub async fn create_random_app_authorization(&self, app_id: Option<&Uuid>) -> Result<AppAuthorization, TestSlashstepServerError> {
 
     // Create a random app.
-    let app_id = app_id.copied().unwrap_or(self.create_random_app().await?.id);
+    let app_id = app_id.copied().unwrap_or(self.create_random_app(None, None).await?.id);
     let app_authorization_properties = InitialAppAuthorizationProperties {
       app_id,
       ..Default::default()
@@ -203,7 +203,7 @@ impl TestEnvironment {
   pub async fn create_random_app_credential(&self, app_id: Option<&Uuid>) -> Result<AppCredential, TestSlashstepServerError> {
 
     // Create a random app.
-    let app_id = app_id.copied().unwrap_or(self.create_random_app().await?.id);
+    let app_id = app_id.copied().unwrap_or(self.create_random_app(None, None).await?.id);
 
     // Create a public key.
     let mut os_rng = OsRng;

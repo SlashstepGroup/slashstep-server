@@ -3,6 +3,7 @@ INSERT INTO roles (
   display_name,
   description,
   parent_resource_type,
+  parent_app_id,
   parent_group_id,
   parent_workspace_id,
   parent_project_id,
@@ -17,5 +18,6 @@ INSERT INTO roles (
   $6,
   $7,
   $8,
-  $9
+  $9,
+  $10
 ) RETURNING *;

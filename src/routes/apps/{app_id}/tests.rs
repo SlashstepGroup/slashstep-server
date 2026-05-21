@@ -63,7 +63,7 @@ async fn verify_returned_app_by_id() -> Result<(), TestSlashstepServerError> {
     ..Default::default()
   }, &test_environment.database_pool).await?;
   
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
 
   let response = test_server.get(&format!("/apps/{}", app.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
@@ -133,7 +133,7 @@ async fn verify_authentication_when_getting_app_by_id() -> Result<(), TestSlashs
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
   
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
 
   let response = test_server.get(&format!("/apps/{}", app.id))
     .await;
@@ -161,7 +161,7 @@ async fn verify_permission_when_getting_app_by_id() -> Result<(), TestSlashstepS
   let session = test_environment.create_random_session(Some(&user.id)).await?;
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -249,7 +249,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   }, &test_environment.database_pool).await?;
 
   // Set up the server and send the request.
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -314,7 +314,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Create a dummy app.
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -352,7 +352,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   
   // Create a dummy app.
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -437,7 +437,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   }, &test_environment.database_pool).await?;
 
   // Set up the server and send the request.
-  let original_app = test_environment.create_random_app().await?;
+  let original_app = test_environment.create_random_app(None, None).await?;
   let new_name = Uuid::now_v7().to_string().replace("-", ""); // Replacing dashes to comply with the default 32-character length limit.
   let new_display_name = Uuid::now_v7().to_string();
   let new_description = Some(Uuid::now_v7().to_string());
@@ -609,7 +609,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   
   // Set up the server and send the request.
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };
@@ -648,7 +648,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
 
   // Set up the server and send the request.
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
   };

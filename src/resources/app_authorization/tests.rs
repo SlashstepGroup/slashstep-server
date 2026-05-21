@@ -58,7 +58,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
   initialize_predefined_actions(&test_environment.database_pool).await?;
 
   // Create the access policy.
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
   let app_authorization_properties = InitialAppAuthorizationProperties {
     app_id: app.id,
     authorizing_resource_type: AppAuthorizationAuthorizingResourceType::Server,

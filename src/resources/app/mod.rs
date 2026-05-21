@@ -12,6 +12,8 @@
 #[cfg(test)]
 mod tests;
 
+use std::str::FromStr;
+
 use postgres::error::SqlState;
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
@@ -47,13 +49,32 @@ pub enum AppClientType {
   Confidential
 }
 
-#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Serialize, Deserialize, Default, Copy)]
 #[postgres(name = "app_parent_resource_type")]
 pub enum AppParentResourceType {
   #[default]
   Server,
   User,
   Workspace
+}
+
+impl FromStr for AppParentResourceType {
+
+  type Err = ResourceError;
+
+  fn from_str(str: &str) -> Result<Self, Self::Err> {
+
+    match str {
+
+      "Server" => Ok(AppParentResourceType::Server),
+      "User" => Ok(AppParentResourceType::User),
+      "Workspace" => Ok(AppParentResourceType::Workspace),
+      _ => Err(ResourceError::UnexpectedEnumVariantError(str.to_string()))
+
+    }
+
+  }
+
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -257,15 +278,36 @@ impl App {
     if UUID_QUERY_KEYS.contains(&key) {
 
       let uuid = match Uuid::parse_str(value) {
+
         Ok(uuid) => uuid,
-        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\".", value, key)))
+        Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\": {}", value, key, error)))
+
       };
 
       return Ok(Box::new(uuid));
 
-    }
+    } else {
 
-    return Ok(Box::new(value));
+      match key {
+
+        "parent_resource_type" => {
+
+          let parent_resource_type = match AppParentResourceType::from_str(value) {
+
+            Ok(parent_resource_type) => parent_resource_type,
+            Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))
+
+          };
+
+          return Ok(Box::new(parent_resource_type));
+
+        }
+
+        _ => return Ok(Box::new(value.to_string()))
+
+      }
+
+    }
 
   }
 

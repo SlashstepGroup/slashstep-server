@@ -103,7 +103,7 @@ async fn verify_deletion_of_expired_action_log_entries() -> Result<(), TestSlash
   let test_environment = TestEnvironment::new().await?;
   initialize_required_tables(&test_environment.database_pool).await?;
   initialize_predefined_actions(&test_environment.database_pool).await?;
-  let app = test_environment.create_random_app().await?;
+  let app = test_environment.create_random_app(None, None).await?;
   let action = test_environment.create_random_action(None).await?;
   let created_action_log_entry = ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: action.id,

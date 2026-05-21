@@ -28,16 +28,20 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
   "display_name",
   "description",
   "parent_resource_type",
+  "parent_app_id",
   "parent_workspace_id",
   "parent_project_id",
   "parent_group_id",
+  "parent_user_id",
   "predefined_role_type"
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
   "id",
+  "parent_app_id",
   "parent_workspace_id",
   "parent_project_id",
-  "parent_group_id"
+  "parent_group_id",
+  "parent_user_id"
 ];
 pub const RESOURCE_NAME: &str = "Role";
 pub const DATABASE_TABLE_NAME: &str = "roles";
@@ -46,6 +50,7 @@ pub const GET_RESOURCE_ACTION_NAME: &str = "roles.get";
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default)]
 #[postgres(name = "role_parent_resource_type")]
 pub enum RoleParentResourceType {
+  App,
   #[default]
   Server,
   Workspace,
@@ -57,6 +62,14 @@ pub enum RoleParentResourceType {
 #[derive(Debug, Clone, Serialize, ToSql, FromSql, Deserialize, PartialEq, Eq)]
 #[postgres(name = "predefined_role_type")]
 pub enum PredefinedRoleType {
+
+  /// A role intended for app admins.
+  /// 
+  /// This role is automatically created when an app is created.
+  /// 
+  /// This role should be protected from deletion to ease the transition in case there is an update 
+  /// to the default permissions.
+  AppAdmins,
 
   /// A role intended for group admins.
   /// 
@@ -103,6 +116,7 @@ pub enum PredefinedRoleType {
 impl fmt::Display for PredefinedRoleType {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match self {
+      PredefinedRoleType::AppAdmins => write!(f, "AppAdmins"),
       PredefinedRoleType::GroupAdmins => write!(f, "GroupAdmins"),
       PredefinedRoleType::GroupMembers => write!(f, "GroupMembers"),
       PredefinedRoleType::ServerAdmins => write!(f, "ServerAdmins"),
@@ -126,6 +140,9 @@ pub struct InitialRoleProperties {
 
   /// The role's parent resource type.
   pub parent_resource_type: RoleParentResourceType,
+
+  /// The role's parent app ID, if applicable.
+  pub parent_app_id: Option<Uuid>,
 
   /// The role's parent workspace ID, if applicable.
   pub parent_workspace_id: Option<Uuid>,
@@ -227,6 +244,9 @@ pub struct Role {
 
   /// The role's parent resource type.
   pub parent_resource_type: RoleParentResourceType,
+
+  /// The role's parent app ID, if applicable.
+  pub parent_app_id: Option<Uuid>,
 
   /// The role's parent workspace ID, if applicable.
   pub parent_workspace_id: Option<Uuid>,
@@ -368,6 +388,7 @@ impl Role {
       display_name: row.get("display_name"),
       description: row.get("description"),
       parent_resource_type: row.get("parent_resource_type"),
+      parent_app_id: row.get("parent_app_id"),
       parent_workspace_id: row.get("parent_workspace_id"),
       parent_project_id: row.get("parent_project_id"),
       parent_group_id: row.get("parent_group_id"),
@@ -396,6 +417,7 @@ impl Role {
       &initial_properties.display_name,
       &initial_properties.description,
       &initial_properties.parent_resource_type,
+      &initial_properties.parent_app_id,
       &initial_properties.parent_group_id,
       &initial_properties.parent_workspace_id,
       &initial_properties.parent_project_id,
@@ -483,7 +505,7 @@ impl Role {
       "predefined_role_type" => {
 
         let predefined_role_type = match value {
-
+          "AppAdmins" => PredefinedRoleType::AppAdmins,
           "GroupAdmins" => PredefinedRoleType::GroupAdmins,
           "GroupMembers" => PredefinedRoleType::GroupMembers,
           "ServerAdmins" => PredefinedRoleType::ServerAdmins,
@@ -494,6 +516,23 @@ impl Role {
         };
 
         return Ok(Box::new(predefined_role_type));
+
+      },
+
+      "parent_resource_type" => {
+
+        let parent_resource_type = match value {
+          "App" => RoleParentResourceType::App,
+          "Server" => RoleParentResourceType::Server,
+          "Workspace" => RoleParentResourceType::Workspace,
+          "Project" => RoleParentResourceType::Project,
+          "Group" => RoleParentResourceType::Group,
+          "User" => RoleParentResourceType::User,
+          _ => return Err(SlashstepQLError::StringParserError(format!("Failed to parse role parent resource type from \"{}\" for key \"{}\".", value, key)))
+
+        };
+
+        return Ok(Box::new(parent_resource_type));
 
       },
 
