@@ -26,6 +26,7 @@ use crate::{
 mod access_policies;
 mod apps;
 mod projects;
+mod roles;
 #[cfg(test)]
 mod tests;
 
@@ -201,7 +202,8 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
     .merge(access_policies::get_router(state.clone()))
     .merge(apps::get_router(state.clone()))
-    .merge(projects::get_router(state.clone()));
+    .merge(projects::get_router(state.clone()))
+    .merge(roles::get_router(state.clone()));
   return router;
 
 }
