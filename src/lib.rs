@@ -115,11 +115,13 @@ pub enum HTTPError {
   ConflictError(Option<String>),
   BadRequest(Option<String>),
   UnsupportedMediaType(Option<String>),
+  MethodNotAllowed(Option<String>),
   NotImplementedError(Option<String>),
   InternalServerError(Option<String>),
   Unauthorized(Option<String>),
   UnprocessableEntity(Option<String>),
-  PayloadTooLarge(Option<String>)
+  PayloadTooLarge(Option<String>),
+  TooManyRequests(Option<String>)
 }
 
 #[derive(Debug, Serialize)]
@@ -136,12 +138,14 @@ impl fmt::Display for HTTPError {
       HTTPError::Forbidden(message) => write!(f, "{}", message.to_owned().unwrap_or("Forbidden.".to_string())),
       HTTPError::GoneError(message) => write!(f, "{}", message.to_owned().unwrap_or("Gone.".to_string())),
       HTTPError::BadRequest(message) => write!(f, "{}", message.to_owned().unwrap_or("Bad request.".to_string())),
+      HTTPError::MethodNotAllowed(message) => write!(f, "{}", message.to_owned().unwrap_or("Method not allowed.".to_string())),
       HTTPError::NotImplementedError(message) => write!(f, "{}", message.to_owned().unwrap_or("Not implemented.".to_string())),
       HTTPError::InternalServerError(message) => write!(f, "{}", message.to_owned().unwrap_or("Internal server error.".to_string())),
       HTTPError::Unauthorized(message) => write!(f, "{}", message.to_owned().unwrap_or("Unauthorized.".to_string())),
       HTTPError::UnsupportedMediaType(message) => write!(f, "{}", message.to_owned().unwrap_or("Unsupported media type.".to_string())),
       HTTPError::UnprocessableEntity(message) => write!(f, "{}", message.to_owned().unwrap_or("Unprocessable entity.".to_string())),
-      HTTPError::PayloadTooLarge(message) => write!(f, "{}", message.to_owned().unwrap_or("Payload too large.".to_string()))
+      HTTPError::PayloadTooLarge(message) => write!(f, "{}", message.to_owned().unwrap_or("Payload too large.".to_string())),
+      HTTPError::TooManyRequests(message) => write!(f, "{}", message.to_owned().unwrap_or("Too many requests.".to_string()))
     }
   }
   
@@ -167,11 +171,15 @@ impl IntoResponse for HTTPError {
 
       HTTPError::UnsupportedMediaType(message) => (StatusCode::UNSUPPORTED_MEDIA_TYPE, message.unwrap_or("Unsupported media type.".to_string())),
 
+      HTTPError::MethodNotAllowed(message) => (StatusCode::METHOD_NOT_ALLOWED, message.unwrap_or("Method not allowed.".to_string())),
+
       HTTPError::NotImplementedError(message) => (StatusCode::NOT_IMPLEMENTED, message.unwrap_or("Not implemented.".to_string())),
 
       HTTPError::UnprocessableEntity(message) => (StatusCode::UNPROCESSABLE_ENTITY, message.unwrap_or("Unprocessable entity.".to_string())),
 
       HTTPError::PayloadTooLarge(message) => (StatusCode::PAYLOAD_TOO_LARGE, message.unwrap_or("Payload too large.".to_string())),
+
+      HTTPError::TooManyRequests(message) => (StatusCode::TOO_MANY_REQUESTS, message.unwrap_or("Too many requests.".to_string())),
 
       HTTPError::InternalServerError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Something bad happened on our side. Please try again later.".to_string()),
 

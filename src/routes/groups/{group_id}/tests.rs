@@ -58,6 +58,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   
   let group = test_environment.create_random_group().await?;
 
+  // testing rate limits
   let response = test_server.get(&format!("/groups/{}", group.id))
     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
     .await;

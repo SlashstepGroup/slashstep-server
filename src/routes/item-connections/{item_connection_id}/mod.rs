@@ -15,7 +15,7 @@ use reqwest::StatusCode;
 use crate::{
   AppState, 
   HTTPError, 
-  middleware::{authentication_middleware, http_transaction_middleware}, 
+  middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware}, 
   resources::{
     ResourceType, access_policy::{PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, item_connection::{EditableItemConnectionProperties, ItemConnection}, server_log_entry::ServerLogEntry, user::User
   }, 
@@ -172,6 +172,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/item-connections/{item_connection_id}", axum::routing::get(handle_get_item_connection_request))
     .route("/item-connections/{item_connection_id}", axum::routing::delete(handle_delete_item_connection_request))
     .route("/item-connections/{item_connection_id}", axum::routing::patch(handle_patch_item_connection_request))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_total_maximum_rate_limits))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))

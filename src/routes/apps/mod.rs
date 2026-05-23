@@ -21,7 +21,7 @@ use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::PermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{AppWithClientSecret, ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware}, resources::{ResourceError, ResourceType, access_policy::PermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{AppWithClientSecret, ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct InitialAppPropertiesWithoutClientSecretHash {
@@ -312,6 +312,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
   let router = Router::<AppState>::new()
     .route("/apps", axum::routing::get(handle_list_apps_request))
     .route("/apps", axum::routing::post(handle_create_app_request))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_total_maximum_rate_limits))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))

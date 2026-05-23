@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, access_policy::{AccessPolicy, PermissionLevel, EditableAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_access_policy_by_id, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware}, resources::{ResourceType, access_policy::{AccessPolicy, EditableAccessPolicyProperties, PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_access_policy_by_id, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /access-policies/{access_policy_id}
 /// 
@@ -32,9 +32,9 @@ async fn handle_get_access_policy_request(
   let access_policy = get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
 
   // Make sure the delegate and principal have access to the resource.
+  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   let action = get_action_by_name("accessPolicies.get", &http_transaction, &state.database_pool).await?;
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
   verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AccessPolicy, Some(&access_policy.id), &action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
@@ -178,6 +178,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
     .route("/access-policies/{access_policy_id}", axum::routing::get(handle_get_access_policy_request))
     .route("/access-policies/{access_policy_id}", axum::routing::patch(handle_patch_access_policy_request))
     .route("/access-policies/{access_policy_id}", axum::routing::delete(handle_delete_access_policy_request))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_total_maximum_rate_limits))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));

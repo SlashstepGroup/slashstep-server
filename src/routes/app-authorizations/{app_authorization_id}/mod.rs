@@ -18,7 +18,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use reqwest::StatusCode;
 use crate::{
-  AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{
+  AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware}, resources::{
     ResourceType, access_policy::{PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, utilities::route_handler_utilities::{
     get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_authorization_by_id, get_principal_type_and_id_from_principal, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions
@@ -115,6 +115,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
   let router = Router::<AppState>::new()
     .route("/app-authorizations/{app_authorization_id}", axum::routing::get(handle_get_app_authorization_request))
     .route("/app-authorizations/{app_authorization_id}", axum::routing::delete(handle_delete_app_authorization_request))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_total_maximum_rate_limits))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))

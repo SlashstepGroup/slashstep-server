@@ -742,6 +742,7 @@ pub async fn get_request_body_without_json_rejection<T>(request_body: Result<Jso
 pub async fn get_configuration_by_name(configuration_name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<Configuration, HTTPError> {
 
   ServerLogEntry::trace(&format!("Getting configuration \"{}\"...", configuration_name), Some(&http_transaction.id), &database_pool).await.ok();
+
   let configuration = match Configuration::get_by_name(&configuration_name, &database_pool).await {
 
     Ok(configuration) => configuration,

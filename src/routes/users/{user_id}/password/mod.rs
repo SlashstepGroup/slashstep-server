@@ -5,7 +5,7 @@ use reqwest::StatusCode;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use serde::Deserialize;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware::{self, get_decoding_key}, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, password_reset_authorization::PasswordResetAuthorizationClaims, server_log_entry::ServerLogEntry, session::Session, user::{EditableUserProperties, User}}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_public_key, get_password_reset_authorization_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware::{self, get_decoding_key}, http_transaction_middleware, rate_limit_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, password_reset_authorization::PasswordResetAuthorizationClaims, server_log_entry::ServerLogEntry, session::Session, user::{EditableUserProperties, User}}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_public_key, get_password_reset_authorization_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateUserPasswordRequestBody {
@@ -335,6 +335,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
 
   let router = Router::<AppState>::new()
     .route("/users/{user_id}/password", axum::routing::put(handle_update_user_password_request))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_total_maximum_rate_limits))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));

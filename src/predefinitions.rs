@@ -1212,6 +1212,69 @@ pub async fn initialize_predefined_configurations(database_pool: &deadpool_postg
 
   let predefined_configurations: Vec<InitialConfigurationProperties> = vec![
     InitialConfigurationProperties {
+      name: "server.maximumTotalReadRequestCountPerAppPerMinute".to_string(),
+      description: Some("The maximum number of total read requests per minute per app. Unless described otherwise, any request to an endpoint with a method of GET will be subject to this rate limit. This rate limit also applies for apps when they act on behalf of users. Once an app exceeds this limit, it will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(10))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "server.maximumTotalReadRequestCountPerAnonymousUserPerMinute".to_string(),
+      description: Some("The maximum number of total read requests per minute per anonymous user. Unless described otherwise, any request to an endpoint with a method of GET will be subject to this rate limit. This rate limit also applies for apps when they act on behalf of users. Once a user exceeds this limit, they will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(7))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "server.maximumTotalReadRequestCountPerRegisteredUserPerMinute".to_string(),
+      description: Some("The maximum number of total read requests per minute per registered user. Unless described otherwise, any request to an endpoint with a method of GET will be subject to this rate limit. This rate limit also applies for apps when they act on behalf of users. Once a user exceeds this limit, they will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(7))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "server.maximumTotalReadRequestCountPerAppPerSecond".to_string(),
+      description: Some("The maximum number of total read requests per second per app. Unless described otherwise, any request to an endpoint with a method of GET will be subject to this rate limit. This rate limit also applies for apps when they act on behalf of users. Once an app exceeds this limit, it will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "server.maximumTotalReadRequestCountPerAnonymousUserPerSecond".to_string(),
+      description: Some("The maximum number of total read requests per second per anonymous user. Unless described otherwise, any request to an endpoint with a method of GET will be subject to this rate limit. This rate limit also applies for apps when they act on behalf of users. Once a user exceeds this limit, they will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(4))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "server.maximumTotalReadRequestCountPerRegisteredUserPerSecond".to_string(),
+      description: Some("The maximum number of total read requests per second per registered user. Unless described otherwise, any request to an endpoint with a method of GET will be subject to this rate limit. This rate limit also applies for apps when they act on behalf of users. Once a user exceeds this limit, they will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(5))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "server.maximumTotalWriteRequestCountPerAppPerMinute".to_string(),
+      description: Some("The maximum number of total write requests per minute per app. Unless described otherwise, any request to an endpoint with a method of DELETE, PATCH, POST, or PUT will be subject to this rate limit. Once an app exceeds this limit, it will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(10))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "server.maximumTotalWriteRequestCountPerAnonymousUserPerMinute".to_string(),
+      description: Some("The maximum number of total write requests per minute per anonymous user. Unless described otherwise, any request to an endpoint with a method of DELETE, PATCH, POST, or PUT will be subject to this rate limit. This rate limit also applies for apps when they act on behalf of users. Once a user exceeds this limit, they will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(3))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
+      name: "server.maximumTotalWriteRequestCountPerRegisteredUserPerMinute".to_string(),
+      description: Some("The maximum number of total write requests per minute per registered user. Unless described otherwise, any request to an endpoint with a method of DELETE, PATCH, POST, or PUT will be subject to this rate limit. This rate limit also applies for apps when they act on behalf of users. Once a user exceeds this limit, they will be rate-limited.".to_string()),
+      value_type: ConfigurationValueType::Number, 
+      default_number_value: Some(Decimal::from(2_i64.pow(6))),
+      ..Default::default()
+    },
+    InitialConfigurationProperties {
       name: "actions.allowedNameRegex".to_string(),
       description: Some("A regular expression that action names must match in order to be allowed. Slashstep Group recommends using a regex pattern that is URL-safe.".to_string()),
       value_type: ConfigurationValueType::Text,
