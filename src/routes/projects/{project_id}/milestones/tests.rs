@@ -48,6 +48,7 @@ async fn verify_successful_milestone_creation() -> Result<(), TestSlashstepServe
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -106,6 +107,7 @@ async fn verify_milestone_name_is_at_most_at_maximum_length() -> Result<(), Test
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -156,6 +158,7 @@ async fn verify_milestone_display_name_is_at_most_at_maximum_length() -> Result<
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -207,6 +210,7 @@ async fn verify_milestone_description_is_at_most_at_maximum_length() -> Result<(
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -257,6 +261,7 @@ async fn verify_milestone_name_matches_regex() -> Result<(), TestSlashstepServer
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -305,6 +310,7 @@ async fn verify_returned_milestone_list_without_query() -> Result<(), TestSlashs
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -366,6 +372,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let additional_query = format!("id = '{}'", shown_milestone.id);
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -430,6 +437,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -476,6 +484,7 @@ async fn verify_maximum_milestone_list_limit() -> Result<(), TestSlashstepServer
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -522,6 +531,7 @@ async fn verify_query_when_listing_milestones() -> Result<(), TestSlashstepServe
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -585,6 +595,7 @@ async fn verify_authentication_when_listing_milestones() -> Result<(), TestSlash
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -624,6 +635,7 @@ async fn verify_permission_when_listing_milestones() -> Result<(), TestSlashstep
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)

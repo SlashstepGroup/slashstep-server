@@ -49,9 +49,10 @@ usvg = "0.47.0"
 svg-hush = "0.9.6"
 serde_with = "3.20.0"
 time = "0.3.47"
+deadpool-redis = "0.23.0"
 
 [dev-dependencies]
 testcontainers = { version = "0.26.3" }
-testcontainers-modules = { version = "0.14.0", features = ["postgres", "blocking"] }
+testcontainers-modules = { version = "0.14.0", features = ["postgres", "blocking", "valkey"] }
 axum-test = "20.0.0"
 anyhow = "1.0.102"

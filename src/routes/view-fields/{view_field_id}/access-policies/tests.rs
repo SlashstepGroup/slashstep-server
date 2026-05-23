@@ -69,6 +69,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -123,6 +124,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -186,6 +188,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   let additional_query = format!("permission_level = 'Editor'");
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -252,6 +255,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -298,6 +302,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -344,6 +349,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -407,6 +413,7 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -446,6 +453,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)

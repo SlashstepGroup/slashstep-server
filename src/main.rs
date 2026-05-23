@@ -58,6 +58,15 @@ async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServ
 
 }
 
+async fn create_redis_pool() -> Result<deadpool_redis::Pool, SlashstepServerError> {
+
+  let redis_url = get_environment_variable("REDIS_URL")?;
+  let redis_config = deadpool_redis::Config::from_url(redis_url);
+  let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
+  return Ok(redis_pool);  
+
+}
+
 fn print_shutdown_message() {
 
   println!("{}", "Slashstep Server is shutting down...".blue());
@@ -117,7 +126,8 @@ async fn main() -> Result<(), SlashstepServerError> {
 
   import_env_file();
   let state = AppState {
-    database_pool: create_database_pool().await?
+    database_pool: create_database_pool().await?,
+    redis_pool: create_redis_pool().await?
   };
 
   initialize_required_tables(&state.database_pool).await?;

@@ -41,6 +41,7 @@ async fn verify_successful_item_type_icon_creation() -> Result<(), TestSlashstep
   let dummy_project = test_environment.create_random_project(None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
 
   struct TestImageMetadata {
@@ -148,6 +149,7 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -209,6 +211,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let additional_query = format!("id = '{}'", shown_item_type_icon.id);
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -273,6 +276,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -319,6 +323,7 @@ async fn verify_maximum_item_type_icon_list_limit() -> Result<(), TestSlashstepS
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -365,6 +370,7 @@ async fn verify_query_when_listing_item_type_icons() -> Result<(), TestSlashstep
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -428,6 +434,7 @@ async fn verify_authentication_when_listing_item_type_icons() -> Result<(), Test
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -467,6 +474,7 @@ async fn verify_permission_when_listing_item_type_icons() -> Result<(), TestSlas
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)

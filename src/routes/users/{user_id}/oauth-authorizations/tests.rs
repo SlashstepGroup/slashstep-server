@@ -52,6 +52,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)

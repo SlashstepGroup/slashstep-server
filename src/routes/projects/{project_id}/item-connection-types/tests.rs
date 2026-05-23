@@ -45,6 +45,7 @@ async fn verify_successful_item_connection_type_creation() -> Result<(), TestSla
   };
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -107,6 +108,7 @@ async fn verify_returned_item_connection_type_list_without_query() -> Result<(),
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -175,6 +177,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let additional_query = format!("parent_resource_type = 'Project'");
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -246,6 +249,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -292,6 +296,7 @@ async fn verify_maximum_item_connection_type_list_limit() -> Result<(), TestSlas
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -338,6 +343,7 @@ async fn verify_query_when_listing_item_connection_types() -> Result<(), TestSla
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -401,6 +407,7 @@ async fn verify_authentication_when_listing_item_connection_types() -> Result<()
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -440,6 +447,7 @@ async fn verify_permission_when_listing_item_connection_types() -> Result<(), Te
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)

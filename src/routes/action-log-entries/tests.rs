@@ -73,6 +73,7 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -167,6 +168,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -254,6 +256,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -316,6 +319,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -375,6 +379,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
 
   let router = super::get_router(state.clone())
@@ -436,6 +441,7 @@ async fn verify_authentication_when_listing_action_log_entries() -> Result<(), T
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -472,6 +478,7 @@ async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestS
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)

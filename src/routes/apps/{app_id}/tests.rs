@@ -40,6 +40,7 @@ async fn verify_returned_app_by_id() -> Result<(), TestSlashstepServerError> {
 
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
 
   let router = super::get_router(state.clone())
@@ -98,6 +99,7 @@ async fn verify_uuid_when_getting_app_by_id() -> Result<(), TestSlashstepServerE
 
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
 
   let router = super::get_router(state.clone())
@@ -126,6 +128,7 @@ async fn verify_authentication_when_getting_app_by_id() -> Result<(), TestSlashs
   
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
 
   let router = super::get_router(state.clone())
@@ -166,6 +169,7 @@ async fn verify_permission_when_getting_app_by_id() -> Result<(), TestSlashstepS
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -203,6 +207,7 @@ async fn verify_not_found_when_getting_app_by_id() -> Result<(), TestSlashstepSe
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -252,6 +257,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   let app = test_environment.create_random_app(None, None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -287,6 +293,7 @@ async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerErro
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
 
   let router = super::get_router(state.clone())
@@ -319,6 +326,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -357,6 +365,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -393,6 +402,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -445,6 +455,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
 
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -491,6 +502,7 @@ async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepSe
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -519,6 +531,7 @@ async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlas
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -548,6 +561,7 @@ async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashs
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -580,6 +594,7 @@ async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerErro
   initialize_predefined_configurations(&test_environment.database_pool).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -612,6 +627,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
   let app = test_environment.create_random_app(None, None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -651,6 +667,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
   let app = test_environment.create_random_app(None, None).await?;
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -684,6 +701,7 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)

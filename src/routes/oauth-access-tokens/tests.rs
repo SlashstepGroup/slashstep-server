@@ -45,6 +45,7 @@ async fn verify_successful_creation_for_public_client_with_authorization_code() 
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -92,6 +93,7 @@ async fn verify_successful_creation_for_public_client_with_authorization_code_an
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -146,6 +148,7 @@ async fn verify_successful_creation_for_confidential_client_with_authorization_c
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -204,6 +207,7 @@ async fn verify_successful_creation_for_confidential_client_with_authorization_c
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -247,6 +251,7 @@ async fn verify_client_id_is_uuid() -> Result<(), TestSlashstepServerError> {
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -289,6 +294,7 @@ async fn verify_authorization_code_is_valid() -> Result<(), TestSlashstepServerE
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -335,6 +341,7 @@ async fn verify_authorization_code_is_single_use() -> Result<(), TestSlashstepSe
 
     let state = AppState {
       database_pool: test_environment.database_pool.clone(),
+      redis_pool: test_environment.redis_pool.clone()
     };
     let router = super::get_router(state.clone())
       .with_state(state)
@@ -385,6 +392,7 @@ async fn verify_client_id_links_to_app() -> Result<(), TestSlashstepServerError>
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -439,6 +447,7 @@ async fn verify_client_secret_is_provided_for_confidential_client() -> Result<()
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -486,6 +495,7 @@ async fn verify_code_verifier_is_provided_when_code_challenge_is_present() -> Re
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -534,6 +544,7 @@ async fn verify_code_verifier_is_correct_when_code_challenge_is_present() -> Res
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -579,6 +590,7 @@ async fn verify_successful_creation_for_public_client_with_refresh_token() -> Re
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -634,6 +646,7 @@ async fn verify_successful_creation_for_confidential_client_with_refresh_token()
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -687,6 +700,7 @@ async fn verify_active_refresh_token_for_public_client() -> Result<(), TestSlash
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -752,6 +766,7 @@ async fn verify_active_refresh_token_for_confidential_client() -> Result<(), Tes
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)
@@ -804,6 +819,7 @@ async fn verify_valid_refresh_token_for_public_client() -> Result<(), TestSlashs
   // Set up the server and send the request.
   let state = AppState {
     database_pool: test_environment.database_pool.clone(),
+    redis_pool: test_environment.redis_pool.clone()
   };
   let router = super::get_router(state.clone())
     .with_state(state)

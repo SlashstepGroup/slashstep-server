@@ -6,8 +6,9 @@ use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{En
 use local_ip_address::local_ip;
 use postgres::NoTls;
 use rand::{RngExt, distr::{Alphanumeric, SampleString}};
-use testcontainers_modules::{testcontainers::runners::AsyncRunner};
-use testcontainers::{ContainerAsync, ImageExt};
+use serde_json::value;
+use testcontainers_modules::{testcontainers::runners::AsyncRunner, valkey::VALKEY_PORT};
+use testcontainers::{ContainerAsync, GenericImage, ImageExt};
 use uuid::Uuid;
 use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, PermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, item_type::{InitialItemTypeProperties, ItemType}, item_type_icon::{InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType}, iteration::{InitialIterationProperties, Iteration}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, password_reset_authorization::{InitialPasswordResetAuthorizationProperties, PasswordResetAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role, RoleParentResourceType}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, status::{InitialStatusProperties, Status, StatusType}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, view_field::{InitialViewFieldProperties, ViewField}, webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}};
 use thiserror::Error;
@@ -43,6 +44,9 @@ pub enum TestSlashstepServerError {
   PKCS8Error(#[from] ed25519_dalek::pkcs8::Error),
 
   #[error(transparent)]
+  RedisCreatePoolError(#[from] deadpool_redis::CreatePoolError),
+
+  #[error(transparent)]
   SPKIError(#[from] ed25519_dalek::pkcs8::spki::Error),
 
   #[error(transparent)]
@@ -59,6 +63,10 @@ pub enum TestSlashstepServerError {
 pub struct TestEnvironment {
 
   pub database_pool: deadpool_postgres::Pool,
+
+  pub redis_pool: deadpool_redis::Pool,
+
+  pub redis_container: Arc<ContainerAsync<testcontainers_modules::valkey::Valkey>>,
 
   // This is required to prevent the compiler from complaining about unused fields.
   // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
@@ -84,6 +92,21 @@ impl TestEnvironment {
 
   }
 
+  pub async fn start_valkey_container() -> Arc<ContainerAsync<testcontainers_modules::valkey::Valkey>> {
+
+    println!("Starting Valkey test server...");
+    let valkey_container = Arc::new(
+      testcontainers_modules::valkey::Valkey::default()
+        .with_tag("latest")
+        .start()
+        .await
+        .expect("Failed to start Valkey test server")
+    );
+
+    return valkey_container;
+
+  }
+
   pub async fn new() -> Result<Self, TestSlashstepServerError> {
 
     import_env_file();
@@ -105,9 +128,18 @@ impl TestEnvironment {
     let manager = deadpool_postgres::Manager::from_config(postgres_config.clone(), NoTls, manager_config.clone());
     let database_pool = deadpool_postgres::Pool::builder(manager).max_size(DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT as usize).build()?;
 
+    println!("Signing into Valkey test server...");
+    let valkey_container = Self::start_valkey_container().await;
+    let valkey_host = valkey_container.get_host().await?;
+    let valkey_port = valkey_container.get_host_port_ipv4(VALKEY_PORT).await?;
+    let valkey_url = format!("redis://{valkey_host}:{valkey_port}");
+    let valkey_config = deadpool_redis::Config::from_url(valkey_url);
+    let valkey_pool = valkey_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
     let environment = TestEnvironment {
-      database_pool: database_pool,
-      postgres_container: postgres_container
+      database_pool,
+      postgres_container,
+      redis_pool: valkey_pool,
+      redis_container: valkey_container,
     };
 
     return Ok(environment);

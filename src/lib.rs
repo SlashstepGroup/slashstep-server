@@ -45,6 +45,9 @@ pub enum SlashstepServerError {
   DeadpoolPoolError(#[from] deadpool_postgres::PoolError),
 
   #[error(transparent)]
+  RedisCreatePoolError(#[from] deadpool_redis::CreatePoolError),
+
+  #[error(transparent)]
   IOError(#[from] std::io::Error),
 
   #[error(transparent)]
@@ -184,6 +187,7 @@ impl IntoResponse for HTTPError {
 #[derive(Debug, Clone)]
 pub struct AppState {
   pub database_pool: deadpool_postgres::Pool,
+  pub redis_pool: deadpool_redis::Pool
 }
 
 pub async fn get_json_web_token_public_key() -> Result<String, ResourceError> {
