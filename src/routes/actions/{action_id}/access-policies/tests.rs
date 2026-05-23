@@ -138,16 +138,16 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert_eq!(response_access_policies.total_count, 1);
-  assert_eq!(response_access_policies.resources.len(), 1);
+  assert_eq!(response_access_policies.data.len(), 1);
 
   let query = format!("scoped_resource_type = 'Action' AND scoped_action_id = {}", quote_literal(&dummy_action.id.to_string()));
   let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
   let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
-  assert_eq!(response_access_policies.resources[0].id, actual_access_policies[0].id);
-  assert_eq!(response_access_policies.resources[0].id, shown_access_policy.id);
+  assert_eq!(response_access_policies.data.len(), actual_access_policies.len());
+  assert_eq!(response_access_policies.data[0].id, actual_access_policies[0].id);
+  assert_eq!(response_access_policies.data[0].id, shown_access_policy.id);
 
   return Ok(());
 
@@ -203,16 +203,16 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert_eq!(response_access_policies.total_count, 1);
-  assert_eq!(response_access_policies.resources.len(), 1);
+  assert_eq!(response_access_policies.data.len(), 1);
 
   let query = format!("scoped_resource_type = 'Action' AND scoped_action_id = {} and permission_level = 'Editor'", quote_literal(&dummy_action.id.to_string()));
   let actual_access_policy_count = AccessPolicy::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
   let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
-  assert_eq!(response_access_policies.resources[0].id, actual_access_policies[0].id);
-  assert_eq!(response_access_policies.resources[0].id, shown_access_policy.id);
+  assert_eq!(response_access_policies.data.len(), actual_access_policies.len());
+  assert_eq!(response_access_policies.data[0].id, actual_access_policies[0].id);
+  assert_eq!(response_access_policies.data[0].id, shown_access_policy.id);
 
   return Ok(());
 
@@ -267,7 +267,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<AccessPolicy> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

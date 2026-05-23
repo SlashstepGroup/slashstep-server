@@ -95,7 +95,7 @@ async fn handle_list_delegation_policies_request(
   let queried_delegation_policy_list_length = queried_resources.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_delegation_policy_list_length, if queried_delegation_policy_list_length == 1 { "delegation policy" } else { "delegation policies" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<DelegationPolicy> {
-    resources: queried_resources,
+    data: queried_resources,
     total_count: resource_count
   };
   

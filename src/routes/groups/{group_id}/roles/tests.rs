@@ -70,16 +70,16 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
 
   let response_body: ListResourcesResponseBody::<Role> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.resources.len(), 1);
+  assert_eq!(response_body.data.len(), 1);
 
   let query = format!("parent_group_id = {}", quote_literal(&dummy_group.id.to_string()));
   let actual_role_count = Role::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_role_count);
 
   let actual_roles = Role::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_body.resources.len(), actual_roles.len());
-  assert_eq!(response_body.resources[0].id, actual_roles[0].id);
-  assert_eq!(response_body.resources[0].id, dummy_role.id);
+  assert_eq!(response_body.data.len(), actual_roles.len());
+  assert_eq!(response_body.data[0].id, actual_roles[0].id);
+  assert_eq!(response_body.data[0].id, dummy_role.id);
 
   return Ok(());
 
@@ -139,16 +139,16 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
 
   let response_body: ListResourcesResponseBody::<Role> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.resources.len(), 1);
+  assert_eq!(response_body.data.len(), 1);
 
   let query = format!("parent_group_id = {} AND ({})", quote_literal(&dummy_group.id.to_string()), &additional_query);
   let actual_role_count = Role::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_role_count);
 
   let actual_roles = Role::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_body.resources.len(), actual_roles.len());
-  assert_eq!(response_body.resources[0].id, actual_roles[0].id);
-  assert_eq!(response_body.resources[0].id, dummy_role.id);
+  assert_eq!(response_body.data.len(), actual_roles.len());
+  assert_eq!(response_body.data[0].id, actual_roles[0].id);
+  assert_eq!(response_body.data[0].id, dummy_role.id);
 
   return Ok(());
 
@@ -210,7 +210,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<Role> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

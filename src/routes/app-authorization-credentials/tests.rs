@@ -70,17 +70,17 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 
   let response_json: ListResourcesResponseBody::<AppAuthorizationCredential> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.resources.len() > 0);
+  assert!(response_json.data.len() > 0);
 
   let actual_app_authorization_credential_count = AppAuthorizationCredential::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_app_authorization_credential_count);
 
   let actual_app_authorization_credentials = AppAuthorizationCredential::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.resources.len(), actual_app_authorization_credentials.len());
+  assert_eq!(response_json.data.len(), actual_app_authorization_credentials.len());
 
   for actual_app_authorization in actual_app_authorization_credentials {
 
-    let found_access_policy = response_json.resources.iter().find(|app_authorization| app_authorization.id == actual_app_authorization.id);
+    let found_access_policy = response_json.data.iter().find(|app_authorization| app_authorization.id == actual_app_authorization.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -139,11 +139,11 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   assert_eq!(response_json.total_count, actual_app_authorization_credential_count);
 
   let actual_app_authorization_credentials = AppAuthorizationCredential::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.resources.len(), actual_app_authorization_credentials.len());
+  assert_eq!(response_json.data.len(), actual_app_authorization_credentials.len());
 
   for actual_action in actual_app_authorization_credentials {
 
-    let found_action = response_json.resources.iter().find(|action| action.id == actual_action.id);
+    let found_action = response_json.data.iter().find(|action| action.id == actual_action.id);
     assert!(found_action.is_some());
 
   }
@@ -201,7 +201,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<AppAuthorizationCredential> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT as usize);
 
   return Ok(());
 

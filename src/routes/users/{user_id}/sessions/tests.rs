@@ -62,16 +62,16 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
 
   let response_body: ListResourcesResponseBody::<Session> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.resources.len(), 1);
+  assert_eq!(response_body.data.len(), 1);
 
   let query = format!("user_id = {}", quote_literal(&dummy_session.user_id.to_string()));
   let actual_session_count = Session::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_session_count);
 
   let actual_sessions = Session::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_body.resources.len(), actual_sessions.len());
-  assert_eq!(response_body.resources[0].id, actual_sessions[0].id);
-  assert_eq!(response_body.resources[0].id, dummy_session.id);
+  assert_eq!(response_body.data.len(), actual_sessions.len());
+  assert_eq!(response_body.data[0].id, actual_sessions[0].id);
+  assert_eq!(response_body.data[0].id, dummy_session.id);
 
   return Ok(());
 
@@ -124,16 +124,16 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
 
   let response_body: ListResourcesResponseBody::<Session> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.resources.len(), 1);
+  assert_eq!(response_body.data.len(), 1);
 
   let query = format!("user_id = {} AND ({})", quote_literal(&dummy_session.user_id.to_string()), &additional_query);
   let actual_session_count = Session::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_session_count);
 
   let actual_sessions = Session::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_body.resources.len(), actual_sessions.len());
-  assert_eq!(response_body.resources[0].id, actual_sessions[0].id);
-  assert_eq!(response_body.resources[0].id, dummy_session.id);
+  assert_eq!(response_body.data.len(), actual_sessions.len());
+  assert_eq!(response_body.data[0].id, actual_sessions[0].id);
+  assert_eq!(response_body.data[0].id, dummy_session.id);
 
   return Ok(());
 
@@ -189,7 +189,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<Session> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

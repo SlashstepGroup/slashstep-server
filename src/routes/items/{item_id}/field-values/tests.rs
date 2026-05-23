@@ -145,16 +145,16 @@ async fn verify_returned_field_value_list_without_query() -> Result<(), TestSlas
 
   let response_field_values: ListResourcesResponseBody::<FieldValue> = response.json();
   assert_eq!(response_field_values.total_count, 1);
-  assert_eq!(response_field_values.resources.len(), 1);
+  assert_eq!(response_field_values.data.len(), 1);
 
   let query = format!("parent_item_id = {}", quote_literal(&dummy_item.id.to_string()));
   let actual_field_value_count = FieldValue::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_field_values.total_count, actual_field_value_count);
 
   let actual_field_values = FieldValue::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_field_values.resources.len(), actual_field_values.len());
-  assert_eq!(response_field_values.resources[0].id, actual_field_values[0].id);
-  assert_eq!(response_field_values.resources[0].id, shown_field_value.id);
+  assert_eq!(response_field_values.data.len(), actual_field_values.len());
+  assert_eq!(response_field_values.data[0].id, actual_field_values[0].id);
+  assert_eq!(response_field_values.data[0].id, shown_field_value.id);
 
   return Ok(());
 
@@ -208,16 +208,16 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 
   let response_field_values: ListResourcesResponseBody::<FieldValue> = response.json();
   assert_eq!(response_field_values.total_count, 1);
-  assert_eq!(response_field_values.resources.len(), 1);
+  assert_eq!(response_field_values.data.len(), 1);
 
   let query = format!("parent_item_id = {} AND ({})", quote_literal(&dummy_item.id.to_string()), additional_query);
   let actual_field_value_count = FieldValue::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_field_values.total_count, actual_field_value_count);
 
   let actual_field_values = FieldValue::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_field_values.resources.len(), actual_field_values.len());
-  assert_eq!(response_field_values.resources[0].id, actual_field_values[0].id);
-  assert_eq!(response_field_values.resources[0].id, shown_field_value.id);
+  assert_eq!(response_field_values.data.len(), actual_field_values.len());
+  assert_eq!(response_field_values.data[0].id, actual_field_values[0].id);
+  assert_eq!(response_field_values.data[0].id, shown_field_value.id);
 
   return Ok(());
 
@@ -270,7 +270,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<FieldValue> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

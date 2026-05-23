@@ -110,7 +110,7 @@ async fn handle_list_users_request(
   let queried_user_list_length = queried_resources.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_user_list_length, if queried_user_list_length == 1 { "user" } else { "users" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<User> {
-    resources: queried_resources,
+    data: queried_resources,
     total_count: resource_count
   };
   

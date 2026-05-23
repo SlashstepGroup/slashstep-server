@@ -123,16 +123,16 @@ async fn verify_returned_item_connection_type_list_without_query() -> Result<(),
 
   let response_item_connection_types: ListResourcesResponseBody::<ItemConnectionType> = response.json();
   assert_eq!(response_item_connection_types.total_count, 1);
-  assert_eq!(response_item_connection_types.resources.len(), 1);
+  assert_eq!(response_item_connection_types.data.len(), 1);
 
   let query = format!("parent_project_id = {}", quote_literal(&dummy_project.id.to_string()));
   let actual_item_connection_type_count = ItemConnectionType::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_connection_types.total_count, actual_item_connection_type_count);
 
   let actual_item_connection_types = ItemConnectionType::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_item_connection_types.resources.len(), actual_item_connection_types.len());
-  assert_eq!(response_item_connection_types.resources[0].id, actual_item_connection_types[0].id);
-  assert_eq!(response_item_connection_types.resources[0].id, shown_item_connection_type.id);
+  assert_eq!(response_item_connection_types.data.len(), actual_item_connection_types.len());
+  assert_eq!(response_item_connection_types.data[0].id, actual_item_connection_types[0].id);
+  assert_eq!(response_item_connection_types.data[0].id, shown_item_connection_type.id);
 
   return Ok(());
 
@@ -193,16 +193,16 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 
   let response_item_connection_types: ListResourcesResponseBody::<ItemConnectionType> = response.json();
   assert_eq!(response_item_connection_types.total_count, 1);
-  assert_eq!(response_item_connection_types.resources.len(), 1);
+  assert_eq!(response_item_connection_types.data.len(), 1);
 
   let query = format!("parent_project_id = {} AND ({})", quote_literal(&dummy_project.id.to_string()), additional_query);
   let actual_item_connection_type_count = ItemConnectionType::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_connection_types.total_count, actual_item_connection_type_count);
 
   let actual_item_connection_types = ItemConnectionType::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_item_connection_types.resources.len(), actual_item_connection_types.len());
-  assert_eq!(response_item_connection_types.resources[0].id, actual_item_connection_types[0].id);
-  assert_eq!(response_item_connection_types.resources[0].id, shown_item_connection_type.id);
+  assert_eq!(response_item_connection_types.data.len(), actual_item_connection_types.len());
+  assert_eq!(response_item_connection_types.data[0].id, actual_item_connection_types[0].id);
+  assert_eq!(response_item_connection_types.data[0].id, shown_item_connection_type.id);
 
   return Ok(());
 
@@ -262,7 +262,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<ItemConnectionType> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

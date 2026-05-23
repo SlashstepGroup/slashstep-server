@@ -164,16 +164,16 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 
   let response_item_type_icons: ListResourcesResponseBody::<ItemTypeIcon> = response.json();
   assert_eq!(response_item_type_icons.total_count, 1);
-  assert_eq!(response_item_type_icons.resources.len(), 1);
+  assert_eq!(response_item_type_icons.data.len(), 1);
 
   let query = format!("parent_project_id = {}", quote_literal(&dummy_project.id.to_string()));
   let actual_item_type_icon_count = ItemTypeIcon::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_type_icons.total_count, actual_item_type_icon_count);
 
   let actual_item_type_icons = ItemTypeIcon::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_item_type_icons.resources.len(), actual_item_type_icons.len());
-  assert_eq!(response_item_type_icons.resources[0].id, actual_item_type_icons[0].id);
-  assert_eq!(response_item_type_icons.resources[0].id, shown_item_type_icon.id);
+  assert_eq!(response_item_type_icons.data.len(), actual_item_type_icons.len());
+  assert_eq!(response_item_type_icons.data[0].id, actual_item_type_icons[0].id);
+  assert_eq!(response_item_type_icons.data[0].id, shown_item_type_icon.id);
 
   return Ok(());
 
@@ -227,16 +227,16 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 
   let response_item_type_icons: ListResourcesResponseBody::<ItemTypeIcon> = response.json();
   assert_eq!(response_item_type_icons.total_count, 1);
-  assert_eq!(response_item_type_icons.resources.len(), 1);
+  assert_eq!(response_item_type_icons.data.len(), 1);
 
   let query = format!("parent_project_id = {} AND ({})", quote_literal(&dummy_project.id.to_string()), additional_query);
   let actual_item_type_icon_count = ItemTypeIcon::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_type_icons.total_count, actual_item_type_icon_count);
 
   let actual_item_type_icons = ItemTypeIcon::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_item_type_icons.resources.len(), actual_item_type_icons.len());
-  assert_eq!(response_item_type_icons.resources[0].id, actual_item_type_icons[0].id);
-  assert_eq!(response_item_type_icons.resources[0].id, shown_item_type_icon.id);
+  assert_eq!(response_item_type_icons.data.len(), actual_item_type_icons.len());
+  assert_eq!(response_item_type_icons.data[0].id, actual_item_type_icons[0].id);
+  assert_eq!(response_item_type_icons.data[0].id, shown_item_type_icon.id);
 
   return Ok(());
 
@@ -289,7 +289,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<ItemTypeIcon> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

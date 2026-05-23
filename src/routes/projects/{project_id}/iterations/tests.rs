@@ -184,16 +184,16 @@ async fn verify_returned_iteration_list_without_query() -> Result<(), TestSlashs
 
   let response_iterations: ListResourcesResponseBody::<Iteration> = response.json();
   assert_eq!(response_iterations.total_count, 1);
-  assert_eq!(response_iterations.resources.len(), 1);
+  assert_eq!(response_iterations.data.len(), 1);
 
   let query = format!("parent_project_id = {}", quote_literal(&dummy_project.id.to_string()));
   let actual_iteration_count = Iteration::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_iterations.total_count, actual_iteration_count);
 
   let actual_iterations = Iteration::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_iterations.resources.len(), actual_iterations.len());
-  assert_eq!(response_iterations.resources[0].id, actual_iterations[0].id);
-  assert_eq!(response_iterations.resources[0].id, shown_iteration.id);
+  assert_eq!(response_iterations.data.len(), actual_iterations.len());
+  assert_eq!(response_iterations.data[0].id, actual_iterations[0].id);
+  assert_eq!(response_iterations.data[0].id, shown_iteration.id);
 
   return Ok(());
 
@@ -247,16 +247,16 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 
   let response_iterations: ListResourcesResponseBody::<Iteration> = response.json();
   assert_eq!(response_iterations.total_count, 1);
-  assert_eq!(response_iterations.resources.len(), 1);
+  assert_eq!(response_iterations.data.len(), 1);
 
   let query = format!("parent_project_id = {} AND ({})", quote_literal(&dummy_project.id.to_string()), additional_query);
   let actual_iteration_count = Iteration::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_iterations.total_count, actual_iteration_count);
 
   let actual_iterations = Iteration::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_iterations.resources.len(), actual_iterations.len());
-  assert_eq!(response_iterations.resources[0].id, actual_iterations[0].id);
-  assert_eq!(response_iterations.resources[0].id, shown_iteration.id);
+  assert_eq!(response_iterations.data.len(), actual_iterations.len());
+  assert_eq!(response_iterations.data[0].id, actual_iterations[0].id);
+  assert_eq!(response_iterations.data[0].id, shown_iteration.id);
 
   return Ok(());
 
@@ -309,7 +309,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<Iteration> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

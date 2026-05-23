@@ -97,7 +97,7 @@ async fn handle_list_groups_request(
   let queried_group_list_length = queried_resources.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_group_list_length, if queried_group_list_length == 1 { "group" } else { "groups" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<Group> {
-    resources: queried_resources,
+    data: queried_resources,
     total_count: resource_count
   };
   
@@ -376,7 +376,7 @@ async fn handle_create_group_request(
     ServerLogEntry::trace("Deleting group due to error creating default child resources...", Some(&http_transaction.id), &state.database_pool).await.ok();
     if let Err(delete_error) = group.delete(&state.database_pool).await {
         
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete group after error creating default child resources: {:?}", delete_error)));
+      let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete group after error creating default child data: {:?}", delete_error)));
       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
       return Err(http_error);
 

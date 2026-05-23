@@ -95,7 +95,7 @@ async fn handle_list_items_request(
   let queried_item_list_length = queried_resources.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_item_list_length, if queried_item_list_length == 1 { "item" } else { "items" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<Item> {
-    resources: queried_resources,
+    data: queried_resources,
     total_count: resource_count
   };
   

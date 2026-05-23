@@ -61,7 +61,7 @@ pub struct ResourceListQueryParameters {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListResourcesResponseBody<ResourceStruct> {
-  pub resources: Vec<ResourceStruct>,
+  pub data: Vec<ResourceStruct>,
   pub total_count: i64
 }
 

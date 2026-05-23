@@ -128,16 +128,16 @@ async fn verify_returned_item_connection_list_without_query() -> Result<(), Test
 
   let response_item_connections: ListResourcesResponseBody::<ItemConnection> = response.json();
   assert_eq!(response_item_connections.total_count, 1);
-  assert_eq!(response_item_connections.resources.len(), 1);
+  assert_eq!(response_item_connections.data.len(), 1);
 
   let query = format!("(outward_item_id = {} OR inward_item_id = {})", quote_literal(&outward_item.id.to_string()), quote_literal(&outward_item.id.to_string()));
   let actual_item_connection_count = ItemConnection::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_item_connections.total_count, actual_item_connection_count);
 
   let actual_item_connections = ItemConnection::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_item_connections.resources.len(), actual_item_connections.len());
-  assert_eq!(response_item_connections.resources[0].id, actual_item_connections[0].id);
-  assert_eq!(response_item_connections.resources[0].id, shown_item_connection.id);
+  assert_eq!(response_item_connections.data.len(), actual_item_connections.len());
+  assert_eq!(response_item_connections.data[0].id, actual_item_connections[0].id);
+  assert_eq!(response_item_connections.data[0].id, shown_item_connection.id);
 
   return Ok(());
 
@@ -192,7 +192,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 
   let response_item_connections: ListResourcesResponseBody::<ItemConnection> = response.json();
   assert_eq!(response_item_connections.total_count, 1);
-  assert_eq!(response_item_connections.resources.len(), 1);
+  assert_eq!(response_item_connections.data.len(), 1);
 
   // The outward item ID is used for the inward item ID in the query 
   // because the router should return item connections where 
@@ -204,9 +204,9 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   assert_eq!(response_item_connections.total_count, actual_item_connection_count);
 
   let actual_item_connections = ItemConnection::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_item_connections.resources.len(), actual_item_connections.len());
-  assert_eq!(response_item_connections.resources[0].id, actual_item_connections[0].id);
-  assert_eq!(response_item_connections.resources[0].id, shown_item_connection.id);
+  assert_eq!(response_item_connections.data.len(), actual_item_connections.len());
+  assert_eq!(response_item_connections.data[0].id, actual_item_connections[0].id);
+  assert_eq!(response_item_connections.data[0].id, shown_item_connection.id);
 
   return Ok(());
 
@@ -260,7 +260,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<ItemConnection> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

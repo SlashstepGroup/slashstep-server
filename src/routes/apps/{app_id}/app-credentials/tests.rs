@@ -64,16 +64,16 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
 
   let response_body: ListResourcesResponseBody::<AppCredential> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.resources.len(), 1);
+  assert_eq!(response_body.data.len(), 1);
 
   let query = format!("app_id = {}", quote_literal(&dummy_app_credential.app_id.to_string()));
   let actual_app_credential_count = AppCredential::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_app_credential_count);
 
   let actual_app_credentials = AppCredential::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_body.resources.len(), actual_app_credentials.len());
-  assert_eq!(response_body.resources[0].id, actual_app_credentials[0].id);
-  assert_eq!(response_body.resources[0].id, dummy_app_credential.id);
+  assert_eq!(response_body.data.len(), actual_app_credentials.len());
+  assert_eq!(response_body.data[0].id, actual_app_credentials[0].id);
+  assert_eq!(response_body.data[0].id, dummy_app_credential.id);
 
   return Ok(());
 
@@ -126,16 +126,16 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
 
   let response_body: ListResourcesResponseBody::<AppCredential> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.resources.len(), 1);
+  assert_eq!(response_body.data.len(), 1);
 
   let query = format!("app_id = {} AND ({})", quote_literal(&dummy_app_credential.app_id.to_string()), &additional_query);
   let actual_app_credential_count = AppCredential::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_app_credential_count);
 
   let actual_app_credentials = AppCredential::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_body.resources.len(), actual_app_credentials.len());
-  assert_eq!(response_body.resources[0].id, actual_app_credentials[0].id);
-  assert_eq!(response_body.resources[0].id, dummy_app_credential.id);
+  assert_eq!(response_body.data.len(), actual_app_credentials.len());
+  assert_eq!(response_body.data[0].id, actual_app_credentials[0].id);
+  assert_eq!(response_body.data[0].id, dummy_app_credential.id);
 
   return Ok(());
 
@@ -191,7 +191,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<AppCredential> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

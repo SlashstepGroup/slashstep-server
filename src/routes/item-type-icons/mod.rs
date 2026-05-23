@@ -95,7 +95,7 @@ async fn handle_list_item_type_icons_request(
   let queried_item_type_icon_list_length = queried_resources.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_item_type_icon_list_length, if queried_item_type_icon_list_length == 1 { "item type icon" } else { "item type icons" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<ItemTypeIcon> {
-    resources: queried_resources,
+    data: queried_resources,
     total_count: resource_count
   };
   

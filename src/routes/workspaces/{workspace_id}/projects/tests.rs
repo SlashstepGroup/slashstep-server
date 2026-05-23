@@ -337,16 +337,16 @@ async fn verify_returned_project_list_without_query() -> Result<(), TestSlashste
 
   let response_projects: ListResourcesResponseBody::<Project> = response.json();
   assert_eq!(response_projects.total_count, 1);
-  assert_eq!(response_projects.resources.len(), 1);
+  assert_eq!(response_projects.data.len(), 1);
 
   let query = format!("parent_workspace_id = {}", quote_literal(&dummy_workspace.id.to_string()));
   let actual_project_count = Project::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_projects.total_count, actual_project_count);
 
   let actual_projects = Project::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_projects.resources.len(), actual_projects.len());
-  assert_eq!(response_projects.resources[0].id, actual_projects[0].id);
-  assert_eq!(response_projects.resources[0].id, shown_project.id);
+  assert_eq!(response_projects.data.len(), actual_projects.len());
+  assert_eq!(response_projects.data[0].id, actual_projects[0].id);
+  assert_eq!(response_projects.data[0].id, shown_project.id);
 
   return Ok(());
 
@@ -400,16 +400,16 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 
   let response_projects: ListResourcesResponseBody::<Project> = response.json();
   assert_eq!(response_projects.total_count, 1);
-  assert_eq!(response_projects.resources.len(), 1);
+  assert_eq!(response_projects.data.len(), 1);
 
   let query = format!("parent_workspace_id = {} AND ({})", quote_literal(&dummy_workspace.id.to_string()), additional_query);
   let actual_project_count = Project::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_projects.total_count, actual_project_count);
 
   let actual_projects = Project::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_projects.resources.len(), actual_projects.len());
-  assert_eq!(response_projects.resources[0].id, actual_projects[0].id);
-  assert_eq!(response_projects.resources[0].id, shown_project.id);
+  assert_eq!(response_projects.data.len(), actual_projects.len());
+  assert_eq!(response_projects.data[0].id, actual_projects[0].id);
+  assert_eq!(response_projects.data[0].id, shown_project.id);
 
   return Ok(());
 
@@ -462,7 +462,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<Project> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

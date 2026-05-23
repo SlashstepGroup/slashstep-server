@@ -96,7 +96,7 @@ async fn handle_list_workspaces_request(
   let queried_workspace_list_length = queried_resources.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_workspace_list_length, if queried_workspace_list_length == 1 { "workspace" } else { "workspaces" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<Workspace> {
-    resources: queried_resources,
+    data: queried_resources,
     total_count: resource_count
   };
   

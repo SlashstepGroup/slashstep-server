@@ -71,17 +71,17 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
 
   let response_json: ListResourcesResponseBody::<FieldChoice> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.resources.len() > 0);
+  assert!(response_json.data.len() > 0);
 
   let actual_field_choice_count = FieldChoice::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_field_choice_count);
 
   let actual_field_choices = FieldChoice::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.resources.len(), actual_field_choices.len());
+  assert_eq!(response_json.data.len(), actual_field_choices.len());
 
   for actual_field_choice in actual_field_choices {
 
-    let found_access_policy = response_json.resources.iter().find(|field_choice| field_choice.id == actual_field_choice.id);
+    let found_access_policy = response_json.data.iter().find(|field_choice| field_choice.id == actual_field_choice.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -138,17 +138,17 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
 
   let response_json: ListResourcesResponseBody::<FieldChoice> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.resources.len() > 0);
+  assert!(response_json.data.len() > 0);
 
   let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_field_choice_count);
 
   let actual_field_choices = FieldChoice::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.resources.len(), actual_field_choices.len());
+  assert_eq!(response_json.data.len(), actual_field_choices.len());
 
   for actual_field_choice in actual_field_choices {
 
-    let found_action = response_json.resources.iter().find(|field_choice| field_choice.id == actual_field_choice.id);
+    let found_action = response_json.data.iter().find(|field_choice| field_choice.id == actual_field_choice.id);
     assert!(found_action.is_some());
 
   }
@@ -206,7 +206,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<FieldChoice> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

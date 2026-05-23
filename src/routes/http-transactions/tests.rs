@@ -71,17 +71,17 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
 
   let response_json: ListResourcesResponseBody::<HTTPTransaction> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.resources.len() > 0);
+  assert!(response_json.data.len() > 0);
 
   let actual_http_transaction_count = HTTPTransaction::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_http_transaction_count);
 
   let actual_http_transactions = HTTPTransaction::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.resources.len(), actual_http_transactions.len());
+  assert_eq!(response_json.data.len(), actual_http_transactions.len());
 
   for actual_http_transaction in actual_http_transactions {
 
-    let found_access_policy = response_json.resources.iter().find(|http_transaction| http_transaction.id == actual_http_transaction.id);
+    let found_access_policy = response_json.data.iter().find(|http_transaction| http_transaction.id == actual_http_transaction.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -138,17 +138,17 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
 
   let response_json: ListResourcesResponseBody::<HTTPTransaction> = response.json();
   assert!(response_json.total_count > 0);
-  assert!(response_json.resources.len() > 0);
+  assert!(response_json.data.len() > 0);
 
   let actual_http_transaction_count = HTTPTransaction::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_json.total_count, actual_http_transaction_count);
 
   let actual_http_transactions = HTTPTransaction::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_json.resources.len(), actual_http_transactions.len());
+  assert_eq!(response_json.data.len(), actual_http_transactions.len());
 
   for actual_http_transaction in actual_http_transactions {
 
-    let found_action = response_json.resources.iter().find(|http_transaction| http_transaction.id == actual_http_transaction.id);
+    let found_action = response_json.data.iter().find(|http_transaction| http_transaction.id == actual_http_transaction.id);
     assert!(found_action.is_some());
 
   }
@@ -206,7 +206,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<HTTPTransaction> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

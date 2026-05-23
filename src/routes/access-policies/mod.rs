@@ -89,7 +89,7 @@ async fn handle_list_access_policies_request(
   let queried_access_policy_list_length = queried_access_policies.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_access_policy_list_length, if queried_access_policy_list_length == 1 { "access policy" } else { "access policies" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<AccessPolicy> {
-    resources: queried_access_policies,
+    data: queried_access_policies,
     total_count: resource_count
   };
   

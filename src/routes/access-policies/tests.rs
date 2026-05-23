@@ -132,17 +132,17 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
 
   let response_access_policies: ListResourcesResponseBody::<AccessPolicy> = response.json();
   assert!(response_access_policies.total_count > 0);
-  assert!(response_access_policies.resources.len() > 0);
+  assert!(response_access_policies.data.len() > 0);
 
   let actual_access_policy_count = AccessPolicy::count("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
   let actual_access_policies = AccessPolicy::list("", &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
+  assert_eq!(response_access_policies.data.len(), actual_access_policies.len());
 
   for actual_access_policy in actual_access_policies {
 
-    let found_access_policy = response_access_policies.resources.iter().find(|access_policy| access_policy.id == actual_access_policy.id);
+    let found_access_policy = response_access_policies.data.iter().find(|access_policy| access_policy.id == actual_access_policy.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -212,11 +212,11 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   assert_eq!(response_access_policies.total_count, actual_access_policy_count);
 
   let actual_access_policies = AccessPolicy::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_access_policies.resources.len(), actual_access_policies.len());
+  assert_eq!(response_access_policies.data.len(), actual_access_policies.len());
 
   for actual_access_policy in actual_access_policies {
 
-    let found_access_policy = response_access_policies.resources.iter().find(|access_policy| access_policy.id == actual_access_policy.id);
+    let found_access_policy = response_access_policies.data.iter().find(|access_policy| access_policy.id == actual_access_policy.id);
     assert!(found_access_policy.is_some());
 
   }
@@ -299,7 +299,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<AccessPolicy> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

@@ -63,16 +63,16 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
 
   let response_body: ListResourcesResponseBody::<FieldChoice> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.resources.len(), 1);
+  assert_eq!(response_body.data.len(), 1);
 
   let query = format!("field_id = {}", quote_literal(&dummy_field_choice.field_id.to_string()));
   let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_field_choice_count);
 
   let actual_field_choices = FieldChoice::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_body.resources.len(), actual_field_choices.len());
-  assert_eq!(response_body.resources[0].id, actual_field_choices[0].id);
-  assert_eq!(response_body.resources[0].id, dummy_field_choice.id);
+  assert_eq!(response_body.data.len(), actual_field_choices.len());
+  assert_eq!(response_body.data[0].id, actual_field_choices[0].id);
+  assert_eq!(response_body.data[0].id, dummy_field_choice.id);
 
   return Ok(());
 
@@ -125,16 +125,16 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
 
   let response_body: ListResourcesResponseBody::<FieldChoice> = response.json();
   assert_eq!(response_body.total_count, 1);
-  assert_eq!(response_body.resources.len(), 1);
+  assert_eq!(response_body.data.len(), 1);
 
   let query = format!("field_id = {} AND ({})", quote_literal(&dummy_field_choice.field_id.to_string()), &additional_query);
   let actual_field_choice_count = FieldChoice::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_body.total_count, actual_field_choice_count);
 
   let actual_field_choices = FieldChoice::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_body.resources.len(), actual_field_choices.len());
-  assert_eq!(response_body.resources[0].id, actual_field_choices[0].id);
-  assert_eq!(response_body.resources[0].id, dummy_field_choice.id);
+  assert_eq!(response_body.data.len(), actual_field_choices.len());
+  assert_eq!(response_body.data[0].id, actual_field_choices[0].id);
+  assert_eq!(response_body.data[0].id, dummy_field_choice.id);
 
   return Ok(());
 
@@ -190,7 +190,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<FieldChoice> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

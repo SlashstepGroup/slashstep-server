@@ -282,7 +282,7 @@ async fn handle_list_sessions_request(
   let queried_session_list_length = queried_resources.len();
   ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_session_list_length, if queried_session_list_length == 1 { "session" } else { "sessions" }), Some(&http_transaction.id), &state.database_pool).await.ok();
   let response_body = ListResourcesResponseBody::<Session> {
-    resources: queried_resources,
+    data: queried_resources,
     total_count: resource_count
   };
   

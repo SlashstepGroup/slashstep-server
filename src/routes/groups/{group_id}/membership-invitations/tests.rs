@@ -131,16 +131,16 @@ async fn verify_returned_membership_invitation_list_without_query() -> Result<()
 
   let response_membership_invitations: ListResourcesResponseBody::<MembershipInvitation> = response.json();
   assert_eq!(response_membership_invitations.total_count, 1);
-  assert_eq!(response_membership_invitations.resources.len(), 1);
+  assert_eq!(response_membership_invitations.data.len(), 1);
 
   let query = format!("parent_group_id = {}", quote_literal(&dummy_group.id.to_string()));
   let actual_membership_invitation_count = MembershipInvitation::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_membership_invitations.total_count, actual_membership_invitation_count);
 
   let actual_membership_invitations = MembershipInvitation::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_membership_invitations.resources.len(), actual_membership_invitations.len());
-  assert_eq!(response_membership_invitations.resources[0].id, actual_membership_invitations[0].id);
-  assert_eq!(response_membership_invitations.resources[0].id, shown_membership_invitation.id);
+  assert_eq!(response_membership_invitations.data.len(), actual_membership_invitations.len());
+  assert_eq!(response_membership_invitations.data[0].id, actual_membership_invitations[0].id);
+  assert_eq!(response_membership_invitations.data[0].id, shown_membership_invitation.id);
 
   return Ok(());
 
@@ -206,16 +206,16 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 
   let response_membership_invitations: ListResourcesResponseBody::<MembershipInvitation> = response.json();
   assert_eq!(response_membership_invitations.total_count, 1);
-  assert_eq!(response_membership_invitations.resources.len(), 1);
+  assert_eq!(response_membership_invitations.data.len(), 1);
 
   let query = format!("parent_group_id = {} AND ({})", quote_literal(&dummy_group.id.to_string()), additional_query);
   let actual_membership_invitation_count = MembershipInvitation::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_membership_invitations.total_count, actual_membership_invitation_count);
 
   let actual_membership_invitations = MembershipInvitation::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_membership_invitations.resources.len(), actual_membership_invitations.len());
-  assert_eq!(response_membership_invitations.resources[0].id, actual_membership_invitations[0].id);
-  assert_eq!(response_membership_invitations.resources[0].id, shown_membership_invitation.id);
+  assert_eq!(response_membership_invitations.data.len(), actual_membership_invitations.len());
+  assert_eq!(response_membership_invitations.data[0].id, actual_membership_invitations[0].id);
+  assert_eq!(response_membership_invitations.data[0].id, shown_membership_invitation.id);
 
   return Ok(());
 
@@ -280,7 +280,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<MembershipInvitation> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 

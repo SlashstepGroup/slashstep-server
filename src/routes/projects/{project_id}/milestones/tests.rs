@@ -325,16 +325,16 @@ async fn verify_returned_milestone_list_without_query() -> Result<(), TestSlashs
 
   let response_milestones: ListResourcesResponseBody::<Milestone> = response.json();
   assert_eq!(response_milestones.total_count, 1);
-  assert_eq!(response_milestones.resources.len(), 1);
+  assert_eq!(response_milestones.data.len(), 1);
 
   let query = format!("parent_project_id = {}", quote_literal(&dummy_project.id.to_string()));
   let actual_milestone_count = Milestone::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_milestones.total_count, actual_milestone_count);
 
   let actual_milestones = Milestone::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_milestones.resources.len(), actual_milestones.len());
-  assert_eq!(response_milestones.resources[0].id, actual_milestones[0].id);
-  assert_eq!(response_milestones.resources[0].id, shown_milestone.id);
+  assert_eq!(response_milestones.data.len(), actual_milestones.len());
+  assert_eq!(response_milestones.data[0].id, actual_milestones[0].id);
+  assert_eq!(response_milestones.data[0].id, shown_milestone.id);
 
   return Ok(());
 
@@ -388,16 +388,16 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 
   let response_milestones: ListResourcesResponseBody::<Milestone> = response.json();
   assert_eq!(response_milestones.total_count, 1);
-  assert_eq!(response_milestones.resources.len(), 1);
+  assert_eq!(response_milestones.data.len(), 1);
 
   let query = format!("parent_project_id = {} AND ({})", quote_literal(&dummy_project.id.to_string()), additional_query);
   let actual_milestone_count = Milestone::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
   assert_eq!(response_milestones.total_count, actual_milestone_count);
 
   let actual_milestones = Milestone::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_milestones.resources.len(), actual_milestones.len());
-  assert_eq!(response_milestones.resources[0].id, actual_milestones[0].id);
-  assert_eq!(response_milestones.resources[0].id, shown_milestone.id);
+  assert_eq!(response_milestones.data.len(), actual_milestones.len());
+  assert_eq!(response_milestones.data[0].id, actual_milestones[0].id);
+  assert_eq!(response_milestones.data[0].id, shown_milestone.id);
 
   return Ok(());
 
@@ -450,7 +450,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   assert_eq!(response.status_code(), StatusCode::OK);
 
   let response_body: ListResourcesResponseBody::<Milestone> = response.json();
-  assert_eq!(response_body.resources.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
+  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
 
   return Ok(());
 
