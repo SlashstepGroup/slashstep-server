@@ -366,7 +366,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
   let router = Router::<AppState>::new()
     .route("/workspaces", axum::routing::get(handle_list_workspaces_request))
     .route("/workspaces", axum::routing::post(handle_create_workspace_request))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_total_maximum_rate_limits))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_absolute_maximum_rate_limits))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))

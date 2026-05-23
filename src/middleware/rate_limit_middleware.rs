@@ -21,7 +21,7 @@ impl std::fmt::Display for Interval {
 }
 
 #[axum_macros::debug_middleware]
-pub async fn verify_total_maximum_rate_limits(
+pub async fn verify_absolute_maximum_rate_limits(
   State(state): State<AppState>, 
   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
   Extension(authenticated_user): Extension<Option<Arc<User>>>,
@@ -53,8 +53,8 @@ pub async fn verify_total_maximum_rate_limits(
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
     let is_user_anonymous = authenticated_user.as_ref().map(|user| user.is_anonymous).unwrap_or(false);
     let interval_rate_limit_configuration_name = match request.method() {
-      &axum::http::Method::GET | &axum::http::Method::HEAD => get_rate_limit_configuration_name("server.maximumTotalReadRequestCount", &interval, principal_type, is_user_anonymous)?,
-      &axum::http::Method::POST | &axum::http::Method::PUT | &axum::http::Method::PATCH | &axum::http::Method::DELETE => get_rate_limit_configuration_name("server.maximumTotalWriteRequestCount", &interval, principal_type, is_user_anonymous)?,
+      &axum::http::Method::GET | &axum::http::Method::HEAD => get_rate_limit_configuration_name("server.absoluteMaximumReadRequestCount", &interval, principal_type, is_user_anonymous)?,
+      &axum::http::Method::POST | &axum::http::Method::PUT | &axum::http::Method::PATCH | &axum::http::Method::DELETE => get_rate_limit_configuration_name("server.absoluteMaximumWriteRequestCount", &interval, principal_type, is_user_anonymous)?,
       &axum::http::Method::OPTIONS => return Ok(next.run(request).await),
       _ => {
 

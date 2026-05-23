@@ -118,7 +118,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
   let router = Router::<AppState>::new()
     .route("/http-transactions/{http_transaction_id}", axum::routing::get(handle_get_http_transaction_request))
     .route("/http-transactions/{http_transaction_id}", axum::routing::delete(handle_delete_http_transaction_request))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_total_maximum_rate_limits))
+    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_absolute_maximum_rate_limits))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
     .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
     .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
