@@ -22,7 +22,7 @@ use crate::{
   }, resources::{
     access_policy::{
       AccessPolicyPrincipalType, PermissionLevel
-    }, action::Action, view::ViewParentResourceType, view_field::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, ViewField}
+    }, action::Action, view_field::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, ViewField}
   }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
 

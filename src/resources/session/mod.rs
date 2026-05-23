@@ -13,7 +13,7 @@
 mod tests;
 
 use std::{net::IpAddr};
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use jsonwebtoken::Header;
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};

@@ -247,7 +247,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
 
     let dummy_user = test_environment.create_random_user(None).await?;
-    let shown_membership_invitation = MembershipInvitation::create(&InitialMembershipInvitationProperties {
+    MembershipInvitation::create(&InitialMembershipInvitationProperties {
       parent_resource_type: MembershipParentResourceType::Group,
       parent_group_id: Some(dummy_group.id),
       parent_role_id: None,

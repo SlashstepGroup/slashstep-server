@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
-    ResourceError, access_policy::PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, user::{EditableUserProperties, EditableUserPropertiesRequestBody, User}
+    ResourceError, access_policy::PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, user::{EditableUserPropertiesRequestBody, User}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 

@@ -22,7 +22,7 @@ use crate::{
   }, resources::{
     ResourceType, access_policy::{
       AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
-    }, action::Action, group::{Group, GroupParentResourceType, ProtectedGroupType}, role::Role, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Session}
+    }, action::Action, group::{Group, GroupParentResourceType, ProtectedGroupType}, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Session}
   }, routes::{ListResourcesResponseBody, sessions::LoginCredentials}, tests::{TestEnvironment, TestSlashstepServerError}
 };
 

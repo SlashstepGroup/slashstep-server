@@ -17,7 +17,7 @@ mod tests;
 use std::sync::Arc;
 
 use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
-use axum_extra::extract::{CookieJar, cookie::{Cookie, Expiration, SameSite}};
+use axum_extra::extract::{CookieJar, cookie::{Cookie, SameSite}};
 use chrono::Utc;
 use reqwest::StatusCode;
 use rust_decimal::prelude::ToPrimitive;

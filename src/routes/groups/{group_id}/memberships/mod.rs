@@ -66,7 +66,7 @@ pub async fn handle_create_membership_request(
   let app_authorization_id = authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id);
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  let mut can_principal_add_self = false;
+  let can_principal_add_self;
   if let Some(membership_invitation_id) = query_parameters.membership_invitation_id {
 
     let membership_invitation_id = get_uuid_from_string(&membership_invitation_id, "membership invitation", &http_transaction, &state.database_pool).await?;
