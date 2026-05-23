@@ -20,7 +20,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceType, ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, action_log_entry::ActionLogEntry,
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -53,7 +53,7 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -248,7 +248,7 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id() -> Re
   let delete_action_log_entries_action = Action::get_by_name("actionLogEntries.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

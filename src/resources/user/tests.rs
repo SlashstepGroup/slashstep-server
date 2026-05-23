@@ -248,7 +248,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
 
     AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: get_server_log_entries_action.id.clone(),
-      permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
+      permission_level: crate::resources::access_policy::PermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
       scoped_resource_type: ResourceType::User,

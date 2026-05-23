@@ -15,7 +15,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, item_connection::{DEFAULT_RESOURCE_LIST_LIMIT, InitialItemConnectionProperties, InitialItemConnectionPropertiesWithPredefinedOutwardItem, ItemConnection}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action::Action, item_connection::{DEFAULT_RESOURCE_LIST_LIMIT, InitialItemConnectionProperties, InitialItemConnectionPropertiesWithPredefinedOutwardItem, ItemConnection}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
 
 async fn create_item_connection(test_environment: &TestEnvironment, outward_item_id: &Uuid, inward_item_id: &Uuid) -> Result<ItemConnection, TestSlashstepServerError> {
 
@@ -47,7 +47,7 @@ async fn verify_successful_item_connection_creation() -> Result<(), TestSlashste
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_item_connections_action = Action::get_by_name("itemConnections.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let dummy_item_connection_type = test_environment.create_random_item_connection_type().await?;
@@ -98,11 +98,11 @@ async fn verify_returned_item_connection_list_without_query() -> Result<(), Test
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_connections_action = Action::get_by_name("itemConnections.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "itemConnections.list" action.
   let list_item_connections_action = Action::get_by_name("itemConnections.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let outward_item = test_environment.create_random_item(None).await?;
@@ -159,11 +159,11 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_connections_action = Action::get_by_name("itemConnections.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "itemConnections.list" action.
   let list_item_connections_action = Action::get_by_name("itemConnections.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Create a few dummy access policies.
   let outward_item = test_environment.create_random_item(None).await?;
@@ -227,11 +227,11 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_connections_action = Action::get_by_name("itemConnections.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "itemConnections.list" action.
   let list_item_connections_action = Action::get_by_name("itemConnections.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Create dummy access policies.
   let outward_item = test_environment.create_random_item(None).await?;
@@ -280,9 +280,9 @@ async fn verify_maximum_item_connection_list_limit() -> Result<(), TestSlashstep
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_connections_action = Action::get_by_name("itemConnections.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &PermissionLevel::User).await?;
   let list_item_connections_action = Action::get_by_name("itemConnections.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let outward_item = test_environment.create_random_item(None).await?;
@@ -325,10 +325,10 @@ async fn verify_query_when_listing_item_connections() -> Result<(), TestSlashste
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_connections_action = Action::get_by_name("itemConnections.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_item_connections_action.id, &PermissionLevel::User).await?;
 
   let list_item_connections_action = Action::get_by_name("itemConnections.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_item_connections_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let outward_item = test_environment.create_random_item(None).await?;

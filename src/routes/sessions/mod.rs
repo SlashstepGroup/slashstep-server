@@ -22,7 +22,7 @@ use chrono::Utc;
 use reqwest::StatusCode;
 use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialSessionProperties, Session}, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_private_key, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_username, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialSessionProperties, Session}, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_private_key, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_username, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoginCredentials {
@@ -49,8 +49,8 @@ async fn handle_create_session_request(
   let target_user = get_user_by_username(&login_credentials.username, &http_transaction, &state.database_pool).await?;
   let create_sessions_action = get_action_by_name("sessions.create", &http_transaction, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_sessions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::User, Some(&target_user.id), &create_sessions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_sessions_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::User, Some(&target_user.id), &create_sessions_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   // Verify login credentials.
   if let Err(error) = target_user.verify_password(&login_credentials.password) {
@@ -76,7 +76,7 @@ async fn handle_create_session_request(
 
   // Make sure the user can create sessions on themself.
   let (principal_type, principal_id) = (AccessPolicyPrincipalType::User, target_user.id.clone());
-  verify_principal_permissions(&principal_type, &principal_id, false, &ResourceType::User, Some(&target_user.id), &create_sessions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, false, &ResourceType::User, Some(&target_user.id), &create_sessions_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   // Create the authenticated session.
   ServerLogEntry::trace(&format!("Creating session for user {}...", target_user.id), Some(&http_transaction.id), &state.database_pool).await.ok();
@@ -222,9 +222,9 @@ async fn handle_list_sessions_request(
 
   // Make sure the principal has access to list resources.
   let list_resources_action = get_action_by_name("sessions.list", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &list_resources_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace("Listing sessions...", Some(&http_transaction.id), &state.database_pool).await.ok();
   let query = query_parameters.query.unwrap_or("".to_string());

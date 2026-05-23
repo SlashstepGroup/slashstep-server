@@ -12,7 +12,7 @@
 use std::cmp;
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{ResourceType, access_policy::{
-    AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, EditableAccessPolicyProperties, InitialAccessPolicyProperties
+    AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, EditableAccessPolicyProperties, InitialAccessPolicyProperties
   }, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -85,7 +85,7 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
   let user = test_environment.create_random_user(None).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -174,7 +174,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
     let dummy_action = test_environment.create_random_action(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: get_access_policies_action.id,
-      permission_level: if remaining_action_count > denied_access_policy_count { ActionPermissionLevel::None } else { ActionPermissionLevel::User },
+      permission_level: if remaining_action_count > denied_access_policy_count { PermissionLevel::None } else { PermissionLevel::User },
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
       scoped_resource_type: ResourceType::Action,
@@ -184,7 +184,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
     };
 
     let access_policy = AccessPolicy::create(&access_policy_properties, &test_environment.database_pool).await?;
-    if access_policy.permission_level == ActionPermissionLevel::User {
+    if access_policy.permission_level == PermissionLevel::User {
 
       created_access_policies.push(access_policy);
 
@@ -226,7 +226,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
     let user = test_environment.create_random_user(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
-      permission_level: ActionPermissionLevel::User,
+      permission_level: PermissionLevel::User,
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: if remaining_action_count == 1 { created_access_policies[0].principal_user_id } else { Some(user.id) },
@@ -301,7 +301,7 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
     let user = test_environment.create_random_user(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
-      permission_level: ActionPermissionLevel::User,
+      permission_level: PermissionLevel::User,
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
@@ -354,7 +354,7 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
   let user = test_environment.create_random_user(None).await?;
   let instance_access_policy_properties = InitialAccessPolicyProperties {
     action_id: action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -363,12 +363,12 @@ async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
   };
   let instance_access_policy = AccessPolicy::create(&instance_access_policy_properties, &test_environment.database_pool).await?;
   let updated_access_policy_properties = EditableAccessPolicyProperties {
-    permission_level: Some(ActionPermissionLevel::Editor),
+    permission_level: Some(PermissionLevel::Editor),
     is_inheritance_enabled: Some(false)
   };
   let updated_access_policy = instance_access_policy.update(&updated_access_policy_properties, &test_environment.database_pool).await?;
 
-  assert_eq!(updated_access_policy.permission_level, ActionPermissionLevel::Editor);
+  assert_eq!(updated_access_policy.permission_level, PermissionLevel::Editor);
   assert_eq!(updated_access_policy.is_inheritance_enabled, false);
 
   return Ok(());

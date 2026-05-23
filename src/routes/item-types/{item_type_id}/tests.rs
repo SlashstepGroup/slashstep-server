@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
-    ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, item_type::{EditableItemTypeProperties, ItemType}
+    ResourceError, access_policy::PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, item_type::{EditableItemTypeProperties, ItemType}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -52,7 +52,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_item_types_action = Action::get_by_name("itemTypes.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_item_types_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_item_types_action.id, &PermissionLevel::User).await?;
   
   let item_type = test_environment.create_random_item_type(None).await?;
 
@@ -227,7 +227,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
   // Grant access to the "itemTypes.delete" action to the user.
   let delete_item_types_action = Action::get_by_name("itemTypes.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_item_types_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_item_types_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let item_type = test_environment.create_random_item_type(None).await?;
@@ -408,7 +408,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_fields_action = Action::get_by_name("itemTypes.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_item_type = test_environment.create_random_item_type(None).await?;
@@ -689,7 +689,7 @@ async fn verify_item_type_name_is_at_most_at_maximum_length() -> Result<(), Test
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_item_types_action = Action::get_by_name("itemTypes.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_item_type_name_length_configuration = Configuration::get_by_name("itemTypes.maximumNameLength", &test_environment.database_pool).await?;
@@ -739,7 +739,7 @@ async fn verify_item_type_name_matches_regex() -> Result<(), TestSlashstepServer
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_item_types_action = Action::get_by_name("itemTypes.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_item_types_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_item_types_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let item_type_name_regex_configuration = Configuration::get_by_name("itemTypes.allowedNameRegex", &test_environment.database_pool).await?;
@@ -790,7 +790,7 @@ async fn verify_item_type_display_name_is_at_most_at_maximum_length() -> Result<
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_item_types_action = Action::get_by_name("itemTypes.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_item_type_display_name_length_configuration = Configuration::get_by_name("itemTypes.maximumDisplayNameLength", &test_environment.database_pool).await?;
@@ -841,7 +841,7 @@ async fn verify_item_type_description_is_at_most_at_maximum_length() -> Result<(
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_item_types_action = Action::get_by_name("itemTypes.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_item_types_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_item_type_description_length_configuration = Configuration::get_by_name("itemTypes.maximumDescriptionLength", &test_environment.database_pool).await?;

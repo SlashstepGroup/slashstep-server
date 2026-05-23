@@ -20,7 +20,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
-    access_policy::ActionPermissionLevel, server_log_entry::ServerLogEntry
+    access_policy::PermissionLevel, server_log_entry::ServerLogEntry
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -50,7 +50,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_server_log_entries_action = Action::get_by_name("serverLogEntries.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_server_log_entries_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_server_log_entries_action.id, &PermissionLevel::User).await?;
   
   let server_log_entry = test_environment.create_random_server_log_entry().await?;
 
@@ -220,7 +220,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let delete_fields_action = Action::get_by_name("serverLogEntries.delete", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: delete_fields_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -393,7 +393,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let update_fields_action = Action::get_by_name("serverLogEntries.update", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: update_fields_action.id,
-//     permission_level: ActionPermissionLevel::Editor,
+//     permission_level: PermissionLevel::Editor,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),

@@ -124,7 +124,7 @@ pub const GET_RESOURCE_ACTION_NAME: &str = "accessPolicies.get";
 
 #[derive(Debug, PartialEq, Eq, ToSql, FromSql, Clone, Copy, Serialize, Deserialize, Default, PartialOrd)]
 #[postgres(name = "permission_level")]
-pub enum ActionPermissionLevel {
+pub enum PermissionLevel {
   #[default]
   None,
   User,
@@ -132,28 +132,28 @@ pub enum ActionPermissionLevel {
   Admin
 }
 
-impl fmt::Display for ActionPermissionLevel {
+impl fmt::Display for PermissionLevel {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match self {
-      ActionPermissionLevel::None => write!(f, "None"),
-      ActionPermissionLevel::User => write!(f, "User"),
-      ActionPermissionLevel::Editor => write!(f, "Editor"),
-      ActionPermissionLevel::Admin => write!(f, "Admin")
+      PermissionLevel::None => write!(f, "None"),
+      PermissionLevel::User => write!(f, "User"),
+      PermissionLevel::Editor => write!(f, "Editor"),
+      PermissionLevel::Admin => write!(f, "Admin")
     }
   }
 }
 
-impl FromStr for ActionPermissionLevel {
+impl FromStr for PermissionLevel {
 
   type Err = ResourceError;
 
   fn from_str(string: &str) -> Result<Self, Self::Err> {
 
     match string {
-      "None" => Ok(ActionPermissionLevel::None),
-      "User" => Ok(ActionPermissionLevel::User),
-      "Editor" => Ok(ActionPermissionLevel::Editor),
-      "Admin" => Ok(ActionPermissionLevel::Admin),
+      "None" => Ok(PermissionLevel::None),
+      "User" => Ok(PermissionLevel::User),
+      "Editor" => Ok(PermissionLevel::Editor),
+      "Admin" => Ok(PermissionLevel::Admin),
       _ => Err(ResourceError::UnexpectedEnumVariantError(string.to_string()))
     }
     
@@ -214,7 +214,7 @@ pub struct InitialAccessPolicyProperties {
 
   pub action_id: Uuid,
 
-  pub permission_level: ActionPermissionLevel,
+  pub permission_level: PermissionLevel,
 
   pub is_inheritance_enabled: bool,
 
@@ -306,7 +306,7 @@ pub struct InitialAccessPolicyProperties {
 #[serde(deny_unknown_fields)]
 pub struct EditableAccessPolicyProperties {
 
-  pub permission_level: Option<ActionPermissionLevel>,
+  pub permission_level: Option<PermissionLevel>,
 
   pub is_inheritance_enabled: Option<bool>,
 
@@ -315,7 +315,7 @@ pub struct EditableAccessPolicyProperties {
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct InitialAccessPolicyPropertiesForPredefinedScope {
   pub action_id: Uuid,
-  pub permission_level: ActionPermissionLevel,
+  pub permission_level: PermissionLevel,
   pub is_inheritance_enabled: bool,
   pub principal_type: AccessPolicyPrincipalType,
   pub principal_user_id: Option<Uuid>,
@@ -334,7 +334,7 @@ pub struct AccessPolicy {
   /// The action ID that this access policy refers to.
   pub action_id: Uuid,
 
-  pub permission_level: ActionPermissionLevel,
+  pub permission_level: PermissionLevel,
 
   pub is_inheritance_enabled: bool,
 
@@ -681,7 +681,7 @@ impl AccessPolicy {
 
         "permission_level" => {
 
-          let permission_level = match ActionPermissionLevel::from_str(value) {
+          let permission_level = match PermissionLevel::from_str(value) {
 
             Ok(permission_level) => permission_level,
             Err(error) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse \"{}\" for key \"{}\": {}", value, key, error)))

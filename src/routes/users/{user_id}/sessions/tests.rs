@@ -15,7 +15,7 @@ use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Session}}, routes::{ListResourcesResponseBody}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action::Action, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Session}}, routes::{ListResourcesResponseBody}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -35,11 +35,11 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "sessions.list" action.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_session = test_environment.create_random_session(None).await?;
@@ -94,11 +94,11 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "sessions.list" action.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_session = test_environment.create_random_session(None).await?;
@@ -155,11 +155,11 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "sessions.list" action to the user.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_user = test_environment.create_random_user(None).await?;
@@ -210,11 +210,11 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "sessions.list" action to the user.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_user = test_environment.create_random_user(None).await?;
@@ -256,11 +256,11 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "sessions.list" action to the user.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_user = test_environment.create_random_user(None).await?;

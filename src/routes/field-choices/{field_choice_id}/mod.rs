@@ -22,7 +22,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    ResourceType, access_policy::{ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_choice::{EditableFieldChoiceProperties, FieldChoice}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    ResourceType, access_policy::{PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_choice::{EditableFieldChoiceProperties, FieldChoice}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_field_choice_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -43,9 +43,9 @@ async fn handle_get_field_choice_request(
   let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
   let target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
   let get_field_choices_action = get_action_by_name("fieldChoices.get", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_field_choices_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&target_field_choice.id), &get_field_choices_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&target_field_choice.id), &get_field_choices_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -81,9 +81,9 @@ async fn handle_delete_field_choice_request(
   let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
   let target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
   let delete_field_choices_action = get_action_by_name("fieldChoices.delete", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_field_choices_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&target_field_choice.id), &delete_field_choices_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&target_field_choice.id), &delete_field_choices_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_field_choice.delete(&state.database_pool).await {
 
@@ -140,9 +140,9 @@ async fn handle_patch_field_choice_request(
   let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
   let original_target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("fieldChoices.update", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&original_target_field_choice.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&original_target_field_choice.id), &update_access_policy_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace(&format!("Updating field choice {}...", original_target_field_choice.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_field_choice = match original_target_field_choice.update(&updated_field_choice_properties, &state.database_pool).await {

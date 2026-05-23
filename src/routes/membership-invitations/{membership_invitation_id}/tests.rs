@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceType, ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, app::App, membership_invitation::{MembershipInvitation}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -52,7 +52,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_membership_invitations_action = Action::get_by_name("membershipInvitations.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_membership_invitations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_membership_invitations_action.id, &PermissionLevel::User).await?;
   
   let membership_invitation = test_environment.create_random_membership_invitation().await?;
 
@@ -232,7 +232,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   let delete_fields_action = Action::get_by_name("membershipInvitations.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_fields_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

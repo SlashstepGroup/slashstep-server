@@ -17,7 +17,7 @@ use rand::distr::{Alphanumeric, SampleString};
 use reqwest::StatusCode;
 use uuid::Uuid;
 use rust_decimal::Decimal;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, project::{DEFAULT_RESOURCE_LIST_LIMIT, Project}}, routes::{ListResourcesResponseBody, workspaces::workspace_id::projects::CreateProjectRequestBody}, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles}, resources::{access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, project::{DEFAULT_RESOURCE_LIST_LIMIT, Project}}, routes::{ListResourcesResponseBody, workspaces::workspace_id::projects::CreateProjectRequestBody}, tests::{TestEnvironment, TestSlashstepServerError}};
 
 #[tokio::test]
 async fn verify_successful_project_creation() -> Result<(), TestSlashstepServerError> {
@@ -36,7 +36,7 @@ async fn verify_successful_project_creation() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -90,7 +90,7 @@ async fn verify_project_name_is_at_most_at_maximum_length() -> Result<(), TestSl
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let workspace = test_environment.create_random_workspace().await?;
@@ -143,7 +143,7 @@ async fn verify_project_display_name_is_at_most_at_maximum_length() -> Result<()
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let workspace = test_environment.create_random_workspace().await?;
@@ -196,7 +196,7 @@ async fn verify_project_description_is_at_most_at_maximum_length() -> Result<(),
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let workspace = test_environment.create_random_workspace().await?;
@@ -249,7 +249,7 @@ async fn verify_project_name_matches_regex() -> Result<(), TestSlashstepServerEr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let workspace = test_environment.create_random_workspace().await?;
@@ -304,11 +304,11 @@ async fn verify_returned_project_list_without_query() -> Result<(), TestSlashste
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "projects.list" action.
   let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -364,11 +364,11 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "projects.list" action.
   let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User).await?;
 
   // Create a few dummy access policies.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -426,11 +426,11 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "projects.list" action.
   let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User).await?;
 
   // Create dummy access policies.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -478,9 +478,9 @@ async fn verify_maximum_project_list_limit() -> Result<(), TestSlashstepServerEr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User).await?;
   let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -523,10 +523,10 @@ async fn verify_query_when_listing_projects() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User).await?;
 
   let list_projects_action = Action::get_by_name("projects.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_workspace = test_environment.create_random_workspace().await?;

@@ -19,7 +19,7 @@
 //     initialize_predefined_roles
 //   }, resources::{
 //     access_policy::{
-//       AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+//       AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
 //     }, action::Action, app::{App, DEFAULT_RESOURCE_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT},
 //   }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 // };
@@ -41,7 +41,7 @@
 //   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: get_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -53,7 +53,7 @@
 //   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: list_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -117,7 +117,7 @@
 //   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: get_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -129,7 +129,7 @@
 //   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: list_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -196,7 +196,7 @@
 //   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: get_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -208,7 +208,7 @@
 //   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: list_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -263,7 +263,7 @@
 //   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: get_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -275,7 +275,7 @@
 //   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: list_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -319,7 +319,7 @@
 //   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: get_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
@@ -331,7 +331,7 @@
 //   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: list_actions_action.id,
-//     permission_level: ActionPermissionLevel::User,
+//     permission_level: PermissionLevel::User,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),

@@ -9,7 +9,7 @@ use rand::{RngExt, distr::{Alphanumeric, SampleString}};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner};
 use testcontainers::{ContainerAsync, ImageExt};
 use uuid::Uuid;
-use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, item_type::{InitialItemTypeProperties, ItemType}, item_type_icon::{InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType}, iteration::{InitialIterationProperties, Iteration}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, password_reset_authorization::{InitialPasswordResetAuthorizationProperties, PasswordResetAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role, RoleParentResourceType}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, status::{InitialStatusProperties, Status, StatusType}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, view_field::{InitialViewFieldProperties, ViewField}, webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}};
+use crate::{DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError, import_env_file, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, PermissionLevel, InitialAccessPolicyProperties}, action::{Action, ActionParentResourceType, InitialActionProperties}, action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, InitialAppProperties}, app_authorization::{AppAuthorization, InitialAppAuthorizationProperties}, app_authorization_credential::{AppAuthorizationCredential, InitialAppAuthorizationCredentialProperties}, app_credential::{AppCredential, InitialAppCredentialProperties}, configuration::{Configuration, ConfigurationValueType, InitialConfigurationProperties}, delegation_policy::{DelegationPolicy, InitialDelegationPolicyProperties}, field::{Field, FieldValueType, InitialFieldProperties}, field_choice::{FieldChoice, FieldChoiceType, InitialFieldChoiceProperties}, field_value::{FieldValue, FieldValueParentResourceType, InitialFieldValueProperties}, group::{Group, GroupParentResourceType, InitialGroupProperties}, http_transaction::{HTTPTransaction, InitialHTTPTransactionProperties}, item::{InitialItemProperties, Item}, item_connection::{InitialItemConnectionProperties, ItemConnection}, item_connection_type::{InitialItemConnectionTypeProperties, ItemConnectionType, ItemConnectionTypeParentResourceType}, item_type::{InitialItemTypeProperties, ItemType}, item_type_icon::{InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType}, iteration::{InitialIterationProperties, Iteration}, membership::{InitialMembershipProperties, Membership, MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, MembershipInvitation, MembershipInvitationInviteePrincipalType}, milestone::{InitialMilestoneProperties, Milestone}, oauth_authorization::{InitialOAuthAuthorizationProperties, OAuthAuthorization}, password_reset_authorization::{InitialPasswordResetAuthorizationProperties, PasswordResetAuthorization}, project::{InitialProjectProperties, Project}, role::{InitialRoleProperties, Role, RoleParentResourceType}, server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel}, session::{InitialSessionProperties, Session}, status::{InitialStatusProperties, Status, StatusType}, user::{InitialUserProperties, User}, view::{InitialViewProperties, View, ViewParentResourceType}, view_field::{InitialViewFieldProperties, ViewField}, webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType}, workspace::{InitialWorkspaceProperties, Workspace}}};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -262,7 +262,7 @@ impl TestEnvironment {
 
     let delegation_policy_properties = InitialDelegationPolicyProperties {
       action_id: action.id,
-      maximum_permission_level: ActionPermissionLevel::User,
+      maximum_permission_level: PermissionLevel::User,
       delegate_app_authorization_id: self.create_random_app_authorization(None).await?.id,
       principal_user_id: user.id,
       ..Default::default()
@@ -692,7 +692,7 @@ impl TestEnvironment {
     let user = self.create_random_user(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: action.id,
-      permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
+      permission_level: crate::resources::access_policy::PermissionLevel::User,
       is_inheritance_enabled: true,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id),
@@ -706,7 +706,7 @@ impl TestEnvironment {
 
   }
 
-  pub async fn create_server_access_policy(&self, user_id: &Uuid, action_id: &Uuid, permission_level: &ActionPermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
+  pub async fn create_server_access_policy(&self, user_id: &Uuid, action_id: &Uuid, permission_level: &PermissionLevel) -> Result<AccessPolicy, TestSlashstepServerError> {
 
     let access_policy = AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: action_id.clone(),

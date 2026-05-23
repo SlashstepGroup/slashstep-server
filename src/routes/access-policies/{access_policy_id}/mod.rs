@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, access_policy::{AccessPolicy, ActionPermissionLevel, EditableAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_access_policy_by_id, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, access_policy::{AccessPolicy, PermissionLevel, EditableAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, utilities::route_handler_utilities::{get_access_policy_by_id, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /access-policies/{access_policy_id}
 /// 
@@ -33,9 +33,9 @@ async fn handle_get_access_policy_request(
 
   // Make sure the delegate and principal have access to the resource.
   let action = get_action_by_name("accessPolicies.get", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AccessPolicy, Some(&access_policy.id), &action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AccessPolicy, Some(&access_policy.id), &action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -77,15 +77,15 @@ async fn handle_patch_access_policy_request(
   // Make sure the delegate and principal have access to the resource.
   let access_policy = get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("accessPolicies.update", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AccessPolicy, Some(&access_policy.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AccessPolicy, Some(&access_policy.id), &update_access_policy_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
   let access_policy_action = get_action_by_id(&access_policy.action_id, &http_transaction, &state.database_pool).await?;
   let minimum_permission_level = match updated_access_policy_properties.permission_level {
 
-    Some(permission_level) => if permission_level > ActionPermissionLevel::Editor { permission_level } else { ActionPermissionLevel::Editor },
+    Some(permission_level) => if permission_level > PermissionLevel::Editor { permission_level } else { PermissionLevel::Editor },
 
-    None => ActionPermissionLevel::Editor
+    None => PermissionLevel::Editor
 
   };
   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &access_policy_action.id, &http_transaction.id, &minimum_permission_level, &state.database_pool).await?;
@@ -141,9 +141,9 @@ async fn handle_delete_access_policy_request(
   let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy", &http_transaction, &state.database_pool).await?;
   let target_access_policy = get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
   let delete_resources_action = get_action_by_name("accessPolicies.delete", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_resources_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AccessPolicy, Some(&target_access_policy.id), &delete_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::AccessPolicy, Some(&target_access_policy.id), &delete_resources_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_access_policy.delete(&state.database_pool).await {
 

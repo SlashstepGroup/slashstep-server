@@ -22,7 +22,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     access_policy::{
-      AccessPolicyPrincipalType, ActionPermissionLevel
+      AccessPolicyPrincipalType, PermissionLevel
     }, action::Action, configuration::{Configuration, EditableConfigurationProperties}, group::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Group, InitialGroupProperties}
   }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -45,11 +45,11 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_groups_action = Action::get_by_name("groups.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "groups.list" action to the user.
   let list_groups_action = Action::get_by_name("groups.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &PermissionLevel::User).await?;
 
   // Create a dummy delegation policy.
   test_environment.create_random_group().await?;
@@ -108,11 +108,11 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_groups_action = Action::get_by_name("groups.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "apps.list" action to the user.
   let list_groups_action = Action::get_by_name("groups.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &PermissionLevel::User).await?;
 
   // Create a dummy delegation policy.
   let dummy_group = test_environment.create_random_group().await?;
@@ -174,11 +174,11 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_groups_action = Action::get_by_name("groups.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "groups.list" action to the user.
   let list_groups_action = Action::get_by_name("groups.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &PermissionLevel::User).await?;
 
   // Create dummy delegation policies.
   let group_count = Group::count("", &test_environment.database_pool, None, None).await?;
@@ -228,11 +228,11 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_groups_action = Action::get_by_name("groups.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "apps.list" action to the user.
   let list_groups_action = Action::get_by_name("groups.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -271,11 +271,11 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_groups_action = Action::get_by_name("groups.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_groups_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "groups.list" action to the user.
   let list_groups_action = Action::get_by_name("groups.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_groups_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -411,7 +411,7 @@ async fn verify_successful_group_creation() -> Result<(), TestSlashstepServerErr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_groups_action = Action::get_by_name("groups.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let initial_group_properties = InitialGroupProperties {
@@ -459,7 +459,7 @@ async fn verify_group_name_is_at_most_at_maximum_length() -> Result<(), TestSlas
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_groups_action = Action::get_by_name("groups.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_group_name_length_configuration = Configuration::get_by_name("groups.maximumNameLength", &test_environment.database_pool).await?;
@@ -508,7 +508,7 @@ async fn verify_group_display_name_is_at_most_at_maximum_length() -> Result<(), 
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_groups_action = Action::get_by_name("groups.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_group_display_name_length_configuration = Configuration::get_by_name("groups.maximumDisplayNameLength", &test_environment.database_pool).await?;
@@ -557,7 +557,7 @@ async fn verify_group_description_is_at_most_at_maximum_length() -> Result<(), T
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_groups_action = Action::get_by_name("groups.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_group_description_length_configuration = Configuration::get_by_name("groups.maximumDescriptionLength", &test_environment.database_pool).await?;
@@ -607,7 +607,7 @@ async fn verify_group_name_matches_regex() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_groups_action = Action::get_by_name("groups.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_groups_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let group_name_regex_configuration = Configuration::get_by_name("groups.allowedNameRegex", &test_environment.database_pool).await?;

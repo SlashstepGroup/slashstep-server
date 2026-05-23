@@ -18,7 +18,7 @@ use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::Jso
 use pg_escape::quote_literal;
 use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{AppWithClientSecret, CreateAppRequestBody, ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, get_workspace_by_id, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_display_name, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType}, server_log_entry::ServerLogEntry, user::User}, routes::{AppWithClientSecret, CreateAppRequestBody, ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, get_workspace_by_id, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, validate_resource_display_name, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /workspaces/{workspace_id}/apps
 /// 
@@ -37,10 +37,10 @@ async fn handle_list_apps_request(
   // Make sure the principal has access to list resources.
   let workspace_id = get_uuid_from_string(&workspace_id, "workspace", &http_transaction, &state.database_pool).await?;
   let list_resources_action = get_action_by_name("apps.list", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let target_workspace = get_workspace_by_id(&workspace_id, &http_transaction, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Workspace, Some(&target_workspace.id), &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Workspace, Some(&target_workspace.id), &list_resources_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
     "parent_workspace_id = {}{}", 
@@ -135,9 +135,9 @@ async fn handle_create_app_request(
 
   // Make sure the authenticated_user can create apps for the target action log entry.
   let create_apps_action = get_action_by_name("apps.create", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_apps_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_apps_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &create_apps_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &create_apps_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   let mut client_secret_hash = None;
   let mut client_secret = None;
@@ -268,7 +268,7 @@ async fn handle_create_app_request(
       scoped_app_id: if principal_type == AccessPolicyPrincipalType::App { Some(principal_id.clone()) } else { None },
       is_inheritance_enabled: true,
       action_id: action.id.clone(),
-      permission_level: ActionPermissionLevel::Admin,
+      permission_level: PermissionLevel::Admin,
       ..Default::default()
     }, &state.database_pool).await {
 

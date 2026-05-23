@@ -16,7 +16,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    access_policy::{ResourceType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
+    access_policy::{ResourceType, PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_server_log_entry_by_id, get_uuid_from_string, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -42,10 +42,10 @@ async fn handle_get_server_log_entry_request(
   let server_log_entry_id = get_uuid_from_string(&server_log_entry_id, "server log entry", &http_transaction, &state.database_pool).await?;
   let target_server_log_entry = get_server_log_entry_by_id(&server_log_entry_id, &http_transaction, &state.database_pool).await?;
   let get_server_log_entry_action = get_action_by_name("serverLogEntries.get", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_server_log_entry_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_server_log_entry_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
 
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &get_server_log_entry_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &get_server_log_entry_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -144,10 +144,10 @@ async fn handle_get_server_log_entry_request(
 //   let original_target_field = get_app_by_id(&server_log_entry_id, &http_transaction, &state.database_pool).await?;
 //   let resource_hierarchy = get_resource_hierarchy(&original_target_field, &ResourceType::App, &original_target_field.id, &http_transaction, &state.database_pool).await?;
 //   let update_access_policy_action = get_action_by_name("apps.update", &http_transaction, &state.database_pool).await?;
-//   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+//   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
 //   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
 //   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
 //   ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 //   let updated_target_action = match original_target_field.update(&updated_app_properties, &state.database_pool).await {

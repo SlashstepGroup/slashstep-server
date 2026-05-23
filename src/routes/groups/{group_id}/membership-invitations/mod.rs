@@ -16,7 +16,7 @@ use std::sync::Arc;
 use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, ResourceError, access_policy::{ActionPermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, InitialMembershipInvitationPropertiesWithPredefinedParentAndInviter, MembershipInvitation}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_group_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, ResourceError, access_policy::{PermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, membership::{MembershipParentResourceType, MembershipPrincipalType}, membership_invitation::{InitialMembershipInvitationProperties, InitialMembershipInvitationPropertiesWithPredefinedParentAndInviter, MembershipInvitation}, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_group_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
 
 /// GET /groups/{group_id}/membership-invitations
 /// 
@@ -35,10 +35,10 @@ async fn handle_list_membership_invitations_request(
   // Make sure the principal has access to list resources.
   let group_id = get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
   let list_resources_action = get_action_by_name("membershipInvitations.list", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &list_resources_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   let query = format!(
     "parent_group_id = {}{}", 
@@ -128,9 +128,9 @@ async fn handle_create_membership_invitation_request(
   let group_id = get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
   let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
   let create_membership_invitations_action = get_action_by_name("membershipInvitations.create", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_membership_invitations_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_membership_invitations_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &create_membership_invitations_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Group, Some(&target_group.id), &create_membership_invitations_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   // Create the membership invitation.
   ServerLogEntry::trace(&format!("Creating membership invitation for group {}...", group_id), Some(&http_transaction.id), &state.database_pool).await.ok();

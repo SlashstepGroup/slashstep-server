@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
-    ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, milestone::{EditableMilestoneProperties, Milestone}
+    ResourceError, access_policy::PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, milestone::{EditableMilestoneProperties, Milestone}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -51,7 +51,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_milestones_action = Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_milestones_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User).await?;
   
   let milestone = test_environment.create_random_milestone(None).await?;
 
@@ -226,7 +226,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
   // Grant access to the "milestones.delete" action to the user.
   let delete_milestones_action = Action::get_by_name("milestones.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_milestones_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_milestones_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let milestone = test_environment.create_random_milestone(None).await?;
@@ -407,7 +407,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_milestones_action = Action::get_by_name("milestones.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_milestones_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_milestones_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_milestone = test_environment.create_random_milestone(None).await?;
@@ -687,7 +687,7 @@ async fn verify_milestone_display_name_is_at_most_at_maximum_length() -> Result<
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_milestone_action = Action::get_by_name("milestones.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_milestone_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_milestone_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_milestone = test_environment.create_random_milestone(None).await?; 
@@ -738,7 +738,7 @@ async fn verify_milestone_description_is_at_most_at_maximum_length() -> Result<(
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_milestone_action = Action::get_by_name("milestones.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_milestone_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_milestone_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_milestone = test_environment.create_random_milestone(None).await?; 

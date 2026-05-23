@@ -22,7 +22,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceError, access_policy::
-      ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, item::{EditableItemProperties, Item}
+      PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, item::{EditableItemProperties, Item}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -52,7 +52,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_items_action = Action::get_by_name("items.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_items_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_items_action.id, &PermissionLevel::User).await?;
   
   let item = test_environment.create_random_item(None).await?;
 
@@ -224,7 +224,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
   // Grant access to the "items.delete" action to the user.
   let delete_fields_action = Action::get_by_name("items.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let item = test_environment.create_random_item(None).await?;
@@ -405,7 +405,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_items_action = Action::get_by_name("items.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_items_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_items_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_item = test_environment.create_random_item(None).await?;

@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceType, ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     },
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -55,7 +55,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
   let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -252,7 +252,7 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id() -> Resul
   let delete_access_policies_action = Action::get_by_name("accessPolicies.delete", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: delete_access_policies_action.id,
-    permission_level: ActionPermissionLevel::Editor,
+    permission_level: PermissionLevel::Editor,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -434,7 +434,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
   let get_access_policies_action = Action::get_by_name("accessPolicies.update", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
-    permission_level: ActionPermissionLevel::Editor,
+    permission_level: PermissionLevel::Editor,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -456,7 +456,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
   let response_access_policy: AccessPolicy = response.json();
   assert_eq!(response_access_policy.id, access_policy.id);
   assert_eq!(response_access_policy.action_id, access_policy.action_id);
-  assert_eq!(response_access_policy.permission_level, ActionPermissionLevel::User);
+  assert_eq!(response_access_policy.permission_level, PermissionLevel::User);
   assert_eq!(response_access_policy.is_inheritance_enabled, false);
   assert_eq!(response_access_policy.principal_type, access_policy.principal_type);
   assert_eq!(response_access_policy.principal_user_id, access_policy.principal_user_id);
@@ -621,7 +621,7 @@ async fn verify_authentication_when_patching_access_policy_by_id() -> Result<(),
   let get_access_policies_action = Action::get_by_name("accessPolicies.update", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
-    permission_level: ActionPermissionLevel::Editor,
+    permission_level: PermissionLevel::Editor,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -670,7 +670,7 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
   let update_access_policies_action = Action::get_by_name("accessPolicies.update", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: update_access_policies_action.id,
-    permission_level: ActionPermissionLevel::None,
+    permission_level: PermissionLevel::None,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

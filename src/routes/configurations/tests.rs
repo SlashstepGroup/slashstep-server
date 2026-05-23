@@ -20,7 +20,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     access_policy::{
-      AccessPolicyPrincipalType, ActionPermissionLevel
+      AccessPolicyPrincipalType, PermissionLevel
     }, action::Action, configuration::{self, Configuration},
   }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -43,11 +43,11 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_configurations_action = Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "configurations.list" action to the user.
   let list_configurations_action = Action::get_by_name("configurations.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   test_environment.create_random_configuration().await?;
@@ -106,11 +106,11 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_configurations_action = Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "configurations.list" action to the user.
   let list_configurations_action = Action::get_by_name("configurations.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   test_environment.create_random_configuration().await?;
@@ -169,11 +169,11 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_configurations_action = Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "configurations.list" action to the user.
   let list_configurations_action = Action::get_by_name("configurations.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &PermissionLevel::User).await?;
 
   // Create dummy actions.
   let configuration_count = Configuration::count("", &test_environment.database_pool, None, None).await?;
@@ -223,11 +223,11 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_configurations_action = Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "configurations.list" action to the user.
   let list_configurations_action = Action::get_by_name("configurations.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -266,11 +266,11 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_configurations_action = Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "configurations.list" action to the user.
   let list_configurations_action = Action::get_by_name("configurations.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_configurations_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {

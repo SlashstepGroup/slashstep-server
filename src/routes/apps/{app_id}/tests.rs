@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceType, ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, app::{App, AppClientType},
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -55,7 +55,7 @@ async fn verify_returned_app_by_id() -> Result<(), TestSlashstepServerError> {
   let get_apps_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_apps_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -240,7 +240,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   let delete_apps_action = Action::get_by_name("apps.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_apps_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -428,7 +428,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let update_apps_action = Action::get_by_name("apps.update", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: update_apps_action.id,
-    permission_level: ActionPermissionLevel::Editor,
+    permission_level: PermissionLevel::Editor,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

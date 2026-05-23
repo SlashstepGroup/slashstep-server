@@ -14,7 +14,7 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use reqwest::StatusCode;
 use uuid::Uuid;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, DEFAULT_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action::Action}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody};
 
 /// Verifies that the router can return a 201 status code and the created access policy when creating an access policy.
 #[tokio::test]
@@ -34,16 +34,16 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_access_policies_action = Action::get_by_name("accessPolicies.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_access_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_access_policies_action.id, &PermissionLevel::User).await?;
   
   // Give the user editor access to a dummy action.
   let dummy_action_log_entry = test_environment.create_random_action_log_entry().await?;
-  test_environment.create_server_access_policy(&user.id, &dummy_action_log_entry.action_id, &ActionPermissionLevel::Editor).await?;
+  test_environment.create_server_access_policy(&user.id, &dummy_action_log_entry.action_id, &PermissionLevel::Editor).await?;
 
   // Set up the server and send the request.
   let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
     action_id: dummy_action_log_entry.action_id,
-    permission_level: ActionPermissionLevel::Editor,
+    permission_level: PermissionLevel::Editor,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -101,7 +101,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   let get_access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -113,7 +113,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
   let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   let list_access_policy_properties = InitialAccessPolicyProperties {
     action_id: list_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -176,7 +176,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   let get_access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -188,7 +188,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
   let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   let list_access_policy_properties = InitialAccessPolicyProperties {
     action_id: list_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -249,7 +249,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   let get_access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -265,7 +265,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let random_user = test_environment.create_random_user(None).await?;
     let access_policy_properties = InitialAccessPolicyProperties {
       action_id: random_action.id,
-      permission_level: ActionPermissionLevel::User,
+      permission_level: PermissionLevel::User,
       is_inheritance_enabled: true,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(random_user.id),
@@ -279,7 +279,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   let list_access_policy_properties = InitialAccessPolicyProperties {
     action_id: list_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -328,7 +328,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   let get_access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -340,7 +340,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
   let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   let list_access_policy_properties = InitialAccessPolicyProperties {
     action_id: list_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -387,7 +387,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
   let get_access_policies_action = Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
   let get_access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -399,7 +399,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
   let list_access_policies_action = Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
   let list_access_policy_properties = InitialAccessPolicyProperties {
     action_id: list_access_policies_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceType, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, 
     action::Action, action_log_entry::{ActionLogEntry, DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT},
   }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
@@ -47,7 +47,7 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -59,7 +59,7 @@ async fn verify_returned_action_log_entry_list_without_query() -> Result<(), Tes
   let list_action_log_entries_action = Action::get_by_name("actionLogEntries.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -141,7 +141,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -153,7 +153,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
   let list_action_log_entries_action = Action::get_by_name("actionLogEntries.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -223,7 +223,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -235,7 +235,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
   let list_action_log_entries_action = Action::get_by_name("actionLogEntries.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -293,7 +293,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -305,7 +305,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
   let list_action_log_entries_action = Action::get_by_name("actionLogEntries.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -352,7 +352,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
   let get_action_log_entries_action = Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -364,7 +364,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
   let list_action_log_entries_action = Action::get_by_name("actionLogEntries.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_action_log_entries_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),

@@ -17,7 +17,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, milestone::{EditableMilestoneProperties, Milestone}, server_log_entry::ServerLogEntry, user::User
+    ResourceType, access_policy::PermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, milestone::{EditableMilestoneProperties, Milestone}, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_milestone_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_field_length, validate_resource_name, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -43,9 +43,9 @@ async fn handle_get_milestone_request(
   let milestone_id = get_uuid_from_string(&milestone_id, "milestone", &http_transaction, &state.database_pool).await?;
   let target_milestone = get_milestone_by_id(&milestone_id, &http_transaction, &state.database_pool).await?;
   let get_milestones_action = get_action_by_name("milestones.get", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_milestones_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_milestones_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Milestone, Some(&target_milestone.id), &get_milestones_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Milestone, Some(&target_milestone.id), &get_milestones_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -81,9 +81,9 @@ async fn handle_delete_milestone_request(
   let milestone_id = get_uuid_from_string(&milestone_id, "milestone", &http_transaction, &state.database_pool).await?;
   let target_milestone = get_milestone_by_id(&milestone_id, &http_transaction, &state.database_pool).await?;
   let delete_milestones_action = get_action_by_name("milestones.delete", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_milestones_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_milestones_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Milestone, Some(&target_milestone.id), &delete_milestones_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Milestone, Some(&target_milestone.id), &delete_milestones_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_milestone.delete(&state.database_pool).await {
 
@@ -146,9 +146,9 @@ async fn handle_patch_milestone_request(
   let milestone_id = get_uuid_from_string(&milestone_id, "milestone", &http_transaction, &state.database_pool).await?;
   let original_target_milestone = get_milestone_by_id(&milestone_id, &http_transaction, &state.database_pool).await?;
   let update_access_policy_action = get_action_by_name("milestones.update", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Milestone, Some(&original_target_milestone.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Milestone, Some(&original_target_milestone.id), &update_access_policy_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   ServerLogEntry::trace(&format!("Updating milestone {}...", original_target_milestone.id), Some(&http_transaction.id), &state.database_pool).await.ok();
   let updated_target_milestone = match original_target_milestone.update(&updated_milestone_properties, &state.database_pool).await {

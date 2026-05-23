@@ -16,7 +16,7 @@ use std::str::FromStr;
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{resources::{ResourceError, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
+use crate::{resources::{ResourceError, access_policy::{AccessPolicyPrincipalType, PermissionLevel}}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
@@ -52,7 +52,7 @@ pub struct DelegationPolicy {
   /// The actual permission level is determined by the principal's permissions.
   /// 
   /// For example, if a principal has an access policy that grants them the "Editor" permission level and the delegation policy has a maximum permission level of "User", the actual permission level will be "User". Another example: if the maximum permission level is "Admin", the actual permission level will be "Editor" because the principal only has the "Editor" permission level.
-  pub maximum_permission_level: ActionPermissionLevel,
+  pub maximum_permission_level: PermissionLevel,
 
   /// The delegation policy's delegate app authorization ID.
   pub delegate_app_authorization_id: Uuid,
@@ -69,7 +69,7 @@ pub struct InitialDelegationPolicyProperties {
   pub action_id: Uuid,
 
   /// The delegation policy's maximum permission level.
-  pub maximum_permission_level: ActionPermissionLevel,
+  pub maximum_permission_level: PermissionLevel,
 
   /// The delegation policy's delegate app authorization ID.
   pub delegate_app_authorization_id: Uuid,
@@ -83,7 +83,7 @@ pub struct InitialDelegationPolicyProperties {
 pub struct EditableDelegationPolicyProperties {
 
   /// The delegation policy's maximum permission level.
-  pub maximum_permission_level: Option<ActionPermissionLevel>
+  pub maximum_permission_level: Option<PermissionLevel>
 
 }
 
@@ -240,10 +240,10 @@ impl DelegationPolicy {
 
       "maximum_permission_level" => {
 
-        let permission_level = match ActionPermissionLevel::from_str(value) {
+        let permission_level = match PermissionLevel::from_str(value) {
 
           Ok(permission_level) => permission_level,
-          Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse ActionPermissionLevel from \"{}\" for key \"{}\".", value, key)))
+          Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse PermissionLevel from \"{}\" for key \"{}\".", value, key)))
 
         };
 

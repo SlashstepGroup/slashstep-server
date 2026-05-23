@@ -5,7 +5,7 @@ use reqwest::StatusCode;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use serde::Deserialize;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware::{self, get_decoding_key}, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, password_reset_authorization::PasswordResetAuthorizationClaims, server_log_entry::ServerLogEntry, session::Session, user::{EditableUserProperties, User}}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_public_key, get_password_reset_authorization_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
+use crate::{AppState, HTTPError, middleware::{authentication_middleware::{self, get_decoding_key}, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, password_reset_authorization::PasswordResetAuthorizationClaims, server_log_entry::ServerLogEntry, session::Session, user::{EditableUserProperties, User}}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_json_web_token_public_key, get_password_reset_authorization_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_user_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateUserPasswordRequestBody {
@@ -107,8 +107,8 @@ async fn handle_update_user_password_request(
     if update_user_password_request_body.should_bypass_password_validation {
 
       let bypass_password_validation_action = get_action_by_name("users.bypassPasswordValidation", &http_transaction, &database_pool).await?;
-      verify_delegate_permissions(authenticated_app_authorization_id, &bypass_password_validation_action.id, &http_transaction.id, &ActionPermissionLevel::User, &database_pool).await?;
-      verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous, &ResourceType::User, Some(&target_user.id), &bypass_password_validation_action, &http_transaction, &ActionPermissionLevel::User, &database_pool).await?;
+      verify_delegate_permissions(authenticated_app_authorization_id, &bypass_password_validation_action.id, &http_transaction.id, &PermissionLevel::User, &database_pool).await?;
+      verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous, &ResourceType::User, Some(&target_user.id), &bypass_password_validation_action, &http_transaction, &PermissionLevel::User, &database_pool).await?;
 
     } else if let Some(password_reset_token) = &update_user_password_request_body.password_reset_token {
 
@@ -249,8 +249,8 @@ async fn handle_update_user_password_request(
   ).await?;
 
   let update_user_password_action = get_action_by_name("users.updatePassword", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization_id, &update_user_password_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::User, Some(&target_user.id), &update_user_password_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization_id, &update_user_password_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::User, Some(&target_user.id), &update_user_password_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
   
   let hashed_password = match User::hash_password(&update_user_password_request_body.new_password) {
 

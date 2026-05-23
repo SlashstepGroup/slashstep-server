@@ -20,7 +20,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     access_policy::{
-      AccessPolicyPrincipalType, ActionPermissionLevel
+      AccessPolicyPrincipalType, PermissionLevel
     }, action::Action, app_credential::{AppCredential, DEFAULT_RESOURCE_LIST_LIMIT},
   }, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -43,11 +43,11 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_app_credentials_action = Action::get_by_name("appCredentials.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "appCredentials.list" action to the user.
   let list_app_credentials_action = Action::get_by_name("appCredentials.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   test_environment.create_random_app_credential(None).await?;
@@ -106,11 +106,11 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_app_credentials_action = Action::get_by_name("appCredentials.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "appCredentials.list" action to the user.
   let list_app_credentials_action = Action::get_by_name("appCredentials.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_app_credential = test_environment.create_random_app_credential(None).await?;
@@ -168,11 +168,11 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_app_credentials_action = Action::get_by_name("appCredentials.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "appCredentials.list" action to the user.
   let list_app_credentials_action = Action::get_by_name("appCredentials.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Create dummy actions.
   let app_credential_count = AppCredential::count("", &test_environment.database_pool, None, None).await?;
@@ -222,11 +222,11 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_app_credentials_action = Action::get_by_name("appCredentials.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "appCredentials.list" action to the user.
   let list_app_credentials_action = Action::get_by_name("appCredentials.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -265,11 +265,11 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_app_credentials_action = Action::get_by_name("appCredentials.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "appCredentials.list" action to the user.
   let list_app_credentials_action = Action::get_by_name("appCredentials.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_app_credentials_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {

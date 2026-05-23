@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
-    ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, role::{EditableRoleProperties, Role}
+    ResourceError, access_policy::PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, role::{EditableRoleProperties, Role}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -51,7 +51,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User).await?;
   
   let role = test_environment.create_random_role(None, None).await?;
 
@@ -226,7 +226,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
   // Grant access to the "roles.delete" action to the user.
   let delete_roles_action = Action::get_by_name("roles.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_roles_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let role = test_environment.create_random_role(None, None).await?;
@@ -407,7 +407,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_roles_action = Action::get_by_name("roles.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_roles_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_role = test_environment.create_random_role(None, None).await?;
@@ -687,7 +687,7 @@ async fn verify_role_display_name_is_at_most_at_maximum_length() -> Result<(), T
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_role_action = Action::get_by_name("roles.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_role_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_role_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_role = test_environment.create_random_role(None, None).await?; 
@@ -738,7 +738,7 @@ async fn verify_role_descriptions_are_at_most_at_maximum_length() -> Result<(), 
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_role_action = Action::get_by_name("roles.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_role_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_role_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_role = test_environment.create_random_role(None, None).await?; 

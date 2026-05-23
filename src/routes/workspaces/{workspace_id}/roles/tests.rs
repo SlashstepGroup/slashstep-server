@@ -16,7 +16,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
 use rust_decimal::Decimal;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, role::{DEFAULT_RESOURCE_LIST_LIMIT, InitialRolePropertiesWithPredefinedParent, Role, RoleParentResourceType}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, role::{DEFAULT_RESOURCE_LIST_LIMIT, InitialRolePropertiesWithPredefinedParent, Role, RoleParentResourceType}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
 
 #[tokio::test]
 async fn verify_successful_role_creation() -> Result<(), TestSlashstepServerError> {
@@ -35,7 +35,7 @@ async fn verify_successful_role_creation() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -85,7 +85,7 @@ async fn verify_role_name_is_at_most_at_maximum_length() -> Result<(), TestSlash
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let workspace = test_environment.create_random_workspace().await?;
@@ -135,7 +135,7 @@ async fn verify_role_display_name_is_at_most_at_maximum_length() -> Result<(), T
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let workspace = test_environment.create_random_workspace().await?;
@@ -185,7 +185,7 @@ async fn verify_role_description_is_at_most_at_maximum_length() -> Result<(), Te
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let workspace = test_environment.create_random_workspace().await?;
@@ -236,7 +236,7 @@ async fn verify_role_name_matches_regex() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let workspace = test_environment.create_random_workspace().await?;
@@ -288,11 +288,11 @@ async fn verify_returned_role_list_without_query() -> Result<(), TestSlashstepSe
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "roles.list" action.
   let list_roles_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -348,11 +348,11 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "roles.list" action.
   let list_roles_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User).await?;
 
   // Create a few dummy access policies.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -410,11 +410,11 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "roles.list" action.
   let list_roles_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User).await?;
 
   // Create dummy access policies.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -462,9 +462,9 @@ async fn verify_maximum_role_list_limit() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User).await?;
   let list_roles_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_workspace = test_environment.create_random_workspace().await?;
@@ -507,10 +507,10 @@ async fn verify_query_when_listing_roles() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_roles_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User).await?;
 
   let list_roles_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_workspace = test_environment.create_random_workspace().await?;

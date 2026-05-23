@@ -22,7 +22,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceType, ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, action::EditableActionProperties, configuration::{Configuration, EditableConfigurationProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -55,7 +55,7 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
   let get_actions_action = Action::get_by_name("actions.get", &test_environment.database_pool).await?;
   let access_policy_properties = InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -236,7 +236,7 @@ async fn verify_successful_deletion_when_deleting_action_by_id() -> Result<(), T
   let delete_actions_action = Action::get_by_name("actions.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -423,7 +423,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_actions_action = Action::get_by_name("actions.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_actions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_actions_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_action = test_environment.create_random_action(None).await?;
@@ -703,7 +703,7 @@ async fn verify_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_actions_action = Action::get_by_name("actions.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_actions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_actions_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_name_length_configuration = Configuration::get_by_name("actions.maximumNameLength", &test_environment.database_pool).await?;
@@ -752,7 +752,7 @@ async fn verify_display_name_is_at_most_at_maximum_length() -> Result<(), TestSl
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_actions_action = Action::get_by_name("actions.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_actions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_actions_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_display_name_length_configuration = Configuration::get_by_name("actions.maximumDisplayNameLength", &test_environment.database_pool).await?;
@@ -800,7 +800,7 @@ async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerErr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_actions_action = Action::get_by_name("actions.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_actions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_actions_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let action_name_regex_configuration = Configuration::get_by_name("actions.allowedNameRegex", &test_environment.database_pool).await?;
@@ -850,7 +850,7 @@ async fn verify_action_display_name_matches_regex() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_actions_action = Action::get_by_name("actions.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_actions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_actions_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let action_display_name_regex_configuration = Configuration::get_by_name("actions.allowedDisplayNameRegex", &test_environment.database_pool).await?;

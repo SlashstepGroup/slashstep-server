@@ -22,7 +22,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
-    ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, project::{EditableProjectProperties, Project}
+    ResourceError, access_policy::PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, project::{EditableProjectProperties, Project}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -53,7 +53,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_projects_action = Action::get_by_name("projects.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User).await?;
   
   let project = test_environment.create_random_project(None).await?;
 
@@ -228,7 +228,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
   // Grant access to the "projects.delete" action to the user.
   let delete_projects_action = Action::get_by_name("projects.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let project = test_environment.create_random_project(None).await?;
@@ -409,7 +409,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_fields_action = Action::get_by_name("projects.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_project = test_environment.create_random_project(None).await?;
@@ -695,7 +695,7 @@ async fn verify_project_name_is_at_most_at_maximum_length() -> Result<(), TestSl
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_projects_action = Action::get_by_name("projects.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_project_name_length_configuration = Configuration::get_by_name("projects.maximumNameLength", &test_environment.database_pool).await?;
@@ -745,7 +745,7 @@ async fn verify_project_name_matches_regex() -> Result<(), TestSlashstepServerEr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let project_name_regex_configuration = Configuration::get_by_name("projects.allowedNameRegex", &test_environment.database_pool).await?;
@@ -796,7 +796,7 @@ async fn verify_project_key_is_at_most_at_maximum_length() -> Result<(), TestSla
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_projects_action = Action::get_by_name("projects.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_project_key_length_configuration = Configuration::get_by_name("projects.maximumKeyLength", &test_environment.database_pool).await?;
@@ -846,7 +846,7 @@ async fn verify_project_key_matches_regex() -> Result<(), TestSlashstepServerErr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_projects_action = Action::get_by_name("projects.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let project_key_regex_configuration = Configuration::get_by_name("projects.allowedKeyRegex", &test_environment.database_pool).await?;
@@ -897,7 +897,7 @@ async fn verify_project_display_name_is_at_most_at_maximum_length() -> Result<()
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_projects_action = Action::get_by_name("projects.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_project_display_name_length_configuration = Configuration::get_by_name("projects.maximumDisplayNameLength", &test_environment.database_pool).await?;
@@ -948,7 +948,7 @@ async fn verify_project_description_is_at_most_at_maximum_length() -> Result<(),
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_projects_action = Action::get_by_name("projects.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_projects_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_projects_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_project_description_length_configuration = Configuration::get_by_name("projects.maximumDescriptionLength", &test_environment.database_pool).await?;

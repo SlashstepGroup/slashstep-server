@@ -20,7 +20,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles
   }, resources::{
     ResourceType, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, action::Action, app::{App, AppClientType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT}, configuration::{Configuration, EditableConfigurationProperties},
   }, routes::{AppWithClientSecret, ListResourcesResponseBody, apps::InitialAppPropertiesWithoutClientSecretHash}, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -45,7 +45,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -57,7 +57,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -124,7 +124,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -136,7 +136,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -206,7 +206,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -218,7 +218,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -276,7 +276,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -288,7 +288,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -335,7 +335,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let get_actions_action = Action::get_by_name("apps.get", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: get_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -347,7 +347,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let list_actions_action = Action::get_by_name("apps.list", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: list_actions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -487,7 +487,7 @@ async fn verify_successful_app_creation_with_public_client() -> Result<(), TestS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_apps_action = Action::get_by_name("apps.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let initial_app_properties = InitialAppPropertiesWithoutClientSecretHash {
@@ -537,7 +537,7 @@ async fn verify_successful_app_creation_with_confidential_client() -> Result<(),
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_apps_action = Action::get_by_name("apps.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let initial_app_properties = InitialAppPropertiesWithoutClientSecretHash {
@@ -587,7 +587,7 @@ async fn verify_app_name_matches_regex() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_apps_action = Action::get_by_name("apps.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let app_name_regex_configuration = Configuration::get_by_name("apps.allowedNameRegex", &test_environment.database_pool).await?;
@@ -635,7 +635,7 @@ async fn verify_app_display_name_matches_regex() -> Result<(), TestSlashstepServ
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_apps_action = Action::get_by_name("apps.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let app_display_name_regex_configuration = Configuration::get_by_name("apps.allowedDisplayNameRegex", &test_environment.database_pool).await?;
@@ -684,7 +684,7 @@ async fn verify_app_display_name_is_at_most_at_maximum_length() -> Result<(), Te
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_apps_action = Action::get_by_name("apps.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_app_display_name_length_configuration = Configuration::get_by_name("apps.maximumDisplayNameLength", &test_environment.database_pool).await?;
@@ -733,7 +733,7 @@ async fn verify_app_name_is_at_most_at_maximum_length() -> Result<(), TestSlashs
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_apps_action = Action::get_by_name("apps.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_apps_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_app_name_length_configuration = Configuration::get_by_name("apps.maximumNameLength", &test_environment.database_pool).await?;

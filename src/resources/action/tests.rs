@@ -2,7 +2,7 @@ use uuid::Uuid;
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
     ResourceType, access_policy::{ 
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, action::{
       Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, EditableActionProperties, InitialActionProperties
     }
@@ -251,7 +251,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 
     AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: get_actions_action.id.clone(),
-      permission_level: ActionPermissionLevel::User,
+      permission_level: PermissionLevel::User,
       principal_type: AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
       scoped_resource_type: ResourceType::Action,

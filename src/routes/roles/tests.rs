@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles
   }, resources::{
     access_policy::{
-      AccessPolicyPrincipalType, ActionPermissionLevel
+      AccessPolicyPrincipalType, PermissionLevel
     }, action::Action, configuration::{Configuration, EditableConfigurationProperties}, role::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Role}
   }, routes::{ListResourcesResponseBody, roles::CreateRoleRequestBody}, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -44,11 +44,11 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_delegation_policies_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "roles.list" action to the user.
   let list_delegation_policies_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Create a dummy role.
   test_environment.create_random_role(None, None).await?;
@@ -107,11 +107,11 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_delegation_policies_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "apps.list" action to the user.
   let list_delegation_policies_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Create a dummy role.
   let dummy_role = test_environment.create_random_role(None, None).await?;
@@ -173,11 +173,11 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_delegation_policies_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "roles.list" action to the user.
   let list_delegation_policies_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Create dummy roles.
   let role_count = Role::count("", &test_environment.database_pool, None, None).await?;
@@ -227,11 +227,11 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_delegation_policies_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "apps.list" action to the user.
   let list_delegation_policies_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -270,11 +270,11 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_delegation_policies_action = Action::get_by_name("roles.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "roles.list" action to the user.
   let list_delegation_policies_action = Action::get_by_name("roles.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_delegation_policies_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -415,7 +415,7 @@ async fn verify_successful_role_creation() -> Result<(), TestSlashstepServerErro
   };
 
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -464,7 +464,7 @@ async fn verify_role_name_is_at_most_at_maximum_length() -> Result<(), TestSlash
   };
 
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   let maximum_name_length_configuration = Configuration::get_by_name("roles.maximumNameLength", &test_environment.database_pool).await?;
   maximum_name_length_configuration.update(&EditableConfigurationProperties {
@@ -514,7 +514,7 @@ async fn verify_role_display_name_is_at_most_at_maximum_length() -> Result<(), T
   };
 
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   let maximum_display_name_length_configuration = Configuration::get_by_name("roles.maximumDisplayNameLength", &test_environment.database_pool).await?;
   maximum_display_name_length_configuration.update(&EditableConfigurationProperties {
@@ -564,7 +564,7 @@ async fn verify_role_description_is_at_most_at_maximum_length() -> Result<(), Te
   };
 
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   let maximum_description_length_configuration = Configuration::get_by_name("roles.maximumDescriptionLength", &test_environment.database_pool).await?;
   maximum_description_length_configuration.update(&EditableConfigurationProperties {
@@ -614,7 +614,7 @@ async fn verify_role_name_matches_regex() -> Result<(), TestSlashstepServerError
   };
 
   let create_roles_action = Action::get_by_name("roles.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User).await?;
 
   let allowed_name_regex_configuration = Configuration::get_by_name("roles.allowedNameRegex", &test_environment.database_pool).await?;
   allowed_name_regex_configuration.update(&EditableConfigurationProperties {

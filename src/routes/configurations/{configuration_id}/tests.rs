@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceError, access_policy::
-      ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}
+      PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -52,7 +52,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_configurations_action = Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_configurations_action.id, &PermissionLevel::User).await?;
   
   let configuration = test_environment.create_random_configuration().await?;
 
@@ -224,7 +224,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
   // Grant access to the "configurations.delete" action to the user.
   let delete_configurations_action = Action::get_by_name("configurations.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_configurations_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let configuration = test_environment.create_random_configuration().await?;
@@ -405,7 +405,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_configurations_action = Action::get_by_name("configurations.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_configurations_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_configurations_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_configuration = test_environment.create_random_configuration().await?;

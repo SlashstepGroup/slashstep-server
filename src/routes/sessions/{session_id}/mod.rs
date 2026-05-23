@@ -17,7 +17,7 @@ use crate::{
   HTTPError, 
   middleware::{authentication_middleware, http_transaction_middleware}, 
   resources::{
-    ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, session::{Session}, server_log_entry::ServerLogEntry, user::User
+    ResourceType, access_policy::PermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, session::{Session}, server_log_entry::ServerLogEntry, user::User
   }, 
   utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_session_by_id, get_principal_type_and_id_from_principal, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions}
 };
@@ -43,9 +43,9 @@ async fn handle_get_session_request(
   let session_id = get_uuid_from_string(&session_id, "session", &http_transaction, &state.database_pool).await?;
   let target_session = get_session_by_id(&session_id, &http_transaction, &state.database_pool).await?;
   let get_sessions_action = get_action_by_name("sessions.get", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_sessions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_sessions_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Session, Some(&target_session.id), &get_sessions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Session, Some(&target_session.id), &get_sessions_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
   
   let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
   ActionLogEntry::create(&InitialActionLogEntryProperties {
@@ -81,9 +81,9 @@ async fn handle_delete_session_request(
   let session_id = get_uuid_from_string(&session_id, "session", &http_transaction, &state.database_pool).await?;
   let target_session = get_session_by_id(&session_id, &http_transaction, &state.database_pool).await?;
   let delete_sessions_action = get_action_by_name("sessions.delete", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_sessions_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_sessions_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Session, Some(&target_session.id), &delete_sessions_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Session, Some(&target_session.id), &delete_sessions_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
   if let Err(error) = target_session.delete(&state.database_pool).await {
 

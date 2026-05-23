@@ -16,7 +16,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use uuid::Uuid;
 use rust_decimal::Decimal;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, field::{DEFAULT_RESOURCE_LIST_LIMIT, Field, FieldValueType, InitialFieldPropertiesWithPredefinedParent}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, field::{DEFAULT_RESOURCE_LIST_LIMIT, Field, FieldValueType, InitialFieldPropertiesWithPredefinedParent}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
 
 #[tokio::test]
 async fn verify_successful_field_creation() -> Result<(), TestSlashstepServerError> {
@@ -35,7 +35,7 @@ async fn verify_successful_field_creation() -> Result<(), TestSlashstepServerErr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_fields_action = Action::get_by_name("fields.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let dummy_project = test_environment.create_random_project(None).await?;
@@ -92,7 +92,7 @@ async fn verify_field_name_is_at_most_at_maximum_length() -> Result<(), TestSlas
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_fields_action = Action::get_by_name("fields.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let project = test_environment.create_random_project(None).await?;
@@ -142,7 +142,7 @@ async fn verify_field_display_name_is_at_most_at_maximum_length() -> Result<(), 
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_fields_action = Action::get_by_name("fields.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let project = test_environment.create_random_project(None).await?;
@@ -192,7 +192,7 @@ async fn verify_field_description_is_at_most_at_maximum_length() -> Result<(), T
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_fields_action = Action::get_by_name("fields.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let project = test_environment.create_random_project(None).await?;
@@ -243,7 +243,7 @@ async fn verify_field_name_matches_regex() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_fields_action = Action::get_by_name("fields.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let project = test_environment.create_random_project(None).await?;
@@ -295,11 +295,11 @@ async fn verify_returned_field_list_without_query() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_fields_action = Action::get_by_name("fields.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "fields.list" action.
   let list_fields_action = Action::get_by_name("fields.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_project = test_environment.create_random_project(None).await?;
@@ -355,11 +355,11 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_fields_action = Action::get_by_name("fields.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "fields.list" action.
   let list_fields_action = Action::get_by_name("fields.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &PermissionLevel::User).await?;
 
   // Create a few dummy access policies.
   let dummy_project = test_environment.create_random_project(None).await?;
@@ -417,11 +417,11 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_fields_action = Action::get_by_name("fields.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &PermissionLevel::User).await?;
 
   // Give the user access to the "fields.list" action.
   let list_fields_action = Action::get_by_name("fields.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &PermissionLevel::User).await?;
 
   // Create dummy access policies.
   let dummy_project = test_environment.create_random_project(None).await?;
@@ -469,9 +469,9 @@ async fn verify_maximum_field_list_limit() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_fields_action = Action::get_by_name("fields.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &PermissionLevel::User).await?;
   let list_fields_action = Action::get_by_name("fields.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_project = test_environment.create_random_project(None).await?;
@@ -514,10 +514,10 @@ async fn verify_query_when_listing_fields() -> Result<(), TestSlashstepServerErr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_fields_action = Action::get_by_name("fields.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_fields_action.id, &PermissionLevel::User).await?;
 
   let list_fields_action = Action::get_by_name("fields.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_fields_action.id, &PermissionLevel::User).await?;
 
   // Create dummy resources.
   let dummy_project = test_environment.create_random_project(None).await?;

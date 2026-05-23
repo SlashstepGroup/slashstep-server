@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles
   }, resources::{
     ResourceType, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, action::Action, group::{Group, GroupParentResourceType, ProtectedGroupType}, role::Role, session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Session}
   }, routes::{ListResourcesResponseBody, sessions::LoginCredentials}, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -45,7 +45,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
     principal_type: AccessPolicyPrincipalType::Group,
     principal_group_id: Some(anonymous_users_group.id),
     action_id: create_sessions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     scoped_resource_type: ResourceType::Server,
     is_inheritance_enabled: true,
     ..Default::default()
@@ -58,7 +58,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
     username: dummy_user.username.expect("User should have a username.").clone(),
     password: plain_text_password,
   };
-  test_environment.create_server_access_policy(&dummy_user.id, &create_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&dummy_user.id, &create_sessions_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -134,7 +134,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
     principal_type: AccessPolicyPrincipalType::Group,
     principal_group_id: Some(anonymous_users_group.id),
     action_id: create_sessions_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     scoped_resource_type: ResourceType::Server,
     is_inheritance_enabled: true,
     ..Default::default()
@@ -143,7 +143,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
   // Create the user.
   let plain_text_password = Uuid::now_v7().to_string();
   let dummy_user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  test_environment.create_server_access_policy(&dummy_user.id, &create_sessions_action.id, &ActionPermissionLevel::None).await?;
+  test_environment.create_server_access_policy(&dummy_user.id, &create_sessions_action.id, &PermissionLevel::None).await?;
   let login_credentials = LoginCredentials {
     username: dummy_user.username.expect("User should have a username.").clone(),
     password: plain_text_password,
@@ -186,11 +186,11 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "sessions.list" action to the user.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Create a dummy delegation policy.
   test_environment.create_random_session(None).await?;
@@ -249,11 +249,11 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "apps.list" action to the user.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Create a dummy delegation policy.
   let dummy_session = test_environment.create_random_session(None).await?;
@@ -316,11 +316,11 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "sessions.list" action to the user.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Create dummy delegation policies.
   let session_count = Session::count("", &test_environment.database_pool, None, None).await?;
@@ -370,11 +370,11 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "apps.list" action to the user.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {
@@ -413,11 +413,11 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_sessions_action = Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_sessions_action.id, &PermissionLevel::User).await?;
 
   // Grant access to the "sessions.list" action to the user.
   let list_sessions_action = Action::get_by_name("sessions.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &list_sessions_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let state = AppState {

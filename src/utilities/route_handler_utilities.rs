@@ -1,5 +1,5 @@
 use std::{pin::Pin, sync::Arc};
-use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, password_reset_authorization::PasswordResetAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::User, view::View, view_field::ViewField, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
+use crate::{HTTPError, resources::{ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, PermissionLevel}, action::Action, action_log_entry::ActionLogEntry, app::App, app_authorization::AppAuthorization, app_authorization_credential::AppAuthorizationCredential, app_credential::AppCredential, configuration::Configuration, delegation_policy::DelegationPolicy, field::Field, field_choice::FieldChoice, field_value::FieldValue, group::Group, http_transaction::HTTPTransaction, item::Item, item_connection::ItemConnection, item_connection_type::ItemConnectionType, item_type::ItemType, item_type_icon::ItemTypeIcon, iteration::Iteration, membership::Membership, membership_invitation::MembershipInvitation, milestone::Milestone, password_reset_authorization::PasswordResetAuthorization, project::Project, role::Role, server_log_entry::ServerLogEntry, session::Session, status::Status, user::User, view::View, view_field::ViewField, workspace::Workspace}, utilities::slashstepql::SlashstepQLError};
 use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
@@ -161,7 +161,7 @@ pub fn is_authenticated_user_anonymous(authenticated_user: Option<&Arc<User>>) -
 
 }
 
-pub async fn can_delegate_perform_action(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<bool, HTTPError> {
+pub async fn can_delegate_perform_action(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &PermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<bool, HTTPError> {
 
   let app_authorization_id = match app_authorization_id {
 
@@ -215,7 +215,7 @@ pub async fn can_delegate_perform_action(app_authorization_id: Option<&Uuid>, ac
 
 }
 
-pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, action_id: &Uuid, http_transaction_id: &Uuid, required_permission_level: &PermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
 
   let app_authorization_id = match app_authorization_id {
 
@@ -235,7 +235,7 @@ pub async fn verify_delegate_permissions(app_authorization_id: Option<&Uuid>, ac
 
 }
 
-pub async fn can_principal_perform_action(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<bool, HTTPError> {
+pub async fn can_principal_perform_action(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &PermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<bool, HTTPError> {
 
   ServerLogEntry::trace(&format!("Checking whether principal can use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
   let database_client = match database_pool.get().await {
@@ -288,13 +288,13 @@ pub async fn can_principal_perform_action(principal_type: &AccessPolicyPrincipal
     }
 
   };
-  let actual_permission_level: ActionPermissionLevel = permission_level_row.get(0);
+  let actual_permission_level: PermissionLevel = permission_level_row.get(0);
 
   return Ok(&actual_permission_level >= minimum_permission_level);
 
 }
 
-pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, is_principal_anonymous: bool, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &ActionPermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn verify_principal_permissions(principal_type: &AccessPolicyPrincipalType, principal_id: &Uuid, is_principal_anonymous: bool, resource_type: &ResourceType, resource_id: Option<&Uuid>, action: &Action, http_transaction: &HTTPTransaction, minimum_permission_level: &PermissionLevel, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
 
   ServerLogEntry::trace(&format!("Verifying principal may use \"{}\" action...", action.name), Some(&http_transaction.id), &database_pool).await.ok();
 

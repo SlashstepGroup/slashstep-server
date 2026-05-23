@@ -22,7 +22,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceType, ResourceError, access_policy::{
-      AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties
+      AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
     }, app::App, configuration::{Configuration, EditableConfigurationProperties}, field_choice::{EditableFieldChoiceProperties, FieldChoice}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
@@ -53,7 +53,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_field_choices_action = Action::get_by_name("fieldChoices.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_field_choices_action.id, &PermissionLevel::User).await?;
   
   let field_choice = test_environment.create_random_field_choice(None).await?;
 
@@ -229,7 +229,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
   let delete_fields_action = Action::get_by_name("fieldChoices.delete", &test_environment.database_pool).await?;
   AccessPolicy::create(&InitialAccessPolicyProperties {
     action_id: delete_fields_action.id,
-    permission_level: ActionPermissionLevel::User,
+    permission_level: PermissionLevel::User,
     is_inheritance_enabled: true,
     principal_type: AccessPolicyPrincipalType::User,
     principal_user_id: Some(user.id),
@@ -416,7 +416,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_field_choices_action = Action::get_by_name("fieldChoices.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_field_choices_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_field_choice = test_environment.create_random_field_choice(None).await?;
@@ -691,7 +691,7 @@ async fn verify_text_value_is_at_most_at_maximum_length() -> Result<(), TestSlas
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_field_choices_action = Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let dummy_field_choice = test_environment.create_random_field_choice(None).await?;
@@ -740,7 +740,7 @@ async fn verify_number_value_is_at_least_at_minimum_value() -> Result<(), TestSl
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_field_choices_action = Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let dummy_field_choice = test_environment.create_random_field_choice(None).await?;
@@ -789,7 +789,7 @@ async fn verify_number_value_is_at_most_at_maximum_value() -> Result<(), TestSla
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_field_choices_action = Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let dummy_field_choice = test_environment.create_random_field_choice(None).await?;

@@ -1,6 +1,6 @@
 use crate::{
   initialize_required_tables, predefinitions::initialize_predefined_actions, resources::{
-    ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, ActionPermissionLevel, InitialAccessPolicyProperties}, action::{
+    ResourceError, ResourceType, access_policy::{AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties}, action::{
       Action, DEFAULT_ACTION_LIST_LIMIT
     }
   }, tests::{TestEnvironment, TestSlashstepServerError}
@@ -62,7 +62,7 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 
   let delegation_policy_properties = InitialDelegationPolicyProperties {
     action_id: action.id,
-    maximum_permission_level: ActionPermissionLevel::User,
+    maximum_permission_level: PermissionLevel::User,
     delegate_app_authorization_id: test_environment.create_random_app_authorization(None).await?.id,
     principal_user_id: user.id,
     ..Default::default()
@@ -253,7 +253,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
 
     AccessPolicy::create(&InitialAccessPolicyProperties {
       action_id: get_delegation_policies_action.id.clone(),
-      permission_level: crate::resources::access_policy::ActionPermissionLevel::User,
+      permission_level: crate::resources::access_policy::PermissionLevel::User,
       principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
       principal_user_id: Some(user.id.clone()),
       scoped_resource_type: ResourceType::DelegationPolicy,

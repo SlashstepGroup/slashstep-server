@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_actions, initialize_predefined_configurations, 
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
-    ResourceError, access_policy::ActionPermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, status::{EditableStatusProperties, Status, StatusType}
+    ResourceError, access_policy::PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, status::{EditableStatusProperties, Status, StatusType}
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -52,7 +52,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_statuses_action = Action::get_by_name("statuses.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_statuses_action.id, &PermissionLevel::User).await?;
   
   let status = test_environment.create_random_status(None).await?;
 
@@ -229,7 +229,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
   // Grant access to the "statuses.delete" action to the user.
   let delete_statuses_action = Action::get_by_name("statuses.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_statuses_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_statuses_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let status = test_environment.create_random_status(None).await?;
@@ -410,7 +410,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_fields_action = Action::get_by_name("statuses.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_fields_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let original_status = test_environment.create_random_status(None).await?;
@@ -697,7 +697,7 @@ async fn verify_status_name_is_at_most_at_maximum_length() -> Result<(), TestSla
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_statuses_action = Action::get_by_name("statuses.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_statuses_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_statuses_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_status_name_length_configuration = Configuration::get_by_name("statuses.maximumNameLength", &test_environment.database_pool).await?;
@@ -747,7 +747,7 @@ async fn verify_status_name_matches_regex() -> Result<(), TestSlashstepServerErr
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let create_statuses_action = Action::get_by_name("statuses.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &create_statuses_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let status_name_regex_configuration = Configuration::get_by_name("statuses.allowedNameRegex", &test_environment.database_pool).await?;
@@ -798,7 +798,7 @@ async fn verify_status_display_name_is_at_most_at_maximum_length() -> Result<(),
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_statuses_action = Action::get_by_name("statuses.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_statuses_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_statuses_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_status_display_name_length_configuration = Configuration::get_by_name("statuses.maximumDisplayNameLength", &test_environment.database_pool).await?;
@@ -849,7 +849,7 @@ async fn verify_status_description_is_at_most_at_maximum_length() -> Result<(), 
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let update_statuses_action = Action::get_by_name("statuses.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_statuses_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &update_statuses_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let maximum_status_description_length_configuration = Configuration::get_by_name("statuses.maximumDescriptionLength", &test_environment.database_pool).await?;

@@ -21,7 +21,7 @@ use crate::{
     initialize_predefined_roles, initialize_predefined_groups
   }, resources::{
     ResourceError, access_policy::
-      ActionPermissionLevel, membership::Membership
+      PermissionLevel, membership::Membership
   }, tests::{TestEnvironment, TestSlashstepServerError}
 };
 
@@ -51,7 +51,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
   let json_web_token_private_key = get_json_web_token_private_key().await?;
   let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
   let get_memberships_action = Action::get_by_name("memberships.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_memberships_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &get_memberships_action.id, &PermissionLevel::User).await?;
   
   let membership = test_environment.create_random_membership().await?;
 
@@ -226,7 +226,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
 
   // Grant access to the "memberships.delete" action to the user.
   let delete_memberships_action = Action::get_by_name("memberships.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_memberships_action.id, &ActionPermissionLevel::User).await?;
+  test_environment.create_server_access_policy(&user.id, &delete_memberships_action.id, &PermissionLevel::User).await?;
 
   // Set up the server and send the request.
   let membership = test_environment.create_random_membership().await?;
@@ -406,7 +406,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //   let update_fields_action = Action::get_by_name("memberships.update", &test_environment.database_pool).await?;
 //   AccessPolicy::create(&InitialAccessPolicyProperties {
 //     action_id: update_fields_action.id,
-//     permission_level: ActionPermissionLevel::Editor,
+//     permission_level: PermissionLevel::Editor,
 //     is_inheritance_enabled: true,
 //     principal_type: AccessPolicyPrincipalType::User,
 //     principal_user_id: Some(user.id),
