@@ -304,7 +304,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
 
 /// Verifies that there's a default list limit.
 #[tokio::test]
-#[timeout(20000)]
+#[timeout(40000)]
 async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;

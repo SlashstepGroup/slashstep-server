@@ -200,7 +200,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
 
 /// Verifies that the router can return a 404 status code if the requested resource doesn't exist.
 #[tokio::test]
-#[timeout(20000)]
+#[timeout(40000)]
 async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;

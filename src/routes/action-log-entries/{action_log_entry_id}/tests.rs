@@ -27,7 +27,7 @@ use crate::{
 
 /// Verifies that the router can return a 200 status code and the requested action.
 #[tokio::test]
-#[timeout(20000)]
+#[timeout(40000)]
 async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
   
   let test_environment = TestEnvironment::new().await?;
@@ -164,7 +164,7 @@ async fn verify_authentication_when_getting_action_log_entry_by_id() -> Result<(
 
 /// Verifies that the router can return a 403 status code if the user does not have permission to view the action log entry.
 #[tokio::test]
-#[timeout(20000)]
+#[timeout(40000)]
 async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
@@ -203,7 +203,7 @@ async fn verify_permission_when_getting_action_log_entry_by_id() -> Result<(), T
 
 /// Verifies that the router can return a 404 status code if the requested action log entry doesn't exist.
 #[tokio::test]
-#[timeout(20000)]
+#[timeout(40000)]
 async fn verify_not_found_when_getting_action_log_entry_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;

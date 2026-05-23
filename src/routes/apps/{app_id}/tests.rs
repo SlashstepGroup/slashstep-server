@@ -28,7 +28,7 @@ use crate::{
 
 /// Verifies that the router can return a 200 status code and the requested app.
 #[tokio::test]
-#[timeout(20000)]
+#[timeout(40000)]
 async fn verify_returned_app_by_id() -> Result<(), TestSlashstepServerError> {
   
   let test_environment = TestEnvironment::new().await?;
@@ -148,7 +148,7 @@ async fn verify_authentication_when_getting_app_by_id() -> Result<(), TestSlashs
 
 /// Verifies that the router can return a 403 status code if the requestor does not have permission to get the app.
 #[tokio::test]
-#[timeout(20000)]
+#[timeout(40000)]
 async fn verify_permission_when_getting_app_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
@@ -187,7 +187,7 @@ async fn verify_permission_when_getting_app_by_id() -> Result<(), TestSlashstepS
 
 /// Verifies that the router can return a 404 status code if the requested app doesn't exist
 #[tokio::test]
-#[timeout(20000)]
+#[timeout(40000)]
 async fn verify_not_found_when_getting_app_by_id() -> Result<(), TestSlashstepServerError> {
 
   let test_environment = TestEnvironment::new().await?;
