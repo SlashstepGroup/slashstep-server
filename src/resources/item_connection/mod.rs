@@ -114,8 +114,8 @@ impl ItemConnection {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -131,7 +131,7 @@ impl ItemConnection {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -159,17 +159,17 @@ impl ItemConnection {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return ItemConnection {
+        ItemConnection {
             id: row.get("id"),
             item_connection_type_id: row.get("item_connection_type_id"),
             inward_item_id: row.get("inward_item_id"),
             outward_item_id: row.get("outward_item_id"),
-        };
+        }
     }
 
     /// Initializes the item_connections table.
@@ -180,7 +180,7 @@ impl ItemConnection {
         let query =
             include_str!("../../queries/item_connections/initialize_item_connections_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -198,12 +198,12 @@ impl ItemConnection {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this item connection.
@@ -215,7 +215,7 @@ impl ItemConnection {
         let query =
             include_str!("../../queries/item_connections/delete_item_connection_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -237,7 +237,7 @@ impl ItemConnection {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     /// Returns a list of item_connections based on a query.
@@ -269,8 +269,8 @@ impl ItemConnection {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -286,7 +286,7 @@ impl ItemConnection {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn translate_assignment(
@@ -301,9 +301,9 @@ impl ItemConnection {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this item connection and returns a new instance of the item connection.
@@ -335,6 +335,6 @@ impl ItemConnection {
         database_client.query("COMMIT;", &[]).await?;
 
         let item_connection = Self::convert_from_row(&row);
-        return Ok(item_connection);
+        Ok(item_connection)
     }
 }

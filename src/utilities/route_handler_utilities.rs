@@ -63,7 +63,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
             "name = {} LIMIT 1",
             quote_literal("actionLogEntries.shouldExpire")
         ),
-        &database_pool,
+        database_pool,
         None,
         None,
     )
@@ -77,7 +77,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -93,7 +93,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -121,7 +121,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
             "name = {} LIMIT 1",
             quote_literal("actionLogEntries.expirationDurationMilliseconds")
         ),
-        &database_pool,
+        database_pool,
         None,
         None,
     )
@@ -135,7 +135,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -151,7 +151,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -168,7 +168,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
         Utc::now().checked_add_signed(chrono::Duration::milliseconds(duration))
     });
 
-    return Ok(expiration_timestamp);
+    Ok(expiration_timestamp)
 }
 
 pub async fn get_json_web_token_public_key(
@@ -185,8 +185,8 @@ pub async fn get_json_web_token_public_key(
             )));
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -194,7 +194,7 @@ pub async fn get_json_web_token_public_key(
         }
     };
 
-    return Ok(json_web_token_public_key);
+    Ok(json_web_token_public_key)
 }
 
 pub async fn get_json_web_token_private_key(
@@ -211,8 +211,8 @@ pub async fn get_json_web_token_private_key(
             )));
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -220,13 +220,13 @@ pub async fn get_json_web_token_private_key(
         }
     };
 
-    return Ok(json_web_token_private_key);
+    Ok(json_web_token_private_key)
 }
 
 pub fn map_postgres_error_to_http_error(error: deadpool_postgres::PoolError) -> HTTPError {
     let http_error = HTTPError::InternalServerError(Some(error.to_string()));
     eprintln!("{}", format!("Failed to get database connection, so the log cannot be saved. Printing to the console: {}", error).red());
-    return http_error;
+    http_error
 }
 
 pub async fn get_action_by_name(
@@ -237,11 +237,11 @@ pub async fn get_action_by_name(
     ServerLogEntry::trace(
         &format!("Getting action \"{}\"...", action_name),
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
-    let action = match Action::get_by_name(&action_name, &database_pool).await {
+    let action = match Action::get_by_name(action_name, database_pool).await {
         Ok(action) => action,
 
         Err(error) => {
@@ -252,7 +252,7 @@ pub async fn get_action_by_name(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -260,7 +260,7 @@ pub async fn get_action_by_name(
         }
     };
 
-    return Ok(action);
+    Ok(action)
 }
 
 pub enum AuthenticatedPrincipal {
@@ -269,9 +269,8 @@ pub enum AuthenticatedPrincipal {
 }
 
 pub fn is_authenticated_user_anonymous(authenticated_user: Option<&Arc<User>>) -> bool {
-    return authenticated_user
-        .and_then(|authenticated_user| Some(authenticated_user.is_anonymous))
-        .unwrap_or(false);
+    authenticated_user.map(|authenticated_user| authenticated_user.is_anonymous)
+        .unwrap_or(false)
 }
 
 pub async fn can_delegate_perform_action(
@@ -292,15 +291,15 @@ pub async fn can_delegate_perform_action(
         quote_literal(&action_id.to_string()),
         quote_literal(&app_authorization_id.to_string())
     );
-    let delegation_policy = match DelegationPolicy::list(&query, &database_pool, None, None).await {
+    let delegation_policy = match DelegationPolicy::list(&query, database_pool, None, None).await {
         Ok(delegation_policies) => {
-            let delegation_policy = match delegation_policies.first() {
+            
+
+            match delegation_policies.first() {
                 Some(delegation_policy) => delegation_policy.clone(),
 
                 None => return Ok(false),
-            };
-
-            delegation_policy
+            }
         }
 
         Err(error) => {
@@ -312,8 +311,8 @@ pub async fn can_delegate_perform_action(
 
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -325,7 +324,7 @@ pub async fn can_delegate_perform_action(
         return Ok(false);
     }
 
-    return Ok(true);
+    Ok(true)
 }
 
 pub async fn verify_delegate_permissions(
@@ -356,7 +355,7 @@ pub async fn verify_delegate_permissions(
         ))));
     }
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn can_principal_perform_action(
@@ -375,7 +374,7 @@ pub async fn can_principal_perform_action(
             action.name
         ),
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
@@ -387,7 +386,7 @@ pub async fn can_principal_perform_action(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -421,7 +420,7 @@ pub async fn can_principal_perform_action(
                     ServerLogEntry::from_http_error(
                         &http_error,
                         Some(&http_transaction.id),
-                        &database_pool,
+                        database_pool,
                     )
                     .await
                     .ok();
@@ -437,7 +436,7 @@ pub async fn can_principal_perform_action(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -447,7 +446,7 @@ pub async fn can_principal_perform_action(
     };
     let actual_permission_level: PermissionLevel = permission_level_row.get(0);
 
-    return Ok(&actual_permission_level >= minimum_permission_level);
+    Ok(&actual_permission_level >= minimum_permission_level)
 }
 
 pub async fn verify_principal_permissions(
@@ -464,7 +463,7 @@ pub async fn verify_principal_permissions(
     ServerLogEntry::trace(
         &format!("Verifying principal may use \"{}\" action...", action.name),
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
@@ -487,12 +486,12 @@ pub async fn verify_principal_permissions(
             _ => format!(
                 "{} {}",
                 resource_type.to_string().to_lowercase(),
-                resource_id.unwrap_or(&Uuid::nil()).to_string()
+                resource_id.unwrap_or(&Uuid::nil())
             ),
         };
         let message = format!(
             "You need at least {} permission to the \"{}\" action on {}.",
-            minimum_permission_level.to_string(),
+            minimum_permission_level,
             action.name,
             location
         );
@@ -501,13 +500,13 @@ pub async fn verify_principal_permissions(
         } else {
             HTTPError::Forbidden(Some(message))
         };
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool)
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
             .await
             .ok();
         return Err(http_error);
     }
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn get_access_policy_by_id(
@@ -517,15 +516,15 @@ pub async fn get_access_policy_by_id(
 ) -> Result<AccessPolicy, HTTPError> {
     let access_policy = get_resource_by_id::<AccessPolicy, _>(
         "access policy",
-        &access_policy_id,
-        &http_transaction,
-        &database_pool,
+        access_policy_id,
+        http_transaction,
+        database_pool,
         |access_policy_id, database_pool| {
             Box::new(AccessPolicy::get_by_id(access_policy_id, database_pool))
         },
     )
     .await?;
-    return Ok(access_policy);
+    Ok(access_policy)
 }
 
 pub async fn get_action_by_id(
@@ -535,13 +534,13 @@ pub async fn get_action_by_id(
 ) -> Result<Action, HTTPError> {
     let action = get_resource_by_id::<Action, _>(
         "action",
-        &action_id,
-        &http_transaction,
-        &database_pool,
+        action_id,
+        http_transaction,
+        database_pool,
         |action_id, database_pool| Box::new(Action::get_by_id(action_id, database_pool)),
     )
     .await?;
-    return Ok(action);
+    Ok(action)
 }
 
 pub async fn get_action_log_entry_by_id(
@@ -551,9 +550,9 @@ pub async fn get_action_log_entry_by_id(
 ) -> Result<ActionLogEntry, HTTPError> {
     let action_log_entry = get_resource_by_id::<ActionLogEntry, _>(
         "action log entry",
-        &action_log_entry_id,
-        &http_transaction,
-        &database_pool,
+        action_log_entry_id,
+        http_transaction,
+        database_pool,
         |action_log_entry_id, database_pool| {
             Box::new(ActionLogEntry::get_by_id(
                 action_log_entry_id,
@@ -562,7 +561,7 @@ pub async fn get_action_log_entry_by_id(
         },
     )
     .await?;
-    return Ok(action_log_entry);
+    Ok(action_log_entry)
 }
 
 pub async fn get_app_by_id(
@@ -572,13 +571,13 @@ pub async fn get_app_by_id(
 ) -> Result<App, HTTPError> {
     let app = get_resource_by_id::<App, _>(
         "app",
-        &app_id,
-        &http_transaction,
-        &database_pool,
+        app_id,
+        http_transaction,
+        database_pool,
         |app_id, database_pool| Box::new(App::get_by_id(app_id, database_pool)),
     )
     .await?;
-    return Ok(app);
+    Ok(app)
 }
 
 pub async fn get_app_authorization_by_id(
@@ -588,9 +587,9 @@ pub async fn get_app_authorization_by_id(
 ) -> Result<AppAuthorization, HTTPError> {
     let app_authorization = get_resource_by_id::<AppAuthorization, _>(
         "app authorization",
-        &app_authorization_id,
-        &http_transaction,
-        &database_pool,
+        app_authorization_id,
+        http_transaction,
+        database_pool,
         |app_authorization_id, database_pool| {
             Box::new(AppAuthorization::get_by_id(
                 app_authorization_id,
@@ -599,7 +598,7 @@ pub async fn get_app_authorization_by_id(
         },
     )
     .await?;
-    return Ok(app_authorization);
+    Ok(app_authorization)
 }
 
 pub async fn get_app_authorization_credential_by_id(
@@ -609,9 +608,9 @@ pub async fn get_app_authorization_credential_by_id(
 ) -> Result<AppAuthorizationCredential, HTTPError> {
     let app_authorization_credential = get_resource_by_id::<AppAuthorizationCredential, _>(
         "app authorization credential",
-        &app_authorization_credential_id,
-        &http_transaction,
-        &database_pool,
+        app_authorization_credential_id,
+        http_transaction,
+        database_pool,
         |app_authorization_credential_id, database_pool| {
             Box::new(AppAuthorizationCredential::get_by_id(
                 app_authorization_credential_id,
@@ -620,7 +619,7 @@ pub async fn get_app_authorization_credential_by_id(
         },
     )
     .await?;
-    return Ok(app_authorization_credential);
+    Ok(app_authorization_credential)
 }
 
 pub async fn get_app_credential_by_id(
@@ -630,15 +629,15 @@ pub async fn get_app_credential_by_id(
 ) -> Result<AppCredential, HTTPError> {
     let app_credential = get_resource_by_id::<AppCredential, _>(
         "app credential",
-        &app_credential_id,
-        &http_transaction,
-        &database_pool,
+        app_credential_id,
+        http_transaction,
+        database_pool,
         |app_credential_id, database_pool| {
             Box::new(AppCredential::get_by_id(app_credential_id, database_pool))
         },
     )
     .await?;
-    return Ok(app_credential);
+    Ok(app_credential)
 }
 
 pub async fn get_user_by_id(
@@ -646,7 +645,7 @@ pub async fn get_user_by_id(
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<User, HTTPError> {
-    let user = match User::get_by_id(&user_id, database_pool).await {
+    let user = match User::get_by_id(user_id, database_pool).await {
         Ok(user) => user,
 
         Err(resource_error) => {
@@ -661,7 +660,7 @@ pub async fn get_user_by_id(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -669,7 +668,7 @@ pub async fn get_user_by_id(
         }
     };
 
-    return Ok(user);
+    Ok(user)
 }
 
 pub async fn get_user_by_username(
@@ -680,12 +679,12 @@ pub async fn get_user_by_username(
     ServerLogEntry::trace(
         &format!("Getting user with username \"{}\"...", username),
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
 
-    let user = match User::get_by_username(&username, database_pool).await {
+    let user = match User::get_by_username(username, database_pool).await {
         Ok(user) => user,
 
         Err(resource_error) => {
@@ -700,7 +699,7 @@ pub async fn get_user_by_username(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -708,7 +707,7 @@ pub async fn get_user_by_username(
         }
     };
 
-    return Ok(user);
+    Ok(user)
 }
 
 pub async fn get_configuration_by_id(
@@ -718,15 +717,15 @@ pub async fn get_configuration_by_id(
 ) -> Result<Configuration, HTTPError> {
     let configuration = get_resource_by_id::<Configuration, _>(
         "configuration",
-        &configuration_id,
-        &http_transaction,
-        &database_pool,
+        configuration_id,
+        http_transaction,
+        database_pool,
         |configuration_id, database_pool| {
             Box::new(Configuration::get_by_id(configuration_id, database_pool))
         },
     )
     .await?;
-    return Ok(configuration);
+    Ok(configuration)
 }
 
 pub async fn get_uuid_from_string(
@@ -746,7 +745,7 @@ pub async fn get_uuid_from_string(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -754,7 +753,7 @@ pub async fn get_uuid_from_string(
         }
     };
 
-    return Ok(uuid);
+    Ok(uuid)
 }
 
 pub async fn get_field_by_id(
@@ -764,13 +763,13 @@ pub async fn get_field_by_id(
 ) -> Result<Field, HTTPError> {
     let field = get_resource_by_id::<Field, _>(
         "field",
-        &field_id,
-        &http_transaction,
-        &database_pool,
+        field_id,
+        http_transaction,
+        database_pool,
         |field_id, database_pool| Box::new(Field::get_by_id(field_id, database_pool)),
     )
     .await?;
-    return Ok(field);
+    Ok(field)
 }
 
 pub async fn get_field_choice_by_id(
@@ -780,15 +779,15 @@ pub async fn get_field_choice_by_id(
 ) -> Result<FieldChoice, HTTPError> {
     let field_choice = get_resource_by_id::<FieldChoice, _>(
         "field choice",
-        &field_choice_id,
-        &http_transaction,
-        &database_pool,
+        field_choice_id,
+        http_transaction,
+        database_pool,
         |field_choice_id, database_pool| {
             Box::new(FieldChoice::get_by_id(field_choice_id, database_pool))
         },
     )
     .await?;
-    return Ok(field_choice);
+    Ok(field_choice)
 }
 
 pub async fn get_field_value_by_id(
@@ -798,15 +797,15 @@ pub async fn get_field_value_by_id(
 ) -> Result<FieldValue, HTTPError> {
     let field_value = get_resource_by_id::<FieldValue, _>(
         "field value",
-        &field_value_id,
-        &http_transaction,
-        &database_pool,
+        field_value_id,
+        http_transaction,
+        database_pool,
         |field_value_id, database_pool| {
             Box::new(FieldValue::get_by_id(field_value_id, database_pool))
         },
     )
     .await?;
-    return Ok(field_value);
+    Ok(field_value)
 }
 
 pub async fn get_item_by_id(
@@ -816,13 +815,13 @@ pub async fn get_item_by_id(
 ) -> Result<Item, HTTPError> {
     let item = get_resource_by_id::<Item, _>(
         "item",
-        &item_id,
-        &http_transaction,
-        &database_pool,
+        item_id,
+        http_transaction,
+        database_pool,
         |item_id, database_pool| Box::new(Item::get_by_id(item_id, database_pool)),
     )
     .await?;
-    return Ok(item);
+    Ok(item)
 }
 
 pub async fn get_group_by_id(
@@ -832,13 +831,13 @@ pub async fn get_group_by_id(
 ) -> Result<Group, HTTPError> {
     let group = get_resource_by_id::<Group, _>(
         "group",
-        &group_id,
-        &http_transaction,
-        &database_pool,
+        group_id,
+        http_transaction,
+        database_pool,
         |group_id, database_pool| Box::new(Group::get_by_id(group_id, database_pool)),
     )
     .await?;
-    return Ok(group);
+    Ok(group)
 }
 
 pub async fn get_http_transaction_by_id(
@@ -848,9 +847,9 @@ pub async fn get_http_transaction_by_id(
 ) -> Result<HTTPTransaction, HTTPError> {
     let target_http_transaction = get_resource_by_id::<HTTPTransaction, _>(
         "HTTP transaction",
-        &http_transaction_id,
-        &http_transaction,
-        &database_pool,
+        http_transaction_id,
+        http_transaction,
+        database_pool,
         |http_transaction_id, database_pool| {
             Box::new(HTTPTransaction::get_by_id(
                 http_transaction_id,
@@ -859,7 +858,7 @@ pub async fn get_http_transaction_by_id(
         },
     )
     .await?;
-    return Ok(target_http_transaction);
+    Ok(target_http_transaction)
 }
 
 pub async fn get_item_connection_by_id(
@@ -869,15 +868,15 @@ pub async fn get_item_connection_by_id(
 ) -> Result<ItemConnection, HTTPError> {
     let target_item_connection = get_resource_by_id::<ItemConnection, _>(
         "item connection",
-        &item_connection_id,
-        &http_transaction,
-        &database_pool,
+        item_connection_id,
+        http_transaction,
+        database_pool,
         |item_connection_id, database_pool| {
             Box::new(ItemConnection::get_by_id(item_connection_id, database_pool))
         },
     )
     .await?;
-    return Ok(target_item_connection);
+    Ok(target_item_connection)
 }
 
 pub async fn get_item_connection_type_by_id(
@@ -887,9 +886,9 @@ pub async fn get_item_connection_type_by_id(
 ) -> Result<ItemConnectionType, HTTPError> {
     let target_item_connection_type = get_resource_by_id::<ItemConnectionType, _>(
         "item connection type",
-        &item_connection_type_id,
-        &http_transaction,
-        &database_pool,
+        item_connection_type_id,
+        http_transaction,
+        database_pool,
         |item_connection_type_id, database_pool| {
             Box::new(ItemConnectionType::get_by_id(
                 item_connection_type_id,
@@ -898,7 +897,7 @@ pub async fn get_item_connection_type_by_id(
         },
     )
     .await?;
-    return Ok(target_item_connection_type);
+    Ok(target_item_connection_type)
 }
 
 pub async fn get_item_type_by_id(
@@ -908,13 +907,13 @@ pub async fn get_item_type_by_id(
 ) -> Result<ItemType, HTTPError> {
     let target_item_type = get_resource_by_id::<ItemType, _>(
         "item type",
-        &item_type_id,
-        &http_transaction,
-        &database_pool,
+        item_type_id,
+        http_transaction,
+        database_pool,
         |item_type_id, database_pool| Box::new(ItemType::get_by_id(item_type_id, database_pool)),
     )
     .await?;
-    return Ok(target_item_type);
+    Ok(target_item_type)
 }
 
 pub async fn get_item_type_icon_by_id(
@@ -924,15 +923,15 @@ pub async fn get_item_type_icon_by_id(
 ) -> Result<ItemTypeIcon, HTTPError> {
     let target_item_type_icon = get_resource_by_id::<ItemTypeIcon, _>(
         "item type icon",
-        &item_type_icon_id,
-        &http_transaction,
-        &database_pool,
+        item_type_icon_id,
+        http_transaction,
+        database_pool,
         |item_type_icon_id, database_pool| {
             Box::new(ItemTypeIcon::get_by_id(item_type_icon_id, database_pool))
         },
     )
     .await?;
-    return Ok(target_item_type_icon);
+    Ok(target_item_type_icon)
 }
 
 pub async fn get_iteration_by_id(
@@ -942,13 +941,13 @@ pub async fn get_iteration_by_id(
 ) -> Result<Iteration, HTTPError> {
     let target_iteration = get_resource_by_id::<Iteration, _>(
         "iteration",
-        &iteration_id,
-        &http_transaction,
-        &database_pool,
+        iteration_id,
+        http_transaction,
+        database_pool,
         |iteration_id, database_pool| Box::new(Iteration::get_by_id(iteration_id, database_pool)),
     )
     .await?;
-    return Ok(target_iteration);
+    Ok(target_iteration)
 }
 
 pub async fn get_membership_by_id(
@@ -958,15 +957,15 @@ pub async fn get_membership_by_id(
 ) -> Result<Membership, HTTPError> {
     let target_membership = get_resource_by_id::<Membership, _>(
         "membership",
-        &membership_id,
-        &http_transaction,
-        &database_pool,
+        membership_id,
+        http_transaction,
+        database_pool,
         |membership_id, database_pool| {
             Box::new(Membership::get_by_id(membership_id, database_pool))
         },
     )
     .await?;
-    return Ok(target_membership);
+    Ok(target_membership)
 }
 
 pub async fn get_membership_invitation_by_id(
@@ -976,9 +975,9 @@ pub async fn get_membership_invitation_by_id(
 ) -> Result<MembershipInvitation, HTTPError> {
     let target_membership_invitation = get_resource_by_id::<MembershipInvitation, _>(
         "membership invitation",
-        &membership_invitation_id,
-        &http_transaction,
-        &database_pool,
+        membership_invitation_id,
+        http_transaction,
+        database_pool,
         |membership_invitation_id, database_pool| {
             Box::new(MembershipInvitation::get_by_id(
                 membership_invitation_id,
@@ -987,7 +986,7 @@ pub async fn get_membership_invitation_by_id(
         },
     )
     .await?;
-    return Ok(target_membership_invitation);
+    Ok(target_membership_invitation)
 }
 
 pub async fn get_milestone_by_id(
@@ -997,13 +996,13 @@ pub async fn get_milestone_by_id(
 ) -> Result<Milestone, HTTPError> {
     let target_milestone = get_resource_by_id::<Milestone, _>(
         "milestone",
-        &milestone_id,
-        &http_transaction,
-        &database_pool,
+        milestone_id,
+        http_transaction,
+        database_pool,
         |milestone_id, database_pool| Box::new(Milestone::get_by_id(milestone_id, database_pool)),
     )
     .await?;
-    return Ok(target_milestone);
+    Ok(target_milestone)
 }
 
 pub async fn get_password_reset_authorization_by_id(
@@ -1013,9 +1012,9 @@ pub async fn get_password_reset_authorization_by_id(
 ) -> Result<PasswordResetAuthorization, HTTPError> {
     let password_reset_authorization = get_resource_by_id::<PasswordResetAuthorization, _>(
         "password reset authorization",
-        &password_reset_authorization_id,
-        &http_transaction,
-        &database_pool,
+        password_reset_authorization_id,
+        http_transaction,
+        database_pool,
         |password_reset_authorization_id, database_pool| {
             Box::new(PasswordResetAuthorization::get_by_id(
                 password_reset_authorization_id,
@@ -1024,7 +1023,7 @@ pub async fn get_password_reset_authorization_by_id(
         },
     )
     .await?;
-    return Ok(password_reset_authorization);
+    Ok(password_reset_authorization)
 }
 
 pub async fn get_project_by_id(
@@ -1034,13 +1033,13 @@ pub async fn get_project_by_id(
 ) -> Result<Project, HTTPError> {
     let project = get_resource_by_id::<Project, _>(
         "project",
-        &project_id,
-        &http_transaction,
-        &database_pool,
+        project_id,
+        http_transaction,
+        database_pool,
         |project_id, database_pool| Box::new(Project::get_by_id(project_id, database_pool)),
     )
     .await?;
-    return Ok(project);
+    Ok(project)
 }
 
 pub async fn get_role_by_id(
@@ -1050,13 +1049,13 @@ pub async fn get_role_by_id(
 ) -> Result<Role, HTTPError> {
     let role = get_resource_by_id::<Role, _>(
         "role",
-        &role_id,
-        &http_transaction,
-        &database_pool,
+        role_id,
+        http_transaction,
+        database_pool,
         |role_id, database_pool| Box::new(Role::get_by_id(role_id, database_pool)),
     )
     .await?;
-    return Ok(role);
+    Ok(role)
 }
 
 pub async fn get_server_log_entry_by_id(
@@ -1066,9 +1065,9 @@ pub async fn get_server_log_entry_by_id(
 ) -> Result<ServerLogEntry, HTTPError> {
     let server_log_entry = get_resource_by_id::<ServerLogEntry, _>(
         "server log entry",
-        &server_log_entry_id,
-        &http_transaction,
-        &database_pool,
+        server_log_entry_id,
+        http_transaction,
+        database_pool,
         |server_log_entry_id, database_pool| {
             Box::new(ServerLogEntry::get_by_id(
                 server_log_entry_id,
@@ -1077,7 +1076,7 @@ pub async fn get_server_log_entry_by_id(
         },
     )
     .await?;
-    return Ok(server_log_entry);
+    Ok(server_log_entry)
 }
 
 pub async fn get_session_by_id(
@@ -1087,13 +1086,13 @@ pub async fn get_session_by_id(
 ) -> Result<Session, HTTPError> {
     let session = get_resource_by_id::<Session, _>(
         "session",
-        &session_id,
-        &http_transaction,
-        &database_pool,
+        session_id,
+        http_transaction,
+        database_pool,
         |session_id, database_pool| Box::new(Session::get_by_id(session_id, database_pool)),
     )
     .await?;
-    return Ok(session);
+    Ok(session)
 }
 
 pub async fn get_status_by_id(
@@ -1103,13 +1102,13 @@ pub async fn get_status_by_id(
 ) -> Result<Status, HTTPError> {
     let status = get_resource_by_id::<Status, _>(
         "status",
-        &status_id,
-        &http_transaction,
-        &database_pool,
+        status_id,
+        http_transaction,
+        database_pool,
         |status_id, database_pool| Box::new(Status::get_by_id(status_id, database_pool)),
     )
     .await?;
-    return Ok(status);
+    Ok(status)
 }
 
 pub async fn get_view_by_id(
@@ -1119,13 +1118,13 @@ pub async fn get_view_by_id(
 ) -> Result<View, HTTPError> {
     let view = get_resource_by_id::<View, _>(
         "view",
-        &view_id,
-        &http_transaction,
-        &database_pool,
+        view_id,
+        http_transaction,
+        database_pool,
         |view_id, database_pool| Box::new(View::get_by_id(view_id, database_pool)),
     )
     .await?;
-    return Ok(view);
+    Ok(view)
 }
 
 pub async fn get_view_field_by_id(
@@ -1135,13 +1134,13 @@ pub async fn get_view_field_by_id(
 ) -> Result<ViewField, HTTPError> {
     let view_field = get_resource_by_id::<ViewField, _>(
         "view field",
-        &view_field_id,
-        &http_transaction,
-        &database_pool,
+        view_field_id,
+        http_transaction,
+        database_pool,
         |view_field_id, database_pool| Box::new(ViewField::get_by_id(view_field_id, database_pool)),
     )
     .await?;
-    return Ok(view_field);
+    Ok(view_field)
 }
 
 pub async fn get_workspace_by_id(
@@ -1151,13 +1150,13 @@ pub async fn get_workspace_by_id(
 ) -> Result<Workspace, HTTPError> {
     let workspace = get_resource_by_id::<Workspace, _>(
         "workspace",
-        &workspace_id,
-        &http_transaction,
-        &database_pool,
+        workspace_id,
+        http_transaction,
+        database_pool,
         |workspace_id, database_pool| Box::new(Workspace::get_by_id(workspace_id, database_pool)),
     )
     .await?;
-    return Ok(workspace);
+    Ok(workspace)
 }
 
 pub async fn get_delegation_policy_by_id(
@@ -1167,9 +1166,9 @@ pub async fn get_delegation_policy_by_id(
 ) -> Result<DelegationPolicy, HTTPError> {
     let delegation_policy = get_resource_by_id::<DelegationPolicy, _>(
         "delegation policy",
-        &delegation_policy_id,
-        &http_transaction,
-        &database_pool,
+        delegation_policy_id,
+        http_transaction,
+        database_pool,
         |delegation_policy_id, database_pool| {
             Box::new(DelegationPolicy::get_by_id(
                 delegation_policy_id,
@@ -1178,7 +1177,7 @@ pub async fn get_delegation_policy_by_id(
         },
     )
     .await?;
-    return Ok(delegation_policy);
+    Ok(delegation_policy)
 }
 
 pub async fn get_resource_by_id<ResourceStruct, GetResourceByIDFunction>(
@@ -1203,7 +1202,7 @@ where
     )
     .await
     .ok();
-    let resource = match Pin::from(get_resource_by_id_function(&resource_id, database_pool)).await {
+    let resource = match Pin::from(get_resource_by_id_function(resource_id, database_pool)).await {
         Ok(resource) => resource,
 
         Err(error) => {
@@ -1218,7 +1217,7 @@ where
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -1226,7 +1225,7 @@ where
         }
     };
 
-    return Ok(resource);
+    Ok(resource)
 }
 
 pub fn match_slashstepql_error(
@@ -1234,7 +1233,9 @@ pub fn match_slashstepql_error(
     maximum_limit: &i64,
     resource_type_plural: &str,
 ) -> HTTPError {
-    let http_error = match error {
+    
+
+    match error {
         SlashstepQLError::SlashstepQLInvalidLimitError(error) => {
             HTTPError::UnprocessableEntity(Some(format!(
                 "The provided limit must be zero or a positive integer of {} or less. You provided {}.",
@@ -1250,23 +1251,23 @@ pub fn match_slashstepql_error(
         }
 
         SlashstepQLError::InvalidQueryError(()) => {
-            HTTPError::BadRequest(Some(format!("The provided query is invalid.")))
+            HTTPError::BadRequest(Some("The provided query is invalid.".to_string()))
         }
 
         _ => HTTPError::InternalServerError(Some(format!(
             "Failed to list {}: {:?}",
             resource_type_plural, error
         ))),
-    };
-
-    return http_error;
+    }
 }
 
 pub fn match_db_error(error: &postgres::Error, resource_type: &str) -> HTTPError {
-    let http_error = match error.as_db_error() {
+    
+
+    match error.as_db_error() {
         Some(db_error) => match db_error.code() {
             &SqlState::UNDEFINED_FUNCTION => {
-                HTTPError::BadRequest(Some(format!("The provided query is invalid.")))
+                HTTPError::BadRequest(Some("The provided query is invalid.".to_string()))
             }
 
             _ => HTTPError::InternalServerError(Some(format!(
@@ -1279,23 +1280,20 @@ pub fn match_db_error(error: &postgres::Error, resource_type: &str) -> HTTPError
             "Failed to list {}: {:?}",
             resource_type, error
         ))),
-    };
-
-    return http_error;
+    }
 }
 
 pub fn get_principal_type_and_id_from_principal(
     user: Option<&Arc<User>>,
     app: Option<&Arc<App>>,
 ) -> Result<(AccessPolicyPrincipalType, Uuid), HTTPError> {
-    if let Some((principal_type, principal_id)) = user
-        .and_then(|user| Some((AccessPolicyPrincipalType::User, user.id)))
-        .or_else(|| app.and_then(|app| Some((AccessPolicyPrincipalType::App, app.id))))
+    if let Some((principal_type, principal_id)) = user.map(|user| (AccessPolicyPrincipalType::User, user.id))
+        .or_else(|| app.map(|app| (AccessPolicyPrincipalType::App, app.id)))
     {
         return Ok((principal_type, principal_id));
     }
 
-    return Err(HTTPError::InternalServerError(Some("Couldn't find a user or app for the request. This is a bug. Make sure the authentication middleware is installed and is working properly.".to_string())));
+    Err(HTTPError::InternalServerError(Some("Couldn't find a user or app for the request. This is a bug. Make sure the authentication middleware is installed and is working properly.".to_string())))
 }
 
 pub async fn get_request_body_without_json_rejection<T>(
@@ -1306,7 +1304,7 @@ pub async fn get_request_body_without_json_rejection<T>(
     ServerLogEntry::trace(
         "Verifying request body...",
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
@@ -1319,13 +1317,9 @@ pub async fn get_request_body_without_json_rejection<T>(
                     HTTPError::BadRequest(Some(error.to_string()))
                 }
 
-                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some(format!(
-                    "Failed to parse request body. Ensure the request body is valid JSON."
-                ))),
+                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some("Failed to parse request body. Ensure the request body is valid JSON.".to_string())),
 
-                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some(format!(
-                    "Missing request body content type. It should be \"application/json\"."
-                ))),
+                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some("Missing request body content type. It should be \"application/json\".".to_string())),
 
                 JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(
                     format!("Failed to parse request body: {:?}", error),
@@ -1337,7 +1331,7 @@ pub async fn get_request_body_without_json_rejection<T>(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -1345,7 +1339,7 @@ pub async fn get_request_body_without_json_rejection<T>(
         }
     };
 
-    return Ok(request_body);
+    Ok(request_body)
 }
 
 pub async fn get_configuration_by_name(
@@ -1356,12 +1350,12 @@ pub async fn get_configuration_by_name(
     ServerLogEntry::trace(
         &format!("Getting configuration \"{}\"...", configuration_name),
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
 
-    let configuration = match Configuration::get_by_name(&configuration_name, &database_pool).await
+    let configuration = match Configuration::get_by_name(configuration_name, database_pool).await
     {
         Ok(configuration) => configuration,
 
@@ -1380,7 +1374,7 @@ pub async fn get_configuration_by_name(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -1388,7 +1382,7 @@ pub async fn get_configuration_by_name(
         }
     };
 
-    return Ok(configuration);
+    Ok(configuration)
 }
 
 pub async fn validate_field_length(
@@ -1615,8 +1609,7 @@ pub async fn validate_decimal_is_within_range(
         }
     };
 
-    if minimum
-        .and_then(|minimum| Some(decimal < &minimum))
+    if minimum.map(|minimum| decimal < &minimum)
         .unwrap_or(false)
     {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
@@ -1645,8 +1638,7 @@ pub async fn validate_decimal_is_within_range(
         }
     };
 
-    if maximum
-        .and_then(|maximum| Some(decimal > &maximum))
+    if maximum.map(|maximum| decimal > &maximum)
         .unwrap_or(false)
     {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(

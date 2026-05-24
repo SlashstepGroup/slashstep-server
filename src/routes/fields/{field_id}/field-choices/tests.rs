@@ -13,10 +13,9 @@ use crate::{
         },
     },
     routes::{
-        CreateResourceResponseBody, ListResourcesResponseBody,
+        ListResourcesResponseBody,
         fields::field_id::field_choices::InitialFieldChoicePropertiesWithPredefinedFieldID,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

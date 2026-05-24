@@ -106,11 +106,12 @@ pub struct AppWithClientSecret {
 }
 
 async fn fallback() -> impl IntoResponse {
-    return HTTPError::NotFoundError(None);
+    HTTPError::NotFoundError(None)
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
@@ -148,6 +149,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .merge(views::get_router(state.clone()))
         .merge(view_fields::get_router(state.clone()))
         .merge(workspaces::get_router(state.clone()))
-        .fallback(fallback);
-    return router;
+        .fallback(fallback)
 }

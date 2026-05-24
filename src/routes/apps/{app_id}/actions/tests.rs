@@ -15,7 +15,6 @@ use crate::{
         },
     },
     routes::ListResourcesResponseBody,
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

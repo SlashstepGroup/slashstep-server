@@ -180,8 +180,8 @@ impl Configuration {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -197,7 +197,7 @@ impl Configuration {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a configuration by its ID.
@@ -224,7 +224,7 @@ impl Configuration {
 
         let configuration = Self::convert_from_row(&row);
 
-        return Ok(configuration);
+        Ok(configuration)
     }
 
     pub async fn get_by_name(
@@ -250,12 +250,12 @@ impl Configuration {
 
         let configuration = Self::convert_from_row(&row);
 
-        return Ok(configuration);
+        Ok(configuration)
     }
 
     /// Converts a row into a configuration.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Configuration {
+        Configuration {
             id: row.get("id"),
             name: row.get("name"),
             description: row.get("description"),
@@ -266,7 +266,7 @@ impl Configuration {
             default_text_value: row.get("default_text_value"),
             default_number_value: row.get("default_number_value"),
             default_boolean_value: row.get("default_boolean_value"),
-        };
+        }
     }
 
     /// Initializes the configurations table.
@@ -277,7 +277,7 @@ impl Configuration {
         let query =
             include_str!("../../queries/configurations/initialize_configurations_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new configuration.
@@ -317,7 +317,7 @@ impl Configuration {
         // Return the configuration.
         let configuration = Self::convert_from_row(&row);
 
-        return Ok(configuration);
+        Ok(configuration)
     }
 
     /// Deletes this field.
@@ -328,7 +328,7 @@ impl Configuration {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/configurations/delete_configuration_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -362,11 +362,11 @@ impl Configuration {
                     }
                 };
 
-                return Ok(Box::new(value_type));
+                Ok(Box::new(value_type))
             }
 
             _ => {
-                return Ok(Box::new(value));
+                Ok(Box::new(value))
             }
         }
     }
@@ -400,8 +400,8 @@ impl Configuration {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -417,7 +417,7 @@ impl Configuration {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn translate_assignment(
@@ -432,9 +432,9 @@ impl Configuration {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this configuration and returns a new instance of the configuration.
@@ -508,6 +508,6 @@ impl Configuration {
         database_client.query("commit;", &[]).await?;
 
         let configuration = Self::convert_from_row(&row);
-        return Ok(configuration);
+        Ok(configuration)
     }
 }

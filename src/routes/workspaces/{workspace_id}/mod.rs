@@ -112,16 +112,8 @@ async fn handle_get_workspace_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Workspace,
             target_workspace_id: Some(target_workspace.id),
             ..Default::default()
@@ -142,7 +134,7 @@ async fn handle_get_workspace_request(
         data: target_workspace.clone(),
     };
 
-    return Ok(Json(response_body));
+    Ok(Json(response_body))
 }
 
 /// DELETE /workspaces/{workspace_id}
@@ -216,23 +208,15 @@ async fn handle_delete_workspace_request(
         &InitialActionLogEntryProperties {
             action_id: delete_workspaces_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Workspace,
             target_workspace_id: Some(target_workspace.id),
             ..Default::default()
@@ -249,7 +233,7 @@ async fn handle_delete_workspace_request(
     )
     .await
     .ok();
-    return Ok(StatusCode::NO_CONTENT);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// PATCH /workspaces/{workspace_id}
@@ -392,16 +376,8 @@ async fn handle_patch_workspace_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Workspace,
             target_workspace_id: Some(updated_target_workspace.id),
             ..Default::default()
@@ -425,11 +401,12 @@ async fn handle_patch_workspace_request(
         data: updated_target_workspace,
     };
 
-    return Ok(Json(response_body));
+    Ok(Json(response_body))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/workspaces/{workspace_id}",
             axum::routing::get(handle_get_workspace_request),
@@ -461,6 +438,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .merge(access_policies::get_router(state.clone()))
         .merge(apps::get_router(state.clone()))
         .merge(projects::get_router(state.clone()))
-        .merge(roles::get_router(state.clone()));
-    return router;
+        .merge(roles::get_router(state.clone()))
 }

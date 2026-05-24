@@ -203,8 +203,8 @@ impl Status {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -220,7 +220,7 @@ impl Status {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -247,12 +247,12 @@ impl Status {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Self {
+        Self {
             id: row.get("id"),
             name: row.get("name"),
             display_name: row.get("display_name"),
@@ -261,7 +261,7 @@ impl Status {
             description: row.get("description"),
             next_status_id: row.get("next_status_id"),
             parent_project_id: row.get("parent_project_id"),
-        };
+        }
     }
 
     /// Initializes the statuses table.
@@ -282,7 +282,7 @@ impl Status {
         );
         database_client.execute(query, &[]).await?;
 
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -326,7 +326,7 @@ impl Status {
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this field.
@@ -337,7 +337,7 @@ impl Status {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/statuses/delete_status_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of statuses based on a query.
@@ -369,8 +369,8 @@ impl Status {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -386,7 +386,7 @@ impl Status {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -408,25 +408,21 @@ impl Status {
             return Ok(Box::new(uuid));
         }
 
-        match key {
-            "type" => {
-                let scoped_resource_type = match StatusType::from_str(value) {
-                    Ok(scoped_resource_type) => scoped_resource_type,
-                    Err(error) => {
-                        return Err(SlashstepQLError::StringParserError(format!(
-                            "Failed to parse \"{}\" for key \"{}\": {}",
-                            value, key, error
-                        )));
-                    }
-                };
+        if key == "type" {
+            let scoped_resource_type = match StatusType::from_str(value) {
+                Ok(scoped_resource_type) => scoped_resource_type,
+                Err(error) => {
+                    return Err(SlashstepQLError::StringParserError(format!(
+                        "Failed to parse \"{}\" for key \"{}\": {}",
+                        value, key, error
+                    )));
+                }
+            };
 
-                return Ok(Box::new(scoped_resource_type));
-            }
-
-            _ => {}
+            return Ok(Box::new(scoped_resource_type));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -441,9 +437,9 @@ impl Status {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this item and returns a new instance of the item.
@@ -505,6 +501,6 @@ impl Status {
         database_client.query("COMMIT;", &[]).await?;
 
         let status = Self::convert_from_row(&row);
-        return Ok(status);
+        Ok(status)
     }
 }

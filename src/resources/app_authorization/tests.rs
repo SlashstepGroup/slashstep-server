@@ -10,7 +10,6 @@ use crate::{
             DEFAULT_APP_AUTHORIZATION_LIST_LIMIT, InitialAppAuthorizationProperties,
         },
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

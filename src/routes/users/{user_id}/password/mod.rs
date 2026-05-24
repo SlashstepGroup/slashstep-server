@@ -106,17 +106,17 @@ async fn handle_update_user_password_request(
         ) -> Result<TokenData<PasswordResetAuthorizationClaims>, HTTPError> {
             ServerLogEntry::trace(
                 "Decoding and verifying password reset token...",
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
 
             let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
             let decoding_key = get_decoding_key(
-                &http_transaction_id,
-                &database_pool,
-                &json_web_token_public_key,
+                http_transaction_id,
+                database_pool,
+                json_web_token_public_key,
             )
             .await?;
             let decoded_claims = match jsonwebtoken::decode::<PasswordResetAuthorizationClaims>(
@@ -143,8 +143,8 @@ async fn handle_update_user_password_request(
 
                     ServerLogEntry::from_http_error(
                         &http_error,
-                        Some(&http_transaction_id),
-                        &database_pool,
+                        Some(http_transaction_id),
+                        database_pool,
                     )
                     .await
                     .ok();
@@ -152,14 +152,14 @@ async fn handle_update_user_password_request(
                 }
             };
 
-            return Ok(decoded_claims);
+            Ok(decoded_claims)
         }
 
         if update_user_password_request_body.should_bypass_password_validation {
             let bypass_password_validation_action = get_action_by_name(
                 "users.bypassPasswordValidation",
-                &http_transaction,
-                &database_pool,
+                http_transaction,
+                database_pool,
             )
             .await?;
             verify_delegate_permissions(
@@ -167,29 +167,29 @@ async fn handle_update_user_password_request(
                 &bypass_password_validation_action.id,
                 &http_transaction.id,
                 &PermissionLevel::User,
-                &database_pool,
+                database_pool,
             )
             .await?;
             verify_principal_permissions(
-                &principal_type,
-                &principal_id,
+                principal_type,
+                principal_id,
                 is_authenticated_user_anonymous,
                 &ResourceType::User,
                 Some(&target_user.id),
                 &bypass_password_validation_action,
-                &http_transaction,
+                http_transaction,
                 &PermissionLevel::User,
-                &database_pool,
+                database_pool,
             )
             .await?;
         } else if let Some(password_reset_token) =
             &update_user_password_request_body.password_reset_token
         {
             let jwt_public_key =
-                get_json_web_token_public_key(&http_transaction.id, &database_pool).await?;
+                get_json_web_token_public_key(&http_transaction.id, database_pool).await?;
             let password_reset_token_claims = decode_password_reset_token_jwt_claims(
                 &http_transaction.id,
-                &database_pool,
+                database_pool,
                 &jwt_public_key,
                 password_reset_token,
             )
@@ -197,15 +197,15 @@ async fn handle_update_user_password_request(
             let password_reset_token_id = get_uuid_from_string(
                 &password_reset_token_claims.claims.jti,
                 "password reset token",
-                &http_transaction,
-                &database_pool,
+                http_transaction,
+                database_pool,
             )
             .await?;
             let password_reset_user_id = get_uuid_from_string(
                 &password_reset_token_claims.claims.sub,
                 "password reset token subject",
-                &http_transaction,
-                &database_pool,
+                http_transaction,
+                database_pool,
             )
             .await?;
             if password_reset_user_id != target_user.id {
@@ -215,7 +215,7 @@ async fn handle_update_user_password_request(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -223,12 +223,12 @@ async fn handle_update_user_password_request(
             }
             let password_reset_authorization = get_password_reset_authorization_by_id(
                 &password_reset_token_id,
-                &http_transaction,
-                &database_pool,
+                http_transaction,
+                database_pool,
             )
             .await;
             if let Ok(password_reset_authorization) = password_reset_authorization {
-                if let Err(error) = password_reset_authorization.delete(&database_pool).await {
+                if let Err(error) = password_reset_authorization.delete(database_pool).await {
                     let http_error = HTTPError::InternalServerError(Some(format!(
                         "Failed to delete password reset authorization: {:?}",
                         error
@@ -236,7 +236,7 @@ async fn handle_update_user_password_request(
                     ServerLogEntry::from_http_error(
                         &http_error,
                         Some(&http_transaction.id),
-                        &database_pool,
+                        database_pool,
                     )
                     .await
                     .ok();
@@ -249,7 +249,7 @@ async fn handle_update_user_password_request(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -274,7 +274,7 @@ async fn handle_update_user_password_request(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -285,14 +285,14 @@ async fn handle_update_user_password_request(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
             return Err(http_error);
         }
 
-        return Ok(());
+        Ok(())
     }
 
     async fn verify_password_meets_requirements(
@@ -339,7 +339,7 @@ async fn handle_update_user_password_request(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -348,8 +348,8 @@ async fn handle_update_user_password_request(
 
         let maximum_password_length_configuration = get_configuration_by_name(
             "users.maximumPasswordLength",
-            &http_transaction,
-            &database_pool,
+            http_transaction,
+            database_pool,
         )
         .await?;
         let maximum_password_length = match maximum_password_length_configuration
@@ -370,7 +370,7 @@ async fn handle_update_user_password_request(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -385,14 +385,14 @@ async fn handle_update_user_password_request(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
             return Err(http_error);
         }
 
-        return Ok(());
+        Ok(())
     }
 
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
@@ -505,23 +505,15 @@ async fn handle_update_user_password_request(
         &InitialActionLogEntryProperties {
             action_id: update_user_password_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::User,
             target_user_id: Some(target_user.id),
             ..Default::default()
@@ -540,7 +532,7 @@ async fn handle_update_user_password_request(
         .await
         .ok();
 
-        let database_client = match (&state.database_pool).get().await {
+        let database_client = match state.database_pool.get().await {
             Ok(database_client) => database_client,
 
             Err(error) => {
@@ -565,7 +557,7 @@ async fn handle_update_user_password_request(
         if let Err(error) = database_client
             .execute(
                 delete_all_user_session_rows_except_one_query,
-                &[&target_user.id, &session.and_then(|s| Some(s.id))],
+                &[&target_user.id, &session.map(|s| s.id)],
             )
             .await
         {
@@ -591,11 +583,12 @@ async fn handle_update_user_password_request(
     )
     .await
     .ok();
-    return Ok((StatusCode::OK, Json(updated_user)));
+    Ok((StatusCode::OK, Json(updated_user)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/users/{user_id}/password",
             axum::routing::put(handle_update_user_password_request),
@@ -615,6 +608,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
-        ));
-    return router;
+        ))
 }

@@ -9,7 +9,6 @@ use crate::{
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
         field::{DEFAULT_RESOURCE_LIST_LIMIT, Field, FieldValueType, InitialFieldProperties},
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

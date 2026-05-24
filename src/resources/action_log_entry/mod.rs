@@ -421,12 +421,12 @@ impl ActionLogEntry {
 
         let action_log_entry = Self::convert_from_row(&row);
 
-        return Ok(action_log_entry);
+        Ok(action_log_entry)
     }
 
     /// Converts a row into an action log entry.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return ActionLogEntry {
+        ActionLogEntry {
             id: row.get("id"),
             action_id: row.get("action_id"),
             http_transaction_id: row.get("http_transaction_id"),
@@ -472,7 +472,7 @@ impl ActionLogEntry {
             target_webhook_id: row.get("target_webhook_id"),
             target_workspace_id: row.get("target_workspace_id"),
             reason: row.get("reason"),
-        };
+        }
     }
 
     /// Counts the number of action log entries based on a query.
@@ -523,7 +523,7 @@ impl ActionLogEntry {
         // Execute the query and return the count.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Creates a new action log entry.
@@ -582,11 +582,11 @@ impl ActionLogEntry {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         let action_log_entry = ActionLogEntry::convert_from_row(&row);
 
-        return Ok(action_log_entry);
+        Ok(action_log_entry)
     }
 
     /// Deletes this action log entry.
@@ -598,7 +598,7 @@ impl ActionLogEntry {
         let query =
             include_str!("../../queries/action_log_entries/delete_action_log_entry_row.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub async fn delete_expired_action_log_entries(
@@ -609,7 +609,7 @@ impl ActionLogEntry {
             "../../queries/action_log_entries/delete_expired_action_log_entry_rows.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Initializes the action_log_entries table.
@@ -621,7 +621,7 @@ impl ActionLogEntry {
             "../../queries/action_log_entries/initialize_action_log_entries_table.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of action log entries based on a query.
@@ -672,7 +672,7 @@ impl ActionLogEntry {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(ActionLogEntry::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -694,7 +694,7 @@ impl ActionLogEntry {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -709,8 +709,8 @@ impl ActionLogEntry {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 }

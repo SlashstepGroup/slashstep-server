@@ -188,8 +188,8 @@ impl FieldChoice {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -205,7 +205,7 @@ impl FieldChoice {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -232,12 +232,12 @@ impl FieldChoice {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return FieldChoice {
+        FieldChoice {
             id: row.get("id"),
             field_id: row.get("field_id"),
             description: row.get("description"),
@@ -249,7 +249,7 @@ impl FieldChoice {
             stakeholder_user_id: row.get("stakeholder_user_id"),
             stakeholder_group_id: row.get("stakeholder_group_id"),
             stakeholder_app_id: row.get("stakeholder_app_id"),
-        };
+        }
     }
 
     /// Initializes the field_choices table.
@@ -259,7 +259,7 @@ impl FieldChoice {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/field_choices/initialize_field_choices_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -284,12 +284,12 @@ impl FieldChoice {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this field.
@@ -300,7 +300,7 @@ impl FieldChoice {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/field_choices/delete_field_choice_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -322,7 +322,7 @@ impl FieldChoice {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     /// Returns a list of field_choices based on a query.
@@ -354,8 +354,8 @@ impl FieldChoice {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -371,7 +371,7 @@ impl FieldChoice {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn translate_assignment(
@@ -386,9 +386,9 @@ impl FieldChoice {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this field and returns a new instance of the field.
@@ -462,6 +462,6 @@ impl FieldChoice {
         database_client.query("COMMIT;", &[]).await?;
 
         let configuration = Self::convert_from_row(&row);
-        return Ok(configuration);
+        Ok(configuration)
     }
 }

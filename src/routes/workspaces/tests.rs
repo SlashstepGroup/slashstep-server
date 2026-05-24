@@ -11,10 +11,9 @@ use crate::{
         workspace::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Workspace},
     },
     routes::{
-        CreateResourceResponseBody, ListResourcesResponseBody,
+        ListResourcesResponseBody,
         workspaces::CreateWorkspaceRequestBody,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

@@ -118,8 +118,8 @@ impl Workspace {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -135,7 +135,7 @@ impl Workspace {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a workspace by its ID.
@@ -162,17 +162,17 @@ impl Workspace {
 
         let workspace = Self::convert_from_row(&row);
 
-        return Ok(workspace);
+        Ok(workspace)
     }
 
     /// Converts a row into a workspace.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Workspace {
+        Workspace {
             id: row.get("id"),
             name: row.get("name"),
             display_name: row.get("display_name"),
             description: row.get("description"),
-        };
+        }
     }
 
     /// Initializes the workspaces table.
@@ -182,7 +182,7 @@ impl Workspace {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/workspaces/initialize_workspaces_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new workspace.
@@ -200,12 +200,12 @@ impl Workspace {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let workspace = Self::convert_from_row(&row);
 
-        return Ok(workspace);
+        Ok(workspace)
     }
 
     /// Deletes this workspace.
@@ -216,7 +216,7 @@ impl Workspace {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/workspaces/delete_workspace_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of workspaces based on a query.
@@ -248,8 +248,8 @@ impl Workspace {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -265,7 +265,7 @@ impl Workspace {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let workspaces = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(workspaces);
+        Ok(workspaces)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -287,7 +287,7 @@ impl Workspace {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -302,9 +302,9 @@ impl Workspace {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this workspace and returns a new instance of the user.
@@ -348,6 +348,6 @@ impl Workspace {
         database_client.query("COMMIT;", &[]).await?;
 
         let status = Self::convert_from_row(&row);
-        return Ok(status);
+        Ok(status)
     }
 }

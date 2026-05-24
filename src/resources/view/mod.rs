@@ -180,8 +180,8 @@ impl View {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -197,7 +197,7 @@ impl View {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -224,12 +224,12 @@ impl View {
 
         let view = Self::convert_from_row(&row);
 
-        return Ok(view);
+        Ok(view)
     }
 
     /// Converts a row into a view.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Self {
+        Self {
             id: row.get("id"),
             name: row.get("name"),
             display_name: row.get("display_name"),
@@ -239,7 +239,7 @@ impl View {
             parent_resource_type: row.get("parent_resource_type"),
             parent_workspace_id: row.get("parent_workspace_id"),
             parent_project_id: row.get("parent_project_id"),
-        };
+        }
     }
 
     /// Initializes the views table.
@@ -249,7 +249,7 @@ impl View {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/views/initialize_views_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new view.
@@ -272,11 +272,11 @@ impl View {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         let view = Self::convert_from_row(&row);
 
-        return Ok(view);
+        Ok(view)
     }
 
     pub async fn delete(
@@ -287,7 +287,7 @@ impl View {
         let query = include_str!("../../queries/views/delete_view_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
 
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of roles based on a query.
@@ -319,8 +319,8 @@ impl View {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -336,7 +336,7 @@ impl View {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let views = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(views);
+        Ok(views)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -358,7 +358,7 @@ impl View {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -373,9 +373,9 @@ impl View {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this view and returns a new instance of the view.
@@ -425,6 +425,6 @@ impl View {
         database_client.query("COMMIT;", &[]).await?;
 
         let status = Self::convert_from_row(&row);
-        return Ok(status);
+        Ok(status)
     }
 }

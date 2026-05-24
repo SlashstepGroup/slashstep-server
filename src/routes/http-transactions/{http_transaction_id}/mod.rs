@@ -113,16 +113,8 @@ async fn handle_get_http_transaction_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::HTTPTransaction,
             target_http_transaction_id: Some(target_http_transaction.id),
             ..Default::default()
@@ -146,7 +138,7 @@ async fn handle_get_http_transaction_request(
         data: target_http_transaction.clone(),
     };
 
-    return Ok(Json(response_body));
+    Ok(Json(response_body))
 }
 
 /// DELETE /http-transactions/{http_transaction_id}
@@ -228,23 +220,15 @@ async fn handle_delete_http_transaction_request(
         &InitialActionLogEntryProperties {
             action_id: delete_http_transactions_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::HTTPTransaction,
             target_http_transaction_id: Some(target_http_transaction.id),
             ..Default::default()
@@ -264,11 +248,12 @@ async fn handle_delete_http_transaction_request(
     )
     .await
     .ok();
-    return Ok(StatusCode::NO_CONTENT);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/http-transactions/{http_transaction_id}",
             axum::routing::get(handle_get_http_transaction_request),
@@ -293,6 +278,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
-        .merge(access_policies::get_router(state.clone()));
-    return router;
+        .merge(access_policies::get_router(state.clone()))
 }

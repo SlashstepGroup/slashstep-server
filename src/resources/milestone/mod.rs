@@ -173,8 +173,8 @@ impl Milestone {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -190,7 +190,7 @@ impl Milestone {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -217,12 +217,12 @@ impl Milestone {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Milestone {
+        Milestone {
             id: row.get("id"),
             name: row.get("name"),
             display_name: row.get("display_name"),
@@ -232,7 +232,7 @@ impl Milestone {
             parent_resource_type: row.get("parent_resource_type"),
             parent_workspace_id: row.get("parent_workspace_id"),
             parent_project_id: row.get("parent_project_id"),
-        };
+        }
     }
 
     /// Initializes the milestones table.
@@ -242,7 +242,7 @@ impl Milestone {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/milestones/initialize_milestones_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -265,12 +265,12 @@ impl Milestone {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the milestone.
         let milestone = Self::convert_from_row(&row);
 
-        return Ok(milestone);
+        Ok(milestone)
     }
 
     /// Deletes this field.
@@ -281,7 +281,7 @@ impl Milestone {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/milestones/delete_milestone_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of milestones based on a query.
@@ -313,8 +313,8 @@ impl Milestone {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -330,7 +330,7 @@ impl Milestone {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -352,7 +352,7 @@ impl Milestone {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -367,9 +367,9 @@ impl Milestone {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this milestone and returns a new instance of the milestone.
@@ -425,6 +425,6 @@ impl Milestone {
         database_client.query("COMMIT;", &[]).await?;
 
         let iteration = Self::convert_from_row(&row);
-        return Ok(iteration);
+        Ok(iteration)
     }
 }

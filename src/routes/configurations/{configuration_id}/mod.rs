@@ -109,16 +109,8 @@ async fn handle_get_configuration_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Configuration,
             target_configuration_id: Some(target_configuration.id),
             ..Default::default()
@@ -142,7 +134,7 @@ async fn handle_get_configuration_request(
         data: target_configuration.clone(),
     };
 
-    return Ok(Json(response_body));
+    Ok(Json(response_body))
 }
 
 /// DELETE /configurations/{configuration_id}
@@ -220,23 +212,15 @@ async fn handle_delete_configuration_request(
         &InitialActionLogEntryProperties {
             action_id: delete_configurations_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Configuration,
             target_configuration_id: Some(target_configuration.id),
             ..Default::default()
@@ -256,7 +240,7 @@ async fn handle_delete_configuration_request(
     )
     .await
     .ok();
-    return Ok(StatusCode::NO_CONTENT);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// PATCH /configurations/{configuration_id}
@@ -288,13 +272,9 @@ async fn handle_patch_configuration_request(
                     HTTPError::BadRequest(Some(error.to_string()))
                 }
 
-                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some(format!(
-                    "Failed to parse request body. Ensure the request body is valid JSON."
-                ))),
+                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some("Failed to parse request body. Ensure the request body is valid JSON.".to_string())),
 
-                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some(format!(
-                    "Missing request body content type. It should be \"application/json\"."
-                ))),
+                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some("Missing request body content type. It should be \"application/json\".".to_string())),
 
                 JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(
                     format!("Failed to parse request body: {:?}", error),
@@ -400,16 +380,8 @@ async fn handle_patch_configuration_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Configuration,
             target_configuration_id: Some(updated_target_configuration.id),
             ..Default::default()
@@ -433,11 +405,12 @@ async fn handle_patch_configuration_request(
         data: updated_target_configuration,
     };
 
-    return Ok(Json(response_body));
+    Ok(Json(response_body))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/configurations/{configuration_id}",
             axum::routing::get(handle_get_configuration_request),
@@ -466,6 +439,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
-        .merge(access_policies::get_router(state.clone()));
-    return router;
+        .merge(access_policies::get_router(state.clone()))
 }

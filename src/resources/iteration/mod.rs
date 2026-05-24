@@ -152,8 +152,8 @@ impl Iteration {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -169,7 +169,7 @@ impl Iteration {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -196,12 +196,12 @@ impl Iteration {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Self {
+        Self {
             id: row.get("id"),
             parent_project_id: row.get("parent_project_id"),
             display_name: row.get("display_name"),
@@ -209,7 +209,7 @@ impl Iteration {
             end_date: row.get("end_date"),
             actual_start_date: row.get("actual_start_date"),
             actual_end_date: row.get("actual_end_date"),
-        };
+        }
     }
 
     /// Initializes the iterations table.
@@ -219,7 +219,7 @@ impl Iteration {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/iterations/initialize_iterations_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -244,12 +244,12 @@ impl Iteration {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this field.
@@ -260,7 +260,7 @@ impl Iteration {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/iterations/delete_iteration_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of iterations based on a query.
@@ -292,8 +292,8 @@ impl Iteration {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -309,7 +309,7 @@ impl Iteration {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -331,7 +331,7 @@ impl Iteration {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -346,9 +346,9 @@ impl Iteration {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this item and returns a new instance of the item.
@@ -404,6 +404,6 @@ impl Iteration {
         database_client.query("COMMIT;", &[]).await?;
 
         let iteration = Self::convert_from_row(&row);
-        return Ok(iteration);
+        Ok(iteration)
     }
 }

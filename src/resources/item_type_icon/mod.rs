@@ -127,8 +127,8 @@ impl ItemTypeIcon {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -144,7 +144,7 @@ impl ItemTypeIcon {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -171,17 +171,17 @@ impl ItemTypeIcon {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Self {
+        Self {
             id: row.get("id"),
             display_name: row.get("display_name"),
             parent_resource_type: row.get("parent_resource_type"),
             parent_project_id: row.get("parent_project_id"),
-        };
+        }
     }
 
     /// Initializes the item_type_icons table.
@@ -192,7 +192,7 @@ impl ItemTypeIcon {
         let query =
             include_str!("../../queries/item_type_icons/initialize_item_type_icons_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -211,12 +211,12 @@ impl ItemTypeIcon {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this field.
@@ -228,7 +228,7 @@ impl ItemTypeIcon {
         let query =
             include_str!("../../queries/item_type_icons/delete_item_type_icon_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of item_type_icons based on a query.
@@ -260,8 +260,8 @@ impl ItemTypeIcon {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -277,7 +277,7 @@ impl ItemTypeIcon {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -299,22 +299,18 @@ impl ItemTypeIcon {
             return Ok(Box::new(uuid));
         }
 
-        match key {
-            "parent_resource_type" => match ItemTypeIconParentResourceType::from_str(value) {
-                Ok(parent_resource_type) => return Ok(Box::new(parent_resource_type)),
+        if key == "parent_resource_type" { match ItemTypeIconParentResourceType::from_str(value) {
+            Ok(parent_resource_type) => return Ok(Box::new(parent_resource_type)),
 
-                Err(_) => {
-                    return Err(SlashstepQLError::StringParserError(format!(
-                        "Failed to parse ItemTypeIconParentResourceType from \"{}\" for key \"{}\".",
-                        value, key
-                    )));
-                }
-            },
+            Err(_) => {
+                return Err(SlashstepQLError::StringParserError(format!(
+                    "Failed to parse ItemTypeIconParentResourceType from \"{}\" for key \"{}\".",
+                    value, key
+                )));
+            }
+        } }
 
-            _ => {}
-        }
-
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -329,9 +325,9 @@ impl ItemTypeIcon {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this item and returns a new instance of the item.
@@ -363,6 +359,6 @@ impl ItemTypeIcon {
         database_client.query("COMMIT;", &[]).await?;
 
         let item_type_icon = Self::convert_from_row(&row);
-        return Ok(item_type_icon);
+        Ok(item_type_icon)
     }
 }

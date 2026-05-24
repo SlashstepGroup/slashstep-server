@@ -94,8 +94,8 @@ impl Item {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -111,7 +111,7 @@ impl Item {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -138,17 +138,17 @@ impl Item {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Item {
+        Item {
             id: row.get("id"),
             summary: row.get("summary"),
             parent_project_id: row.get("parent_project_id"),
             number: row.get("number"),
-        };
+        }
     }
 
     /// Initializes the items table.
@@ -158,7 +158,7 @@ impl Item {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/items/initialize_items_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -176,12 +176,12 @@ impl Item {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this field.
@@ -192,7 +192,7 @@ impl Item {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/items/delete_item_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -214,7 +214,7 @@ impl Item {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -230,7 +230,7 @@ impl Item {
         }
 
         // Since the key is dynamic, we'll use it as a hint to form a valid SQL query.
-        let identifier_parts = (&assignment_properties.key)
+        let identifier_parts = assignment_properties.key
             .split('.')
             .collect::<Vec<&str>>();
         match identifier_parts[0] {
@@ -259,13 +259,11 @@ impl Item {
                         // UUID field types: Iteration, Milestone, Stakeholder
 
                         // UUIDs are supposed to be globally unique, so it's generally safe to check the ID against all UUID columns.
-                        let uuid_column_name_map = vec![
-                            vec!["Iteration", "iteration_id_value"],
+                        let uuid_column_name_map = [vec!["Iteration", "iteration_id_value"],
                             vec!["Milestone", "milestone_id_value"],
                             vec!["Stakeholder", "stakeholder_user_id"],
                             vec!["Stakeholder", "stakeholder_group_id"],
-                            vec!["Stakeholder", "stakeholder_app_id"],
-                        ];
+                            vec!["Stakeholder", "stakeholder_app_id"]];
 
                         for index in 0..uuid_column_name_map.len() {
                             if index != 0 {
@@ -338,7 +336,7 @@ impl Item {
             parameters: assignment_properties.parameters,
         };
 
-        return Ok(assignment_translation_result);
+        Ok(assignment_translation_result)
     }
 
     /// Returns a list of items based on a query.
@@ -370,8 +368,8 @@ impl Item {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -387,7 +385,7 @@ impl Item {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Updates this item and returns a new instance of the item.
@@ -419,6 +417,6 @@ impl Item {
         database_client.query("COMMIT;", &[]).await?;
 
         let item = Self::convert_from_row(&row);
-        return Ok(item);
+        Ok(item)
     }
 }

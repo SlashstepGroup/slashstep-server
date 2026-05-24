@@ -210,8 +210,8 @@ impl Webhook {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -227,7 +227,7 @@ impl Webhook {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -254,12 +254,12 @@ impl Webhook {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Self {
+        Self {
             id: row.get("id"),
             display_name: row.get("display_name"),
             url: row.get("url"),
@@ -271,7 +271,7 @@ impl Webhook {
             parent_project_id: row.get("parent_project_id"),
             parent_user_id: row.get("parent_user_id"),
             parent_workspace_id: row.get("parent_workspace_id"),
-        };
+        }
     }
 
     /// Initializes the webhooks table.
@@ -281,7 +281,7 @@ impl Webhook {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/webhooks/initialize_webhooks_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -306,12 +306,12 @@ impl Webhook {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this field.
@@ -322,7 +322,7 @@ impl Webhook {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/webhooks/delete_webhook_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of webhooks based on a query.
@@ -354,8 +354,8 @@ impl Webhook {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -371,12 +371,12 @@ impl Webhook {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Gets the webhook's hashed secret, if applicable.
     pub fn get_hashed_secret(&self) -> Option<String> {
-        return self.hashed_secret.clone();
+        self.hashed_secret.clone()
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -398,25 +398,21 @@ impl Webhook {
             return Ok(Box::new(uuid));
         }
 
-        match key {
-            "parent_resource_type" => {
-                let parent_resource_type = match WebhookParentResourceType::from_str(value) {
-                    Ok(parent_resource_type) => parent_resource_type,
-                    Err(error) => {
-                        return Err(SlashstepQLError::StringParserError(format!(
-                            "Failed to parse \"{}\" for key \"{}\": {}",
-                            value, key, error
-                        )));
-                    }
-                };
+        if key == "parent_resource_type" {
+            let parent_resource_type = match WebhookParentResourceType::from_str(value) {
+                Ok(parent_resource_type) => parent_resource_type,
+                Err(error) => {
+                    return Err(SlashstepQLError::StringParserError(format!(
+                        "Failed to parse \"{}\" for key \"{}\": {}",
+                        value, key, error
+                    )));
+                }
+            };
 
-                return Ok(Box::new(parent_resource_type));
-            }
-
-            _ => {}
+            return Ok(Box::new(parent_resource_type));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -431,9 +427,9 @@ impl Webhook {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this item and returns a new instance of the item.
@@ -483,6 +479,6 @@ impl Webhook {
         database_client.query("COMMIT;", &[]).await?;
 
         let webhook = Self::convert_from_row(&row);
-        return Ok(webhook);
+        Ok(webhook)
     }
 }

@@ -101,18 +101,18 @@ impl DelegationPolicy {
             "../../queries/delegation_policies/initialize_delegation_policies_table.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Converts a row from the database into a delegation policy.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return DelegationPolicy {
+        DelegationPolicy {
             id: row.get("id"),
             action_id: row.get("action_id"),
             maximum_permission_level: row.get("maximum_permission_level"),
             delegate_app_authorization_id: row.get("delegate_app_authorization_id"),
             principal_user_id: row.get("principal_user_id"),
-        };
+        }
     }
 
     /// Counts the number of delegation policies based on a query.
@@ -144,8 +144,8 @@ impl DelegationPolicy {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -161,7 +161,7 @@ impl DelegationPolicy {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Creates a new delegation policy.
@@ -181,12 +181,12 @@ impl DelegationPolicy {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the delegation policy.
         let delegation_policy = Self::convert_from_row(&row);
 
-        return Ok(delegation_policy);
+        Ok(delegation_policy)
     }
 
     /// Deletes this delegation policy.
@@ -199,7 +199,7 @@ impl DelegationPolicy {
             "../../queries/delegation_policies/delete_delegation_policy_row_by_id.sql"
         );
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a delegation policy by its ID.
@@ -227,7 +227,7 @@ impl DelegationPolicy {
 
         let delegation_policy = Self::convert_from_row(&row);
 
-        return Ok(delegation_policy);
+        Ok(delegation_policy)
     }
 
     /// Returns a list of delegation policies based on a query.
@@ -259,8 +259,8 @@ impl DelegationPolicy {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -276,7 +276,7 @@ impl DelegationPolicy {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn parse_string_slashstepql_parameters<'a>(
@@ -297,25 +297,21 @@ impl DelegationPolicy {
             return Ok(Box::new(uuid));
         }
 
-        match key {
-            "maximum_permission_level" => {
-                let permission_level = match PermissionLevel::from_str(value) {
-                    Ok(permission_level) => permission_level,
-                    Err(_) => {
-                        return Err(SlashstepQLError::StringParserError(format!(
-                            "Failed to parse PermissionLevel from \"{}\" for key \"{}\".",
-                            value, key
-                        )));
-                    }
-                };
+        if key == "maximum_permission_level" {
+            let permission_level = match PermissionLevel::from_str(value) {
+                Ok(permission_level) => permission_level,
+                Err(_) => {
+                    return Err(SlashstepQLError::StringParserError(format!(
+                        "Failed to parse PermissionLevel from \"{}\" for key \"{}\".",
+                        value, key
+                    )));
+                }
+            };
 
-                return Ok(Box::new(permission_level));
-            }
-
-            _ => {}
+            return Ok(Box::new(permission_level));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -330,9 +326,9 @@ impl DelegationPolicy {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this delegation policy and returns a new instance of the delegation policy.
@@ -364,6 +360,6 @@ impl DelegationPolicy {
         database_client.query("COMMIT;", &[]).await?;
 
         let delegation_policy = Self::convert_from_row(&row);
-        return Ok(delegation_policy);
+        Ok(delegation_policy)
     }
 }

@@ -9,8 +9,7 @@ use crate::{
         action::Action,
         session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Session},
     },
-    routes::{CreateResourceResponseBody, ListResourcesResponseBody},
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+    routes::ListResourcesResponseBody,
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

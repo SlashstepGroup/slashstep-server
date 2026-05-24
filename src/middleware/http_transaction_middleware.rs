@@ -84,15 +84,10 @@ pub async fn create_http_transaction(
         .or(should_http_transactions_expire_configuration.default_boolean_value)
         .unwrap_or(false);
     if should_http_transactions_expire {
-        let expiration_duration_milliseconds = match should_http_transactions_expire_configuration
+        let expiration_duration_milliseconds = should_http_transactions_expire_configuration
             .number_value
             .or(should_http_transactions_expire_configuration.default_number_value)
-            .and_then(|decimal| decimal.to_i64())
-        {
-            Some(milliseconds) => Some(Duration::milliseconds(milliseconds)),
-
-            None => None,
-        };
+            .and_then(|decimal| decimal.to_i64()).map(Duration::milliseconds);
 
         if let Some(duration) = expiration_duration_milliseconds {
             http_transaction = match http_transaction
@@ -128,12 +123,12 @@ pub async fn create_http_transaction(
     request.extensions_mut().insert(http_transaction.clone());
 
     ServerLogEntry::info(
-        &format!("HTTP request handling started."),
+        "HTTP request handling started.",
         Some(&http_transaction.id),
         &state.database_pool,
     )
     .await
     .ok();
     let response = next.run(request).await;
-    return Ok(response);
+    Ok(response)
 }

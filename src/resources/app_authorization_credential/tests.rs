@@ -12,7 +12,6 @@ use crate::{
             InitialAppAuthorizationCredentialProperties,
         },
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

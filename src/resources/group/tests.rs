@@ -10,7 +10,6 @@ use crate::{
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
         group::GroupParentResourceType,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

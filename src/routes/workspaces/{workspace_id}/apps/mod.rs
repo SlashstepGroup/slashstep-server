@@ -114,8 +114,7 @@ async fn handle_list_apps_request(
         "parent_workspace_id = {}{}",
         quote_literal(&workspace_id.to_string()),
         query_parameters
-            .query
-            .and_then(|query| Some(format!(" AND ({})", query)))
+            .query.map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match App::list(
@@ -154,7 +153,7 @@ async fn handle_list_apps_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting apps..."),
+        "Counting apps...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -190,23 +189,15 @@ async fn handle_list_apps_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Workspace,
             target_workspace_id: Some(workspace_id),
             ..Default::default()
@@ -238,7 +229,7 @@ async fn handle_list_apps_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 /// POST /workspaces/{workspace_id}/apps
@@ -419,16 +410,8 @@ async fn handle_create_app_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::App,
             target_app_id: Some(app.id),
             ..Default::default()
@@ -536,24 +519,24 @@ async fn handle_create_app_request(
         if let Err(error) = AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 principal_type: AccessPolicyPrincipalType::Role,
-                principal_role_id: Some(app_admins_role.id.clone()),
+                principal_role_id: Some(app_admins_role.id),
                 scoped_resource_type: if principal_type == AccessPolicyPrincipalType::User {
                     ResourceType::User
                 } else {
                     ResourceType::App
                 },
                 scoped_user_id: if principal_type == AccessPolicyPrincipalType::User {
-                    Some(principal_id.clone())
+                    Some(principal_id)
                 } else {
                     None
                 },
                 scoped_app_id: if principal_type == AccessPolicyPrincipalType::App {
-                    Some(principal_id.clone())
+                    Some(principal_id)
                 } else {
                     None
                 },
                 is_inheritance_enabled: true,
-                action_id: action.id.clone(),
+                action_id: action.id,
                 permission_level: PermissionLevel::Admin,
                 ..Default::default()
             },
@@ -584,7 +567,7 @@ async fn handle_create_app_request(
     .await
     .ok();
 
-    return Ok((
+    Ok((
         StatusCode::CREATED,
         Json(AppWithClientSecret {
             id: app.id,
@@ -597,11 +580,12 @@ async fn handle_create_app_request(
             parent_workspace_id: app.parent_workspace_id,
             parent_user_id: app.parent_user_id,
         }),
-    ));
+    ))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/workspaces/{workspace_id}/apps",
             axum::routing::get(handle_list_apps_request),
@@ -625,6 +609,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
-        ));
-    return router;
+        ))
 }

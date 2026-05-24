@@ -460,7 +460,7 @@ impl AccessPolicy {
         // Execute the query and return the count.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Creates a new access policy.
@@ -536,7 +536,7 @@ impl AccessPolicy {
 
         let access_policy = AccessPolicy::convert_from_row(&row);
 
-        return Ok(access_policy);
+        Ok(access_policy)
     }
 
     /// Deletes this access policy.
@@ -548,7 +548,7 @@ impl AccessPolicy {
         let query =
             include_str!("../../queries/access_policies/delete_access_policy_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Gets an access policy by its ID.
@@ -576,11 +576,11 @@ impl AccessPolicy {
 
         let access_policy = AccessPolicy::convert_from_row(&row);
 
-        return Ok(access_policy);
+        Ok(access_policy)
     }
 
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return AccessPolicy {
+        AccessPolicy {
             id: row.get("id"),
             action_id: row.get("action_id"),
             permission_level: row.get("permission_level"),
@@ -628,7 +628,7 @@ impl AccessPolicy {
             scoped_view_field_id: row.get("scoped_view_field_id"),
             scoped_webhook_id: row.get("scoped_webhook_id"),
             scoped_workspace_id: row.get("scoped_workspace_id"),
-        };
+        }
     }
 
     /// Initializes the access policies table.
@@ -661,7 +661,7 @@ impl AccessPolicy {
             .execute(get_scoped_resource_id_from_access_policy_function, &[])
             .await?;
 
-        return Ok(());
+        Ok(())
     }
 
     fn parse_string_slashstepql_parameters<'a>(
@@ -679,7 +679,7 @@ impl AccessPolicy {
                 }
             };
 
-            return Ok(Box::new(uuid));
+            Ok(Box::new(uuid))
         } else {
             match key {
                 "scoped_resource_type" => {
@@ -693,7 +693,7 @@ impl AccessPolicy {
                         }
                     };
 
-                    return Ok(Box::new(scoped_resource_type));
+                    Ok(Box::new(scoped_resource_type))
                 }
 
                 "principal_type" => {
@@ -707,7 +707,7 @@ impl AccessPolicy {
                         }
                     };
 
-                    return Ok(Box::new(principal_type));
+                    Ok(Box::new(principal_type))
                 }
 
                 "permission_level" => {
@@ -721,11 +721,11 @@ impl AccessPolicy {
                         }
                     };
 
-                    return Ok(Box::new(permission_level));
+                    Ok(Box::new(permission_level))
                 }
 
                 _ => {
-                    return Ok(Box::new(value));
+                    Ok(Box::new(value))
                 }
             }
         }
@@ -777,7 +777,7 @@ impl AccessPolicy {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let access_policies = rows.iter().map(AccessPolicy::convert_from_row).collect();
-        return Ok(access_policies);
+        Ok(access_policies)
     }
 
     fn translate_assignment(
@@ -792,9 +792,9 @@ impl AccessPolicy {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this access policy and returns a new instance of the access policy.
@@ -831,11 +831,13 @@ impl AccessPolicy {
         database_client.query("commit;", &[]).await?;
 
         let access_policy = AccessPolicy::convert_from_row(&row);
-        return Ok(access_policy);
+        Ok(access_policy)
     }
 
     pub fn get_scoped_resource_id(&self) -> Option<Uuid> {
-        let scoped_resource_id = match self.scoped_resource_type {
+        
+
+        match self.scoped_resource_type {
             ResourceType::AccessPolicy => self.scoped_access_policy_id,
             ResourceType::Action => self.scoped_action_id,
             ResourceType::ActionLogEntry => self.scoped_action_log_entry_id,
@@ -872,8 +874,6 @@ impl AccessPolicy {
             ResourceType::ViewField => self.scoped_view_field_id,
             ResourceType::Webhook => self.scoped_webhook_id,
             ResourceType::Workspace => self.scoped_workspace_id,
-        };
-
-        return scoped_resource_id;
+        }
     }
 }

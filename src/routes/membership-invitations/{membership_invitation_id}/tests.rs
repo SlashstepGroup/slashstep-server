@@ -12,7 +12,7 @@ use crate::{
         app::App,
         membership_invitation::MembershipInvitation,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+    routes::{GetResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

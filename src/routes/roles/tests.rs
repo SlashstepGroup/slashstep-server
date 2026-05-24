@@ -10,8 +10,7 @@ use crate::{
         configuration::{Configuration, EditableConfigurationProperties},
         role::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Role},
     },
-    routes::{CreateResourceResponseBody, ListResourcesResponseBody, roles::CreateRoleRequestBody},
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+    routes::{ListResourcesResponseBody, roles::CreateRoleRequestBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

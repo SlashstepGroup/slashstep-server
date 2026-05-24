@@ -105,14 +105,14 @@ impl IntoResponse for OAuthTokenErrorResponse {
 
     };
 
-        return (
+        (
             status_code,
             ErasedJson::pretty(OAuthTokenErrorResponse {
                 error_description,
                 ..self
             }),
         )
-            .into_response();
+            .into_response()
     }
 }
 
@@ -145,7 +145,9 @@ impl OAuthTokenErrorResponse {
 
 impl From<OAuthTokenErrorResponse> for HTTPError {
     fn from(error_response: OAuthTokenErrorResponse) -> Self {
-        let http_error = match error_response.error {
+        
+
+        match error_response.error {
             OAuthTokenError::InternalServerError => {
                 HTTPError::InternalServerError(Some(error_response.error_description))
             }
@@ -155,9 +157,7 @@ impl From<OAuthTokenErrorResponse> for HTTPError {
             }
 
             _ => HTTPError::BadRequest(Some(error_response.error_description)),
-        };
-
-        http_error
+        }
     }
 }
 
@@ -168,8 +168,8 @@ pub async fn convert_client_id_string_to_uuid(
 ) -> Result<Uuid, OAuthTokenErrorResponse> {
     ServerLogEntry::trace(
         format!("Converting client ID \"{}\" to UUID...", client_id).as_str(),
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -188,8 +188,8 @@ pub async fn convert_client_id_string_to_uuid(
 
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -197,7 +197,7 @@ pub async fn convert_client_id_string_to_uuid(
         }
     };
 
-    return Ok(client_id);
+    Ok(client_id)
 }
 
 pub async fn decode_authorization_code_jwt_claims(
@@ -208,17 +208,17 @@ pub async fn decode_authorization_code_jwt_claims(
 ) -> Result<jsonwebtoken::TokenData<OAuthAuthorizationClaims>, OAuthTokenErrorResponse> {
     ServerLogEntry::trace(
         "Decoding and verifying authorization code...",
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
 
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
     let decoding_key = match get_decoding_key(
-        &http_transaction_id,
-        &database_pool,
-        &json_web_token_public_key,
+        http_transaction_id,
+        database_pool,
+        json_web_token_public_key,
     )
     .await
     {
@@ -260,8 +260,8 @@ pub async fn decode_authorization_code_jwt_claims(
 
                 ServerLogEntry::from_http_error(
                     &http_error,
-                    Some(&http_transaction_id),
-                    &database_pool,
+                    Some(http_transaction_id),
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -269,7 +269,7 @@ pub async fn decode_authorization_code_jwt_claims(
             }
         };
 
-    return Ok(decoded_claims);
+    Ok(decoded_claims)
 }
 
 pub async fn decode_app_authorization_credential_jwt_claims(
@@ -280,17 +280,17 @@ pub async fn decode_app_authorization_credential_jwt_claims(
 ) -> Result<jsonwebtoken::TokenData<AppAuthorizationCredentialClaims>, OAuthTokenErrorResponse> {
     ServerLogEntry::trace(
         "Decoding and verifying refresh token...",
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
 
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
     let decoding_key = match get_decoding_key(
-        &http_transaction_id,
-        &database_pool,
-        &json_web_token_public_key,
+        http_transaction_id,
+        database_pool,
+        json_web_token_public_key,
     )
     .await
     {
@@ -336,8 +336,8 @@ pub async fn decode_app_authorization_credential_jwt_claims(
 
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -345,7 +345,7 @@ pub async fn decode_app_authorization_credential_jwt_claims(
         }
     };
 
-    return Ok(decoded_claims);
+    Ok(decoded_claims)
 }
 
 pub async fn get_app_by_client_id(
@@ -355,8 +355,8 @@ pub async fn get_app_by_client_id(
 ) -> Result<App, OAuthTokenErrorResponse> {
     ServerLogEntry::trace(
         format!("Getting app for client ID \"{}\"...", client_id).as_str(),
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -388,8 +388,8 @@ pub async fn get_app_by_client_id(
 
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -397,7 +397,7 @@ pub async fn get_app_by_client_id(
         }
     };
 
-    return Ok(app);
+    Ok(app)
 }
 
 pub async fn get_oauth_authorization_by_id(
@@ -407,8 +407,8 @@ pub async fn get_oauth_authorization_by_id(
 ) -> Result<OAuthAuthorization, OAuthTokenErrorResponse> {
     ServerLogEntry::trace(
         format!("Getting OAuth authorization {}...", oauth_authorization_id).as_str(),
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -432,8 +432,8 @@ pub async fn get_oauth_authorization_by_id(
             let http_error = oauth_error_response.clone().into();
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -441,7 +441,7 @@ pub async fn get_oauth_authorization_by_id(
         }
     };
 
-    return Ok(oauth_authorization);
+    Ok(oauth_authorization)
 }
 
 pub async fn convert_oauth_authorization_id_string_to_uuid(
@@ -455,8 +455,8 @@ pub async fn convert_oauth_authorization_id_string_to_uuid(
             oauth_authorization_id
         )
         .as_str(),
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -474,8 +474,8 @@ pub async fn convert_oauth_authorization_id_string_to_uuid(
             let http_error = oauth_error_response.clone().into();
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -483,7 +483,7 @@ pub async fn convert_oauth_authorization_id_string_to_uuid(
         }
     };
 
-    return Ok(oauth_authorization_id);
+    Ok(oauth_authorization_id)
 }
 
 pub async fn verify_client_secret(
@@ -494,8 +494,8 @@ pub async fn verify_client_secret(
 ) -> Result<(), OAuthTokenErrorResponse> {
     ServerLogEntry::trace(
         "Verifying client secret is present...",
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -513,8 +513,8 @@ pub async fn verify_client_secret(
             let http_error = oauth_error_response.clone().into();
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -524,8 +524,8 @@ pub async fn verify_client_secret(
 
     ServerLogEntry::trace(
         "Converting client secret hash string to Argon2 password hash...",
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -542,8 +542,8 @@ pub async fn verify_client_secret(
             let http_error = oauth_error_response.clone().into();
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -551,7 +551,7 @@ pub async fn verify_client_secret(
         }
     };
 
-    let client_secret_hash = match PasswordHash::new(&client_secret_hash_string) {
+    let client_secret_hash = match PasswordHash::new(client_secret_hash_string) {
         Ok(client_secret_hash) => client_secret_hash,
 
         Err(error) => {
@@ -564,8 +564,8 @@ pub async fn verify_client_secret(
             let http_error = oauth_error_response.clone().into();
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -575,8 +575,8 @@ pub async fn verify_client_secret(
 
     ServerLogEntry::trace(
         "Verifying client secret is correct...",
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -599,13 +599,13 @@ pub async fn verify_client_secret(
             ),
         };
         let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool)
+        ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
             .await
             .ok();
         return Err(oauth_error_response);
     }
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn update_oauth_authorization_usage_date(
@@ -618,8 +618,8 @@ pub async fn update_oauth_authorization_usage_date(
             "Updating OAuth authorization {} with a usage date...",
             oauth_authorization.id
         ),
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -629,7 +629,7 @@ pub async fn update_oauth_authorization_usage_date(
             &EditableOAuthAuthorizationProperties {
                 usage_date: Some(Utc::now()),
             },
-            &database_pool,
+            database_pool,
         )
         .await
     {
@@ -640,13 +640,13 @@ pub async fn update_oauth_authorization_usage_date(
             None,
         );
         let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool)
+        ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
             .await
             .ok();
         return Err(oauth_error_response);
     }
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn create_app_authorization(
@@ -657,7 +657,7 @@ pub async fn create_app_authorization(
     ServerLogEntry::trace(
         "Creating app authorization...",
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
@@ -670,7 +670,7 @@ pub async fn create_app_authorization(
             oauth_authorization_id: Some(oauth_authorization.id),
             ..Default::default()
         },
-        &database_pool,
+        database_pool,
     )
     .await
     {
@@ -687,7 +687,7 @@ pub async fn create_app_authorization(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -697,8 +697,8 @@ pub async fn create_app_authorization(
 
     let create_app_authorizations_action = match get_action_by_name(
         "appAuthorizations.create",
-        &http_transaction,
-        &database_pool,
+        http_transaction,
+        database_pool,
     )
     .await
     {
@@ -716,7 +716,7 @@ pub async fn create_app_authorization(
     };
 
     let expiration_timestamp =
-        match get_action_log_entry_expiration_timestamp(&http_transaction, &database_pool).await {
+        match get_action_log_entry_expiration_timestamp(http_transaction, database_pool).await {
             Ok(expiration_timestamp) => expiration_timestamp,
 
             Err(error) => {
@@ -730,7 +730,7 @@ pub async fn create_app_authorization(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -752,12 +752,12 @@ pub async fn create_app_authorization(
             ),
             ..Default::default()
         },
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
 
-    return Ok(app_authorization);
+    Ok(app_authorization)
 }
 
 pub async fn verify_code_verifier(
@@ -770,8 +770,8 @@ pub async fn verify_code_verifier(
 ) -> Result<(), OAuthTokenErrorResponse> {
     ServerLogEntry::trace(
         "Verifying code_verifier...",
-        Some(&http_transaction_id),
-        &database_pool,
+        Some(http_transaction_id),
+        database_pool,
     )
     .await
     .ok();
@@ -784,7 +784,7 @@ pub async fn verify_code_verifier(
             oauth_state,
         );
         let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool)
+        ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
             .await
             .ok();
         return Err(oauth_error_response);
@@ -803,8 +803,8 @@ pub async fn verify_code_verifier(
             let http_error = oauth_error_response.clone().into();
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -814,7 +814,7 @@ pub async fn verify_code_verifier(
 
     let hashed_code_verifier = Sha256::digest(code_verifier.as_bytes());
     let base64_hashed_code_verifier = general_purpose::STANDARD.encode(hashed_code_verifier);
-    if code_challenge != &base64_hashed_code_verifier {
+    if code_challenge != base64_hashed_code_verifier {
         let oauth_error_response = OAuthTokenErrorResponse::new(
             &OAuthTokenError::InvalidGrant,
             "The code verifier is incorrect.",
@@ -822,13 +822,13 @@ pub async fn verify_code_verifier(
             oauth_state,
         );
         let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), &database_pool)
+        ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
             .await
             .ok();
         return Err(oauth_error_response);
     }
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn delete_oauth_authorization(
@@ -857,7 +857,7 @@ pub async fn delete_oauth_authorization(
         return Err(oauth_error_response);
     };
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn create_app_authorization_credential(
@@ -1041,7 +1041,7 @@ pub async fn create_app_authorization_credential(
                 + Duration::milliseconds(refresh_token_maximum_lifetime_milliseconds),
             refreshed_app_authorization_credential_id: None,
         },
-        &database_pool,
+        database_pool,
     )
     .await
     {
@@ -1058,7 +1058,7 @@ pub async fn create_app_authorization_credential(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -1066,7 +1066,7 @@ pub async fn create_app_authorization_credential(
         }
     };
 
-    return Ok(app_authorization_credential);
+    Ok(app_authorization_credential)
 }
 
 pub async fn find_app_authorization_by_oauth_authorization_id(
@@ -1115,7 +1115,7 @@ pub async fn find_app_authorization_by_oauth_authorization_id(
         }
     };
 
-    return Ok(Some(app_authorization));
+    Ok(Some(app_authorization))
 }
 
 pub async fn delete_app_authorization(
@@ -1123,7 +1123,7 @@ pub async fn delete_app_authorization(
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), OAuthTokenErrorResponse> {
-    if let Err(error) = app_authorization.delete(&database_pool).await {
+    if let Err(error) = app_authorization.delete(database_pool).await {
         let oauth_error_response = OAuthTokenErrorResponse::new(
             &OAuthTokenError::InternalServerError,
             &format!("Failed to delete app authorization: {:?}", error),
@@ -1131,7 +1131,7 @@ pub async fn delete_app_authorization(
             None,
         );
         let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool)
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
             .await
             .ok();
         return Err(oauth_error_response);
@@ -1139,8 +1139,8 @@ pub async fn delete_app_authorization(
 
     let delete_app_authorizations_action = match get_action_by_name(
         "appAuthorizations.delete",
-        &http_transaction,
-        &database_pool,
+        http_transaction,
+        database_pool,
     )
     .await
     {
@@ -1158,7 +1158,7 @@ pub async fn delete_app_authorization(
     };
 
     let expiration_timestamp =
-        match get_action_log_entry_expiration_timestamp(&http_transaction, &database_pool).await {
+        match get_action_log_entry_expiration_timestamp(http_transaction, database_pool).await {
             Ok(expiration_timestamp) => expiration_timestamp,
 
             Err(error) => {
@@ -1172,7 +1172,7 @@ pub async fn delete_app_authorization(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -1189,9 +1189,9 @@ pub async fn delete_app_authorization(
     target_app_authorization_id: Some(app_authorization.id),
     reason: Some("OAuth authorization code was reused. Deleting this app authorization in accordance with the OAuth 2.0 specification.".to_string()),
     ..Default::default()
-  }, &database_pool).await.ok();
+  }, database_pool).await.ok();
 
-    return Ok(());
+    Ok(())
 }
 
 /// POST /users/{user_id}/oauth-authorizations
@@ -1369,7 +1369,7 @@ async fn handle_create_oauth_access_token_request(
         if let Some(code_challenge) = &oauth_authorization.code_challenge {
             verify_code_verifier(
                 query_parameters.code_verifier.as_deref(),
-                &code_challenge,
+                code_challenge,
                 oauth_authorization.code_challenge_method.as_deref(),
                 &http_transaction.id,
                 &state.database_pool,
@@ -1809,11 +1809,12 @@ async fn handle_create_oauth_access_token_request(
     .await
     .ok();
 
-    return Ok((StatusCode::CREATED, Json(access_token_response_body)));
+    Ok((StatusCode::CREATED, Json(access_token_response_body)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/oauth-access-tokens",
             axum::routing::post(handle_create_oauth_access_token_request),
@@ -1821,6 +1822,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
-        ));
-    return router;
+        ))
 }

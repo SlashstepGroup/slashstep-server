@@ -106,14 +106,14 @@ pub struct EditableActionProperties {
 
 impl Action {
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Action {
+        Action {
             id: row.get("id"),
             name: row.get("name"),
             display_name: row.get("display_name"),
             description: row.get("description"),
             parent_app_id: row.get("parent_app_id"),
             parent_resource_type: row.get("parent_resource_type"),
-        };
+        }
     }
 
     pub async fn count(
@@ -161,7 +161,7 @@ impl Action {
         // Execute the query and return the count.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Creates a new action.
@@ -198,7 +198,7 @@ impl Action {
         // Return the action.
         let action = Action::convert_from_row(&row);
 
-        return Ok(action);
+        Ok(action)
     }
 
     /// Deletes this action.
@@ -209,7 +209,7 @@ impl Action {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/actions/delete_action_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub async fn get_by_name(
@@ -230,7 +230,7 @@ impl Action {
 
         let action = Action::convert_from_row(&row);
 
-        return Ok(action);
+        Ok(action)
     }
 
     pub async fn get_by_id(
@@ -251,7 +251,7 @@ impl Action {
 
         let action = Action::convert_from_row(&row);
 
-        return Ok(action);
+        Ok(action)
     }
 
     /// Initializes the actions table.
@@ -265,7 +265,7 @@ impl Action {
             .execute(table_initialization_query, &[])
             .await?;
 
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of actions based on a query.
@@ -314,7 +314,7 @@ impl Action {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Action::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn parse_string_slashstepql_parameters<'a>(
@@ -335,7 +335,7 @@ impl Action {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -350,9 +350,9 @@ impl Action {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this action and returns a new instance of the action.
@@ -395,6 +395,6 @@ impl Action {
         database_client.query("COMMIT;", &[]).await?;
 
         let access_policy = Action::convert_from_row(&row);
-        return Ok(access_policy);
+        Ok(access_policy)
     }
 }

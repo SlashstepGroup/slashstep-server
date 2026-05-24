@@ -64,11 +64,11 @@ pub struct PasswordResetAuthorizationClaims {
 
 impl PasswordResetAuthorization {
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return PasswordResetAuthorization {
+        PasswordResetAuthorization {
             id: row.get("id"),
             user_id: row.get("user_id"),
             expiration_date: row.get("expiration_date"),
-        };
+        }
     }
 
     /// Counts the number of password reset tokens based on a query.
@@ -100,8 +100,8 @@ impl PasswordResetAuthorization {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -117,7 +117,7 @@ impl PasswordResetAuthorization {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Creates a password reset token with the specified properties and returns it.
@@ -136,12 +136,12 @@ impl PasswordResetAuthorization {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the password reset token.
         let password_reset_authorization = Self::convert_from_row(&row);
 
-        return Ok(password_reset_authorization);
+        Ok(password_reset_authorization)
     }
 
     /// Deletes the password reset token.
@@ -154,7 +154,7 @@ impl PasswordResetAuthorization {
             "../../queries/password_reset_authorizations/delete_password_reset_authorization_row_by_id.sql"
         );
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Generates a JSON web token for the password reset token.
@@ -168,7 +168,7 @@ impl PasswordResetAuthorization {
         let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
         let token = jsonwebtoken::encode(&header, &claims, &encoding_key)?;
 
-        return Ok(token);
+        Ok(token)
     }
 
     /// Gets a password reset token by its ID.
@@ -197,7 +197,7 @@ impl PasswordResetAuthorization {
 
         let password_reset_authorization = Self::convert_from_row(&row);
 
-        return Ok(password_reset_authorization);
+        Ok(password_reset_authorization)
     }
 
     /// Initializes the password_reset_authorizations table.
@@ -209,7 +209,7 @@ impl PasswordResetAuthorization {
             "../../queries/password_reset_authorizations/initialize_password_reset_authorizations_table.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of password reset tokens based on a query.
@@ -241,8 +241,8 @@ impl PasswordResetAuthorization {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -258,7 +258,7 @@ impl PasswordResetAuthorization {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -280,7 +280,7 @@ impl PasswordResetAuthorization {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -295,8 +295,8 @@ impl PasswordResetAuthorization {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 }

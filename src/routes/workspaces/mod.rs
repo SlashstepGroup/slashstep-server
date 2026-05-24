@@ -144,7 +144,7 @@ async fn handle_list_workspaces_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting workspaces..."),
+        "Counting workspaces...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -182,23 +182,15 @@ async fn handle_list_workspaces_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Server,
             ..Default::default()
         },
@@ -229,7 +221,7 @@ async fn handle_list_workspaces_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -368,16 +360,8 @@ async fn handle_create_workspace_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Workspace,
             target_workspace_id: Some(workspace.id),
             ..Default::default()
@@ -570,24 +554,24 @@ async fn handle_create_workspace_request(
         if let Err(error) = AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 principal_type: AccessPolicyPrincipalType::Role,
-                principal_role_id: Some(workspace_admins_role.id.clone()),
+                principal_role_id: Some(workspace_admins_role.id),
                 scoped_resource_type: if principal_type == AccessPolicyPrincipalType::User {
                     ResourceType::User
                 } else {
                     ResourceType::App
                 },
                 scoped_user_id: if principal_type == AccessPolicyPrincipalType::User {
-                    Some(principal_id.clone())
+                    Some(principal_id)
                 } else {
                     None
                 },
                 scoped_app_id: if principal_type == AccessPolicyPrincipalType::App {
-                    Some(principal_id.clone())
+                    Some(principal_id)
                 } else {
                     None
                 },
                 is_inheritance_enabled: true,
-                action_id: action.id.clone(),
+                action_id: action.id,
                 permission_level: PermissionLevel::Admin,
                 ..Default::default()
             },
@@ -627,12 +611,12 @@ async fn handle_create_workspace_request(
             parent_group_id: None,
             parent_role_id: Some(workspace_admins_role.id),
             principal_user_id: if principal_type == AccessPolicyPrincipalType::User {
-                Some(principal_id.clone())
+                Some(principal_id)
             } else {
                 None
             },
             principal_app_id: if principal_type == AccessPolicyPrincipalType::App {
-                Some(principal_id.clone())
+                Some(principal_id)
             } else {
                 None
             },
@@ -669,11 +653,12 @@ async fn handle_create_workspace_request(
     .await
     .ok();
 
-    return Ok((StatusCode::CREATED, Json(workspace)));
+    Ok((StatusCode::CREATED, Json(workspace)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/workspaces",
             axum::routing::get(handle_list_workspaces_request),
@@ -698,6 +683,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
-        .merge(workspace_id::get_router(state.clone()));
-    return router;
+        .merge(workspace_id::get_router(state.clone()))
 }

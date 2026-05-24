@@ -12,7 +12,6 @@ use crate::{
         CreateAccessTokenResponseBody, CreateOAuthAccessTokenQueryParameters, OAuthTokenError,
         OAuthTokenErrorResponse,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use argon2::{

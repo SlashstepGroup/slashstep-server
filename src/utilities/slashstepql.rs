@@ -138,12 +138,12 @@ pub fn translate_normal_assignment(
         ));
     }
 
-    let assignment_translation_result = SlashstepQLAssignmentTranslationResult {
+    
+
+    SlashstepQLAssignmentTranslationResult {
         where_clause: assignment_properties.where_clause,
         parameters: assignment_properties.parameters,
-    };
-
-    return assignment_translation_result;
+    }
 }
 
 impl SlashstepQLFilterSanitizer {
@@ -157,7 +157,7 @@ impl SlashstepQLFilterSanitizer {
         let mut limit = options.default_limit;
         let mut open_parenthesis_count = 0;
 
-        while raw_filter.len() > 0 {
+        while !raw_filter.is_empty() {
             // Remove unnecessary whitespace.
             raw_filter = raw_filter.trim().to_string();
 
@@ -169,7 +169,7 @@ impl SlashstepQLFilterSanitizer {
 
             if let Some(regex_captures) = regex_captures {
                 if regex_captures.name("openParenthesis").is_some() {
-                    where_clause.push_str("(");
+                    where_clause.push('(');
 
                     open_parenthesis_count += 1;
                 } else if regex_captures.name("closedParenthesis").is_some() {
@@ -181,7 +181,7 @@ impl SlashstepQLFilterSanitizer {
 
                     open_parenthesis_count -= 1;
 
-                    where_clause.push_str(")");
+                    where_clause.push(')');
                 } else if regex_captures.name("and").is_some() {
                     where_clause.push_str(" AND ");
                 } else if regex_captures.name("or").is_some() {
@@ -191,23 +191,20 @@ impl SlashstepQLFilterSanitizer {
                 } else if regex_captures.name("assignment").is_some() {
                     // Ensure the key is a valid identifier. Very important to prevent SQL injection.
                     if let Some(original_key) = regex_captures
-                        .name("key")
-                        .and_then(|string_match| Some(string_match.as_str().to_string()))
+                        .name("key").map(|string_match| string_match.as_str().to_string())
                     {
                         let string_value = regex_captures
                             .name("stringDoubleQuotes")
-                            .or(regex_captures.name("stringSingleQuotes"))
-                            .and_then(|string_match| Some(string_match.as_str().to_string()));
+                            .or(regex_captures.name("stringSingleQuotes")).map(|string_match| string_match.as_str().to_string());
                         let number_value = regex_captures.name("number").and_then(|string_match| {
-                            Some(string_match.as_str().parse::<Decimal>().ok()?)
+                            string_match.as_str().parse::<Decimal>().ok()
                         });
                         let boolean_value =
                             regex_captures.name("boolean").and_then(|string_match| {
-                                Some(string_match.as_str().parse::<bool>().ok()?)
+                                string_match.as_str().parse::<bool>().ok()
                             });
                         let operator = match regex_captures
-                            .name("operator")
-                            .and_then(|string_match| Some(string_match.as_str().to_string()))
+                            .name("operator").map(|string_match| string_match.as_str().to_string())
                         {
                             Some(operator) => operator,
 
@@ -217,7 +214,7 @@ impl SlashstepQLFilterSanitizer {
 
                         let assignment_properties = SlashstepQLAssignmentProperties {
                             key: original_key.to_string(),
-                            operator: operator,
+                            operator,
                             string_value,
                             number_value,
                             boolean_value,
@@ -281,16 +278,16 @@ impl SlashstepQLFilterSanitizer {
             }
         }
 
-        return Ok(SlashstepQLSanitizedFilter {
+        Ok(SlashstepQLSanitizedFilter {
             parameters,
-            where_clause: if where_clause.len() > 0 {
+            where_clause: if !where_clause.is_empty() {
                 Some(where_clause)
             } else {
                 None
             },
             limit,
             offset,
-        });
+        })
     }
 
     pub fn build_query_from_sanitized_filter(
@@ -323,7 +320,7 @@ impl SlashstepQLFilterSanitizer {
                     quote_literal(&get_resource_action_id.to_string())
                 );
 
-                if where_clause == "" {
+                if where_clause.is_empty() {
                     additional_condition
                 } else {
                     format!("({}) AND {}", where_clause, additional_condition)
@@ -332,18 +329,16 @@ impl SlashstepQLFilterSanitizer {
 
             None => where_clause,
         };
-        let where_clause = if where_clause == "" {
+        let where_clause = if where_clause.is_empty() {
             where_clause
         } else {
             format!(" WHERE {}", where_clause)
         };
         let limit_clause = sanitized_filter
-            .limit
-            .and_then(|limit| Some(format!(" LIMIT {}", limit)))
+            .limit.map(|limit| format!(" LIMIT {}", limit))
             .unwrap_or("".to_string());
         let offset_clause = sanitized_filter
-            .offset
-            .and_then(|offset| Some(format!(" OFFSET {}", offset)))
+            .offset.map(|offset| format!(" OFFSET {}", offset))
             .unwrap_or("".to_string());
         let query = format!(
             "SELECT {} FROM {}{}{}{}",
@@ -354,7 +349,7 @@ impl SlashstepQLFilterSanitizer {
             offset_clause
         );
 
-        return Ok(query);
+        Ok(query)
     }
 }
 
@@ -364,12 +359,12 @@ pub fn add_parameter_to_query<T: ToSql + Sync + Clone + Send + 'static>(
     key: &str,
     parameter_value: Option<&T>,
 ) -> (Vec<Box<dyn ToSql + Sync + Send>>, String) {
-    let parameter_value = parameter_value.and_then(|parameter_value| Some(parameter_value.clone()));
+    let parameter_value = parameter_value.cloned();
     if let Some(parameter_value) = parameter_value {
         query.push_str(
             format!(
                 "{}{} = ${}",
-                if parameter_boxes.len() > 0 { ", " } else { "" },
+                if !parameter_boxes.is_empty() { ", " } else { "" },
                 key,
                 parameter_boxes.len() + 1
             )
@@ -378,7 +373,7 @@ pub fn add_parameter_to_query<T: ToSql + Sync + Clone + Send + 'static>(
         parameter_boxes.push(Box::new(parameter_value));
     }
 
-    return (parameter_boxes, query);
+    (parameter_boxes, query)
 }
 
 pub fn parse_parameters<'a>(
@@ -412,5 +407,5 @@ pub fn parse_parameters<'a>(
         }
     }
 
-    return Ok(parsed_parameters);
+    Ok(parsed_parameters)
 }

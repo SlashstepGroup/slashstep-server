@@ -149,7 +149,7 @@ async fn handle_create_session_request(
     }
 
     // Make sure the user can create sessions on themself.
-    let (principal_type, principal_id) = (AccessPolicyPrincipalType::User, target_user.id.clone());
+    let (principal_type, principal_id) = (AccessPolicyPrincipalType::User, target_user.id);
     verify_principal_permissions(
         &principal_type,
         &principal_id,
@@ -209,7 +209,7 @@ async fn handle_create_session_request(
             user_id: target_user.id,
             expiration_date: Utc::now()
                 + chrono::Duration::milliseconds(maximum_refresh_token_lifetime_milliseconds),
-            creation_ip_address: http_transaction.ip_address.clone(),
+            creation_ip_address: http_transaction.ip_address,
         },
         &state.database_pool,
     )
@@ -341,16 +341,8 @@ async fn handle_create_session_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Session,
             target_session_id: Some(created_session.id),
             ..Default::default()
@@ -371,7 +363,7 @@ async fn handle_create_session_request(
         data: created_session.clone(),
     };
 
-    return Ok((StatusCode::CREATED, cookie_jar, Json(response_body)));
+    Ok((StatusCode::CREATED, cookie_jar, Json(response_body)))
 }
 
 /// GET /sessions
@@ -462,7 +454,7 @@ async fn handle_list_sessions_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting sessions..."),
+        "Counting sessions...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -500,23 +492,15 @@ async fn handle_list_sessions_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Server,
             ..Default::default()
         },
@@ -547,11 +531,12 @@ async fn handle_list_sessions_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/sessions",
             axum::routing::get(handle_list_sessions_request),
@@ -576,6 +561,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
-        .merge(session_id::get_router(state.clone()));
-    return router;
+        .merge(session_id::get_router(state.clone()))
 }

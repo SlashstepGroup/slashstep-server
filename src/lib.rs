@@ -146,7 +146,7 @@ pub async fn initialize_required_tables(
 
     println!("{}", "Successfully initialized all tables.".blue());
 
-    return Ok(());
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -321,13 +321,13 @@ impl IntoResponse for HTTPError {
             ),
         };
 
-        return (
+        (
             status_code,
             ErasedJson::pretty(HTTPErrorBody {
                 message: error_message,
             }),
         )
-            .into_response();
+            .into_response()
     }
 }
 
@@ -341,20 +341,20 @@ pub async fn get_json_web_token_public_key() -> Result<String, ResourceError> {
     let jwt_public_key_path = std::env::var("JWT_PUBLIC_KEY_PATH")?;
     let jwt_public_key = std::fs::read_to_string(&jwt_public_key_path)?;
 
-    return Ok(jwt_public_key);
+    Ok(jwt_public_key)
 }
 
 pub async fn get_json_web_token_private_key() -> Result<String, ResourceError> {
     let jwt_private_key_path = std::env::var("JWT_PRIVATE_KEY_PATH")?;
     let jwt_private_key = std::fs::read_to_string(&jwt_private_key_path)?;
 
-    return Ok(jwt_private_key);
+    Ok(jwt_private_key)
 }
 
 pub fn handle_pool_error(error: deadpool_postgres::PoolError) -> Response<Body> {
     eprintln!("{}", format!("Failed to get database connection, so the log cannot be saved. Printing to the console: {}", error).red());
     let http_error = HTTPError::InternalServerError(Some(error.to_string()));
-    return http_error.into_response();
+    http_error.into_response()
 }
 
 pub fn get_environment_variable(variable_name: &str) -> Result<String, SlashstepServerError> {
@@ -369,7 +369,7 @@ pub fn get_environment_variable(variable_name: &str) -> Result<String, Slashstep
         }
     };
 
-    return Ok(variable_value);
+    Ok(variable_value)
 }
 
 pub fn import_env_file() {
@@ -399,9 +399,8 @@ pub async fn setup_admin_user_if_necessary(
     let mut slashstep_admin_password =
         match get_environment_variable("SLASHSTEP_ADMIN_PASSWORD_FILE_PATH") {
             Ok(slashstep_admin_password_file_path) => {
-                let slashstep_admin_password =
-                    std::fs::read_to_string(&slashstep_admin_password_file_path)?;
-                slashstep_admin_password
+                
+                std::fs::read_to_string(&slashstep_admin_password_file_path)?
             }
 
             Err(error) => match error {
@@ -542,5 +541,5 @@ pub async fn setup_admin_user_if_necessary(
         break;
     }
 
-    return Ok(());
+    Ok(())
 }

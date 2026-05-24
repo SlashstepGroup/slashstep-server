@@ -12,7 +12,6 @@ use crate::{
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
     },
     routes::ListResourcesResponseBody,
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

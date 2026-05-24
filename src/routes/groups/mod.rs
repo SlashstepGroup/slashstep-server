@@ -145,7 +145,7 @@ async fn handle_list_groups_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting groups..."),
+        "Counting groups...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -183,23 +183,15 @@ async fn handle_list_groups_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Server,
             ..Default::default()
         },
@@ -230,7 +222,7 @@ async fn handle_list_groups_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 async fn create_role(
@@ -240,7 +232,7 @@ async fn create_role(
 ) -> Result<Role, HTTPError> {
     ServerLogEntry::trace(
         &format!("Creating role \"{}\"...", initial_role_properties.name),
-        Some(&http_transaction_id),
+        Some(http_transaction_id),
         database_pool,
     )
     .await
@@ -266,7 +258,7 @@ async fn create_membership(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Membership, HTTPError> {
     ServerLogEntry::trace(
-        &format!("Creating membership for principal..."),
+        "Creating membership for principal...",
         Some(http_transaction_id),
         database_pool,
     )
@@ -318,7 +310,7 @@ async fn create_default_child_resources(
             ..Default::default()
         },
         &http_transaction.id,
-        &database_pool,
+        database_pool,
     )
     .await?;
     let group_admin_action_names = vec![
@@ -350,7 +342,7 @@ async fn create_default_child_resources(
 
     for group_admin_action_name in group_admin_action_names {
         let group_admin_action =
-            get_action_by_name(group_admin_action_name, &http_transaction, &database_pool).await?;
+            get_action_by_name(group_admin_action_name, http_transaction, database_pool).await?;
         match AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 action_id: group_admin_action.id,
@@ -362,7 +354,7 @@ async fn create_default_child_resources(
                 scoped_group_id: Some(group.id),
                 ..Default::default()
             },
-            &database_pool,
+            database_pool,
         )
         .await
         {
@@ -376,7 +368,7 @@ async fn create_default_child_resources(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -395,26 +387,26 @@ async fn create_default_child_resources(
                 MembershipPrincipalType::App
             },
             principal_user_id: if let AccessPolicyPrincipalType::User = principal_type {
-                Some(principal_id.clone())
+                Some(*principal_id)
             } else {
                 None
             },
             principal_app_id: if let AccessPolicyPrincipalType::App = principal_type {
-                Some(principal_id.clone())
+                Some(*principal_id)
             } else {
                 None
             },
             ..Default::default()
         },
         &http_transaction.id,
-        &database_pool,
+        database_pool,
     )
     .await?;
 
     ServerLogEntry::info(
         "Successfully created group admins role and added the authenticated principal to it.",
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
@@ -432,7 +424,7 @@ async fn create_default_child_resources(
             ..Default::default()
         },
         &http_transaction.id,
-        &database_pool,
+        database_pool,
     )
     .await?;
     let group_member_action_names = vec![
@@ -451,7 +443,7 @@ async fn create_default_child_resources(
 
     for group_member_action_name in group_member_action_names {
         let group_member_action =
-            get_action_by_name(group_member_action_name, &http_transaction, &database_pool).await?;
+            get_action_by_name(group_member_action_name, http_transaction, database_pool).await?;
         match AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 action_id: group_member_action.id,
@@ -463,7 +455,7 @@ async fn create_default_child_resources(
                 scoped_group_id: Some(group.id),
                 ..Default::default()
             },
-            &database_pool,
+            database_pool,
         )
         .await
         {
@@ -477,7 +469,7 @@ async fn create_default_child_resources(
                 ServerLogEntry::from_http_error(
                     &http_error,
                     Some(&http_transaction.id),
-                    &database_pool,
+                    database_pool,
                 )
                 .await
                 .ok();
@@ -496,31 +488,31 @@ async fn create_default_child_resources(
                 MembershipPrincipalType::App
             },
             principal_user_id: if let AccessPolicyPrincipalType::User = principal_type {
-                Some(principal_id.clone())
+                Some(*principal_id)
             } else {
                 None
             },
             principal_app_id: if let AccessPolicyPrincipalType::App = principal_type {
-                Some(principal_id.clone())
+                Some(*principal_id)
             } else {
                 None
             },
             ..Default::default()
         },
         &http_transaction.id,
-        &database_pool,
+        database_pool,
     )
     .await?;
 
     ServerLogEntry::info(
         "Successfully created group members role and added the authenticated principal to it.",
         Some(&http_transaction.id),
-        &database_pool,
+        database_pool,
     )
     .await
     .ok();
 
-    return Ok(());
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -667,16 +659,8 @@ async fn handle_create_group_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Group,
             target_group_id: Some(group.id),
             ..Default::default()
@@ -745,11 +729,12 @@ async fn handle_create_group_request(
     .await
     .ok();
 
-    return Ok((StatusCode::CREATED, Json(group)));
+    Ok((StatusCode::CREATED, Json(group)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route("/groups", axum::routing::get(handle_list_groups_request))
         .route("/groups", axum::routing::post(handle_create_group_request))
         .layer(axum::middleware::from_fn_with_state(
@@ -768,6 +753,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
-        .merge(group_id::get_router(state.clone()));
-    return router;
+        .merge(group_id::get_router(state.clone()))
 }

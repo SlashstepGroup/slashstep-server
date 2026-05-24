@@ -1,17 +1,3 @@
-use crate::{
-    Action, AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{ResourceError, access_policy::PermissionLevel, membership::Membership},
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
-    tests::{TestEnvironment, TestSlashstepServerError},
-};
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use ntest::timeout;
-use reqwest::StatusCode;
 /**
  *
  * Any test cases for /memberships/{membership_id} should be handled here.
@@ -22,6 +8,21 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+
+use crate::{
+    Action, AppState, get_json_web_token_private_key, initialize_required_tables,
+    predefinitions::{
+        initialize_predefined_actions, initialize_predefined_configurations,
+        initialize_predefined_groups, initialize_predefined_roles,
+    },
+    resources::{ResourceError, access_policy::PermissionLevel, membership::Membership},
+    routes::{GetResourceResponseBody},
+    tests::{TestEnvironment, TestSlashstepServerError},
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use ntest::timeout;
+use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 

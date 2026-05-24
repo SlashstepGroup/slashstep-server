@@ -107,12 +107,12 @@ pub struct InitialServerLogEntryProperties {
 impl ServerLogEntry {
     /// Converts a row into a server log entry.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Self {
+        Self {
             id: row.get("id"),
             message: row.get("message"),
             http_transaction_id: row.get("http_transaction_id"),
             level: row.get("level"),
-        };
+        }
     }
 
     /// Counts the number of items based on a query.
@@ -144,8 +144,8 @@ impl ServerLogEntry {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -161,7 +161,7 @@ impl ServerLogEntry {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     pub async fn critical(
@@ -177,7 +177,7 @@ impl ServerLogEntry {
         };
         let server_log_entry_result = ServerLogEntry::create(&properties, database_pool).await?;
         server_log_entry_result.print_to_console();
-        return Ok(server_log_entry_result);
+        Ok(server_log_entry_result)
     }
 
     pub async fn trace(
@@ -193,7 +193,7 @@ impl ServerLogEntry {
         };
         let server_log_entry_result = ServerLogEntry::create(&properties, database_pool).await?;
         server_log_entry_result.print_to_console();
-        return Ok(server_log_entry_result);
+        Ok(server_log_entry_result)
     }
 
     pub async fn info(
@@ -209,7 +209,7 @@ impl ServerLogEntry {
         };
         let server_log_entry_result = ServerLogEntry::create(&properties, database_pool).await?;
         server_log_entry_result.print_to_console();
-        return Ok(server_log_entry_result);
+        Ok(server_log_entry_result)
     }
 
     pub async fn warning(
@@ -225,7 +225,7 @@ impl ServerLogEntry {
         };
         let server_log_entry_result = ServerLogEntry::create(&properties, database_pool).await?;
         server_log_entry_result.print_to_console();
-        return Ok(server_log_entry_result);
+        Ok(server_log_entry_result)
     }
 
     pub async fn error(
@@ -241,7 +241,7 @@ impl ServerLogEntry {
         };
         let server_log_entry_result = ServerLogEntry::create(&properties, database_pool).await?;
         server_log_entry_result.print_to_console();
-        return Ok(server_log_entry_result);
+        Ok(server_log_entry_result)
     }
 
     pub async fn success(
@@ -257,7 +257,7 @@ impl ServerLogEntry {
         };
         let server_log_entry_result = ServerLogEntry::create(&properties, database_pool).await?;
         server_log_entry_result.print_to_console();
-        return Ok(server_log_entry_result);
+        Ok(server_log_entry_result)
     }
 
     pub async fn from_http_error(
@@ -277,7 +277,7 @@ impl ServerLogEntry {
         };
         let server_log_entry = ServerLogEntry::create(&properties, database_pool).await?;
         server_log_entry.print_to_console();
-        return Ok(server_log_entry);
+        Ok(server_log_entry)
     }
 
     pub async fn initialize_resource_table(
@@ -288,7 +288,7 @@ impl ServerLogEntry {
             "../../queries/server_log_entries/initialize_server_log_entries_table.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -307,12 +307,12 @@ impl ServerLogEntry {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the role.
         let role = Self::convert_from_row(&row);
 
-        return Ok(role);
+        Ok(role)
     }
 
     pub async fn delete(
@@ -323,7 +323,7 @@ impl ServerLogEntry {
         let query =
             include_str!("../../queries/server_log_entries/delete_server_log_entry_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Gets a server log entry by its ID.
@@ -351,7 +351,7 @@ impl ServerLogEntry {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     pub fn get_formatted_message(&self) -> String {
@@ -362,15 +362,15 @@ impl ServerLogEntry {
             None => String::new(),
         };
         let formatted_message = format!("{} {}{}", level_prefix, request_id_prefix, self.message);
-        let formatted_message = match &self.level {
+        
+        match &self.level {
             ServerLogEntryLevel::Success => format!("{}", formatted_message.green()),
             ServerLogEntryLevel::Critical => format!("{}", formatted_message.on_red()),
             ServerLogEntryLevel::Error => format!("{}", formatted_message.red()),
             ServerLogEntryLevel::Warning => format!("{}", formatted_message.yellow()),
             ServerLogEntryLevel::Info => format!("{}", formatted_message.blue()),
             ServerLogEntryLevel::Trace => format!("{}", formatted_message.dimmed()),
-        };
-        return formatted_message;
+        }
     }
 
     /// Returns a list of server log entries based on a query.
@@ -402,8 +402,8 @@ impl ServerLogEntry {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -419,7 +419,7 @@ impl ServerLogEntry {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn parse_string_slashstepql_parameters<'a>(
@@ -437,7 +437,7 @@ impl ServerLogEntry {
                 }
             };
 
-            return Ok(Box::new(uuid));
+            Ok(Box::new(uuid))
         } else {
             match key {
                 "level" => {
@@ -451,11 +451,11 @@ impl ServerLogEntry {
                         }
                     };
 
-                    return Ok(Box::new(permission_level));
+                    Ok(Box::new(permission_level))
                 }
 
                 _ => {
-                    return Ok(Box::new(value));
+                    Ok(Box::new(value))
                 }
             }
         }
@@ -485,8 +485,8 @@ impl ServerLogEntry {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 }

@@ -65,7 +65,7 @@ pub async fn create_regex(
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
-                &database_pool,
+                database_pool,
             )
             .await
             .ok();
@@ -73,7 +73,7 @@ pub async fn create_regex(
         }
     };
 
-    return Ok(regex);
+    Ok(regex)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -113,13 +113,9 @@ async fn handle_create_oauth_authorization_request(
                     HTTPError::BadRequest(Some(error.to_string()))
                 }
 
-                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some(format!(
-                    "Failed to parse request body. Ensure the request body is valid JSON."
-                ))),
+                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some("Failed to parse request body. Ensure the request body is valid JSON.".to_string())),
 
-                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some(format!(
-                    "Missing request body content type. It should be \"application/json\"."
-                ))),
+                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some("Missing request body content type. It should be \"application/json\".".to_string())),
 
                 JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(
                     format!("Failed to parse request body: {:?}", error),
@@ -341,7 +337,7 @@ async fn handle_create_oauth_authorization_request(
     let created_oauth_authorization = match OAuthAuthorization::create(
         &InitialOAuthAuthorizationProperties {
             app_id: target_app.id,
-            authorizing_user_id: target_user.id.clone(),
+            authorizing_user_id: target_user.id,
             code_challenge: initial_oauth_authorization_properties_json
                 .code_challenge
                 .clone(),
@@ -418,16 +414,8 @@ async fn handle_create_oauth_authorization_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::App,
             target_app_id: Some(target_app.id),
             ..Default::default()
@@ -447,16 +435,8 @@ async fn handle_create_oauth_authorization_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::OAuthAuthorization,
             target_oauth_authorization_id: Some(created_oauth_authorization.id),
             ..Default::default()
@@ -480,11 +460,12 @@ async fn handle_create_oauth_authorization_request(
         oauth_authorization: created_oauth_authorization,
         code: authorization_code,
     };
-    return Ok((StatusCode::CREATED, Json(response_body)));
+    Ok((StatusCode::CREATED, Json(response_body)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/users/{user_id}/oauth-authorizations",
             axum::routing::post(handle_create_oauth_authorization_request),
@@ -504,6 +485,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
-        ));
-    return router;
+        ))
 }

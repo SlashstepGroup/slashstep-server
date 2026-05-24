@@ -145,8 +145,8 @@ impl User {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -162,7 +162,7 @@ impl User {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Creates a new user.
@@ -213,7 +213,7 @@ impl User {
             ip_address: row.get("ip_address"),
         };
 
-        return Ok(user);
+        Ok(user)
     }
 
     pub async fn delete(
@@ -223,18 +223,18 @@ impl User {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/users/delete_user_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub fn convert_from_row(row: &postgres::Row) -> Self {
-        return User {
+        User {
             id: row.get("id"),
             username: row.get("username"),
             display_name: row.get("display_name"),
             hashed_password: row.get("hashed_password"),
             is_anonymous: row.get("is_anonymous"),
             ip_address: row.get("ip_address"),
-        };
+        }
     }
 
     pub async fn get_by_id(
@@ -273,7 +273,7 @@ impl User {
 
         let user = User::convert_from_row(&row);
 
-        return Ok(user);
+        Ok(user)
     }
 
     pub async fn get_by_ip_address(
@@ -312,7 +312,7 @@ impl User {
 
         let user = User::convert_from_row(&row);
 
-        return Ok(user);
+        Ok(user)
     }
 
     pub async fn get_by_username(
@@ -351,7 +351,7 @@ impl User {
 
         let user = User::convert_from_row(&row);
 
-        return Ok(user);
+        Ok(user)
     }
 
     pub fn get_hashed_password(&self) -> &str {
@@ -359,7 +359,7 @@ impl User {
             .hashed_password
             .as_ref()
             .expect("User does not have a hashed password.");
-        return &hashed_password;
+        hashed_password
     }
 
     pub fn hash_password(plain_text_password: &str) -> Result<String, ResourceError> {
@@ -370,7 +370,7 @@ impl User {
             Err(error) => return Err(ResourceError::Argon2PasswordHashError(error)),
         };
 
-        return Ok(hashed_password);
+        Ok(hashed_password)
     }
 
     /// Initializes the users table.
@@ -380,7 +380,7 @@ impl User {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/users/initialize_users_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of users based on a query.
@@ -412,8 +412,8 @@ impl User {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -429,7 +429,7 @@ impl User {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let users = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(users);
+        Ok(users)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -451,7 +451,7 @@ impl User {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -466,9 +466,9 @@ impl User {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this user and returns a new instance of the user.
@@ -512,7 +512,7 @@ impl User {
         database_client.query("COMMIT;", &[]).await?;
 
         let status = Self::convert_from_row(&row);
-        return Ok(status);
+        Ok(status)
     }
 
     pub fn verify_password(&self, plain_text_password: &str) -> Result<(), ResourceError> {
@@ -522,8 +522,8 @@ impl User {
             Err(error) => return Err(ResourceError::Argon2PasswordHashError(error)),
         };
         let argon2 = Argon2::default();
-        return argon2
+        argon2
             .verify_password(plain_text_password.as_bytes(), &parsed_hashed_password)
-            .map_err(|error| ResourceError::Argon2PasswordHashError(error));
+            .map_err(ResourceError::Argon2PasswordHashError)
     }
 }

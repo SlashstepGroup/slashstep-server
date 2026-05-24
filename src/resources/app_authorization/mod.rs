@@ -130,8 +130,8 @@ impl AppAuthorization {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -147,7 +147,7 @@ impl AppAuthorization {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     pub async fn delete(
@@ -158,7 +158,7 @@ impl AppAuthorization {
         let query =
             include_str!("../../queries/app_authorizations/delete_app_authorization_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub async fn get_by_id(
@@ -185,7 +185,7 @@ impl AppAuthorization {
 
         let app_authorization = Self::convert_from_row(&row);
 
-        return Ok(app_authorization);
+        Ok(app_authorization)
     }
 
     pub async fn get_by_oauth_authorization_id(
@@ -216,11 +216,11 @@ impl AppAuthorization {
 
         let app_authorization = Self::convert_from_row(&row);
 
-        return Ok(app_authorization);
+        Ok(app_authorization)
     }
 
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return AppAuthorization {
+        AppAuthorization {
             id: row.get("id"),
             app_id: row.get("app_id"),
             authorizing_resource_type: row.get("authorizing_resource_type"),
@@ -228,7 +228,7 @@ impl AppAuthorization {
             authorizing_workspace_id: row.get("authorizing_workspace_id"),
             authorizing_user_id: row.get("authorizing_user_id"),
             oauth_authorization_id: row.get("oauth_authorization_id"),
-        };
+        }
     }
 
     /// Initializes the app_authorizations table.
@@ -240,7 +240,7 @@ impl AppAuthorization {
             "../../queries/app_authorizations/initialize_app_authorizations_table.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub async fn create(
@@ -261,12 +261,12 @@ impl AppAuthorization {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -288,7 +288,7 @@ impl AppAuthorization {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -303,9 +303,9 @@ impl AppAuthorization {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Returns a list of app authorizations based on a query.
@@ -337,8 +337,8 @@ impl AppAuthorization {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -354,6 +354,6 @@ impl AppAuthorization {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 }

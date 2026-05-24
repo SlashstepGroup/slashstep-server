@@ -10,7 +10,6 @@ use crate::{
         action::Action,
         view::ViewParentResourceType,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

@@ -5,7 +5,7 @@ use crate::{
         initialize_predefined_groups, initialize_predefined_roles,
     },
     resources::{ResourceError, access_policy::PermissionLevel, http_transaction::HTTPTransaction},
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+    routes::{GetResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

@@ -60,7 +60,7 @@ pub async fn verify_absolute_maximum_rate_limits(
             "PerRegisteredUser"
         };
         let rate_limit_configuration_name = format!("{base_name}{per_principal_str}{interval}");
-        return Ok(rate_limit_configuration_name);
+        Ok(rate_limit_configuration_name)
     }
 
     let intervals = [Interval::PerSecond, Interval::PerMinute];
@@ -241,5 +241,5 @@ pub async fn verify_absolute_maximum_rate_limits(
     .ok();
 
     let response = next.run(request).await;
-    return Ok(response);
+    Ok(response)
 }

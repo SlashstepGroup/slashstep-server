@@ -9,7 +9,6 @@ use crate::{
             ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
         },
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

@@ -163,8 +163,8 @@ impl ItemConnectionType {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -180,7 +180,7 @@ impl ItemConnectionType {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -209,12 +209,12 @@ impl ItemConnectionType {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return ItemConnectionType {
+        ItemConnectionType {
             id: row.get("id"),
             display_name: row.get("display_name"),
             inward_description: row.get("inward_description"),
@@ -222,7 +222,7 @@ impl ItemConnectionType {
             parent_resource_type: row.get("parent_resource_type"),
             parent_project_id: row.get("parent_project_id"),
             parent_workspace_id: row.get("parent_workspace_id"),
-        };
+        }
     }
 
     /// Initializes the item_connection_types table.
@@ -234,7 +234,7 @@ impl ItemConnectionType {
             "../../queries/item_connection_types/initialize_item_connection_types_table.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -256,12 +256,12 @@ impl ItemConnectionType {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this item connection type.
@@ -274,7 +274,7 @@ impl ItemConnectionType {
             "../../queries/item_connection_types/delete_item_connection_type_row_by_id.sql"
         );
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -309,11 +309,11 @@ impl ItemConnectionType {
                         }
                     };
 
-                return Ok(Box::new(scoped_resource_type));
+                Ok(Box::new(scoped_resource_type))
             }
 
-            _ => return Ok(Box::new(value)),
-        };
+            _ => Ok(Box::new(value)),
+        }
     }
 
     /// Returns a list of item_connection_types based on a query.
@@ -345,8 +345,8 @@ impl ItemConnectionType {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -362,7 +362,7 @@ impl ItemConnectionType {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn translate_assignment(
@@ -377,9 +377,9 @@ impl ItemConnectionType {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this item and returns a new instance of the item.
@@ -423,6 +423,6 @@ impl ItemConnectionType {
         database_client.query("COMMIT;", &[]).await?;
 
         let item_connection_type = Self::convert_from_row(&row);
-        return Ok(item_connection_type);
+        Ok(item_connection_type)
     }
 }

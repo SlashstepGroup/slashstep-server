@@ -12,7 +12,6 @@ use crate::{
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
         webhook::WebhookParentResourceType,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

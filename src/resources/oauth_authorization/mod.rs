@@ -142,12 +142,12 @@ impl OAuthAuthorization {
             "../../queries/oauth_authorizations/initialize_oauth_authorizations_table.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Converts a row from the database into an OAuth authorization.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return OAuthAuthorization {
+        OAuthAuthorization {
             id: row.get("id"),
             app_id: row.get("app_id"),
             authorizing_user_id: row.get("authorizing_user_id"),
@@ -157,7 +157,7 @@ impl OAuthAuthorization {
             scope: row.get("scope"),
             usage_date: row.get("usage_date"),
             state: row.get("state"),
-        };
+        }
     }
 
     /// Counts the number of delegation policies based on a query.
@@ -189,8 +189,8 @@ impl OAuthAuthorization {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -206,7 +206,7 @@ impl OAuthAuthorization {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Creates a new oauth authorization.
@@ -230,12 +230,12 @@ impl OAuthAuthorization {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the oauth authorization.
         let oauth_authorization = Self::convert_from_row(&row);
 
-        return Ok(oauth_authorization);
+        Ok(oauth_authorization)
     }
 
     /// Deletes this oauth authorization.
@@ -248,7 +248,7 @@ impl OAuthAuthorization {
             "../../queries/oauth_authorizations/delete_oauth_authorization_row_by_id.sql"
         );
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub fn generate_authorization_code(&self, private_key: &str) -> Result<String, ResourceError> {
@@ -260,7 +260,7 @@ impl OAuthAuthorization {
         };
         let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
         let token = jsonwebtoken::encode(&header, &claims, &encoding_key)?;
-        return Ok(token);
+        Ok(token)
     }
 
     /// Returns a oauth authorization by its ID.
@@ -289,7 +289,7 @@ impl OAuthAuthorization {
 
         let oauth_authorization = Self::convert_from_row(&row);
 
-        return Ok(oauth_authorization);
+        Ok(oauth_authorization)
     }
 
     /// Returns a list of delegation policies based on a query.
@@ -321,8 +321,8 @@ impl OAuthAuthorization {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -338,7 +338,7 @@ impl OAuthAuthorization {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn parse_string_slashstepql_parameters<'a>(
@@ -359,7 +359,7 @@ impl OAuthAuthorization {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -374,9 +374,9 @@ impl OAuthAuthorization {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     pub async fn update(
@@ -406,6 +406,6 @@ impl OAuthAuthorization {
         database_client.query("COMMIT;", &[]).await?;
 
         let oauth_authorization = OAuthAuthorization::convert_from_row(&row);
-        return Ok(oauth_authorization);
+        Ok(oauth_authorization)
     }
 }

@@ -40,8 +40,8 @@ async fn get_jwt_public_key(
             let http_error = HTTPError::InternalServerError(Some(format!("{:?}", error)));
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -49,7 +49,7 @@ async fn get_jwt_public_key(
         }
     };
 
-    return Ok(jwt_public_key);
+    Ok(jwt_public_key)
 }
 
 pub async fn get_decoding_key(
@@ -57,7 +57,7 @@ pub async fn get_decoding_key(
     database_pool: &deadpool_postgres::Pool,
     jwt_public_key: &str,
 ) -> Result<jsonwebtoken::DecodingKey, HTTPError> {
-    let decoding_key = match jsonwebtoken::DecodingKey::from_ed_pem(&jwt_public_key.as_bytes()) {
+    let decoding_key = match jsonwebtoken::DecodingKey::from_ed_pem(jwt_public_key.as_bytes()) {
         Ok(decoding_key) => decoding_key,
         Err(error) => {
             let http_error = HTTPError::InternalServerError(Some(format!(
@@ -66,8 +66,8 @@ pub async fn get_decoding_key(
             )));
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -75,7 +75,7 @@ pub async fn get_decoding_key(
         }
     };
 
-    return Ok(decoding_key);
+    Ok(decoding_key)
 }
 
 async fn get_decoded_claims(
@@ -87,8 +87,8 @@ async fn get_decoded_claims(
 ) -> Result<jsonwebtoken::TokenData<SessionTokenClaims>, HTTPError> {
     let decoded_claims = match jsonwebtoken::decode::<SessionTokenClaims>(
         &session_token,
-        &decoding_key,
-        &validation,
+        decoding_key,
+        validation,
     ) {
         Ok(decoded_claims) => decoded_claims,
         Err(error) => {
@@ -100,7 +100,7 @@ async fn get_decoded_claims(
                 jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(claims) => {
                     ServerLogEntry::warning(
                         &format!("Missing required claim \"{}\" in session token.", claims),
-                        Some(&http_transaction_id),
+                        Some(http_transaction_id),
                         database_pool,
                     )
                     .await
@@ -118,8 +118,8 @@ async fn get_decoded_claims(
 
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -127,7 +127,7 @@ async fn get_decoded_claims(
         }
     };
 
-    return Ok(decoded_claims);
+    Ok(decoded_claims)
 }
 
 async fn get_user_by_id(
@@ -135,7 +135,7 @@ async fn get_user_by_id(
     database_pool: &deadpool_postgres::Pool,
     user_id: &Uuid,
 ) -> Result<User, HTTPError> {
-    let user = match User::get_by_id(&user_id, database_pool).await {
+    let user = match User::get_by_id(user_id, database_pool).await {
         Ok(user) => user,
         Err(error) => {
             let http_error = match error {
@@ -148,8 +148,8 @@ async fn get_user_by_id(
 
             ServerLogEntry::from_http_error(
                 &http_error,
-                Some(&http_transaction_id),
-                &database_pool,
+                Some(http_transaction_id),
+                database_pool,
             )
             .await
             .ok();
@@ -158,7 +158,7 @@ async fn get_user_by_id(
         }
     };
 
-    return Ok(user);
+    Ok(user)
 }
 
 async fn get_session_by_id(
@@ -166,7 +166,7 @@ async fn get_session_by_id(
     database_pool: &deadpool_postgres::Pool,
     session_id: &Uuid,
 ) -> Result<Session, HTTPError> {
-    let session = match Session::get_by_id(&session_id, database_pool).await {
+    let session = match Session::get_by_id(session_id, database_pool).await {
         Ok(session) => session,
         Err(error) => {
             let http_error = match error {
@@ -184,7 +184,7 @@ async fn get_session_by_id(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction_id), database_pool)
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
                 .await
                 .ok();
 
@@ -192,7 +192,7 @@ async fn get_session_by_id(
         }
     };
 
-    return Ok(session);
+    Ok(session)
 }
 
 #[axum_macros::debug_middleware]
@@ -228,7 +228,9 @@ pub async fn authenticate_user(
                         )
                         .await
                         .ok();
-                        let anonymous_user = match User::create(
+                        
+
+                        match User::create(
                             &InitialUserProperties {
                                 username: None,
                                 display_name: None,
@@ -256,9 +258,7 @@ pub async fn authenticate_user(
                                 .ok();
                                 return Err(http_error);
                             }
-                        };
-
-                        anonymous_user
+                        }
                     }
 
                     _ => {
@@ -349,7 +349,7 @@ pub async fn authenticate_user(
             }
         };
 
-        if memberships.len() == 0 {
+        if memberships.is_empty() {
             ServerLogEntry::trace(
                 "User is not in the anonymous users group. Creating a new group membership...",
                 Some(&http_transaction.id),
@@ -360,9 +360,9 @@ pub async fn authenticate_user(
             Membership::create(
                 &InitialMembershipProperties {
                     parent_resource_type: MembershipParentResourceType::Group,
-                    parent_group_id: Some(anonymous_users_group.id.clone()),
+                    parent_group_id: Some(anonymous_users_group.id),
                     principal_type: MembershipPrincipalType::User,
-                    principal_user_id: Some(anonymous_user.id.clone()),
+                    principal_user_id: Some(anonymous_user.id),
                     ..Default::default()
                 },
                 &state.database_pool,
@@ -492,7 +492,7 @@ pub async fn authenticate_user(
 
     let response = next.run(request).await;
 
-    return Ok(response);
+    Ok(response)
 }
 
 #[axum_macros::debug_middleware]
@@ -510,7 +510,7 @@ pub async fn authenticate_app(
     // Get the cookie from the request.
     let Some(authorization_token) = headers.get(header::AUTHORIZATION) else {
         ServerLogEntry::info(
-            &format!("No app token found in request."),
+            "No app token found in request.",
             Some(&http_transaction.id),
             &state.database_pool,
         )
@@ -667,5 +667,5 @@ pub async fn authenticate_app(
 
     let response = next.run(request).await;
 
-    return Ok(response);
+    Ok(response)
 }

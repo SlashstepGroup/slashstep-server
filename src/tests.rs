@@ -72,8 +72,7 @@ use rand::{
     RngExt,
     distr::{Alphanumeric, SampleString},
 };
-use serde_json::value;
-use testcontainers::{ContainerAsync, GenericImage, ImageExt};
+use testcontainers::{ContainerAsync, ImageExt};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner, valkey::VALKEY_PORT};
 use thiserror::Error;
 use uuid::Uuid;

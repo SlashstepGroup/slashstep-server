@@ -67,14 +67,14 @@ async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServ
     let pool = Pool::builder(manager)
         .max_size(maximum_postgres_connection_count)
         .build()?;
-    return Ok(pool);
+    Ok(pool)
 }
 
 async fn create_redis_pool() -> Result<deadpool_redis::Pool, SlashstepServerError> {
     let redis_url = get_environment_variable("REDIS_URL")?;
     let redis_config = deadpool_redis::Config::from_url(redis_url);
     let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
-    return Ok(redis_pool);
+    Ok(redis_pool)
 }
 
 fn print_shutdown_message() {

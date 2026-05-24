@@ -9,7 +9,6 @@ use crate::{
         },
         action::Action,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 /**

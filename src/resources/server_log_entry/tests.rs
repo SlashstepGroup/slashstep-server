@@ -13,7 +13,6 @@ use crate::{
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
         server_log_entry::ServerLogEntryLevel,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

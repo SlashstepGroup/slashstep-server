@@ -140,8 +140,8 @@ impl HTTPTransaction {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -157,7 +157,7 @@ impl HTTPTransaction {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     pub async fn delete_expired_http_transactions(
@@ -168,7 +168,7 @@ impl HTTPTransaction {
             "../../queries/http_transactions/delete_expired_http_transaction_rows.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Gets a field by its ID.
@@ -197,12 +197,12 @@ impl HTTPTransaction {
 
         let http_transaction = Self::convert_from_row(&row);
 
-        return Ok(http_transaction);
+        Ok(http_transaction)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return HTTPTransaction {
+        HTTPTransaction {
             id: row.get("id"),
             method: row.get("method"),
             url: row.get("url"),
@@ -210,7 +210,7 @@ impl HTTPTransaction {
             headers: row.get("headers"),
             status_code: row.get("status_code"),
             expiration_timestamp: row.get("expiration_timestamp"),
-        };
+        }
     }
 
     /// Initializes the http_transactions table.
@@ -221,7 +221,7 @@ impl HTTPTransaction {
         let query =
             include_str!("../../queries/http_transactions/initialize_http_transactions_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -243,12 +243,12 @@ impl HTTPTransaction {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this field.
@@ -261,7 +261,7 @@ impl HTTPTransaction {
         let query =
             include_str!("../../queries/http_transactions/delete_http_transaction_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -283,7 +283,7 @@ impl HTTPTransaction {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     /// Returns a list of http_transactions based on a query.
@@ -317,8 +317,8 @@ impl HTTPTransaction {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -334,7 +334,7 @@ impl HTTPTransaction {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let http_transactions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(http_transactions);
+        Ok(http_transactions)
     }
 
     fn translate_assignment(
@@ -349,9 +349,9 @@ impl HTTPTransaction {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this HTTP transaction and returns a new instance of the HTTP transaction.
@@ -413,6 +413,6 @@ impl HTTPTransaction {
         database_client.query("COMMIT;", &[]).await?;
 
         let http_transaction = Self::convert_from_row(&row);
-        return Ok(http_transaction);
+        Ok(http_transaction)
     }
 }

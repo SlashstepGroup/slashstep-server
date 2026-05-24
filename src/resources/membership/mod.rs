@@ -191,8 +191,8 @@ impl Membership {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -208,7 +208,7 @@ impl Membership {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -235,12 +235,12 @@ impl Membership {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Membership {
+        Membership {
             id: row.get("id"),
             parent_resource_type: row.get("parent_resource_type"),
             parent_group_id: row.get("parent_group_id"),
@@ -249,7 +249,7 @@ impl Membership {
             principal_user_id: row.get("principal_user_id"),
             principal_group_id: row.get("principal_group_id"),
             principal_app_id: row.get("principal_app_id"),
-        };
+        }
     }
 
     /// Initializes the memberships table.
@@ -259,7 +259,7 @@ impl Membership {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/memberships/initialize_memberships_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -281,12 +281,12 @@ impl Membership {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this membership.
@@ -297,7 +297,7 @@ impl Membership {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/memberships/delete_membership_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -331,7 +331,7 @@ impl Membership {
                     }
                 };
 
-                return Ok(Box::new(parent_resource_type));
+                Ok(Box::new(parent_resource_type))
             }
 
             "principal_type" => {
@@ -345,10 +345,10 @@ impl Membership {
                     }
                 };
 
-                return Ok(Box::new(principal_type));
+                Ok(Box::new(principal_type))
             }
 
-            _ => return Ok(Box::new(value)),
+            _ => Ok(Box::new(value)),
         }
     }
 
@@ -364,9 +364,9 @@ impl Membership {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Returns a list of memberships based on a query.
@@ -398,8 +398,8 @@ impl Membership {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -415,6 +415,6 @@ impl Membership {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 }

@@ -8,7 +8,7 @@ use crate::{
         ResourceError, access_policy::PermissionLevel,
         app_authorization_credential::AppAuthorizationCredential,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+    routes::{GetResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

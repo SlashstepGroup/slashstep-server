@@ -11,7 +11,6 @@ use crate::{
             InitialActionProperties,
         },
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use uuid::Uuid;

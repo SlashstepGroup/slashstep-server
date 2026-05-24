@@ -130,7 +130,7 @@ async fn handle_list_actions_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting actions..."),
+        "Counting actions...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -168,23 +168,15 @@ async fn handle_list_actions_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Server,
             ..Default::default()
         },
@@ -215,11 +207,12 @@ async fn handle_list_actions_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route("/actions", axum::routing::get(handle_list_actions_request))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -237,8 +230,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
-        .merge(action_id::get_router(state.clone()));
-    return router;
+        .merge(action_id::get_router(state.clone()))
 }
 
 #[cfg(test)]

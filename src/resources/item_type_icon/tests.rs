@@ -13,7 +13,6 @@ use crate::{
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
         item_type_icon::ItemTypeIconParentResourceType,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

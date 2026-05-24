@@ -105,8 +105,7 @@ async fn handle_list_statuses_request(
         "parent_project_id = {}{}",
         quote_literal(&project_id.to_string()),
         query_parameters
-            .query
-            .and_then(|query| Some(format!(" AND ({})", query)))
+            .query.map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match Status::list(
@@ -147,7 +146,7 @@ async fn handle_list_statuses_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting statuses..."),
+        "Counting statuses...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -185,23 +184,15 @@ async fn handle_list_statuses_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Project,
             target_project_id: Some(project_id),
             ..Default::default()
@@ -233,7 +224,7 @@ async fn handle_list_statuses_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 /// POST /projects/{project_id}/statuses
@@ -337,11 +328,11 @@ async fn handle_create_status_request(
         &InitialStatusProperties {
             name: status_properties_json.name.clone(),
             display_name: status_properties_json.display_name.clone(),
-            r#type: status_properties_json.r#type.clone(),
-            decimal_color: status_properties_json.decimal_color.clone(),
+            r#type: status_properties_json.r#type,
+            decimal_color: status_properties_json.decimal_color,
             description: status_properties_json.description.clone(),
             parent_project_id: target_project.id,
-            next_status_id: status_properties_json.next_status_id.clone(),
+            next_status_id: status_properties_json.next_status_id,
         },
         &state.database_pool,
     )
@@ -377,16 +368,8 @@ async fn handle_create_status_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Status,
             target_status_id: Some(status.id),
             ..Default::default()
@@ -403,11 +386,12 @@ async fn handle_create_status_request(
     .await
     .ok();
 
-    return Ok((StatusCode::CREATED, Json(status)));
+    Ok((StatusCode::CREATED, Json(status)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/projects/{project_id}/statuses",
             axum::routing::get(handle_list_statuses_request),
@@ -431,6 +415,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
-        ));
-    return router;
+        ))
 }

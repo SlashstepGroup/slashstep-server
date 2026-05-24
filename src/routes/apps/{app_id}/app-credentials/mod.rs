@@ -120,8 +120,7 @@ pub async fn handle_list_app_credentials_request(
         "app_id = {}{}",
         quote_literal(&app_id.to_string()),
         query_parameters
-            .query
-            .and_then(|query| Some(format!(" AND ({})", query)))
+            .query.map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match AppCredential::list(
@@ -162,7 +161,7 @@ pub async fn handle_list_app_credentials_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting app credentials..."),
+        "Counting app credentials...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -200,23 +199,15 @@ pub async fn handle_list_app_credentials_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::App,
             target_app_id: Some(target_app.id),
             ..Default::default()
@@ -248,7 +239,7 @@ pub async fn handle_list_app_credentials_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 /// POST /apps/{app_id}/app-credentials
@@ -361,7 +352,7 @@ async fn handle_create_app_credential_request(
             app_id: target_app.id,
             description: app_credential_properties_json.description.clone(),
             expiration_date: app_credential_properties_json.expiration_date,
-            creation_ip_address: http_transaction.ip_address.clone(),
+            creation_ip_address: http_transaction.ip_address,
             public_key: public_key.clone(),
         },
         &state.database_pool,
@@ -407,16 +398,8 @@ async fn handle_create_app_credential_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::AppCredential,
             target_app_credential_id: Some(created_app_credential.id),
             ..Default::default()
@@ -436,14 +419,15 @@ async fn handle_create_app_credential_request(
     .await
     .ok();
 
-    return Ok((
+    Ok((
         StatusCode::CREATED,
         Json(create_app_credential_response_body),
-    ));
+    ))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/apps/{app_id}/app-credentials",
             axum::routing::get(handle_list_app_credentials_request),
@@ -467,6 +451,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
-        ));
-    return router;
+        ))
 }

@@ -119,11 +119,11 @@ impl App {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/apps/initialize_apps_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub fn convert_from_row(row: &postgres::Row) -> Self {
-        return App {
+        App {
             id: row.get("id"),
             name: row.get("name"),
             display_name: row.get("display_name"),
@@ -133,7 +133,7 @@ impl App {
             parent_resource_type: row.get("parent_resource_type"),
             parent_workspace_id: row.get("parent_workspace_id"),
             parent_user_id: row.get("parent_user_id"),
-        };
+        }
     }
 
     /// Counts the number of apps based on a query.
@@ -165,8 +165,8 @@ impl App {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -182,7 +182,7 @@ impl App {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Creates a new app.
@@ -221,7 +221,7 @@ impl App {
         // Return the action.
         let app = Self::convert_from_row(&row);
 
-        return Ok(app);
+        Ok(app)
     }
 
     /// Deletes this app.
@@ -232,7 +232,7 @@ impl App {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/apps/delete_app_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Gets an app by its ID.
@@ -259,12 +259,12 @@ impl App {
 
         let app = Self::convert_from_row(&row);
 
-        return Ok(app);
+        Ok(app)
     }
 
     /// Gets this app's client secret hash.
     pub fn get_client_secret_hash(&self) -> Option<String> {
-        return self.client_secret_hash.clone();
+        self.client_secret_hash.clone()
     }
 
     /// Returns a list of apps based on a query.
@@ -296,8 +296,8 @@ impl App {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -313,7 +313,7 @@ impl App {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -332,7 +332,7 @@ impl App {
                 }
             };
 
-            return Ok(Box::new(uuid));
+            Ok(Box::new(uuid))
         } else {
             match key {
                 "parent_resource_type" => {
@@ -346,10 +346,10 @@ impl App {
                         }
                     };
 
-                    return Ok(Box::new(parent_resource_type));
+                    Ok(Box::new(parent_resource_type))
                 }
 
-                _ => return Ok(Box::new(value.to_string())),
+                _ => Ok(Box::new(value.to_string())),
             }
         }
     }
@@ -366,9 +366,9 @@ impl App {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this app and returns a new instance of the app.
@@ -441,6 +441,6 @@ impl App {
         database_client.query("COMMIT;", &[]).await?;
 
         let app = Self::convert_from_row(&row);
-        return Ok(app);
+        Ok(app)
     }
 }

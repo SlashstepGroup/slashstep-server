@@ -111,16 +111,8 @@ async fn handle_get_item_connection_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemConnection,
             target_item_connection_id: Some(target_item_connection.id),
             ..Default::default()
@@ -144,7 +136,7 @@ async fn handle_get_item_connection_request(
         data: target_item_connection.clone(),
     };
 
-    return Ok(Json(response_body));
+    Ok(Json(response_body))
 }
 
 /// DELETE /item-connections/{item_connection_id}
@@ -223,23 +215,15 @@ async fn handle_delete_item_connection_request(
         &InitialActionLogEntryProperties {
             action_id: delete_item_connections_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemConnection,
             target_item_connection_id: Some(target_item_connection.id),
             ..Default::default()
@@ -259,7 +243,7 @@ async fn handle_delete_item_connection_request(
     )
     .await
     .ok();
-    return Ok(StatusCode::NO_CONTENT);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// PATCH /item-connections/{item_connection_id}
@@ -363,16 +347,8 @@ async fn handle_patch_item_connection_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemConnection,
             target_item_connection_id: Some(updated_target_item_connection.id),
             ..Default::default()
@@ -396,11 +372,12 @@ async fn handle_patch_item_connection_request(
         data: updated_target_item_connection,
     };
 
-    return Ok(Json(response_body));
+    Ok(Json(response_body))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/item-connections/{item_connection_id}",
             axum::routing::get(handle_get_item_connection_request),
@@ -429,6 +406,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
-        .merge(access_policies::get_router(state.clone()));
-    return router;
+        .merge(access_policies::get_router(state.clone()))
 }

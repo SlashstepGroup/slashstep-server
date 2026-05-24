@@ -109,8 +109,7 @@ async fn handle_list_membership_invitations_request(
         "parent_group_id = {}{}",
         quote_literal(&group_id.to_string()),
         query_parameters
-            .query
-            .and_then(|query| Some(format!(" AND ({})", query)))
+            .query.map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match MembershipInvitation::list(
@@ -153,7 +152,7 @@ async fn handle_list_membership_invitations_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting membership invitations..."),
+        "Counting membership invitations...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -191,23 +190,15 @@ async fn handle_list_membership_invitations_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Group,
             target_group_id: Some(target_group.id),
             ..Default::default()
@@ -239,7 +230,7 @@ async fn handle_list_membership_invitations_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 /// POST /groups/{group_id}/membership-invitations
@@ -324,16 +315,8 @@ async fn handle_create_membership_invitation_request(
             } else {
                 MembershipPrincipalType::App
             },
-            inviter_principal_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            inviter_principal_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            inviter_principal_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            inviter_principal_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
         },
         &state.database_pool,
     )
@@ -369,16 +352,8 @@ async fn handle_create_membership_invitation_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::MembershipInvitation,
             target_membership_invitation_id: Some(membership_invitation.id),
             ..Default::default()
@@ -398,11 +373,12 @@ async fn handle_create_membership_invitation_request(
     .await
     .ok();
 
-    return Ok((StatusCode::CREATED, Json(membership_invitation)));
+    Ok((StatusCode::CREATED, Json(membership_invitation)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/groups/{group_id}/membership-invitations",
             axum::routing::get(handle_list_membership_invitations_request),
@@ -426,6 +402,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
-        ));
-    return router;
+        ))
 }

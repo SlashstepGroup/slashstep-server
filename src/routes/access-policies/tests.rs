@@ -8,8 +8,7 @@ use crate::{
         ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, DEFAULT_RESOURCE_LIST_LIMIT,
-            InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope,
-            PermissionLevel,
+            InitialAccessPolicyProperties, PermissionLevel,
         },
         action::Action,
     },
@@ -17,7 +16,6 @@ use crate::{
         CreateResourceResponseBody, ListResourcesResponseBody,
         access_policies::CreateServerAccessPolicyRequestBody,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

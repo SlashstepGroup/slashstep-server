@@ -15,7 +15,6 @@ use crate::{
         user::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, User},
     },
     routes::{CreateResourceResponseBody, ListResourcesResponseBody, users::CreateUserRequestBody},
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

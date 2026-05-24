@@ -1047,7 +1047,7 @@ pub async fn initialize_predefined_actions(
 
     println!("{}", format!("Successfully initialized {} predefined actions. {} actions were skipped because they already existed.", actions.len(), skipped_action_count).blue());
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn initialize_predefined_groups(
@@ -1169,7 +1169,7 @@ pub async fn initialize_predefined_groups(
 
     println!("{}", format!("Successfully initialized {} predefined groups. {} groups were skipped because they already existed.", groups.len(), skipped_group_count).blue());
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn initialize_predefined_roles(
@@ -1428,7 +1428,7 @@ pub async fn initialize_predefined_roles(
 
     println!("{}", format!("Successfully initialized {} predefined roles. {} roles were skipped because they already existed.", roles.len(), skipped_role_count).blue());
 
-    return Ok(());
+    Ok(())
 }
 
 pub async fn initialize_predefined_configurations(
@@ -2042,5 +2042,5 @@ pub async fn initialize_predefined_configurations(
 
     println!("{}", format!("Successfully initialized {} predefined configurations. {} configurations were skipped because they already existed.", configurations.len(), skipped_configuration_count).blue());
 
-    return Ok(());
+    Ok(())
 }

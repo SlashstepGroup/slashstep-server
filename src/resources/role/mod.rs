@@ -204,11 +204,11 @@ pub struct EditableRolePropertiesRequestBody {
 
 impl From<EditableRolePropertiesRequestBody> for EditableRoleProperties {
     fn from(request_body: EditableRolePropertiesRequestBody) -> Self {
-        return EditableRoleProperties {
+        EditableRoleProperties {
             name: request_body.name,
             display_name: request_body.display_name,
             description: request_body.description,
-        };
+        }
     }
 }
 
@@ -299,8 +299,8 @@ impl Role {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -316,7 +316,7 @@ impl Role {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -343,7 +343,7 @@ impl Role {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Gets a role by its name.
@@ -365,7 +365,7 @@ impl Role {
 
         let role = Self::convert_from_row(&row);
 
-        return Ok(role);
+        Ok(role)
     }
 
     pub async fn get_by_predefined_role_type(
@@ -403,12 +403,12 @@ impl Role {
 
         let role = Self::convert_from_row(&row);
 
-        return Ok(role);
+        Ok(role)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Role {
+        Role {
             id: row.get("id"),
             name: row.get("name"),
             display_name: row.get("display_name"),
@@ -420,7 +420,7 @@ impl Role {
             parent_group_id: row.get("parent_group_id"),
             parent_user_id: row.get("parent_user_id"),
             predefined_role_type: row.get("predefined_role_type"),
-        };
+        }
     }
 
     /// Initializes the roles table.
@@ -430,7 +430,7 @@ impl Role {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/roles/initialize_roles_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -472,7 +472,7 @@ impl Role {
         // Return the role.
         let role = Self::convert_from_row(&row);
 
-        return Ok(role);
+        Ok(role)
     }
 
     /// Deletes this field.
@@ -483,7 +483,7 @@ impl Role {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/roles/delete_role_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of roles based on a query.
@@ -515,8 +515,8 @@ impl Role {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -532,7 +532,7 @@ impl Role {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -571,7 +571,7 @@ impl Role {
                     }
                 };
 
-                return Ok(Box::new(predefined_role_type));
+                Ok(Box::new(predefined_role_type))
             }
 
             "parent_resource_type" => {
@@ -590,10 +590,10 @@ impl Role {
                     }
                 };
 
-                return Ok(Box::new(parent_resource_type));
+                Ok(Box::new(parent_resource_type))
             }
 
-            _ => return Ok(Box::new(value.to_string())),
+            _ => Ok(Box::new(value.to_string())),
         }
     }
 
@@ -609,9 +609,9 @@ impl Role {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this role and returns a new instance of the role.
@@ -655,6 +655,6 @@ impl Role {
         database_client.query("COMMIT;", &[]).await?;
 
         let status = Self::convert_from_row(&row);
-        return Ok(status);
+        Ok(status)
     }
 }

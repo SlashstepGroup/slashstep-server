@@ -86,14 +86,14 @@ pub struct AppAuthorizationCredentialClaims {
 
 impl AppAuthorizationCredential {
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return AppAuthorizationCredential {
+        AppAuthorizationCredential {
             id: row.get("id"),
             app_authorization_id: row.get("app_authorization_id"),
             access_token_expiration_date: row.get("access_token_expiration_date"),
             refresh_token_expiration_date: row.get("refresh_token_expiration_date"),
             refreshed_app_authorization_credential_id: row
                 .get("refreshed_app_authorization_credential_id"),
-        };
+        }
     }
 
     /// Counts the number of app authorizations based on a query.
@@ -125,8 +125,8 @@ impl AppAuthorizationCredential {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -142,7 +142,7 @@ impl AppAuthorizationCredential {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     pub async fn create(
@@ -170,12 +170,12 @@ impl AppAuthorizationCredential {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app authorization credential.
         let app_authorization_credential = Self::convert_from_row(&row);
 
-        return Ok(app_authorization_credential);
+        Ok(app_authorization_credential)
     }
 
     pub async fn delete(
@@ -187,7 +187,7 @@ impl AppAuthorizationCredential {
             "../../queries/app_authorization_credentials/delete_app_authorization_credential_row_by_id.sql"
         );
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub fn generate_access_token(&self, private_key: &str) -> Result<String, ResourceError> {
@@ -200,7 +200,7 @@ impl AppAuthorizationCredential {
         let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
         let token = jsonwebtoken::encode(&header, &claims, &encoding_key)?;
 
-        return Ok(token);
+        Ok(token)
     }
 
     pub fn generate_refresh_token(&self, private_key: &str) -> Result<String, ResourceError> {
@@ -213,7 +213,7 @@ impl AppAuthorizationCredential {
         let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
         let token = jsonwebtoken::encode(&header, &claims, &encoding_key)?;
 
-        return Ok(token);
+        Ok(token)
     }
 
     pub async fn get_by_id(
@@ -241,7 +241,7 @@ impl AppAuthorizationCredential {
 
         let app_authorization_credential = Self::convert_from_row(&row);
 
-        return Ok(app_authorization_credential);
+        Ok(app_authorization_credential)
     }
 
     /// Initializes the app_authorization_credentials table.
@@ -253,7 +253,7 @@ impl AppAuthorizationCredential {
             "../../queries/app_authorization_credentials/initialize_app_authorization_credentials_table.sql"
         );
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of app authorizations based on a query.
@@ -285,8 +285,8 @@ impl AppAuthorizationCredential {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -302,7 +302,7 @@ impl AppAuthorizationCredential {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -324,7 +324,7 @@ impl AppAuthorizationCredential {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -339,8 +339,8 @@ impl AppAuthorizationCredential {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 }

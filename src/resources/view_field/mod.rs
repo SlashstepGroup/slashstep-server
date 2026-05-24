@@ -106,8 +106,8 @@ impl ViewField {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -123,7 +123,7 @@ impl ViewField {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -150,17 +150,17 @@ impl ViewField {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Self {
+        Self {
             id: row.get("id"),
             parent_view_id: row.get("parent_view_id"),
             field_id: row.get("field_id"),
             next_view_field_id: row.get("next_view_field_id"),
-        };
+        }
     }
 
     /// Initializes the view_fields table.
@@ -181,7 +181,7 @@ impl ViewField {
         );
         database_client.execute(query, &[]).await?;
 
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -221,7 +221,7 @@ impl ViewField {
         // Return the app authorization.
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Deletes this field.
@@ -232,7 +232,7 @@ impl ViewField {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/view_fields/delete_view_field_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of view_fields based on a query.
@@ -264,8 +264,8 @@ impl ViewField {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -281,7 +281,7 @@ impl ViewField {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -303,7 +303,7 @@ impl ViewField {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -318,9 +318,9 @@ impl ViewField {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this item and returns a new instance of the item.
@@ -352,6 +352,6 @@ impl ViewField {
         database_client.query("COMMIT;", &[]).await?;
 
         let view_field = Self::convert_from_row(&row);
-        return Ok(view_field);
+        Ok(view_field)
     }
 }

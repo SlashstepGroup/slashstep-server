@@ -163,23 +163,15 @@ pub async fn handle_create_membership_request(
             &InitialActionLogEntryProperties {
                 action_id: accept_membership_invitations_action.id,
                 http_transaction_id: Some(http_transaction.id),
-                expiration_timestamp: expiration_timestamp,
+                expiration_timestamp,
                 reason: None, // TODO: Support reasons.
                 actor_type: if authenticated_user.is_some() {
                     ActionLogEntryActorType::User
                 } else {
                     ActionLogEntryActorType::App
                 },
-                actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                    Some(authenticated_user.id.clone())
-                } else {
-                    None
-                },
-                actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                    Some(authenticated_app.id.clone())
-                } else {
-                    None
-                },
+                actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+                actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
                 target_resource_type: ResourceType::MembershipInvitation,
                 target_membership_invitation_id: Some(membership_invitation.id),
                 ..Default::default()
@@ -244,9 +236,9 @@ pub async fn handle_create_membership_request(
     let created_membership = match Membership::create(
         &InitialMembershipProperties {
             principal_type: partial_membership_properties.principal_type.clone(),
-            principal_app_id: partial_membership_properties.principal_app_id.clone(),
-            principal_user_id: partial_membership_properties.principal_user_id.clone(),
-            principal_group_id: partial_membership_properties.principal_group_id.clone(),
+            principal_app_id: partial_membership_properties.principal_app_id,
+            principal_user_id: partial_membership_properties.principal_user_id,
+            principal_group_id: partial_membership_properties.principal_group_id,
             parent_resource_type: MembershipParentResourceType::Role,
             parent_role_id: Some(target_role.id),
             parent_group_id: None,
@@ -283,23 +275,15 @@ pub async fn handle_create_membership_request(
                 create_memberships_action.id
             },
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Membership,
             target_membership_id: Some(created_membership.id),
             ..Default::default()
@@ -317,7 +301,7 @@ pub async fn handle_create_membership_request(
     .await
     .ok();
 
-    return Ok((StatusCode::CREATED, Json(created_membership)));
+    Ok((StatusCode::CREATED, Json(created_membership)))
 }
 
 /// GET /roles/{role_id}/memberships
@@ -370,8 +354,7 @@ pub async fn handle_list_memberships_request(
         "parent_role_id = {}{}",
         quote_literal(&role_id.to_string()),
         query_parameters
-            .query
-            .and_then(|query| Some(format!(" AND ({})", query)))
+            .query.map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match Membership::list(
@@ -412,7 +395,7 @@ pub async fn handle_list_memberships_request(
     };
 
     ServerLogEntry::trace(
-        &format!("Counting memberships..."),
+        "Counting memberships...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -450,23 +433,15 @@ pub async fn handle_list_memberships_request(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
             http_transaction_id: Some(http_transaction.id),
-            expiration_timestamp: expiration_timestamp,
+            expiration_timestamp,
             reason: None, // TODO: Support reasons.
             actor_type: if authenticated_user.is_some() {
                 ActionLogEntryActorType::User
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
-                Some(authenticated_user.id.clone())
-            } else {
-                None
-            },
-            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
-                Some(authenticated_app.id.clone())
-            } else {
-                None
-            },
+            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Role,
             target_role_id: Some(role_id),
             ..Default::default()
@@ -498,11 +473,12 @@ pub async fn handle_list_memberships_request(
         total_count: resource_count,
     };
 
-    return Ok((StatusCode::OK, Json(response_body)));
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    let router = Router::<AppState>::new()
+    
+    Router::<AppState>::new()
         .route(
             "/roles/{role_id}/memberships",
             axum::routing::get(handle_list_memberships_request),
@@ -526,6 +502,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             http_transaction_middleware::create_http_transaction,
-        ));
-    return router;
+        ))
 }

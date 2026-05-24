@@ -19,7 +19,6 @@ use crate::{
         AppWithClientSecret, ListResourcesResponseBody,
         apps::InitialAppPropertiesWithoutClientSecretHash,
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;

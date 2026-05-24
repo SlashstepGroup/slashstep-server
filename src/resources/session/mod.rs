@@ -97,8 +97,8 @@ impl Session {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -114,7 +114,7 @@ impl Session {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -141,17 +141,17 @@ impl Session {
 
         let session = Self::convert_from_row(&row);
 
-        return Ok(session);
+        Ok(session)
     }
 
     /// Converts a row into a session.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Self {
+        Self {
             id: row.get("id"),
             user_id: row.get("user_id"),
             expiration_date: row.get("expiration_date"),
             creation_ip_address: row.get("creation_ip_address"),
-        };
+        }
     }
 
     /// Initializes the sessions table.
@@ -161,7 +161,7 @@ impl Session {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/sessions/initialize_sessions_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new session.
@@ -186,12 +186,12 @@ impl Session {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the session.
         let session = Self::convert_from_row(&row);
 
-        return Ok(session);
+        Ok(session)
     }
 
     pub async fn delete(
@@ -202,7 +202,7 @@ impl Session {
         let query = include_str!("../../queries/sessions/delete_session_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
 
-        return Ok(());
+        Ok(())
     }
 
     pub async fn generate_access_token(
@@ -223,7 +223,7 @@ impl Session {
             &encoding_key,
         )?;
 
-        return Ok(token);
+        Ok(token)
     }
 
     pub async fn generate_refresh_token(&self, private_key: &str) -> Result<String, ResourceError> {
@@ -240,7 +240,7 @@ impl Session {
             &encoding_key,
         )?;
 
-        return Ok(token);
+        Ok(token)
     }
 
     /// Returns a list of roles based on a query.
@@ -272,8 +272,8 @@ impl Session {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -289,7 +289,7 @@ impl Session {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let sessions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(sessions);
+        Ok(sessions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -311,7 +311,7 @@ impl Session {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -326,8 +326,8 @@ impl Session {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 }

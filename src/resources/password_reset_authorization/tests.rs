@@ -12,7 +12,6 @@ use crate::{
             InitialPasswordResetAuthorizationProperties, PasswordResetAuthorization,
         },
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

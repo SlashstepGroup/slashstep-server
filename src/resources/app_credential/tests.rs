@@ -18,7 +18,6 @@ use crate::{
             AppCredential, DEFAULT_RESOURCE_LIST_LIMIT, InitialAppCredentialProperties,
         },
     },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
     tests::{TestEnvironment, TestSlashstepServerError},
 };
 

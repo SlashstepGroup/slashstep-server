@@ -144,8 +144,8 @@ impl Project {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -161,7 +161,7 @@ impl Project {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     /// Gets a field by its ID.
@@ -188,12 +188,12 @@ impl Project {
 
         let field = Self::convert_from_row(&row);
 
-        return Ok(field);
+        Ok(field)
     }
 
     /// Converts a row into a field.
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return Project {
+        Project {
             id: row.get("id"),
             name: row.get("name"),
             display_name: row.get("display_name"),
@@ -202,7 +202,7 @@ impl Project {
             start_date: row.get("start_date"),
             end_date: row.get("end_date"),
             parent_workspace_id: row.get("parent_workspace_id"),
-        };
+        }
     }
 
     /// Initializes the projects table.
@@ -217,7 +217,7 @@ impl Project {
             include_str!("../../queries/projects/create_function_create_project_sequence.sql");
         database_client.execute(query, &[]).await?;
 
-        return Ok(());
+        Ok(())
     }
 
     /// Creates a new field.
@@ -239,14 +239,14 @@ impl Project {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Create the project sequence.
         let project = Self::convert_from_row(&row);
         let query = include_str!("../../queries/projects/create_project_sequence.sql");
         database_client.execute(query, &[&project.id]).await?;
 
-        return Ok(project);
+        Ok(project)
     }
 
     /// Deletes this project.
@@ -257,7 +257,7 @@ impl Project {
         let database_client = database_pool.get().await?;
         let query = include_str!("../../queries/projects/delete_project_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     /// Returns a list of projects based on a query.
@@ -289,8 +289,8 @@ impl Project {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -306,7 +306,7 @@ impl Project {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     /// Parses a string into a parameter for a slashstepql query.
@@ -328,7 +328,7 @@ impl Project {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -343,9 +343,9 @@ impl Project {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 
     /// Updates this project and returns a new instance of the project.
@@ -407,6 +407,6 @@ impl Project {
         database_client.query("COMMIT;", &[]).await?;
 
         let iteration = Self::convert_from_row(&row);
-        return Ok(iteration);
+        Ok(iteration)
     }
 }

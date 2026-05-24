@@ -99,18 +99,18 @@ impl AppCredential {
         let query =
             include_str!("../../queries/app_credentials/initialize_app_credentials_table.sql");
         database_client.execute(query, &[]).await?;
-        return Ok(());
+        Ok(())
     }
 
     fn convert_from_row(row: &postgres::Row) -> Self {
-        return AppCredential {
+        AppCredential {
             id: row.get("id"),
             app_id: row.get("app_id"),
             description: row.get("description"),
             expiration_date: row.get("expiration_date"),
             creation_ip_address: row.get("creation_ip_address"),
             public_key: row.get("public_key"),
-        };
+        }
     }
 
     /// Counts the number of app credentials based on a query.
@@ -142,8 +142,8 @@ impl AppCredential {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             true,
         )?;
@@ -159,7 +159,7 @@ impl AppCredential {
         // Execute the query.
         let rows = database_client.query_one(&query, &parameters).await?;
         let count = rows.get(0);
-        return Ok(count);
+        Ok(count)
     }
 
     pub async fn create(
@@ -182,12 +182,12 @@ impl AppCredential {
         let row = database_client
             .query_one(query, parameters)
             .await
-            .map_err(|error| return ResourceError::PostgresError(error))?;
+            .map_err(ResourceError::PostgresError)?;
 
         // Return the app credential.
         let app_credential = AppCredential::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     pub async fn delete(
@@ -198,7 +198,7 @@ impl AppCredential {
         let query =
             include_str!("../../queries/app_credentials/delete_app_credential_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
-        return Ok(());
+        Ok(())
     }
 
     pub async fn get_by_id(
@@ -224,7 +224,7 @@ impl AppCredential {
 
         let app_credential = Self::convert_from_row(&row);
 
-        return Ok(app_credential);
+        Ok(app_credential)
     }
 
     /// Returns a list of app credentials based on a query.
@@ -256,8 +256,8 @@ impl AppCredential {
             &sanitized_filter,
             principal_type,
             principal_id,
-            &RESOURCE_NAME,
-            &DATABASE_TABLE_NAME,
+            RESOURCE_NAME,
+            DATABASE_TABLE_NAME,
             &get_resource_action_id,
             false,
         )?;
@@ -273,7 +273,7 @@ impl AppCredential {
         // Execute the query.
         let rows = database_client.query(&query, &parameters).await?;
         let actions = rows.iter().map(Self::convert_from_row).collect();
-        return Ok(actions);
+        Ok(actions)
     }
 
     fn parse_string_slashstepql_parameters<'a>(
@@ -294,7 +294,7 @@ impl AppCredential {
             return Ok(Box::new(uuid));
         }
 
-        return Ok(Box::new(value));
+        Ok(Box::new(value))
     }
 
     fn translate_assignment(
@@ -309,8 +309,8 @@ impl AppCredential {
             ));
         }
 
-        return Err(SlashstepQLError::InvalidFieldError(
+        Err(SlashstepQLError::InvalidFieldError(
             assignment_properties.key,
-        ));
+        ))
     }
 }
