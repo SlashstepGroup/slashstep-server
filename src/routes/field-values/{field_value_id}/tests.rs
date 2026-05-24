@@ -1,853 +1,1057 @@
-/**
- * 
- * Any test cases for /field-values/{field_value_id} should be handled here.
- * 
- * Programmers: 
- * - Christian Toney (https://christiantoney.com)
- * 
- * © 2026 Beastslash LLC
- * 
- */
-
-use std::net::SocketAddr;
+use crate::{
+    Action, AppState, get_json_web_token_private_key, initialize_required_tables,
+    predefinitions::{
+        initialize_predefined_actions, initialize_predefined_configurations,
+        initialize_predefined_groups, initialize_predefined_roles,
+    },
+    resources::{
+        ResourceError,
+        access_policy::PermissionLevel,
+        configuration::{Configuration, EditableConfigurationProperties},
+        field_value::{EditableFieldValueProperties, FieldValue},
+    },
+    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+    tests::{TestEnvironment, TestSlashstepServerError},
+};
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
-use uuid::Uuid;
 use rust_decimal::Decimal;
-use crate::{
-  Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles, initialize_predefined_groups
-  }, resources::{
-    ResourceError, access_policy::
-      PermissionLevel, configuration::{Configuration, EditableConfigurationProperties}, field_value::{EditableFieldValueProperties, FieldValue}
-  }, tests::{TestEnvironment, TestSlashstepServerError}
-};
+/**
+ *
+ * Any test cases for /field-values/{field_value_id} should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+use std::net::SocketAddr;
+use uuid::Uuid;
 
 /// Verifies that the router can return a 200 status code and the requested resource.
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError> {
-  
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
 
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_field_values_action = Action::get_by_name("fieldValues.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_field_values_action.id, &PermissionLevel::User).await?;
-  
-  let field_value = test_environment.create_random_field_value().await?;
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let response = test_server.get(&format!("/field-values/{}", field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::OK);
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_field_values_action =
+        Action::get_by_name("fieldValues.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &get_field_values_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  let response_field_value: FieldValue = response.json();
-  assert_eq!(response_field_value.id, field_value.id);
-  assert_eq!(response_field_value.field_id, field_value.field_id);
-  assert_eq!(response_field_value.value_type, field_value.value_type);
-  assert_eq!(response_field_value.text_value, field_value.text_value);
-  assert_eq!(response_field_value.number_value, field_value.number_value);
-  assert_eq!(response_field_value.timestamp_value, field_value.timestamp_value);
-  assert_eq!(response_field_value.stakeholder_type, field_value.stakeholder_type);
-  assert_eq!(response_field_value.stakeholder_user_id, field_value.stakeholder_user_id);
-  assert_eq!(response_field_value.stakeholder_app_id, field_value.stakeholder_app_id);
-  assert_eq!(response_field_value.stakeholder_group_id, field_value.stakeholder_group_id);
+    let field_value = test_environment.create_random_field_value().await?;
 
-  return Ok(());
-  
+    let response = test_server
+        .get(&format!("/field-values/{}", field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let get_field_value_response_body = response.json::<GetResourceResponseBody<FieldValue>>();
+    let response_field_value = get_field_value_response_body.data;
+    assert_eq!(response_field_value.id, field_value.id);
+    assert_eq!(response_field_value.field_id, field_value.field_id);
+    assert_eq!(response_field_value.value_type, field_value.value_type);
+    assert_eq!(response_field_value.text_value, field_value.text_value);
+    assert_eq!(response_field_value.number_value, field_value.number_value);
+    assert_eq!(
+        response_field_value.timestamp_value,
+        field_value.timestamp_value
+    );
+    assert_eq!(
+        response_field_value.stakeholder_type,
+        field_value.stakeholder_type
+    );
+    assert_eq!(
+        response_field_value.stakeholder_user_id,
+        field_value.stakeholder_user_id
+    );
+    assert_eq!(
+        response_field_value.stakeholder_app_id,
+        field_value.stakeholder_app_id
+    );
+    assert_eq!(
+        response_field_value.stakeholder_group_id,
+        field_value.stakeholder_group_id
+    );
+
+    return Ok(());
 }
 
 /// Verifies that the router can return a 400 if the app ID is not a UUID.
 #[tokio::test]
 async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
 
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
+    let response = test_server.get("/field-values/not-a-uuid").await;
 
-  let response = test_server.get("/field-values/not-a-uuid")
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-  return Ok(());
-
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 401 status code if the requestor needs authentication.
 #[tokio::test]
-async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError>
+{
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
 
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  
-  let field_value = test_environment.create_random_field_value().await?;
+    let field_value = test_environment.create_random_field_value().await?;
 
-  let response = test_server.get(&format!("/field-values/{}", field_value.id))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
-  return Ok(());
+    let response = test_server
+        .get(&format!("/field-values/{}", field_value.id))
+        .await;
 
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 403 status code if the requestor does not have permission to get the app.
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Create the user, the session, and the action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let field_value = test_environment.create_random_field_value().await?;
 
-  // Create the user, the session, and the action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let field_value = test_environment.create_random_field_value().await?;
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/field-values/{}", field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/field-values/{}", field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
-  return Ok(());
-
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 404 status code if the requested resource doesn't exist
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/field-values/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
-  return Ok(());
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/field-values/{}", uuid::Uuid::now_v7()))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 204 status code if the action is successfully deleted.
 #[tokio::test]
 async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Grant access to the "fieldValues.delete" action to the user.
-  let delete_field_values_action = Action::get_by_name("fieldValues.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_field_values_action.id, &PermissionLevel::User).await?;
+    // Grant access to the "fieldValues.delete" action to the user.
+    let delete_field_values_action =
+        Action::get_by_name("fieldValues.delete", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &delete_field_values_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let field_value = test_environment.create_random_field_value().await?;
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.delete(&format!("/field-values/{}", field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
+    // Set up the server and send the request.
+    let field_value = test_environment.create_random_field_value().await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/field-values/{}", field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  match FieldValue::get_by_id(&field_value.id, &test_environment.database_pool).await.expect_err("Expected a field value not found error.") {
+    assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
 
-    ResourceError::NotFoundError(_) => {},
+    match FieldValue::get_by_id(&field_value.id, &test_environment.database_pool)
+        .await
+        .expect_err("Expected a field value not found error.")
+    {
+        ResourceError::NotFoundError(_) => {}
 
-    error => return Err(TestSlashstepServerError::ResourceError(error))
+        error => return Err(TestSlashstepServerError::ResourceError(error)),
+    }
 
-  }
-
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the router can return a 400 status code if the ID is not a UUID.
 #[tokio::test]
 async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
 
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
+    let response = test_server.delete("/field-values/not-a-uuid").await;
 
-  let response = test_server.delete("/field-values/not-a-uuid")
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-  return Ok(());
-
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 401 status code if the user needs authentication.
 #[tokio::test]
 async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create a dummy field value.
-  let field_value = test_environment.create_random_field_value().await?;
+    // Create a dummy field value.
+    let field_value = test_environment.create_random_field_value().await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.delete(&format!("/field-values/{}", field_value.id))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
-  return Ok(());
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/field-values/{}", field_value.id))
+        .await;
 
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
 #[tokio::test]
 async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  
-  // Create a dummy field value.
-  let field_value = test_environment.create_random_field_value().await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.delete(&format!("/field-values/{}", field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
-  return Ok(());
+    // Create a dummy field value.
+    let field_value = test_environment.create_random_field_value().await?;
 
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/field-values/{}", field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 404 status code if the resource does not exist.
 #[tokio::test]
 async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.delete(&format!("/field-values/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
-  return Ok(());
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/field-values/{}", uuid::Uuid::now_v7()))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 200 status code if the resource is successfully patched.
 #[tokio::test]
 async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let update_field_values_action =
+        Action::get_by_name("fieldValues.update", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &update_field_values_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let update_field_values_action = Action::get_by_name("fieldValues.update", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &update_field_values_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let original_field_value = test_environment.create_random_field_value().await?;
+    let updated_field_value_properties = EditableFieldValueProperties {
+        text_value: Some(Some(Uuid::now_v7().to_string())),
+        ..Default::default()
+    };
 
-  // Set up the server and send the request.
-  let original_field_value = test_environment.create_random_field_value().await?;
-  let updated_field_value_properties = EditableFieldValueProperties {
-    text_value: Some(Some(Uuid::now_v7().to_string())),
-    ..Default::default()
-  };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch(&format!("/field-values/{}", original_field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(updated_field_value_properties))
+        .await;
 
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/field-values/{}", original_field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(updated_field_value_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::OK);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
 
-  let updated_field_value: FieldValue = response.json();
-  assert_eq!(updated_field_value.id, original_field_value.id);
-  assert_eq!(updated_field_value.field_id, original_field_value.field_id);
-  assert_eq!(updated_field_value.parent_resource_type, original_field_value.parent_resource_type);
-  assert_eq!(updated_field_value.parent_field_id, original_field_value.parent_field_id);
-  assert_eq!(updated_field_value.parent_item_id, original_field_value.parent_item_id);
-  assert_eq!(updated_field_value.value_type, original_field_value.value_type);
-  assert_eq!(updated_field_value.text_value, updated_field_value_properties.text_value.expect("Expected text_value to be set in the updated field value properties."));
-  assert_eq!(updated_field_value.number_value, original_field_value.number_value);
-  assert_eq!(updated_field_value.boolean_value, original_field_value.boolean_value);
-  assert_eq!(updated_field_value.timestamp_value, original_field_value.timestamp_value);
-  assert_eq!(updated_field_value.stakeholder_type, original_field_value.stakeholder_type);
-  assert_eq!(updated_field_value.stakeholder_user_id, original_field_value.stakeholder_user_id);
-  assert_eq!(updated_field_value.stakeholder_group_id, original_field_value.stakeholder_group_id);
-  assert_eq!(updated_field_value.stakeholder_app_id, original_field_value.stakeholder_app_id);
+    let patch_field_value_response_body: PatchResourceResponseBody<FieldValue> = response.json();
+    let updated_field_value = patch_field_value_response_body.data;
+    assert_eq!(updated_field_value.id, original_field_value.id);
+    assert_eq!(updated_field_value.field_id, original_field_value.field_id);
+    assert_eq!(
+        updated_field_value.parent_resource_type,
+        original_field_value.parent_resource_type
+    );
+    assert_eq!(
+        updated_field_value.parent_field_id,
+        original_field_value.parent_field_id
+    );
+    assert_eq!(
+        updated_field_value.parent_item_id,
+        original_field_value.parent_item_id
+    );
+    assert_eq!(
+        updated_field_value.value_type,
+        original_field_value.value_type
+    );
+    assert_eq!(
+        updated_field_value.text_value,
+        updated_field_value_properties
+            .text_value
+            .expect("Expected text_value to be set in the updated field value properties.")
+    );
+    assert_eq!(
+        updated_field_value.number_value,
+        original_field_value.number_value
+    );
+    assert_eq!(
+        updated_field_value.boolean_value,
+        original_field_value.boolean_value
+    );
+    assert_eq!(
+        updated_field_value.timestamp_value,
+        original_field_value.timestamp_value
+    );
+    assert_eq!(
+        updated_field_value.stakeholder_type,
+        original_field_value.stakeholder_type
+    );
+    assert_eq!(
+        updated_field_value.stakeholder_user_id,
+        original_field_value.stakeholder_user_id
+    );
+    assert_eq!(
+        updated_field_value.stakeholder_group_id,
+        original_field_value.stakeholder_group_id
+    );
+    assert_eq!(
+        updated_field_value.stakeholder_app_id,
+        original_field_value.stakeholder_app_id
+    );
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the router can return a 400 status code if the request doesn't have a valid content type.
 #[tokio::test]
 async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server.patch("/field-values/not-a-uuid").await;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch("/field-values/not-a-uuid")
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-  return Ok(());
-
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 400 status code if the request body is not valid JSON.
 #[tokio::test]
 async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch("/field-values/not-a-uuid")
+        .add_header("Content-Type", "application/json")
+        .await;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch("/field-values/not-a-uuid")
-    .add_header("Content-Type", "application/json")
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-  return Ok(());
-
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 400 status code if the request body includes unwanted data.
 #[tokio::test]
 async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create a dummy delegation policy to patch.
-  let field_value = test_environment.create_random_field_value().await?;
+    // Create a dummy delegation policy to patch.
+    let field_value = test_environment.create_random_field_value().await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/field-values/{}", field_value.id))
-    .add_header("Content-Type", "application/json")
-    .json(&serde_json::json!({
-      "text_value": true
-    }))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-  return Ok(());
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch(&format!("/field-values/{}", field_value.id))
+        .add_header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+          "text_value": true
+        }))
+        .await;
 
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
 #[tokio::test]
 async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch("/field-values/not-a-uuid")
+        .add_header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+          "display_name": Uuid::now_v7().to_string()
+        }))
+        .await;
 
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch("/field-values/not-a-uuid")
-    .add_header("Content-Type", "application/json")
-    .json(&serde_json::json!({
-      "display_name": Uuid::now_v7().to_string()
-    }))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-  return Ok(());
-
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 401 status code if the user needs authentication.
 #[tokio::test]
 async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Set up the server and send the request.
-  let field_value = test_environment.create_random_field_value().await?;
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/field-values/{}", field_value.id))
-    .json(&serde_json::json!({
-      "display_name": Uuid::now_v7().to_string()
-    }))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    // Set up the server and send the request.
+    let field_value = test_environment.create_random_field_value().await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch(&format!("/field-values/{}", field_value.id))
+        .json(&serde_json::json!({
+          "display_name": Uuid::now_v7().to_string()
+        }))
+        .await;
 
-  return Ok(());
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
+    return Ok(());
 }
 
 /// Verifies that the router can return a 403 status code if the user does not have permission to patch the resource.
 #[tokio::test]
 async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+    // Set up the server and send the request.
+    let field_value = test_environment.create_random_field_value().await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch(&format!("/field-values/{}", field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!({
+          "display_name": Uuid::now_v7().to_string()
+        }))
+        .await;
 
-  // Set up the server and send the request.
-  let field_value = test_environment.create_random_field_value().await?;
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/field-values/{}", field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!({
-      "display_name": Uuid::now_v7().to_string()
-    }))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the router can return a 404 status code if the resource does not exist.
 #[tokio::test]
 async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch(&format!("/field-values/{}", Uuid::now_v7()))
+        .json(&serde_json::json!({
+          "display_name": Uuid::now_v7().to_string()
+        }))
+        .await;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/field-values/{}", Uuid::now_v7()))
-    .json(&serde_json::json!({
-      "display_name": Uuid::now_v7().to_string()
-    }))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 422 status code when the field value text is over the maximum length.
 #[tokio::test]
 async fn verify_text_value_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Give the user access to the "apps.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_field_values_action =
+        Action::get_by_name("fieldValues.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &create_field_values_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Give the user access to the "apps.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_field_values_action = Action::get_by_name("fieldValues.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_field_values_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let dummy_field_value = test_environment.create_random_field_value().await?;
+    let maximum_field_value_text_length_configuration = Configuration::get_by_name(
+        "fieldValues.maximumTextValueLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_field_value_text_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let dummy_field_value = test_environment.create_random_field_value().await?;
-  let maximum_field_value_text_length_configuration = Configuration::get_by_name("fieldValues.maximumTextValueLength", &test_environment.database_pool).await?;
-  maximum_field_value_text_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(0 as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
+    let updated_field_value_properties = EditableFieldValueProperties {
+        text_value: Some(Some(Uuid::now_v7().to_string())),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch(&format!("/field-values/{}", dummy_field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(updated_field_value_properties))
+        .await;
 
-  let updated_field_value_properties = EditableFieldValueProperties {
-    text_value: Some(Some(Uuid::now_v7().to_string())),
-    ..Default::default()
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/field-values/{}", dummy_field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(updated_field_value_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 422 status code when the field choice number is under the minimum value.
 #[tokio::test]
-async fn verify_number_value_is_at_least_at_minimum_value() -> Result<(), TestSlashstepServerError> {
+async fn verify_number_value_is_at_least_at_minimum_value() -> Result<(), TestSlashstepServerError>
+{
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Give the user access to the "fieldChoices.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_field_choices_action =
+        Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &create_field_choices_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Give the user access to the "fieldChoices.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_field_choices_action = Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let dummy_field_value = test_environment.create_random_field_value().await?;
+    let minimum_field_value_number_length_configuration = Configuration::get_by_name(
+        "fieldValues.minimumNumberValue",
+        &test_environment.database_pool,
+    )
+    .await?;
+    minimum_field_value_number_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(i64::MIN as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let dummy_field_value = test_environment.create_random_field_value().await?;
-  let minimum_field_value_number_length_configuration = Configuration::get_by_name("fieldValues.minimumNumberValue", &test_environment.database_pool).await?;
-  minimum_field_value_number_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(i64::MIN as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
+    let updated_field_value_properties = EditableFieldValueProperties {
+        number_value: Some(Some(Decimal::from(i64::MIN as i128 - 1))),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch(&format!("/field-values/{}", dummy_field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(updated_field_value_properties))
+        .await;
 
-  let updated_field_value_properties = EditableFieldValueProperties {
-    number_value: Some(Some(Decimal::from(i64::MIN as i128 - 1))),
-    ..Default::default()
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/field-values/{}", dummy_field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(updated_field_value_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 422 status code when the field choice number is over the maximum value.
 #[tokio::test]
 async fn verify_number_value_is_at_most_at_maximum_value() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Give the user access to the "fieldChoices.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_field_choices_action =
+        Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &create_field_choices_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Give the user access to the "fieldChoices.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_field_choices_action = Action::get_by_name("fieldChoices.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_field_choices_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let dummy_field_value = test_environment.create_random_field_value().await?;
+    let maximum_field_value_number_length_configuration = Configuration::get_by_name(
+        "fieldValues.maximumNumberValue",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_field_value_number_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(i64::MAX as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let dummy_field_value = test_environment.create_random_field_value().await?;
-  let maximum_field_value_number_length_configuration = Configuration::get_by_name("fieldValues.maximumNumberValue", &test_environment.database_pool).await?;
-  maximum_field_value_number_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(i64::MAX as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
+    let updated_field_value_properties = EditableFieldValueProperties {
+        number_value: Some(Some(Decimal::from(i64::MAX as i128 + 1))),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .patch(&format!("/field-values/{}", dummy_field_value.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(updated_field_value_properties))
+        .await;
 
-  let updated_field_value_properties = EditableFieldValueProperties {
-    number_value: Some(Some(Decimal::from(i64::MAX as i128 + 1))),
-    ..Default::default()
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.patch(&format!("/field-values/{}", dummy_field_value.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(updated_field_value_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
-  return Ok(());
-
+    return Ok(());
 }

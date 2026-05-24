@@ -1,402 +1,476 @@
-/**
- * 
- * Any test cases for /memberships/{membership_id} should be handled here.
- * 
- * Programmers: 
- * - Christian Toney (https://christiantoney.com)
- * 
- * © 2026 Beastslash LLC
- * 
- */
-
-use std::net::SocketAddr;
+use crate::{
+    Action, AppState, get_json_web_token_private_key, initialize_required_tables,
+    predefinitions::{
+        initialize_predefined_actions, initialize_predefined_configurations,
+        initialize_predefined_groups, initialize_predefined_roles,
+    },
+    resources::{ResourceError, access_policy::PermissionLevel, membership::Membership},
+    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+    tests::{TestEnvironment, TestSlashstepServerError},
+};
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
+/**
+ *
+ * Any test cases for /memberships/{membership_id} should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+use std::net::SocketAddr;
 use uuid::Uuid;
-use crate::{
-  Action, AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-    initialize_predefined_actions, initialize_predefined_configurations, 
-    initialize_predefined_roles, initialize_predefined_groups
-  }, resources::{
-    ResourceError, access_policy::
-      PermissionLevel, membership::Membership
-  }, tests::{TestEnvironment, TestSlashstepServerError}
-};
 
 /// Verifies that the router can return a 200 status code and the requested resource.
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError> {
-  
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
 
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_memberships_action = Action::get_by_name("memberships.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_memberships_action.id, &PermissionLevel::User).await?;
-  
-  let membership = test_environment.create_random_membership().await?;
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let response = test_server.get(&format!("/memberships/{}", membership.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::OK);
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_memberships_action =
+        Action::get_by_name("memberships.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_memberships_action.id, &PermissionLevel::User)
+        .await?;
 
-  let response_membership: Membership = response.json();
-  assert_eq!(response_membership.id, membership.id);
-  assert_eq!(response_membership.parent_resource_type, membership.parent_resource_type);
-  assert_eq!(response_membership.parent_group_id, membership.parent_group_id);
-  assert_eq!(response_membership.parent_role_id, membership.parent_role_id);
-  assert_eq!(response_membership.principal_type, membership.principal_type);
-  assert_eq!(response_membership.principal_user_id, membership.principal_user_id);
-  assert_eq!(response_membership.principal_group_id, membership.principal_group_id);
-  assert_eq!(response_membership.principal_app_id, membership.principal_app_id);
+    let membership = test_environment.create_random_membership().await?;
 
-  return Ok(());
-  
+    let response = test_server
+        .get(&format!("/memberships/{}", membership.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let get_membership_response_body = response.json::<GetResourceResponseBody<Membership>>();
+    let response_membership = get_membership_response_body.data;
+    assert_eq!(response_membership.id, membership.id);
+    assert_eq!(
+        response_membership.parent_resource_type,
+        membership.parent_resource_type
+    );
+    assert_eq!(
+        response_membership.parent_group_id,
+        membership.parent_group_id
+    );
+    assert_eq!(
+        response_membership.parent_role_id,
+        membership.parent_role_id
+    );
+    assert_eq!(
+        response_membership.principal_type,
+        membership.principal_type
+    );
+    assert_eq!(
+        response_membership.principal_user_id,
+        membership.principal_user_id
+    );
+    assert_eq!(
+        response_membership.principal_group_id,
+        membership.principal_group_id
+    );
+    assert_eq!(
+        response_membership.principal_app_id,
+        membership.principal_app_id
+    );
+
+    return Ok(());
 }
 
 /// Verifies that the router can return a 400 if the app ID is not a UUID.
 #[tokio::test]
 async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
+    let response = test_server.get("/memberships/not-a-uuid").await;
 
-  let response = test_server.get("/memberships/not-a-uuid")
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-  return Ok(());
-
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 401 status code if the requestor needs authentication.
 #[tokio::test]
-async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError>
+{
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  
-  let membership = test_environment.create_random_membership().await?;
+    let membership = test_environment.create_random_membership().await?;
 
-  let response = test_server.get(&format!("/memberships/{}", membership.id))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
-  return Ok(());
+    let response = test_server
+        .get(&format!("/memberships/{}", membership.id))
+        .await;
 
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 403 status code if the requestor does not have permission to get the app.
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Create the user, the session, and the action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let membership = test_environment.create_random_membership().await?;
 
-  // Create the user, the session, and the action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let membership = test_environment.create_random_membership().await?;
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/memberships/{}", membership.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/memberships/{}", membership.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
-  return Ok(());
-
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 404 status code if the requested resource doesn't exist
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/memberships/{}", uuid::Uuid::now_v7()))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/memberships/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
-  return Ok(());
-
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 204 status code if the action is successfully deleted.
 #[tokio::test]
 async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Grant access to the "memberships.delete" action to the user.
-  let delete_memberships_action = Action::get_by_name("memberships.delete", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &delete_memberships_action.id, &PermissionLevel::User).await?;
+    // Grant access to the "memberships.delete" action to the user.
+    let delete_memberships_action =
+        Action::get_by_name("memberships.delete", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &delete_memberships_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let membership = test_environment.create_random_membership().await?;
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.delete(&format!("/memberships/{}", membership.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
+    // Set up the server and send the request.
+    let membership = test_environment.create_random_membership().await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/memberships/{}", membership.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  match Membership::get_by_id(&membership.id, &test_environment.database_pool).await.expect_err("Expected a membership not found error.") {
+    assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
 
-    ResourceError::NotFoundError(_) => {},
+    match Membership::get_by_id(&membership.id, &test_environment.database_pool)
+        .await
+        .expect_err("Expected a membership not found error.")
+    {
+        ResourceError::NotFoundError(_) => {}
 
-    error => return Err(TestSlashstepServerError::ResourceError(error))
+        error => return Err(TestSlashstepServerError::ResourceError(error)),
+    }
 
-  }
-
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the router can return a 400 status code if the ID is not a UUID.
 #[tokio::test]
 async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
 
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
+    let response = test_server.delete("/memberships/not-a-uuid").await;
 
-  let response = test_server.delete("/memberships/not-a-uuid")
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-  return Ok(());
-
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 401 status code if the user needs authentication.
 #[tokio::test]
 async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create a dummy app.
-  let membership = test_environment.create_random_membership().await?;
+    // Create a dummy app.
+    let membership = test_environment.create_random_membership().await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.delete(&format!("/memberships/{}", membership.id))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
-  return Ok(());
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/memberships/{}", membership.id))
+        .await;
 
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
 #[tokio::test]
 async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  
-  // Create a dummy app.
-  let membership = test_environment.create_random_membership().await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.delete(&format!("/memberships/{}", membership.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
-  return Ok(());
+    // Create a dummy app.
+    let membership = test_environment.create_random_membership().await?;
 
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/memberships/{}", membership.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+    return Ok(());
 }
 
 /// Verifies that the router can return a 404 status code if the resource does not exist.
 #[tokio::test]
 async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.delete(&format!("/memberships/{}", uuid::Uuid::now_v7()))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
-  return Ok(());
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/memberships/{}", uuid::Uuid::now_v7()))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+    return Ok(());
 }
 
 // /// Verifies that the router can return a 200 status code if the resource is successfully patched.
@@ -407,7 +481,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //   initialize_required_tables(&test_environment.database_pool).await?;
 //   initialize_predefined_actions(&test_environment.database_pool).await?;
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+
 //   // Create the user and the session.
 //   let user = test_environment.create_random_user(None).await?;
 //   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -447,7 +521,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //       "client_type": new_client_type.clone()
 //     }))
 //     .await;
-  
+
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::OK);
 
@@ -484,7 +558,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //   let test_server = TestServer::new(router);
 //   let response = test_server.patch("/memberships/not-a-uuid")
 //     .await;
-  
+
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
 //   return Ok(());
@@ -511,7 +585,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //   let response = test_server.patch("/memberships/not-a-uuid")
 //     .add_header("Content-Type", "application/json")
 //     .await;
-  
+
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
 //   return Ok(());
@@ -526,7 +600,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //   initialize_required_tables(&test_environment.database_pool).await?;
 //   initialize_predefined_actions(&test_environment.database_pool).await?;
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+
 //   // Set up the server and send the request.
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
@@ -543,7 +617,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //       "description": true,
 //     }))
 //     .await;
-  
+
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
 //   return Ok(());
@@ -571,7 +645,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //       "display_name": Uuid::now_v7().to_string()
 //     }))
 //     .await;
-  
+
 //   assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
 //   return Ok(());
 
@@ -585,7 +659,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //   initialize_required_tables(&test_environment.database_pool).await?;
 //   initialize_predefined_actions(&test_environment.database_pool).await?;
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+
 //   // Set up the server and send the request.
 //   let membership = test_environment.create_random_membership().await?;
 //   let state = AppState {
@@ -600,7 +674,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //       "display_name": Uuid::now_v7().to_string()
 //     }))
 //     .await;
-  
+
 //   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
 //   return Ok(());
@@ -637,7 +711,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //       "display_name": Uuid::now_v7().to_string()
 //     }))
 //     .await;
-  
+
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 
@@ -667,7 +741,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
 //       "display_name": Uuid::now_v7().to_string()
 //     }))
 //     .await;
-  
+
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
 

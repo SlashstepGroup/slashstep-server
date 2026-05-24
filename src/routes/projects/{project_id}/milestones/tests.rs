@@ -1,652 +1,933 @@
-/**
- * 
- * Any test cases for /projects/{project_id}/milestones should be handled here.
- * 
- * Programmers: 
- * - Christian Toney (https://christiantoney.com)
- * 
- * © 2026 Beastslash LLC
- * 
- */
-
-use std::net::SocketAddr;
+use crate::{
+    AppState, get_json_web_token_private_key, initialize_required_tables,
+    predefinitions::{
+        initialize_predefined_actions, initialize_predefined_configurations,
+        initialize_predefined_groups, initialize_predefined_roles,
+    },
+    resources::{
+        access_policy::{AccessPolicyPrincipalType, PermissionLevel},
+        action::Action,
+        configuration::{Configuration, EditableConfigurationProperties},
+        milestone::{
+            DEFAULT_RESOURCE_LIST_LIMIT, InitialMilestonePropertiesWithPredefinedParent, Milestone,
+            MilestoneParentResourceType,
+        },
+    },
+    routes::ListResourcesResponseBody,
+    tests::{TestEnvironment, TestSlashstepServerError},
+};
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use uuid::Uuid;
 use rust_decimal::Decimal;
-use crate::{AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_roles, initialize_predefined_groups}, resources::{access_policy::{AccessPolicyPrincipalType, PermissionLevel}, action::Action, configuration::{Configuration, EditableConfigurationProperties}, milestone::{DEFAULT_RESOURCE_LIST_LIMIT, InitialMilestonePropertiesWithPredefinedParent, Milestone, MilestoneParentResourceType}}, routes::ListResourcesResponseBody, tests::{TestEnvironment, TestSlashstepServerError}};
+/**
+ *
+ * Any test cases for /projects/{project_id}/milestones should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+use std::net::SocketAddr;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn verify_successful_milestone_creation() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Give the user access to the "milestones.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_milestones_action =
+        Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &create_milestones_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Give the user access to the "milestones.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_milestones_action = Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let dummy_project = test_environment.create_random_project(None).await?;
+    let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
+        name: Uuid::now_v7().to_string(),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+        start_date: Some(chrono::Utc::now()),
+        end_date: Some(chrono::Utc::now() + chrono::Duration::days(7)),
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/projects/{}/milestones", dummy_project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_milestone_properties))
+        .await;
 
-  // Set up the server and send the request.
-  let dummy_project = test_environment.create_random_project(None).await?;
-  let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
-    name: Uuid::now_v7().to_string(),
-    display_name: Uuid::now_v7().to_string(),
-    description: Some(Uuid::now_v7().to_string()),
-    start_date: Some(chrono::Utc::now()),
-    end_date: Some(chrono::Utc::now() + chrono::Duration::days(7))
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/milestones", dummy_project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_milestone_properties))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::CREATED);
+    assert_eq!(response.status_code(), StatusCode::CREATED);
 
-  let response_milestone: Milestone = response.json();
-  assert_eq!(response_milestone.name, initial_milestone_properties.name);
-  assert_eq!(response_milestone.display_name, initial_milestone_properties.display_name);
-  assert_eq!(response_milestone.description, initial_milestone_properties.description);
-  assert_eq!(response_milestone.start_date.unwrap().timestamp_millis(), initial_milestone_properties.start_date.unwrap().timestamp_millis());
-  assert_eq!(response_milestone.end_date.unwrap().timestamp_millis(), initial_milestone_properties.end_date.unwrap().timestamp_millis());
-  assert_eq!(response_milestone.parent_resource_type, MilestoneParentResourceType::Project);
-  assert_eq!(response_milestone.parent_project_id, Some(dummy_project.id));
+    let response_milestone: Milestone = response.json();
+    assert_eq!(response_milestone.name, initial_milestone_properties.name);
+    assert_eq!(
+        response_milestone.display_name,
+        initial_milestone_properties.display_name
+    );
+    assert_eq!(
+        response_milestone.description,
+        initial_milestone_properties.description
+    );
+    assert_eq!(
+        response_milestone.start_date.unwrap().timestamp_millis(),
+        initial_milestone_properties
+            .start_date
+            .unwrap()
+            .timestamp_millis()
+    );
+    assert_eq!(
+        response_milestone.end_date.unwrap().timestamp_millis(),
+        initial_milestone_properties
+            .end_date
+            .unwrap()
+            .timestamp_millis()
+    );
+    assert_eq!(
+        response_milestone.parent_resource_type,
+        MilestoneParentResourceType::Project
+    );
+    assert_eq!(response_milestone.parent_project_id, Some(dummy_project.id));
 
-  return Ok(());
-  
+    return Ok(());
 }
 
 /// Verifies that the server returns a 422 status code when the milestone name is over the maximum length.
 #[tokio::test]
-async fn verify_milestone_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+async fn verify_milestone_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError>
+{
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Give the user access to the "milestones.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_milestones_action =
+        Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &create_milestones_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Give the user access to the "milestones.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_milestones_action = Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let project = test_environment.create_random_project(None).await?;
+    let maximum_milestone_name_length_configuration = Configuration::get_by_name(
+        "milestones.maximumNameLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_milestone_name_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let project = test_environment.create_random_project(None).await?;
-  let maximum_milestone_name_length_configuration = Configuration::get_by_name("milestones.maximumNameLength", &test_environment.database_pool).await?;
-  maximum_milestone_name_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(0 as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
+    let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
+        name: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Uuid::now_v7().to_string(),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/projects/{}/milestones", project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_milestone_properties))
+        .await;
 
-  let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
-    name: Uuid::now_v7().to_string().replace("-", ""),
-    display_name: Uuid::now_v7().to_string(),
-    ..Default::default()
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/milestones", project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_milestone_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 422 status code when the milestone display name is over the maximum length.
 #[tokio::test]
-async fn verify_milestone_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+async fn verify_milestone_display_name_is_at_most_at_maximum_length()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Give the user access to the "milestones.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_milestones_action =
+        Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &create_milestones_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Give the user access to the "milestones.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_milestones_action = Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let project = test_environment.create_random_project(None).await?;
+    let maximum_milestone_display_name_length_configuration = Configuration::get_by_name(
+        "milestones.maximumDisplayNameLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_milestone_display_name_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let project = test_environment.create_random_project(None).await?;
-  let maximum_milestone_display_name_length_configuration = Configuration::get_by_name("milestones.maximumDisplayNameLength", &test_environment.database_pool).await?;
-  maximum_milestone_display_name_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(0 as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
+    let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
+        name: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Uuid::now_v7().to_string(),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/projects/{}/milestones", project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_milestone_properties))
+        .await;
 
-  let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
-    name: Uuid::now_v7().to_string().replace("-", ""),
-    display_name: Uuid::now_v7().to_string(),
-    ..Default::default()
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/milestones", project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_milestone_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 422 status code when the milestone description is over the maximum length.
 #[tokio::test]
-async fn verify_milestone_description_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+async fn verify_milestone_description_is_at_most_at_maximum_length()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Give the user access to the "milestones.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_milestones_action =
+        Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &create_milestones_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Give the user access to the "milestones.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_milestones_action = Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let project = test_environment.create_random_project(None).await?;
+    let maximum_milestone_description_length_configuration = Configuration::get_by_name(
+        "milestones.maximumDescriptionLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_milestone_description_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let project = test_environment.create_random_project(None).await?;
-  let maximum_milestone_description_length_configuration = Configuration::get_by_name("milestones.maximumDescriptionLength", &test_environment.database_pool).await?;
-  maximum_milestone_description_length_configuration.update(&EditableConfigurationProperties {
-    number_value: Some(Decimal::from(0 as i64)),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
+    let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
+        name: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/projects/{}/milestones", project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_milestone_properties))
+        .await;
 
-  let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
-    name: Uuid::now_v7().to_string().replace("-", ""),
-    display_name: Uuid::now_v7().to_string(),
-    description: Some(Uuid::now_v7().to_string()),
-    ..Default::default()
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/milestones", project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_milestone_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 422 status code when the milestone name doesn't match the allowed regex pattern.
 #[tokio::test]
 async fn verify_milestone_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Give the user access to the "milestones.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_milestones_action =
+        Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &create_milestones_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
 
-  // Give the user access to the "milestones.create" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let create_milestones_action = Action::get_by_name("milestones.create", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &create_milestones_action.id, &PermissionLevel::User).await?;
+    // Set up the server and send the request.
+    let project = test_environment.create_random_project(None).await?;
+    let allowed_milestone_name_regex_configuration = Configuration::get_by_name(
+        "milestones.allowedNameRegex",
+        &test_environment.database_pool,
+    )
+    .await?;
+    allowed_milestone_name_regex_configuration
+        .update(
+            &EditableConfigurationProperties {
+                text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
 
-  // Set up the server and send the request.
-  let project = test_environment.create_random_project(None).await?;
-  let allowed_milestone_name_regex_configuration = Configuration::get_by_name("milestones.allowedNameRegex", &test_environment.database_pool).await?;
-  allowed_milestone_name_regex_configuration.update(&EditableConfigurationProperties {
-    text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
-    ..Default::default()
-  }, &test_environment.database_pool).await?;
+    let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
+        name: "Invalid Milestone Name With Spaces".to_string(),
+        display_name: Uuid::now_v7().to_string(),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/projects/{}/milestones", project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_milestone_properties))
+        .await;
 
-  let initial_milestone_properties = InitialMilestonePropertiesWithPredefinedParent {
-    name: "Invalid Milestone Name With Spaces".to_string(),
-    display_name: Uuid::now_v7().to_string(),
-    ..Default::default()
-  };
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.post(&format!("/projects/{}/milestones", project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .json(&serde_json::json!(initial_milestone_properties))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
 async fn verify_returned_milestone_list_without_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Give the user access to the "milestones.get" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_milestones_action = Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User).await?;
+    // Give the user access to the "milestones.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_milestones_action =
+        Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  // Give the user access to the "milestones.list" action.
-  let list_milestones_action = Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User).await?;
+    // Give the user access to the "milestones.list" action.
+    let list_milestones_action =
+        Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  // Create dummy resources.
-  let dummy_project = test_environment.create_random_project(None).await?;
-  let shown_milestone = test_environment.create_random_milestone(Some(&dummy_project.id)).await?;
+    // Create dummy resources.
+    let dummy_project = test_environment.create_random_project(None).await?;
+    let shown_milestone = test_environment
+        .create_random_milestone(Some(&dummy_project.id))
+        .await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::OK);
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/projects/{}/milestones", &dummy_project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  let response_milestones: ListResourcesResponseBody::<Milestone> = response.json();
-  assert_eq!(response_milestones.total_count, 1);
-  assert_eq!(response_milestones.data.len(), 1);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
 
-  let query = format!("parent_project_id = {}", quote_literal(&dummy_project.id.to_string()));
-  let actual_milestone_count = Milestone::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_milestones.total_count, actual_milestone_count);
+    let response_milestones: ListResourcesResponseBody<Milestone> = response.json();
+    assert_eq!(response_milestones.total_count, 1);
+    assert_eq!(response_milestones.data.len(), 1);
 
-  let actual_milestones = Milestone::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_milestones.data.len(), actual_milestones.len());
-  assert_eq!(response_milestones.data[0].id, actual_milestones[0].id);
-  assert_eq!(response_milestones.data[0].id, shown_milestone.id);
+    let query = format!(
+        "parent_project_id = {}",
+        quote_literal(&dummy_project.id.to_string())
+    );
+    let actual_milestone_count = Milestone::count(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_milestones.total_count, actual_milestone_count);
 
-  return Ok(());
+    let actual_milestones = Milestone::list(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_milestones.data.len(), actual_milestones.len());
+    assert_eq!(response_milestones.data[0].id, actual_milestones[0].id);
+    assert_eq!(response_milestones.data[0].id, shown_milestone.id);
 
+    return Ok(());
 }
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
 async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Give the user access to the "milestones.get" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_milestones_action = Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User).await?;
+    // Give the user access to the "milestones.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_milestones_action =
+        Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  // Give the user access to the "milestones.list" action.
-  let list_milestones_action = Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User).await?;
+    // Give the user access to the "milestones.list" action.
+    let list_milestones_action =
+        Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  // Create a few dummy access policies.
-  let dummy_project = test_environment.create_random_project(None).await?;
-  let shown_milestone = test_environment.create_random_milestone(Some(&dummy_project.id)).await?;
+    // Create a few dummy access policies.
+    let dummy_project = test_environment.create_random_project(None).await?;
+    let shown_milestone = test_environment
+        .create_random_milestone(Some(&dummy_project.id))
+        .await?;
 
-  // Set up the server and send the request.
-  let additional_query = format!("id = '{}'", shown_milestone.id);
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", &session_token)))
-    .add_query_param("query", &additional_query)
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::OK);
+    // Set up the server and send the request.
+    let additional_query = format!("id = '{}'", shown_milestone.id);
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/projects/{}/milestones", &dummy_project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .add_query_param("query", &additional_query)
+        .await;
 
-  let response_milestones: ListResourcesResponseBody::<Milestone> = response.json();
-  assert_eq!(response_milestones.total_count, 1);
-  assert_eq!(response_milestones.data.len(), 1);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
 
-  let query = format!("parent_project_id = {} AND ({})", quote_literal(&dummy_project.id.to_string()), additional_query);
-  let actual_milestone_count = Milestone::count(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_milestones.total_count, actual_milestone_count);
+    let response_milestones: ListResourcesResponseBody<Milestone> = response.json();
+    assert_eq!(response_milestones.total_count, 1);
+    assert_eq!(response_milestones.data.len(), 1);
 
-  let actual_milestones = Milestone::list(&query, &test_environment.database_pool, Some(&AccessPolicyPrincipalType::User), Some(&user.id)).await?;
-  assert_eq!(response_milestones.data.len(), actual_milestones.len());
-  assert_eq!(response_milestones.data[0].id, actual_milestones[0].id);
-  assert_eq!(response_milestones.data[0].id, shown_milestone.id);
+    let query = format!(
+        "parent_project_id = {} AND ({})",
+        quote_literal(&dummy_project.id.to_string()),
+        additional_query
+    );
+    let actual_milestone_count = Milestone::count(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_milestones.total_count, actual_milestone_count);
 
-  return Ok(());
+    let actual_milestones = Milestone::list(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_milestones.data.len(), actual_milestones.len());
+    assert_eq!(response_milestones.data[0].id, actual_milestones[0].id);
+    assert_eq!(response_milestones.data[0].id, shown_milestone.id);
 
+    return Ok(());
 }
 
 /// Verifies that the default access policy list limit is enforced.
 #[tokio::test]
 async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Give the user access to the "milestones.get" action.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_milestones_action = Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User).await?;
+    // Give the user access to the "milestones.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_milestones_action =
+        Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  // Give the user access to the "milestones.list" action.
-  let list_milestones_action = Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User).await?;
+    // Give the user access to the "milestones.list" action.
+    let list_milestones_action =
+        Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  // Create dummy access policies.
-  let dummy_project = test_environment.create_random_project(None).await?;
-  for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
+    // Create dummy access policies.
+    let dummy_project = test_environment.create_random_project(None).await?;
+    for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
+        let _ = test_environment
+            .create_random_milestone(Some(&dummy_project.id))
+            .await?;
+    }
 
-    let _ = test_environment.create_random_milestone(Some(&dummy_project.id)).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/projects/{}/milestones", &dummy_project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  }
+    assert_eq!(response.status_code(), StatusCode::OK);
 
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::OK);
+    let response_body: ListResourcesResponseBody<Milestone> = response.json();
+    assert_eq!(
+        response_body.data.len(),
+        DEFAULT_RESOURCE_LIST_LIMIT as usize
+    );
 
-  let response_body: ListResourcesResponseBody::<Milestone> = response.json();
-  assert_eq!(response_body.data.len(), DEFAULT_RESOURCE_LIST_LIMIT as usize);
-
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
 #[tokio::test]
 async fn verify_maximum_milestone_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_milestones_action = Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User).await?;
-  let list_milestones_action = Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_milestones_action =
+        Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User)
+        .await?;
+    let list_milestones_action =
+        Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  // Create dummy resources.
-  let dummy_project = test_environment.create_random_project(None).await?;
+    // Create dummy resources.
+    let dummy_project = test_environment.create_random_project(None).await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-    .add_query_param("query", format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/projects/{}/milestones", &dummy_project.id))
+        .add_query_param(
+            "query",
+            format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1),
+        )
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  return Ok(());
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
+    return Ok(());
 }
 
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
 async fn verify_query_when_listing_milestones() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
-  
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
-  let get_milestones_action = Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_milestones_action =
+        Action::get_by_name("milestones.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  let list_milestones_action = Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
-  test_environment.create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User).await?;
+    let list_milestones_action =
+        Action::get_by_name("milestones.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_milestones_action.id, &PermissionLevel::User)
+        .await?;
 
-  // Create dummy resources.
-  let dummy_project = test_environment.create_random_project(None).await?;
+    // Create dummy resources.
+    let dummy_project = test_environment.create_random_project(None).await?;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
 
-  let bad_requests = vec![
-    test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-      .add_query_param("query", format!("SELECT * FROM milestones")),
-    test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-      .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
-    test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-      .add_query_param("query", format!("SELECT * FROM milestones WHERE action_id = {}", get_milestones_action.id))
-  ];
-  
-  for request in bad_requests {
+    let bad_requests = vec![
+        test_server
+            .get(&format!("/projects/{}/milestones", &dummy_project.id))
+            .add_query_param("query", format!("SELECT * FROM milestones")),
+        test_server
+            .get(&format!("/projects/{}/milestones", &dummy_project.id))
+            .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
+        test_server
+            .get(&format!("/projects/{}/milestones", &dummy_project.id))
+            .add_query_param(
+                "query",
+                format!(
+                    "SELECT * FROM milestones WHERE action_id = {}",
+                    get_milestones_action.id
+                ),
+            ),
+    ];
 
-    let response = request
-      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-      .await;
+    for request in bad_requests {
+        let response = request
+            .add_cookie(Cookie::new(
+                "session_access_token",
+                &session_token,
+            ))
+            .await;
 
-    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    }
 
-  }
+    let unprocessable_entity_requests = vec![
+        test_server
+            .get(&format!("/projects/{}/milestones", &dummy_project.id))
+            .add_query_param(
+                "query",
+                format!("action_ied = {}", get_milestones_action.id),
+            ),
+        test_server
+            .get(&format!("/projects/{}/milestones", &dummy_project.id))
+            .add_query_param("query", format!("1 = 1")),
+    ];
 
-  let unprocessable_entity_requests = vec![
-    test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-      .add_query_param("query", format!("action_ied = {}", get_milestones_action.id)),
-    test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-      .add_query_param("query", format!("1 = 1"))
-  ];
+    for request in unprocessable_entity_requests {
+        let response = request
+            .add_cookie(Cookie::new(
+                "session_access_token",
+                &session_token,
+            ))
+            .await;
 
-  for request in unprocessable_entity_requests {
+        assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
 
-    let response = request
-      .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-      .await;
-
-    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
-
-  }
-
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
 #[tokio::test]
 async fn verify_authentication_when_listing_milestones() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Create a dummy action.
+    let dummy_project = test_environment.create_random_project(None).await?;
 
-  // Create a dummy action.
-  let dummy_project = test_environment.create_random_project(None).await?;
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/projects/{}/milestones", &dummy_project.id))
+        .await;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-    .await;
-  
-  // Verify the response.
-  assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
-  return Ok(());
-
+    return Ok(());
 }
 
 /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 #[tokio::test]
 async fn verify_permission_when_listing_milestones() -> Result<(), TestSlashstepServerError> {
+    let test_environment = TestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_roles(&test_environment.database_pool).await?;
+    initialize_predefined_groups(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
-  let test_environment = TestEnvironment::new().await?;
-  initialize_required_tables(&test_environment.database_pool).await?;
-  initialize_predefined_actions(&test_environment.database_pool).await?;
-  initialize_predefined_roles(&test_environment.database_pool).await?;
-  initialize_predefined_groups(&test_environment.database_pool).await?;
-  initialize_predefined_configurations(&test_environment.database_pool).await?;
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
 
-  // Create the user and the session.
-  let plain_text_password = Uuid::now_v7().to_string();
-  let user = test_environment.create_random_user(Some(&plain_text_password)).await?;
-  let session = test_environment.create_random_session(Some(&user.id)).await?;
-  let json_web_token_private_key = get_json_web_token_private_key().await?;
-  let session_token = session.generate_access_token(&json_web_token_private_key, session.expiration_date).await?;
+    // Create a dummy action.
+    let dummy_project = test_environment.create_random_project(None).await?;
 
-  // Create a dummy action.
-  let dummy_project = test_environment.create_random_project(None).await?;
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/projects/{}/milestones", &dummy_project.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
 
-  // Set up the server and send the request.
-  let state = AppState {
-    database_pool: test_environment.database_pool.clone(),
-    redis_pool: test_environment.redis_pool.clone()
-  };
-  let router = super::get_router(state.clone())
-    .with_state(state)
-    .into_make_service_with_connect_info::<SocketAddr>();
-  let test_server = TestServer::new(router);
-  let response = test_server.get(&format!("/projects/{}/milestones", &dummy_project.id))
-    .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
-    .await;
-  
-  assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 
-  return Ok(());
-
+    return Ok(());
 }

@@ -1,198 +1,446 @@
-/**
- * 
- * Any functionality for /delegation-policies/{delegation_policy_id}/access-policies should be handled here.
- * 
- * Programmers: 
- * - Christian Toney (https://christiantoney.com)
- * 
- * © 2026 Beastslash LLC
- * 
- */
-
-use std::sync::Arc;
-use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
+use crate::{
+    AppState, HTTPError,
+    middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
+    resources::{
+        ResourceError, ResourceType,
+        access_policy::{
+            AccessPolicy, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties,
+            InitialAccessPolicyPropertiesForPredefinedScope, PermissionLevel,
+        },
+        action_log_entry::{
+            ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
+        },
+        app::App,
+        app_authorization::AppAuthorization,
+        http_transaction::HTTPTransaction,
+        server_log_entry::ServerLogEntry,
+        user::User,
+    },
+    routes::{CreateResourceResponseBody, ListResourcesResponseBody, ResourceListQueryParameters},
+    utilities::route_handler_utilities::{
+        get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp,
+        get_delegation_policy_by_id, get_principal_type_and_id_from_principal,
+        get_request_body_without_json_rejection, get_uuid_from_string,
+        is_authenticated_user_anonymous, match_db_error, match_slashstepql_error,
+        verify_delegate_permissions, verify_principal_permissions,
+    },
+};
+use axum::{
+    Extension, Json, Router,
+    extract::{Path, Query, State, rejection::JsonRejection},
+};
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware}, resources::{ResourceType, ResourceError, access_policy::{AccessPolicy, PermissionLevel, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_delegation_policy_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
+/**
+ *
+ * Any functionality for /delegation-policies/{delegation_policy_id}/access-policies should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+use std::sync::Arc;
 
 #[cfg(test)]
 mod tests;
 
 /// GET /delegation-policies/{delegation_policy_id}/access-policies
-/// 
+///
 /// Lists access policies for a delegation policy.
 #[axum::debug_handler]
 async fn handle_list_access_policies_request(
-  Path(delegation_policy_id): Path<String>,
-  Query(query_parameters): Query<ResourceListQueryParameters>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+    Path(delegation_policy_id): Path<String>,
+    Query(query_parameters): Query<ResourceListQueryParameters>,
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<AccessPolicy>>), HTTPError> {
+    let delegation_policy_id = get_uuid_from_string(
+        &delegation_policy_id,
+        "delegation policy",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    let delegation_policy = get_delegation_policy_by_id(
+        &delegation_policy_id,
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
 
-  let delegation_policy_id = get_uuid_from_string(&delegation_policy_id, "delegation policy", &http_transaction, &state.database_pool).await?;
-  let delegation_policy = get_delegation_policy_by_id(&delegation_policy_id, &http_transaction, &state.database_pool).await?;
+    // Make sure the principal has access to list resources.
+    let list_resources_action = get_action_by_name(
+        "accessPolicies.list",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &list_resources_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::DelegationPolicy,
+        Some(&delegation_policy.id),
+        &list_resources_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  // Make sure the principal has access to list resources.
-  let list_resources_action = get_action_by_name("accessPolicies.list", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::DelegationPolicy, Some(&delegation_policy.id), &list_resources_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
+    let query = format!(
+        "scoped_resource_type = 'DelegationPolicy' AND scoped_delegation_policy_id = {}{}",
+        quote_literal(&delegation_policy_id.to_string()),
+        query_parameters
+            .query
+            .and_then(|query| Some(format!(" AND ({})", query)))
+            .unwrap_or("".to_string())
+    );
+    let queried_resources = match AccessPolicy::list(
+        &query,
+        &state.database_pool,
+        Some(&principal_type),
+        Some(&principal_id),
+    )
+    .await
+    {
+        Ok(queried_resources) => queried_resources,
 
-  let query = format!(
-    "scoped_resource_type = 'DelegationPolicy' AND scoped_delegation_policy_id = {}{}", 
-    quote_literal(&delegation_policy_id.to_string()), 
-    query_parameters.query.and_then(|query| Some(format!(" AND ({})", query))).unwrap_or("".to_string())
-  );
-  let queried_resources = match AccessPolicy::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
+        Err(error) => {
+            let http_error = match error {
+                ResourceError::SlashstepQLError(error) => match_slashstepql_error(
+                    &error,
+                    &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
+                    "access policies",
+                ),
 
-    Ok(queried_resources) => queried_resources,
+                ResourceError::PostgresError(error) => match_db_error(&error, "access policies"),
 
-    Err(error) => {
+                _ => HTTPError::InternalServerError(Some(format!(
+                    "Failed to list access policies: {:?}",
+                    error
+                ))),
+            };
 
-      let http_error = match error {
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "access policies"),
+    ServerLogEntry::trace(
+        &format!("Counting access policies..."),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    let resource_count = match AccessPolicy::count(
+        &query,
+        &state.database_pool,
+        Some(&principal_type),
+        Some(&principal_id),
+    )
+    .await
+    {
+        Ok(resource_count) => resource_count,
 
-        ResourceError::PostgresError(error) => match_db_error(&error, "access policies"),
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to count access policies: {:?}",
+                error
+            )));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to list access policies: {:?}", error)))
+    let expiration_timestamp =
+        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: list_resources_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            expiration_timestamp: expiration_timestamp,
+            reason: None, // TODO: Support reasons.
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
+                Some(authenticated_user.id.clone())
+            } else {
+                None
+            },
+            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
+                Some(authenticated_app.id.clone())
+            } else {
+                None
+            },
+            target_resource_type: ResourceType::DelegationPolicy,
+            target_delegation_policy_id: Some(delegation_policy_id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-      };
+    let queried_resource_list_length = queried_resources.len();
+    ServerLogEntry::success(
+        &format!(
+            "Successfully returned {} {}.",
+            queried_resource_list_length,
+            if queried_resource_list_length == 1 {
+                "access policy"
+            } else {
+                "access policies"
+            }
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
+    let response_body = ListResourcesResponseBody::<AccessPolicy> {
+        data: queried_resources,
+        total_count: resource_count,
+    };
 
-    }
-
-  };
-
-  ServerLogEntry::trace(&format!("Counting access policies..."), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let resource_count = match AccessPolicy::count(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
-
-    Ok(resource_count) => resource_count,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count access policies: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: list_resources_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    expiration_timestamp: expiration_timestamp,
-    reason: None, // TODO: Support reasons.
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::DelegationPolicy,
-    target_delegation_policy_id: Some(delegation_policy_id),
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-  
-  let queried_resource_list_length = queried_resources.len();
-  ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "access policy" } else { "access policies" }), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let response_body = ListResourcesResponseBody::<AccessPolicy> {
-    data: queried_resources,
-    total_count: resource_count
-  };
-  
-  return Ok((StatusCode::OK, Json(response_body)));
-
+    return Ok((StatusCode::OK, Json(response_body)));
 }
 
 /// POST /delegation-policies/{delegation_policy_id}/access-policies
-/// 
+///
 /// Creates an access policy for a delegation policy.
 #[axum::debug_handler]
 async fn handle_create_access_policy_request(
-  Path(delegation_policy_id): Path<String>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-  body: Result<Json<InitialAccessPolicyPropertiesForPredefinedScope>, JsonRejection>
-) -> Result<(StatusCode, Json<AccessPolicy>), HTTPError> {
+    Path(delegation_policy_id): Path<String>,
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+    body: Result<Json<InitialAccessPolicyPropertiesForPredefinedScope>, JsonRejection>,
+) -> Result<(StatusCode, Json<CreateResourceResponseBody<AccessPolicy>>), HTTPError> {
+    let delegation_policy_id = get_uuid_from_string(
+        &delegation_policy_id,
+        "delegation policy",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    let access_policy_properties_json =
+        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+            .await?;
 
-  let delegation_policy_id = get_uuid_from_string(&delegation_policy_id, "delegation policy", &http_transaction, &state.database_pool).await?;
-  let access_policy_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+    // Make sure the authenticated_user can create access policies for the target delegation policy.
+    let target_delegation_policy = get_delegation_policy_by_id(
+        &delegation_policy_id,
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    let create_access_policies_action = get_action_by_name(
+        "accessPolicies.create",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &create_access_policies_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::DelegationPolicy,
+        Some(&target_delegation_policy.id),
+        &create_access_policies_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  // Make sure the authenticated_user can create access policies for the target delegation policy.
-  let target_delegation_policy = get_delegation_policy_by_id(&delegation_policy_id, &http_transaction, &state.database_pool).await?;
-  let create_access_policies_action = get_action_by_name("accessPolicies.create", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_access_policies_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::DelegationPolicy, Some(&target_delegation_policy.id), &create_access_policies_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
+    // Make sure the authenticated_user has at least editor access to the access policy's action.
+    let access_policy_action = get_action_by_id(
+        &access_policy_properties_json.action_id,
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    let minimum_permission_level =
+        if access_policy_properties_json.permission_level > PermissionLevel::Editor {
+            access_policy_properties_json.permission_level
+        } else {
+            PermissionLevel::Editor
+        };
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::DelegationPolicy,
+        Some(&target_delegation_policy.id),
+        &access_policy_action,
+        &http_transaction,
+        &minimum_permission_level,
+        &state.database_pool,
+    )
+    .await?;
 
-  // Make sure the authenticated_user has at least editor access to the access policy's action.
-  let access_policy_action = get_action_by_id(&access_policy_properties_json.action_id, &http_transaction, &state.database_pool).await?;
-  let minimum_permission_level = if access_policy_properties_json.permission_level > PermissionLevel::Editor { access_policy_properties_json.permission_level } else { PermissionLevel::Editor };
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::DelegationPolicy, Some(&target_delegation_policy.id), &access_policy_action, &http_transaction, &minimum_permission_level, &state.database_pool).await?;
+    // Create the access policy.
+    ServerLogEntry::trace(
+        &format!(
+            "Creating access policy for delegation policy {}...",
+            delegation_policy_id
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    let access_policy = match AccessPolicy::create(
+        &InitialAccessPolicyProperties {
+            action_id: access_policy_properties_json.action_id,
+            permission_level: access_policy_properties_json.permission_level,
+            is_inheritance_enabled: access_policy_properties_json.is_inheritance_enabled,
+            principal_type: access_policy_properties_json.principal_type,
+            principal_user_id: access_policy_properties_json.principal_user_id,
+            principal_group_id: access_policy_properties_json.principal_group_id,
+            principal_role_id: access_policy_properties_json.principal_role_id,
+            principal_app_id: access_policy_properties_json.principal_app_id,
+            scoped_resource_type: ResourceType::DelegationPolicy,
+            scoped_delegation_policy_id: Some(target_delegation_policy.id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    {
+        Ok(access_policy) => access_policy,
 
-  // Create the access policy.
-  ServerLogEntry::trace(&format!("Creating access policy for delegation policy {}...", delegation_policy_id), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let access_policy = match AccessPolicy::create(&InitialAccessPolicyProperties {
-    action_id: access_policy_properties_json.action_id,
-    permission_level: access_policy_properties_json.permission_level,
-    is_inheritance_enabled: access_policy_properties_json.is_inheritance_enabled,
-    principal_type: access_policy_properties_json.principal_type,
-    principal_user_id: access_policy_properties_json.principal_user_id,
-    principal_group_id: access_policy_properties_json.principal_group_id,
-    principal_role_id: access_policy_properties_json.principal_role_id,
-    principal_app_id: access_policy_properties_json.principal_app_id,
-    scoped_resource_type: ResourceType::DelegationPolicy,
-    scoped_delegation_policy_id: Some(target_delegation_policy.id),
-    ..Default::default()
-  }, &state.database_pool).await {
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to create access policy: {:?}",
+                error
+            )));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-    Ok(access_policy) => access_policy,
+    let expiration_timestamp =
+        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: create_access_policies_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            expiration_timestamp,
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: if let Some(authenticated_user) = &authenticated_user {
+                Some(authenticated_user.id.clone())
+            } else {
+                None
+            },
+            actor_app_id: if let Some(authenticated_app) = &authenticated_app {
+                Some(authenticated_app.id.clone())
+            } else {
+                None
+            },
+            target_resource_type: ResourceType::AccessPolicy,
+            target_access_policy_id: Some(access_policy.id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create access policy: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error)
-
-    }
-
-  };
-
-  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: create_access_policies_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    expiration_timestamp,
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::AccessPolicy,
-    target_access_policy_id: Some(access_policy.id),
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-  ServerLogEntry::success(&format!("Successfully created access policy {}.", access_policy.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-
-  return Ok((StatusCode::CREATED, Json(access_policy)));
-
+    let response_body = CreateResourceResponseBody::<AccessPolicy> {
+        data: access_policy.clone(),
+    };
+    return Ok((StatusCode::CREATED, Json(response_body)));
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-
-  let router = Router::<AppState>::new()
-    .route("/delegation-policies/{delegation_policy_id}/access-policies", axum::routing::get(handle_list_access_policies_request))
-    .route("/delegation-policies/{delegation_policy_id}/access-policies", axum::routing::post(handle_create_access_policy_request))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), rate_limit_middleware::verify_absolute_maximum_rate_limits))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));
-  return router;
-
+    let router = Router::<AppState>::new()
+        .route(
+            "/delegation-policies/{delegation_policy_id}/access-policies",
+            axum::routing::get(handle_list_access_policies_request),
+        )
+        .route(
+            "/delegation-policies/{delegation_policy_id}/access-policies",
+            axum::routing::post(handle_create_access_policy_request),
+        )
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            rate_limit_middleware::verify_absolute_maximum_rate_limits,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            authentication_middleware::authenticate_user,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            authentication_middleware::authenticate_app,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            http_transaction_middleware::create_http_transaction,
+        ));
+    return router;
 }

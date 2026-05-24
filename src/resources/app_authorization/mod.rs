@@ -1,38 +1,45 @@
 /**
- * 
+ *
  * This module defines the implementation and types of an app authorization.
- * 
- * Programmers: 
+ *
+ * Programmers:
  * - Christian Toney (https://christiantoney.com)
- * 
+ *
  * © 2026 Beastslash LLC
- * 
+ *
  */
 
 #[cfg(test)]
 mod tests;
 
+use crate::{
+    resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
+    utilities::slashstepql::{
+        self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult,
+        SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter,
+        SlashstepQLSanitizeFunctionOptions,
+    },
+};
+use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use postgres_types::{FromSql, ToSql};
-use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_APP_AUTHORIZATION_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
-  "id",
-  "app_id",
-  "authorizing_resource_type",
-  "authorizing_project_id",
-  "authorizing_workspace_id",
-  "authorizing_user_id"
+    "id",
+    "app_id",
+    "authorizing_resource_type",
+    "authorizing_project_id",
+    "authorizing_workspace_id",
+    "authorizing_user_id",
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
-  "id",
-  "app_id",
-  "authorizing_project_id",
-  "authorizing_workspace_id",
-  "authorizing_user_id"
+    "id",
+    "app_id",
+    "authorizing_project_id",
+    "authorizing_workspace_id",
+    "authorizing_user_id",
 ];
 pub const RESOURCE_NAME: &str = "AppAuthorization";
 pub const DATABASE_TABLE_NAME: &str = "app_authorizations";
@@ -41,253 +48,312 @@ pub const GET_RESOURCE_ACTION_NAME: &str = "appAuthorizations.get";
 #[derive(Debug, Clone, ToSql, FromSql, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[postgres(name = "app_authorization_authorizing_resource_type")]
 pub enum AppAuthorizationAuthorizingResourceType {
-  #[default]
-  Server,
-  Workspace,
-  Project,
-  User
+    #[default]
+    Server,
+    Workspace,
+    Project,
+    User,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct InitialAppAuthorizationProperties {
+    /// The ID of the app.
+    pub app_id: Uuid,
 
-  /// The ID of the app.
-  pub app_id: Uuid,
+    /// The parent resource type of the app authorization.
+    pub authorizing_resource_type: AppAuthorizationAuthorizingResourceType,
 
-  /// The parent resource type of the app authorization.
-  pub authorizing_resource_type: AppAuthorizationAuthorizingResourceType,
+    /// The ID of the parent project of the app authorization, if applicable.
+    pub authorizing_project_id: Option<Uuid>,
 
-  /// The ID of the parent project of the app authorization, if applicable.
-  pub authorizing_project_id: Option<Uuid>,
+    /// The ID of the parent workspace of the app authorization, if applicable.
+    pub authorizing_workspace_id: Option<Uuid>,
 
-  /// The ID of the parent workspace of the app authorization, if applicable.
-  pub authorizing_workspace_id: Option<Uuid>,
+    /// The ID of the parent user of the app authorization, if applicable.
+    pub authorizing_user_id: Option<Uuid>,
 
-  /// The ID of the parent user of the app authorization, if applicable.
-  pub authorizing_user_id: Option<Uuid>,
-
-  /// The ID of the OAuth authorization, if applicable.
-  pub oauth_authorization_id: Option<Uuid>
-
+    /// The ID of the OAuth authorization, if applicable.
+    pub oauth_authorization_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppAuthorization {
+    /// The ID of the app authorization.
+    pub id: Uuid,
 
-  /// The ID of the app authorization.
-  pub id: Uuid,
+    /// The ID of the app.
+    pub app_id: Uuid,
 
-  /// The ID of the app.
-  pub app_id: Uuid,
+    /// The parent resource type of the app authorization.
+    pub authorizing_resource_type: AppAuthorizationAuthorizingResourceType,
 
-  /// The parent resource type of the app authorization.
-  pub authorizing_resource_type: AppAuthorizationAuthorizingResourceType,
+    /// The ID of the parent project of the app authorization, if applicable.
+    pub authorizing_project_id: Option<Uuid>,
 
-  /// The ID of the parent project of the app authorization, if applicable.
-  pub authorizing_project_id: Option<Uuid>,
+    /// The ID of the parent workspace of the app authorization, if applicable.
+    pub authorizing_workspace_id: Option<Uuid>,
 
-  /// The ID of the parent workspace of the app authorization, if applicable.
-  pub authorizing_workspace_id: Option<Uuid>,
+    /// The ID of the parent user of the app authorization, if applicable.
+    pub authorizing_user_id: Option<Uuid>,
 
-  /// The ID of the parent user of the app authorization, if applicable.
-  pub authorizing_user_id: Option<Uuid>,
-
-  /// The ID of the OAuth authorization, if applicable.
-  pub oauth_authorization_id: Option<Uuid>
-
+    /// The ID of the OAuth authorization, if applicable.
+    pub oauth_authorization_id: Option<Uuid>,
 }
 
 impl AppAuthorization {
+    /// Counts the number of app authorizations based on a query.
+    pub async fn count(
+        query: &str,
+        database_pool: &deadpool_postgres::Pool,
+        principal_type: Option<&AccessPolicyPrincipalType>,
+        principal_id: Option<&Uuid>,
+    ) -> Result<i64, ResourceError> {
+        // Prepare the query.
+        let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+            filter: query.to_string(),
+            default_limit: None,
+            maximum_limit: None,
+            should_ignore_limit: true,
+            should_ignore_offset: true,
+            translate_assignment: Self::translate_assignment,
+        };
+        let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+        let database_client = database_pool.get().await?;
+        let get_resource_action_id: Uuid = database_client
+            .query_one(
+                "SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'",
+                &[&GET_RESOURCE_ACTION_NAME],
+            )
+            .await?
+            .get(0);
+        let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(
+            &sanitized_filter,
+            principal_type,
+            principal_id,
+            &RESOURCE_NAME,
+            &DATABASE_TABLE_NAME,
+            &get_resource_action_id,
+            true,
+        )?;
+        let parsed_parameters = slashstepql::parse_parameters(
+            &sanitized_filter.parameters,
+            Self::parse_string_slashstepql_parameters,
+        )?;
+        let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters
+            .iter()
+            .map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync))
+            .collect();
 
-  /// Counts the number of app authorizations based on a query.
-  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<i64, ResourceError> {
-
-    // Prepare the query.
-    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
-      filter: query.to_string(),
-      default_limit: None,
-      maximum_limit: None,
-      should_ignore_limit: true,
-      should_ignore_offset: true,
-      translate_assignment: Self::translate_assignment
-    };
-    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let database_client = database_pool.get().await?;
-    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, true)?;
-    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
-    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-
-    // Execute the query.
-    let rows = database_client.query_one(&query, &parameters).await?;
-    let count = rows.get(0);
-    return Ok(count);
-
-  }
-
-  pub async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/app_authorizations/delete_app_authorization_row_by_id.sql");
-    database_client.execute(query, &[&self.id]).await?;
-    return Ok(());
-
-  }
-
-  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/app_authorizations/get_app_authorization_row_by_id.sql");
-    let row = match database_client.query_opt(query, &[&id]).await {
-
-      Ok(row) => match row {
-
-        Some(row) => row,
-
-        None => return Err(ResourceError::NotFoundError(format!("An app authorization with the ID \"{}\" does not exist.", id)))
-
-      },
-
-      Err(error) => return Err(ResourceError::PostgresError(error))
-
-    };
-
-    let app_authorization = Self::convert_from_row(&row);
-
-    return Ok(app_authorization);
-
-  }
-
-  pub async fn get_by_oauth_authorization_id(oauth_authorization_id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/app_authorizations/get_app_authorization_by_oauth_authorization_id.sql");
-    let row = match database_client.query_opt(query, &[&oauth_authorization_id]).await {
-
-      Ok(row) => match row {
-
-        Some(row) => row,
-
-        None => return Err(ResourceError::NotFoundError(format!("An app authorization with the OAuth authorization ID \"{}\" does not exist.", oauth_authorization_id)))
-
-      },
-
-      Err(error) => return Err(ResourceError::PostgresError(error))
-
-    };
-
-    let app_authorization = Self::convert_from_row(&row);
-
-    return Ok(app_authorization);
-
-  }
-
-  fn convert_from_row(row: &postgres::Row) -> Self {
-
-    return AppAuthorization {
-      id: row.get("id"),
-      app_id: row.get("app_id"),
-      authorizing_resource_type: row.get("authorizing_resource_type"),
-      authorizing_project_id: row.get("authorizing_project_id"),
-      authorizing_workspace_id: row.get("authorizing_workspace_id"),
-      authorizing_user_id: row.get("authorizing_user_id"),
-      oauth_authorization_id: row.get("oauth_authorization_id")
-    };
-
-  }
-
-  /// Initializes the app_authorizations table.
-  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/app_authorizations/initialize_app_authorizations_table.sql");
-    database_client.execute(query, &[]).await?;
-    return Ok(());
-
-  }
-
-  pub async fn create(initial_properties: &InitialAppAuthorizationProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
-
-    let query = include_str!("../../queries/app_authorizations/insert_app_authorization_row.sql");
-    let parameters: &[&(dyn ToSql + Sync)] = &[
-      &initial_properties.app_id,
-      &initial_properties.authorizing_resource_type,
-      &initial_properties.authorizing_project_id,
-      &initial_properties.authorizing_workspace_id,
-      &initial_properties.authorizing_user_id,
-      &initial_properties.oauth_authorization_id
-    ];
-    let database_client = database_pool.get().await?;
-    let row = database_client.query_one(query, parameters).await.map_err(|error| {
-
-      return ResourceError::PostgresError(error)
-    
-    })?;
-
-    // Return the app authorization.
-    let app_credential = Self::convert_from_row(&row);
-
-    return Ok(app_credential);
-
-  }
-
-  /// Parses a string into a parameter for a slashstepql query.
-  fn parse_string_slashstepql_parameters<'a>(key: &'a str, value: &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
-
-    if UUID_QUERY_KEYS.contains(&key) {
-
-      let uuid = match Uuid::parse_str(value) {
-        Ok(uuid) => uuid,
-        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\".", value, key)))
-      };
-
-      return Ok(Box::new(uuid));
-
+        // Execute the query.
+        let rows = database_client.query_one(&query, &parameters).await?;
+        let count = rows.get(0);
+        return Ok(count);
     }
 
-    return Ok(Box::new(value));
-
-  }
-
-  fn translate_assignment(assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
-
-    // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
-
-    // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
-    if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
-
-      return Ok(slashstepql::translate_normal_assignment(assignment_properties))
-
+    pub async fn delete(
+        &self,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<(), ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query =
+            include_str!("../../queries/app_authorizations/delete_app_authorization_row_by_id.sql");
+        database_client.execute(query, &[&self.id]).await?;
+        return Ok(());
     }
 
-    return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
+    pub async fn get_by_id(
+        id: &Uuid,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<Self, ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query =
+            include_str!("../../queries/app_authorizations/get_app_authorization_row_by_id.sql");
+        let row = match database_client.query_opt(query, &[&id]).await {
+            Ok(row) => match row {
+                Some(row) => row,
 
-  }
+                None => {
+                    return Err(ResourceError::NotFoundError(format!(
+                        "An app authorization with the ID \"{}\" does not exist.",
+                        id
+                    )));
+                }
+            },
 
-  /// Returns a list of app authorizations based on a query.
-  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
+            Err(error) => return Err(ResourceError::PostgresError(error)),
+        };
 
-    // Prepare the query.
-    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
-      filter: query.to_string(),
-      default_limit: Some(DEFAULT_APP_AUTHORIZATION_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      should_ignore_limit: false,
-      should_ignore_offset: false,
-      translate_assignment: Self::translate_assignment
-    };
-    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let database_client = database_pool.get().await?;
-    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, false)?;
-    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
-    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
+        let app_authorization = Self::convert_from_row(&row);
 
-    // Execute the query.
-    let rows = database_client.query(&query, &parameters).await?;
-    let actions = rows.iter().map(Self::convert_from_row).collect();
-    return Ok(actions);
+        return Ok(app_authorization);
+    }
 
-  }
+    pub async fn get_by_oauth_authorization_id(
+        oauth_authorization_id: &Uuid,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<Self, ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query = include_str!(
+            "../../queries/app_authorizations/get_app_authorization_by_oauth_authorization_id.sql"
+        );
+        let row = match database_client
+            .query_opt(query, &[&oauth_authorization_id])
+            .await
+        {
+            Ok(row) => match row {
+                Some(row) => row,
 
+                None => {
+                    return Err(ResourceError::NotFoundError(format!(
+                        "An app authorization with the OAuth authorization ID \"{}\" does not exist.",
+                        oauth_authorization_id
+                    )));
+                }
+            },
+
+            Err(error) => return Err(ResourceError::PostgresError(error)),
+        };
+
+        let app_authorization = Self::convert_from_row(&row);
+
+        return Ok(app_authorization);
+    }
+
+    fn convert_from_row(row: &postgres::Row) -> Self {
+        return AppAuthorization {
+            id: row.get("id"),
+            app_id: row.get("app_id"),
+            authorizing_resource_type: row.get("authorizing_resource_type"),
+            authorizing_project_id: row.get("authorizing_project_id"),
+            authorizing_workspace_id: row.get("authorizing_workspace_id"),
+            authorizing_user_id: row.get("authorizing_user_id"),
+            oauth_authorization_id: row.get("oauth_authorization_id"),
+        };
+    }
+
+    /// Initializes the app_authorizations table.
+    pub async fn initialize_resource_table(
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<(), ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query = include_str!(
+            "../../queries/app_authorizations/initialize_app_authorizations_table.sql"
+        );
+        database_client.execute(query, &[]).await?;
+        return Ok(());
+    }
+
+    pub async fn create(
+        initial_properties: &InitialAppAuthorizationProperties,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<Self, ResourceError> {
+        let query =
+            include_str!("../../queries/app_authorizations/insert_app_authorization_row.sql");
+        let parameters: &[&(dyn ToSql + Sync)] = &[
+            &initial_properties.app_id,
+            &initial_properties.authorizing_resource_type,
+            &initial_properties.authorizing_project_id,
+            &initial_properties.authorizing_workspace_id,
+            &initial_properties.authorizing_user_id,
+            &initial_properties.oauth_authorization_id,
+        ];
+        let database_client = database_pool.get().await?;
+        let row = database_client
+            .query_one(query, parameters)
+            .await
+            .map_err(|error| return ResourceError::PostgresError(error))?;
+
+        // Return the app authorization.
+        let app_credential = Self::convert_from_row(&row);
+
+        return Ok(app_credential);
+    }
+
+    /// Parses a string into a parameter for a slashstepql query.
+    fn parse_string_slashstepql_parameters<'a>(
+        key: &'a str,
+        value: &'a str,
+    ) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
+        if UUID_QUERY_KEYS.contains(&key) {
+            let uuid = match Uuid::parse_str(value) {
+                Ok(uuid) => uuid,
+                Err(_) => {
+                    return Err(SlashstepQLError::StringParserError(format!(
+                        "Failed to parse UUID from \"{}\" for key \"{}\".",
+                        value, key
+                    )));
+                }
+            };
+
+            return Ok(Box::new(uuid));
+        }
+
+        return Ok(Box::new(value));
+    }
+
+    fn translate_assignment(
+        assignment_properties: SlashstepQLAssignmentProperties,
+    ) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
+        // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
+
+        // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
+        if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
+            return Ok(slashstepql::translate_normal_assignment(
+                assignment_properties,
+            ));
+        }
+
+        return Err(SlashstepQLError::InvalidFieldError(
+            assignment_properties.key,
+        ));
+    }
+
+    /// Returns a list of app authorizations based on a query.
+    pub async fn list(
+        query: &str,
+        database_pool: &deadpool_postgres::Pool,
+        principal_type: Option<&AccessPolicyPrincipalType>,
+        principal_id: Option<&Uuid>,
+    ) -> Result<Vec<Self>, ResourceError> {
+        // Prepare the query.
+        let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+            filter: query.to_string(),
+            default_limit: Some(DEFAULT_APP_AUTHORIZATION_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+            maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+            should_ignore_limit: false,
+            should_ignore_offset: false,
+            translate_assignment: Self::translate_assignment,
+        };
+        let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+        let database_client = database_pool.get().await?;
+        let get_resource_action_id: Uuid = database_client
+            .query_one(
+                "SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'",
+                &[&GET_RESOURCE_ACTION_NAME],
+            )
+            .await?
+            .get(0);
+        let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(
+            &sanitized_filter,
+            principal_type,
+            principal_id,
+            &RESOURCE_NAME,
+            &DATABASE_TABLE_NAME,
+            &get_resource_action_id,
+            false,
+        )?;
+        let parsed_parameters = slashstepql::parse_parameters(
+            &sanitized_filter.parameters,
+            Self::parse_string_slashstepql_parameters,
+        )?;
+        let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters
+            .iter()
+            .map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync))
+            .collect();
+
+        // Execute the query.
+        let rows = database_client.query(&query, &parameters).await?;
+        let actions = rows.iter().map(Self::convert_from_row).collect();
+        return Ok(actions);
+    }
 }

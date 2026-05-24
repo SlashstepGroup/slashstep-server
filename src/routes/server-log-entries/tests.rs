@@ -1,12 +1,12 @@
 // /**
-//  * 
+//  *
 //  * Any test cases for /apps should be handled here.
-//  * 
-//  * Programmers: 
+//  *
+//  * Programmers:
 //  * - Christian Toney (https://christiantoney.com)
-//  * 
+//  *
 //  * © 2026 Beastslash LLC
-//  * 
+//  *
 //  */
 
 // use std::net::SocketAddr;
@@ -15,13 +15,13 @@
 // use reqwest::StatusCode;
 // use crate::{
 //   AppState, get_json_web_token_private_key, initialize_required_tables, predefinitions::{
-//     initialize_predefined_actions, initialize_predefined_configurations, 
+//     initialize_predefined_actions, initialize_predefined_configurations,
 //     initialize_predefined_roles
 //   }, resources::{
 //     access_policy::{
 //       AccessPolicy, AccessPolicyPrincipalType, PermissionLevel, InitialAccessPolicyProperties
 //     }, action::Action, app::{App, DEFAULT_RESOURCE_LIST_LIMIT, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT},
-//   }, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
+//   }, routes::{GetResourceResponseBody, PatchResourceResponseBody}, tests::{TestEnvironment, TestSlashstepServerError}, routes::ListResourcesResponseBody
 // };
 
 // /// Verifies that the router can return a 200 status code and the requested list.
@@ -32,7 +32,7 @@
 //   initialize_required_tables(&test_environment.database_pool).await?;
 //   initialize_predefined_actions(&test_environment.database_pool).await?;
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+ 
 //   // Grant access to the "apps.get" action to the user.
 //   let user = test_environment.create_random_user(None).await?;
 //   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -75,7 +75,7 @@
 //   let response = test_server.get(&format!("/apps"))
 //     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
 //     .await;
-  
+ 
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::OK);
 
@@ -108,7 +108,7 @@
 //   initialize_required_tables(&test_environment.database_pool).await?;
 //   initialize_predefined_actions(&test_environment.database_pool).await?;
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+ 
 //   // Grant access to the "apps.get" action to the user.
 //   let user = test_environment.create_random_user(None).await?;
 //   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -139,7 +139,7 @@
 
 //   // Create a dummy app.
 //   let dummy_app = test_environment.create_random_app(None, None).await?;
-  
+ 
 //   // Set up the server and send the request.
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
@@ -154,7 +154,7 @@
 //     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
 //     .add_query_param("query", &query)
 //     .await;
-  
+ 
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::OK);
 
@@ -187,7 +187,7 @@
 //   initialize_required_tables(&test_environment.database_pool).await?;
 //   initialize_predefined_actions(&test_environment.database_pool).await?;
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+ 
 //   // Grant access to the "apps.get" action to the user.
 //   let user = test_environment.create_random_user(None).await?;
 //   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -235,7 +235,7 @@
 //   let response = test_server.get(&format!("/apps"))
 //     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
 //     .await;
-  
+ 
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::OK);
 
@@ -254,7 +254,7 @@
 //   initialize_required_tables(&test_environment.database_pool).await?;
 //   initialize_predefined_actions(&test_environment.database_pool).await?;
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+ 
 //   // Grant access to the "apps.get" action to the user.
 //   let user = test_environment.create_random_user(None).await?;
 //   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -295,7 +295,7 @@
 //     .add_query_param("query", format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1))
 //     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
 //     .await;
-  
+ 
 //   assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
 
 //   return Ok(());
@@ -310,7 +310,7 @@
 //   initialize_required_tables(&test_environment.database_pool).await?;
 //   initialize_predefined_actions(&test_environment.database_pool).await?;
 //   initialize_predefined_roles(&test_environment.database_pool).await?;
-  
+ 
 //   // Grant access to the "apps.get" action to the user.
 //   let user = test_environment.create_random_user(None).await?;
 //   let session = test_environment.create_random_session(Some(&user.id)).await?;
@@ -359,7 +359,7 @@
 //     test_server.get(&format!("/apps"))
 //       .add_query_param("query", format!("SELECT * FROM apps WHERE id = {}", get_actions_action.id))
 //   ];
-  
+ 
 //   for request in bad_requests {
 
 //     let response = request
@@ -408,7 +408,7 @@
 //   let test_server = TestServer::new(router);
 //   let response = test_server.get(&format!("/apps"))
 //     .await;
-  
+ 
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
 
@@ -442,7 +442,7 @@
 //   let response = test_server.get(&format!("/apps"))
 //     .add_cookie(Cookie::new("session_access_token", format!("Bearer {}", session_token)))
 //     .await;
-  
+ 
 //   // Verify the response.
 //   assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
 

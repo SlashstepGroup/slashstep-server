@@ -1,12 +1,12 @@
 /**
- * 
+ *
  * Any functionality for /server-log-entries should be handled here.
- * 
- * Programmers: 
+ *
+ * Programmers:
  * - Christian Toney (https://christiantoney.com)
- * 
+ *
  * © 2026 Beastslash LLC
- * 
+ *
  */
 
 use std::sync::Arc;
@@ -20,12 +20,12 @@ mod server_log_entry_id;
 mod tests;
 
 // /// GET /server-log-entries
-// /// 
+// ///
 // /// Lists apps.
 // #[axum::debug_handler]
 // async fn handle_list_apps_request(
 //   Query(query_parameters): Query<ResourceListQueryParameters>,
-//   State(state): State<AppState>, 
+//   State(state): State<AppState>,
 //   Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
 //   Extension(authenticated_user): Extension<Option<Arc<User>>>,
 //   Extension(authenticated_app): Extension<Option<Arc<App>>>,
@@ -34,18 +34,18 @@ mod tests;
 
 //   let resource_hierarchy = vec![(ResourceType::Server, None)];
 //   let response = list_resources(
-//     Query(query_parameters), 
-//     State(state), 
-//     Extension(http_transaction), 
-//     Extension(authenticated_user), 
-//     Extension(authenticated_app), 
+//     Query(query_parameters),
+//     State(state),
+//     Extension(http_transaction),
+//     Extension(authenticated_user),
+//     Extension(authenticated_app),
 //     Extension(authenticated_app_authorization),
-//     resource_hierarchy, 
-//     ResourceType::Server, 
-//     None, 
+//     resource_hierarchy,
+//     ResourceType::Server,
+//     None,
 //     |query, database_pool, individual_principal| Box::new(App::count(query, database_pool, individual_principal)),
 //     |query, database_pool, individual_principal| Box::new(App::list(query, database_pool, individual_principal)),
-//     "apps.list", 
+//     "apps.list",
 //     DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
 //     "apps",
 //     "app"

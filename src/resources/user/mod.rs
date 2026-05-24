@@ -1,451 +1,529 @@
 /**
- * 
- * Programmers: 
+ *
+ * Programmers:
  * - Christian Toney (https://christiantoney.com)
- * 
+ *
  * © 2025 – 2026 Beastslash LLC
- * 
+ *
  */
 
 #[cfg(test)]
 mod tests;
 
-use std::net::IpAddr;
-use argon2::{Argon2, PasswordHasher, PasswordVerifier, password_hash::{SaltString, rand_core::OsRng}};
+use crate::{
+    resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
+    utilities::slashstepql::{
+        self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult,
+        SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter,
+        SlashstepQLSanitizeFunctionOptions,
+    },
+};
+use argon2::{
+    Argon2, PasswordHasher, PasswordVerifier,
+    password_hash::{SaltString, rand_core::OsRng},
+};
 use postgres::error::SqlState;
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use uuid::Uuid;
-use crate::{resources::{ResourceError, access_policy::AccessPolicyPrincipalType}, utilities::slashstepql::{self, SlashstepQLAssignmentProperties, SlashstepQLAssignmentTranslationResult, SlashstepQLError, SlashstepQLFilterSanitizer, SlashstepQLParsedParameter, SlashstepQLSanitizeFunctionOptions}};
 
 pub const DEFAULT_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
-  "id",
-  "username",
-  "display_name",
-  "is_anonymous",
-  "ip_address"
+    "id",
+    "username",
+    "display_name",
+    "is_anonymous",
+    "ip_address",
 ];
-pub const UUID_QUERY_KEYS: &[&str] = &[
-  "id"
-];
+pub const UUID_QUERY_KEYS: &[&str] = &["id"];
 pub const RESOURCE_NAME: &str = "User";
 pub const DATABASE_TABLE_NAME: &str = "users";
 pub const GET_RESOURCE_ACTION_NAME: &str = "users.get";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
+    /// The user's ID.
+    pub id: Uuid,
 
-  /// The user's ID.
-  pub id: Uuid,
+    /// The user's username, if applicable. Only non-anonymous users have a username.
+    pub username: Option<String>,
 
-  /// The user's username, if applicable. Only non-anonymous users have a username.
-  pub username: Option<String>,
+    /// The user's display name, if applicable. Only non-anonymous users have a display name.
+    pub display_name: Option<String>,
 
-  /// The user's display name, if applicable. Only non-anonymous users have a display name.
-  pub display_name: Option<String>,
+    /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
+    hashed_password: Option<String>,
 
-  /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
-  hashed_password: Option<String>,
+    /// Whether the user is anonymous.
+    pub is_anonymous: bool,
 
-  /// Whether the user is anonymous.
-  pub is_anonymous: bool,
-
-  /// The user's IP address, if applicable. This will only be populated for anonymous users.
-  /// 
-  /// If you need the IP address of a registered user, you might be able to find it 
-  /// by searching HTTP transactions and filtering by user ID.
-  ip_address: Option<IpAddr>
-
+    /// The user's IP address, if applicable. This will only be populated for anonymous users.
+    ///
+    /// If you need the IP address of a registered user, you might be able to find it
+    /// by searching HTTP transactions and filtering by user ID.
+    ip_address: Option<IpAddr>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct InitialUserProperties {
+    /// The user's username, if applicable. Only non-anonymous users have a username.
+    pub username: Option<String>,
 
-  /// The user's username, if applicable. Only non-anonymous users have a username.
-  pub username: Option<String>,
+    /// The user's display name, if applicable. Only non-anonymous users have a display name.
+    pub display_name: Option<String>,
 
-  /// The user's display name, if applicable. Only non-anonymous users have a display name.
-  pub display_name: Option<String>,
+    /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
+    pub hashed_password: Option<String>,
 
-  /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
-  pub hashed_password: Option<String>,
+    /// Whether the user is anonymous.
+    pub is_anonymous: bool,
 
-  /// Whether the user is anonymous.
-  pub is_anonymous: bool,
-
-  /// The user's IP address, if applicable. Only anonymous users have an IP address.
-  pub ip_address: Option<IpAddr>
-
+    /// The user's IP address, if applicable. Only anonymous users have an IP address.
+    pub ip_address: Option<IpAddr>,
 }
 
 #[derive(Debug, Deserialize, Default)]
 pub struct EditableUserProperties {
+    /// The user's username, if applicable. Only non-anonymous users have a username.
+    pub username: Option<Option<String>>,
 
-  /// The user's username, if applicable. Only non-anonymous users have a username.
-  pub username: Option<Option<String>>,
+    /// The user's display name, if applicable. Only non-anonymous users have a display name.
+    pub display_name: Option<Option<String>>,
 
-  /// The user's display name, if applicable. Only non-anonymous users have a display name.
-  pub display_name: Option<Option<String>>,
-
-  /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
-  pub hashed_password: Option<Option<String>>
-
+    /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
+    pub hashed_password: Option<Option<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct EditableUserPropertiesRequestBody {
+    /// The user's username, if applicable. Only non-anonymous users have a username.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_with::rust::double_option"
+    )]
+    pub username: Option<Option<String>>,
 
-  /// The user's username, if applicable. Only non-anonymous users have a username.
-  #[serde(default, skip_serializing_if = "Option::is_none", with = "serde_with::rust::double_option")]
-  pub username: Option<Option<String>>,
-
-  /// The user's display name, if applicable. Only non-anonymous users have a display name.
-  #[serde(default, skip_serializing_if = "Option::is_none", with = "serde_with::rust::double_option")]
-  pub display_name: Option<Option<String>>
-
+    /// The user's display name, if applicable. Only non-anonymous users have a display name.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_with::rust::double_option"
+    )]
+    pub display_name: Option<Option<String>>,
 }
 
 impl User {
-
-  /// Counts the number of roles based on a query.
-  pub async fn count(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<i64, ResourceError> {
-
-    // Prepare the query.
-    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
-      filter: query.to_string(),
-      default_limit: None,
-      maximum_limit: None,
-      should_ignore_limit: true,
-      should_ignore_offset: true,
-      translate_assignment: Self::translate_assignment
-    };
-    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let database_client = database_pool.get().await?;
-    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, true)?;
-    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
-    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-
-    // Execute the query.
-    let rows = database_client.query_one(&query, &parameters).await?;
-    let count = rows.get(0);
-    return Ok(count);
-
-  }
-
-  /// Creates a new user.
-  pub async fn create(initial_properties: &InitialUserProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
-
-    // Insert the access policy into the database.
-    let query = include_str!("../../queries/users/insert_user_row.sql");
-    let parameters: &[&(dyn ToSql + Sync)] = &[
-      &initial_properties.username,
-      &initial_properties.display_name,
-      &initial_properties.hashed_password,
-      &initial_properties.is_anonymous,
-      &initial_properties.ip_address
-    ];
-    let database_client = database_pool.get().await?;
-    let row = database_client.query_one(query, parameters).await.map_err(|error| match error.as_db_error() {
-
-      Some(db_error) => match db_error.code() {
-
-        &SqlState::UNIQUE_VIOLATION => {
-
-          let username = match initial_properties.username.clone() {
-
-            Some(username) => username,
-
-            // TODO: For IP users, we should make ResourceError more specific.
-            None => return ResourceError::PostgresError(error)
-
-          };
-
-          ResourceError::ConflictError(username)
-          
-        },
-        
-        _ => ResourceError::PostgresError(error)
-
-      },
-
-      None => ResourceError::PostgresError(error)
-
-    })?;
-
-    // Return the action.
-    let user = Self {
-      id: row.get("id"),
-      username: row.get("username"),
-      display_name: row.get("display_name"),
-      hashed_password: row.get("hashed_password"),
-      is_anonymous: row.get("is_anonymous"),
-      ip_address: row.get("ip_address")
-    };
-
-    return Ok(user);
-
-  }
-
-  pub async fn delete(&self, database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/users/delete_user_row_by_id.sql");
-    database_client.execute(query, &[&self.id]).await?;
-    return Ok(());
-
-  }
-
-  pub fn convert_from_row(row: &postgres::Row) -> Self {
-
-    return User {
-      id: row.get("id"),
-      username: row.get("username"),
-      display_name: row.get("display_name"),
-      hashed_password: row.get("hashed_password"),
-      is_anonymous: row.get("is_anonymous"),
-      ip_address: row.get("ip_address")
-    };
-
-  }
-
-  pub async fn get_by_id(id: &Uuid, database_pool: &deadpool_postgres::Pool) -> Result<User, ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/users/get_user_row_by_id.sql");
-    let row = match database_client.query_opt(query, &[&id]).await {
-
-      Ok(row) => match row {
-
-        Some(row) => row,
-
-        None => return Err(ResourceError::NotFoundError(format!("A user with the ID \"{}\" does not exist.", id)))
-
-      },
-
-      Err(error) => match error.as_db_error() {
-
-        Some(db_error) => match db_error.code() {
-
-          &SqlState::NO_DATA_FOUND => return Err(ResourceError::NotFoundError(format!("A user with the ID \"{}\" does not exist.", id))),
-
-          _ => return Err(ResourceError::PostgresError(error))
-
-        },
-
-        None => return Err(ResourceError::PostgresError(error))
-
-      }
-
-    };
-
-    let user = User::convert_from_row(&row);
-
-    return Ok(user);
-
-  }
-
-  pub async fn get_by_ip_address(ip_address: &IpAddr, database_pool: &deadpool_postgres::Pool) -> Result<User, ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/users/get_user_row_by_ip_address.sql");
-    let row = match database_client.query_opt(query, &[&ip_address]).await {
-
-      Ok(row) => match row {
-
-        Some(row) => row,
-
-        None => return Err(ResourceError::NotFoundError(format!("A user with the IP address \"{}\" does not exist.", ip_address)))
-
-      },
-
-      Err(error) => match error.as_db_error() {
-
-        Some(db_error) => match db_error.code() {
-
-          &SqlState::NO_DATA_FOUND => return Err(ResourceError::NotFoundError(format!("A user with the IP address \"{}\" does not exist.", ip_address))),
-
-          _ => return Err(ResourceError::PostgresError(error))
-
-        },
-
-        None => return Err(ResourceError::PostgresError(error))
-
-      }
-
-    };
-
-    let user = User::convert_from_row(&row);
-
-    return Ok(user);
-
-  }
-
-  pub async fn get_by_username(username: &str, database_pool: &deadpool_postgres::Pool) -> Result<User, ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/users/get_user_row_by_username.sql");
-    let row = match database_client.query_opt(query, &[&username]).await {
-
-      Ok(row) => match row {
-
-        Some(row) => row,
-
-        None => return Err(ResourceError::NotFoundError(format!("A user with the username \"{}\" does not exist.", username)))
-
-      },
-
-      Err(error) => match error.as_db_error() {
-
-        Some(db_error) => match db_error.code() {
-
-          &SqlState::NO_DATA_FOUND => return Err(ResourceError::NotFoundError(format!("A user with the username \"{}\" does not exist.", username))),
-
-          _ => return Err(ResourceError::PostgresError(error))
-
-        },
-
-        None => return Err(ResourceError::PostgresError(error))
-
-      }
-
-    };
-
-    let user = User::convert_from_row(&row);
-
-    return Ok(user);
-
-  }
-
-  pub fn get_hashed_password(&self) -> &str {
-
-    let hashed_password = self.hashed_password.as_ref().expect("User does not have a hashed password.");
-    return &hashed_password;
-
-  }
-
-  pub fn hash_password(plain_text_password: &str) -> Result<String, ResourceError> {
-
-    let argon2 = Argon2::default();
-    let salt = SaltString::generate(&mut OsRng);
-    let hashed_password = match argon2.hash_password(plain_text_password.as_bytes(), &salt) {
-
-      Ok(hashed_password) => hashed_password.to_string(),
-      Err(error) => return Err(ResourceError::Argon2PasswordHashError(error))
-
-    };
-
-    return Ok(hashed_password);
-
-  }
-
-  /// Initializes the users table.
-  pub async fn initialize_resource_table(database_pool: &deadpool_postgres::Pool) -> Result<(), ResourceError> {
-
-    let database_client = database_pool.get().await?;
-    let query = include_str!("../../queries/users/initialize_users_table.sql");
-    database_client.execute(query, &[]).await?;
-    return Ok(());
-
-  }
-
-  /// Returns a list of users based on a query.
-  pub async fn list(query: &str, database_pool: &deadpool_postgres::Pool, principal_type: Option<&AccessPolicyPrincipalType>, principal_id: Option<&Uuid>) -> Result<Vec<Self>, ResourceError> {
-
-    // Prepare the query.
-    let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
-      filter: query.to_string(),
-      default_limit: Some(DEFAULT_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
-      should_ignore_limit: false,
-      should_ignore_offset: false,
-      translate_assignment: Self::translate_assignment
-    };
-    let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
-    let database_client = database_pool.get().await?;
-    let get_resource_action_id: Uuid = database_client.query_one("SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'", &[&GET_RESOURCE_ACTION_NAME]).await?.get(0);
-    let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(&sanitized_filter, principal_type, principal_id, &RESOURCE_NAME, &DATABASE_TABLE_NAME, &get_resource_action_id, false)?;
-    let parsed_parameters = slashstepql::parse_parameters(&sanitized_filter.parameters, Self::parse_string_slashstepql_parameters)?;
-    let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-
-    // Execute the query.
-    let rows = database_client.query(&query, &parameters).await?;
-    let users = rows.iter().map(Self::convert_from_row).collect();
-    return Ok(users);
-
-  }
-
-  /// Parses a string into a parameter for a slashstepql query.
-  fn parse_string_slashstepql_parameters<'a>(key: &'a str, value: &'a str) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
-
-    if UUID_QUERY_KEYS.contains(&key) {
-
-      let uuid = match Uuid::parse_str(value) {
-        Ok(uuid) => uuid,
-        Err(_) => return Err(SlashstepQLError::StringParserError(format!("Failed to parse UUID from \"{}\" for key \"{}\".", value, key)))
-      };
-
-      return Ok(Box::new(uuid));
-
+    /// Counts the number of roles based on a query.
+    pub async fn count(
+        query: &str,
+        database_pool: &deadpool_postgres::Pool,
+        principal_type: Option<&AccessPolicyPrincipalType>,
+        principal_id: Option<&Uuid>,
+    ) -> Result<i64, ResourceError> {
+        // Prepare the query.
+        let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+            filter: query.to_string(),
+            default_limit: None,
+            maximum_limit: None,
+            should_ignore_limit: true,
+            should_ignore_offset: true,
+            translate_assignment: Self::translate_assignment,
+        };
+        let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+        let database_client = database_pool.get().await?;
+        let get_resource_action_id: Uuid = database_client
+            .query_one(
+                "SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'",
+                &[&GET_RESOURCE_ACTION_NAME],
+            )
+            .await?
+            .get(0);
+        let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(
+            &sanitized_filter,
+            principal_type,
+            principal_id,
+            &RESOURCE_NAME,
+            &DATABASE_TABLE_NAME,
+            &get_resource_action_id,
+            true,
+        )?;
+        let parsed_parameters = slashstepql::parse_parameters(
+            &sanitized_filter.parameters,
+            Self::parse_string_slashstepql_parameters,
+        )?;
+        let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters
+            .iter()
+            .map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync))
+            .collect();
+
+        // Execute the query.
+        let rows = database_client.query_one(&query, &parameters).await?;
+        let count = rows.get(0);
+        return Ok(count);
     }
 
-    return Ok(Box::new(value));
+    /// Creates a new user.
+    pub async fn create(
+        initial_properties: &InitialUserProperties,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<Self, ResourceError> {
+        // Insert the access policy into the database.
+        let query = include_str!("../../queries/users/insert_user_row.sql");
+        let parameters: &[&(dyn ToSql + Sync)] = &[
+            &initial_properties.username,
+            &initial_properties.display_name,
+            &initial_properties.hashed_password,
+            &initial_properties.is_anonymous,
+            &initial_properties.ip_address,
+        ];
+        let database_client = database_pool.get().await?;
+        let row =
+            database_client
+                .query_one(query, parameters)
+                .await
+                .map_err(|error| match error.as_db_error() {
+                    Some(db_error) => match db_error.code() {
+                        &SqlState::UNIQUE_VIOLATION => {
+                            let username = match initial_properties.username.clone() {
+                                Some(username) => username,
 
-  }
+                                // TODO: For IP users, we should make ResourceError more specific.
+                                None => return ResourceError::PostgresError(error),
+                            };
 
-  fn translate_assignment(assignment_properties: SlashstepQLAssignmentProperties) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
+                            ResourceError::ConflictError(username)
+                        }
 
-    // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
+                        _ => ResourceError::PostgresError(error),
+                    },
 
-    // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
-    if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
+                    None => ResourceError::PostgresError(error),
+                })?;
 
-      return Ok(slashstepql::translate_normal_assignment(assignment_properties))
+        // Return the action.
+        let user = Self {
+            id: row.get("id"),
+            username: row.get("username"),
+            display_name: row.get("display_name"),
+            hashed_password: row.get("hashed_password"),
+            is_anonymous: row.get("is_anonymous"),
+            ip_address: row.get("ip_address"),
+        };
 
+        return Ok(user);
     }
 
-    return Err(SlashstepQLError::InvalidFieldError(assignment_properties.key));
+    pub async fn delete(
+        &self,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<(), ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query = include_str!("../../queries/users/delete_user_row_by_id.sql");
+        database_client.execute(query, &[&self.id]).await?;
+        return Ok(());
+    }
 
-  }
+    pub fn convert_from_row(row: &postgres::Row) -> Self {
+        return User {
+            id: row.get("id"),
+            username: row.get("username"),
+            display_name: row.get("display_name"),
+            hashed_password: row.get("hashed_password"),
+            is_anonymous: row.get("is_anonymous"),
+            ip_address: row.get("ip_address"),
+        };
+    }
 
-  /// Updates this user and returns a new instance of the user.
-  pub async fn update(&self, properties: &EditableUserProperties, database_pool: &deadpool_postgres::Pool) -> Result<Self, ResourceError> {
+    pub async fn get_by_id(
+        id: &Uuid,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<User, ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query = include_str!("../../queries/users/get_user_row_by_id.sql");
+        let row = match database_client.query_opt(query, &[&id]).await {
+            Ok(row) => match row {
+                Some(row) => row,
 
-    let query = String::from("UPDATE users SET ");
-    let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
-    let database_client = database_pool.get().await?;
+                None => {
+                    return Err(ResourceError::NotFoundError(format!(
+                        "A user with the ID \"{}\" does not exist.",
+                        id
+                    )));
+                }
+            },
 
-    database_client.query("BEGIN;", &[]).await?;
-    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "username", properties.username.as_ref());
-    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "display_name", properties.display_name.as_ref());
-    let (parameter_boxes, query) = slashstepql::add_parameter_to_query(parameter_boxes, query, "hashed_password", properties.hashed_password.as_ref());
-    let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+            Err(error) => match error.as_db_error() {
+                Some(db_error) => match db_error.code() {
+                    &SqlState::NO_DATA_FOUND => {
+                        return Err(ResourceError::NotFoundError(format!(
+                            "A user with the ID \"{}\" does not exist.",
+                            id
+                        )));
+                    }
 
-    query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
-    parameter_boxes.push(Box::new(&self.id));
-    let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes.iter().map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync)).collect();
-    let row = database_client.query_one(&query, &parameters).await?;
-    database_client.query("COMMIT;", &[]).await?;
+                    _ => return Err(ResourceError::PostgresError(error)),
+                },
 
-    let status = Self::convert_from_row(&row);
-    return Ok(status);
+                None => return Err(ResourceError::PostgresError(error)),
+            },
+        };
 
-  }
+        let user = User::convert_from_row(&row);
 
-  pub fn verify_password(&self, plain_text_password: &str) -> Result<(), ResourceError> {
+        return Ok(user);
+    }
 
-    let hashed_password = self.get_hashed_password();
-    let parsed_hashed_password = match argon2::PasswordHash::new(hashed_password) {
+    pub async fn get_by_ip_address(
+        ip_address: &IpAddr,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<User, ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query = include_str!("../../queries/users/get_user_row_by_ip_address.sql");
+        let row = match database_client.query_opt(query, &[&ip_address]).await {
+            Ok(row) => match row {
+                Some(row) => row,
 
-      Ok(parsed_hashed_password) => parsed_hashed_password,
-      Err(error) => return Err(ResourceError::Argon2PasswordHashError(error))
+                None => {
+                    return Err(ResourceError::NotFoundError(format!(
+                        "A user with the IP address \"{}\" does not exist.",
+                        ip_address
+                    )));
+                }
+            },
 
-    };
-    let argon2 = Argon2::default();
-    return argon2.verify_password(plain_text_password.as_bytes(), &parsed_hashed_password).map_err(|error| ResourceError::Argon2PasswordHashError(error));
+            Err(error) => match error.as_db_error() {
+                Some(db_error) => match db_error.code() {
+                    &SqlState::NO_DATA_FOUND => {
+                        return Err(ResourceError::NotFoundError(format!(
+                            "A user with the IP address \"{}\" does not exist.",
+                            ip_address
+                        )));
+                    }
 
-  }
+                    _ => return Err(ResourceError::PostgresError(error)),
+                },
 
+                None => return Err(ResourceError::PostgresError(error)),
+            },
+        };
+
+        let user = User::convert_from_row(&row);
+
+        return Ok(user);
+    }
+
+    pub async fn get_by_username(
+        username: &str,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<User, ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query = include_str!("../../queries/users/get_user_row_by_username.sql");
+        let row = match database_client.query_opt(query, &[&username]).await {
+            Ok(row) => match row {
+                Some(row) => row,
+
+                None => {
+                    return Err(ResourceError::NotFoundError(format!(
+                        "A user with the username \"{}\" does not exist.",
+                        username
+                    )));
+                }
+            },
+
+            Err(error) => match error.as_db_error() {
+                Some(db_error) => match db_error.code() {
+                    &SqlState::NO_DATA_FOUND => {
+                        return Err(ResourceError::NotFoundError(format!(
+                            "A user with the username \"{}\" does not exist.",
+                            username
+                        )));
+                    }
+
+                    _ => return Err(ResourceError::PostgresError(error)),
+                },
+
+                None => return Err(ResourceError::PostgresError(error)),
+            },
+        };
+
+        let user = User::convert_from_row(&row);
+
+        return Ok(user);
+    }
+
+    pub fn get_hashed_password(&self) -> &str {
+        let hashed_password = self
+            .hashed_password
+            .as_ref()
+            .expect("User does not have a hashed password.");
+        return &hashed_password;
+    }
+
+    pub fn hash_password(plain_text_password: &str) -> Result<String, ResourceError> {
+        let argon2 = Argon2::default();
+        let salt = SaltString::generate(&mut OsRng);
+        let hashed_password = match argon2.hash_password(plain_text_password.as_bytes(), &salt) {
+            Ok(hashed_password) => hashed_password.to_string(),
+            Err(error) => return Err(ResourceError::Argon2PasswordHashError(error)),
+        };
+
+        return Ok(hashed_password);
+    }
+
+    /// Initializes the users table.
+    pub async fn initialize_resource_table(
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<(), ResourceError> {
+        let database_client = database_pool.get().await?;
+        let query = include_str!("../../queries/users/initialize_users_table.sql");
+        database_client.execute(query, &[]).await?;
+        return Ok(());
+    }
+
+    /// Returns a list of users based on a query.
+    pub async fn list(
+        query: &str,
+        database_pool: &deadpool_postgres::Pool,
+        principal_type: Option<&AccessPolicyPrincipalType>,
+        principal_id: Option<&Uuid>,
+    ) -> Result<Vec<Self>, ResourceError> {
+        // Prepare the query.
+        let sanitizer_options = SlashstepQLSanitizeFunctionOptions {
+            filter: query.to_string(),
+            default_limit: Some(DEFAULT_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+            maximum_limit: Some(DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT), // TODO: Make this configurable through resource policies.
+            should_ignore_limit: false,
+            should_ignore_offset: false,
+            translate_assignment: Self::translate_assignment,
+        };
+        let sanitized_filter = SlashstepQLFilterSanitizer::sanitize(&sanitizer_options)?;
+        let database_client = database_pool.get().await?;
+        let get_resource_action_id: Uuid = database_client
+            .query_one(
+                "SELECT id FROM actions WHERE name = $1 AND parent_resource_type = 'Server'",
+                &[&GET_RESOURCE_ACTION_NAME],
+            )
+            .await?
+            .get(0);
+        let query = SlashstepQLFilterSanitizer::build_query_from_sanitized_filter(
+            &sanitized_filter,
+            principal_type,
+            principal_id,
+            &RESOURCE_NAME,
+            &DATABASE_TABLE_NAME,
+            &get_resource_action_id,
+            false,
+        )?;
+        let parsed_parameters = slashstepql::parse_parameters(
+            &sanitized_filter.parameters,
+            Self::parse_string_slashstepql_parameters,
+        )?;
+        let parameters: Vec<&(dyn ToSql + Sync)> = parsed_parameters
+            .iter()
+            .map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync))
+            .collect();
+
+        // Execute the query.
+        let rows = database_client.query(&query, &parameters).await?;
+        let users = rows.iter().map(Self::convert_from_row).collect();
+        return Ok(users);
+    }
+
+    /// Parses a string into a parameter for a slashstepql query.
+    fn parse_string_slashstepql_parameters<'a>(
+        key: &'a str,
+        value: &'a str,
+    ) -> Result<SlashstepQLParsedParameter<'a>, SlashstepQLError> {
+        if UUID_QUERY_KEYS.contains(&key) {
+            let uuid = match Uuid::parse_str(value) {
+                Ok(uuid) => uuid,
+                Err(_) => {
+                    return Err(SlashstepQLError::StringParserError(format!(
+                        "Failed to parse UUID from \"{}\" for key \"{}\".",
+                        value, key
+                    )));
+                }
+            };
+
+            return Ok(Box::new(uuid));
+        }
+
+        return Ok(Box::new(value));
+    }
+
+    fn translate_assignment(
+        assignment_properties: SlashstepQLAssignmentProperties,
+    ) -> Result<SlashstepQLAssignmentTranslationResult, SlashstepQLError> {
+        // TODO: Later, this can be used for parsing in-query functions (i.e. "getCurrentUser()").
+
+        // If the key is already a valid column in the items table, then we can directly translate the assignment without needing to account for dynamic keys.
+        if ALLOWED_QUERY_KEYS.contains(&assignment_properties.key.as_str()) {
+            return Ok(slashstepql::translate_normal_assignment(
+                assignment_properties,
+            ));
+        }
+
+        return Err(SlashstepQLError::InvalidFieldError(
+            assignment_properties.key,
+        ));
+    }
+
+    /// Updates this user and returns a new instance of the user.
+    pub async fn update(
+        &self,
+        properties: &EditableUserProperties,
+        database_pool: &deadpool_postgres::Pool,
+    ) -> Result<Self, ResourceError> {
+        let query = String::from("UPDATE users SET ");
+        let parameter_boxes: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+        let database_client = database_pool.get().await?;
+
+        database_client.query("BEGIN;", &[]).await?;
+        let (parameter_boxes, query) = slashstepql::add_parameter_to_query(
+            parameter_boxes,
+            query,
+            "username",
+            properties.username.as_ref(),
+        );
+        let (parameter_boxes, query) = slashstepql::add_parameter_to_query(
+            parameter_boxes,
+            query,
+            "display_name",
+            properties.display_name.as_ref(),
+        );
+        let (parameter_boxes, query) = slashstepql::add_parameter_to_query(
+            parameter_boxes,
+            query,
+            "hashed_password",
+            properties.hashed_password.as_ref(),
+        );
+        let (mut parameter_boxes, mut query) = (parameter_boxes, query);
+
+        query.push_str(format!(" WHERE id = ${} RETURNING *;", parameter_boxes.len() + 1).as_str());
+        parameter_boxes.push(Box::new(&self.id));
+        let parameters: Vec<&(dyn ToSql + Sync)> = parameter_boxes
+            .iter()
+            .map(|parameter| parameter.as_ref() as &(dyn ToSql + Sync))
+            .collect();
+        let row = database_client.query_one(&query, &parameters).await?;
+        database_client.query("COMMIT;", &[]).await?;
+
+        let status = Self::convert_from_row(&row);
+        return Ok(status);
+    }
+
+    pub fn verify_password(&self, plain_text_password: &str) -> Result<(), ResourceError> {
+        let hashed_password = self.get_hashed_password();
+        let parsed_hashed_password = match argon2::PasswordHash::new(hashed_password) {
+            Ok(parsed_hashed_password) => parsed_hashed_password,
+            Err(error) => return Err(ResourceError::Argon2PasswordHashError(error)),
+        };
+        let argon2 = Argon2::default();
+        return argon2
+            .verify_password(plain_text_password.as_bytes(), &parsed_hashed_password)
+            .map_err(|error| ResourceError::Argon2PasswordHashError(error));
+    }
 }

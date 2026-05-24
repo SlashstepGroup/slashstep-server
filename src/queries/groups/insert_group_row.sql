@@ -4,7 +4,7 @@ INSERT INTO groups (
   description,
   parent_resource_type,
   parent_group_id,
-  protected_group_type
+  predefined_group_type
 ) VALUES (
   $1,
   $2,
