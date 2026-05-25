@@ -1,4 +1,5 @@
-use crate::{
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use slashstep_server::{
     AppState, get_json_web_token_private_key, initialize_required_tables,
     predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
@@ -10,7 +11,6 @@ use crate::{
         app_authorization::{AppAuthorization, DEFAULT_APP_AUTHORIZATION_LIST_LIMIT},
     },
     routes::ListResourcesResponseBody,
-    tests::{TestEnvironment, TestSlashstepServerError},
 };
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
@@ -28,15 +28,13 @@ use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
+#[path = "./{app_authorization_id}/mod.rs"]
+mod app_authorization_id;
+
 /// Verifies that the router can return a 200 status code and the requested resource list.
 #[tokio::test]
 async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "appAuthorizations.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -132,12 +130,7 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
 /// Verifies that the router can return a 200 status code and the requested resource list.
 #[tokio::test]
 async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "appAuthorizations.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -232,12 +225,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
 /// Verifies that there's a default resource list limit.
 #[tokio::test]
 async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "appAuthorizations.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -313,12 +301,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 /// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
 #[tokio::test]
 async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "appAuthorizations.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -382,12 +365,7 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
 async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "appAuthorizations.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -491,12 +469,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
 /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
 #[tokio::test]
 async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Set up the server and send the request.
     let state = AppState {
@@ -518,12 +491,7 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
 /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 #[tokio::test]
 async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create a user and a session.
     let plain_text_password = Uuid::now_v7().to_string();

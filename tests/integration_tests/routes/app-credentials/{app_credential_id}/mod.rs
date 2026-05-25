@@ -1,0 +1,411 @@
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use slashstep_server::{
+    Action, AppState, get_json_web_token_private_key, initialize_required_tables,
+    predefinitions::{
+        initialize_predefined_actions, initialize_predefined_configurations,
+        initialize_predefined_groups, initialize_predefined_roles,
+    },
+    resources::{ResourceError, access_policy::PermissionLevel, app_credential::AppCredential},
+    routes::GetResourceResponseBody,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use ntest::timeout;
+use reqwest::StatusCode;
+/**
+ *
+ * Any test cases for /app-credentials/{action_id} should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+use std::net::SocketAddr;
+use uuid::Uuid;
+
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
+
+/// Verifies that the router can return a 200 status code and the requested resource.
+#[tokio::test]
+#[timeout(40000)]
+async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_app_credentials_action =
+        Action::get_by_name("appCredentials.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &get_app_credentials_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    let app_credential = test_environment.create_random_app_credential(None).await?;
+
+    let response = test_server
+        .get(&format!("/app-credentials/{}", app_credential.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let get_app_credential_response_body =
+        response.json::<GetResourceResponseBody<AppCredential>>();
+    let response_app_credential = get_app_credential_response_body.data;
+    assert_eq!(response_app_credential.id, app_credential.id);
+    assert_eq!(response_app_credential.app_id, app_credential.app_id);
+    assert_eq!(
+        response_app_credential.description,
+        app_credential.description
+    );
+    assert_eq!(
+        response_app_credential.expiration_date,
+        app_credential.expiration_date
+    );
+    assert_eq!(
+        response_app_credential.creation_ip_address,
+        app_credential.creation_ip_address
+    );
+    assert_eq!(
+        response_app_credential.public_key,
+        app_credential.public_key
+    );
+
+    return Ok(());
+}
+
+/// Verifies that the router can return a 400 if the resource ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+
+    let response = test_server.get("/app-credentials/not-a-uuid").await;
+
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
+}
+
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError>
+{
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+
+    let app_credential = test_environment.create_random_app_credential(None).await?;
+
+    let response = test_server
+        .get(&format!("/app-credentials/{}", app_credential.id))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    return Ok(());
+}
+
+/// Verifies that the router can return a 403 status code if the user does not have permission to view the resource.
+#[tokio::test]
+#[timeout(40000)]
+async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user, the session, and the resource.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let app_credential = test_environment.create_random_app_credential(None).await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/app-credentials/{}", app_credential.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+    return Ok(());
+}
+
+/// Verifies that the router can return a 404 status code if the requested resource doesn't exist.
+#[tokio::test]
+#[timeout(40000)]
+async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/app-credentials/{}", uuid::Uuid::now_v7()))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+    return Ok(());
+}
+
+/// Verifies that the router can return a 204 status code if the resource is successfully deleted.
+#[tokio::test]
+async fn verify_successful_deletion_when_deleting_resource_by_id()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+
+    // Grant access to the "appCredentials.delete" action to the user.
+    let delete_app_credentials_action =
+        Action::get_by_name("appCredentials.delete", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &delete_app_credentials_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let app_credential = test_environment.create_random_app_credential(None).await?;
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/app-credentials/{}", app_credential.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
+
+    match AppCredential::get_by_id(&app_credential.id, &test_environment.database_pool)
+        .await
+        .expect_err("expected a not found error.")
+    {
+        ResourceError::NotFoundError(_) => {}
+
+        error => return Err(TestSlashstepServerError::ResourceError(error)),
+    }
+
+    return Ok(());
+}
+
+/// Verifies that the router can return a 400 status code if the resource ID is not a UUID.
+#[tokio::test]
+async fn verify_uuid_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+
+    let response = test_server.delete("/app-credentials/not-a-uuid").await;
+
+    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    return Ok(());
+}
+
+/// Verifies that the router can return a 401 status code if the user needs authentication.
+#[tokio::test]
+async fn verify_authentication_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError>
+{
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create dummy resources.
+    let app_credential = test_environment.create_random_app_credential(None).await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/app-credentials/{}", app_credential.id))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+    return Ok(());
+}
+
+/// Verifies that the router can return a 403 status code if the user does not have permission to delete the resource.
+#[tokio::test]
+async fn verify_permission_when_deleting_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+
+    // Create dummy resources.
+    let app_credential = test_environment.create_random_app_credential(None).await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/app-credentials/{}", app_credential.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+    return Ok(());
+}
+
+/// Verifies that the router can return a 404 status code if the resource does not exist.
+#[tokio::test]
+async fn verify_resource_exists_when_deleting_resource_by_id()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .delete(&format!("/app-credentials/{}", uuid::Uuid::now_v7()))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
+    return Ok(());
+}

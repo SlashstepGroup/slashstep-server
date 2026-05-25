@@ -1,20 +1,20 @@
-use crate::{
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use slashstep_server::{
     AppState, get_json_web_token_private_key, initialize_required_tables,
     predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
     },
     resources::{
-        ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, DEFAULT_RESOURCE_LIST_LIMIT,
-            InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope,
-            PermissionLevel,
-        },
+        access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
+        item_connection_type::{
+            DEFAULT_RESOURCE_LIST_LIMIT, InitialItemConnectionTypeProperties,
+            InitialItemConnectionTypePropertiesWithPredefinedParent, ItemConnectionType,
+            ItemConnectionTypeParentResourceType,
+        },
     },
-    routes::{CreateResourceResponseBody, ListResourcesResponseBody},
-    tests::{TestEnvironment, TestSlashstepServerError},
+    routes::ListResourcesResponseBody,
 };
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
@@ -22,7 +22,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 /**
  *
- * Any test cases for /app-authorizations/{app_authorization_id}/access-policies should be handled here.
+ * Any test cases for /projects/{project_id}/item-connection-types should be handled here.
  *
  * Programmers:
  * - Christian Toney (https://christiantoney.com)
@@ -33,41 +33,11 @@ use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-async fn create_app_authorization_access_policy(
-    database_pool: &deadpool_postgres::Pool,
-    scoped_app_authorization_id: &Uuid,
-    user_id: &Uuid,
-    action_id: &Uuid,
-    permission_level: &PermissionLevel,
-) -> Result<AccessPolicy, TestSlashstepServerError> {
-    let access_policy = AccessPolicy::create(
-        &InitialAccessPolicyProperties {
-            action_id: action_id.clone(),
-            permission_level: permission_level.clone(),
-            is_inheritance_enabled: true,
-            principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
-            principal_user_id: Some(user_id.clone()),
-            scoped_resource_type: ResourceType::AppAuthorization,
-            scoped_app_authorization_id: Some(scoped_app_authorization_id.clone()),
-            ..Default::default()
-        },
-        database_pool,
-    )
-    .await?;
-
-    return Ok(access_policy);
-}
-
 #[tokio::test]
-async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+async fn verify_successful_item_connection_type_creation() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
-    // Give the user access to the "accessPolicies.create" action.
+    // Give the user access to the "itemConnectionTypes.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
@@ -79,34 +49,27 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
     let session_token = session
         .generate_access_token(&json_web_token_private_key, session.expiration_date)
         .await?;
-    let create_access_policies_action =
-        Action::get_by_name("accessPolicies.create", &test_environment.database_pool).await?;
+    let create_item_connection_types_action = Action::get_by_name(
+        "itemConnectionTypes.create",
+        &test_environment.database_pool,
+    )
+    .await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &create_access_policies_action.id,
+            &create_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
-    // Give the user editor access to a dummy action.
-    let dummy_app_authorization = test_environment
-        .create_random_app_authorization(None)
-        .await?;
-    let dummy_action = test_environment.create_random_action(None).await?;
-    test_environment
-        .create_server_access_policy(&user.id, &dummy_action.id, &PermissionLevel::Editor)
-        .await?;
-
     // Set up the server and send the request.
-    let initial_access_policy_properties = InitialAccessPolicyPropertiesForPredefinedScope {
-        action_id: dummy_action.id,
-        permission_level: PermissionLevel::User,
-        is_inheritance_enabled: true,
-        principal_type: AccessPolicyPrincipalType::User,
-        principal_user_id: Some(user.id),
-        ..Default::default()
-    };
+    let dummy_project = test_environment.create_random_project(None).await?;
+    let initial_item_connection_type_properties =
+        InitialItemConnectionTypePropertiesWithPredefinedParent {
+            display_name: Uuid::now_v7().to_string(),
+            inward_description: Uuid::now_v7().to_string(),
+            outward_description: Uuid::now_v7().to_string(),
+        };
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -117,57 +80,51 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!(
-            "/app-authorizations/{}/access-policies",
-            dummy_app_authorization.id
+            "/projects/{}/item-connection-types",
+            dummy_project.id
         ))
         .add_cookie(Cookie::new(
             "session_access_token",
             &session_token,
         ))
-        .json(&serde_json::json!(initial_access_policy_properties))
+        .json(&serde_json::json!(initial_item_connection_type_properties))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::CREATED);
 
-    let create_access_policy_response_body: CreateResourceResponseBody<AccessPolicy> =
-        response.json();
-    let response_access_policy = create_access_policy_response_body.data;
+    let response_item_connection_type: ItemConnectionType = response.json();
     assert_eq!(
-        initial_access_policy_properties.action_id,
-        response_access_policy.action_id
+        response_item_connection_type.display_name,
+        initial_item_connection_type_properties.display_name
     );
     assert_eq!(
-        initial_access_policy_properties.principal_type,
-        response_access_policy.principal_type
+        response_item_connection_type.inward_description,
+        initial_item_connection_type_properties.inward_description
     );
     assert_eq!(
-        initial_access_policy_properties.principal_user_id,
-        response_access_policy.principal_user_id
+        response_item_connection_type.outward_description,
+        initial_item_connection_type_properties.outward_description
     );
     assert_eq!(
-        initial_access_policy_properties.permission_level,
-        response_access_policy.permission_level
+        response_item_connection_type.parent_resource_type,
+        ItemConnectionTypeParentResourceType::Project
     );
     assert_eq!(
-        initial_access_policy_properties.is_inheritance_enabled,
-        response_access_policy.is_inheritance_enabled
+        response_item_connection_type.parent_project_id,
+        Some(dummy_project.id)
     );
+    assert_eq!(response_item_connection_type.parent_workspace_id, None);
 
     return Ok(());
 }
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
-async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSlashstepServerError>
-{
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+async fn verify_returned_item_connection_type_list_without_query()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
-    // Give the user access to the "accessPolicies.get" action.
+    // Give the user access to the "itemConnectionTypes.get" action.
     let plain_text_password = Uuid::now_v7().to_string();
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
@@ -179,37 +136,39 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     let session_token = session
         .generate_access_token(&json_web_token_private_key, session.expiration_date)
         .await?;
-    let get_access_policies_action =
-        Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
+    let get_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.get", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &get_access_policies_action.id,
+            &get_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
-    // Give the user access to the "accessPolicies.list" action.
-    let list_access_policies_action =
-        Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
+    // Give the user access to the "itemConnectionTypes.list" action.
+    let list_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.list", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &list_access_policies_action.id,
+            &list_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
     // Create dummy resources.
-    let dummy_app_authorization = test_environment
-        .create_random_app_authorization(None)
-        .await?;
-    let shown_access_policy = create_app_authorization_access_policy(
+    let dummy_project = test_environment.create_random_project(None).await?;
+    let shown_item_connection_type = ItemConnectionType::create(
+        &InitialItemConnectionTypeProperties {
+            display_name: Uuid::now_v7().to_string(),
+            inward_description: Uuid::now_v7().to_string(),
+            outward_description: Uuid::now_v7().to_string(),
+            parent_resource_type: ItemConnectionTypeParentResourceType::Project,
+            parent_project_id: Some(dummy_project.id),
+            parent_workspace_id: None,
+        },
         &test_environment.database_pool,
-        &dummy_app_authorization.id,
-        &user.id,
-        &list_access_policies_action.id,
-        &PermissionLevel::User,
     )
     .await?;
 
@@ -224,8 +183,8 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!(
-            "/app-authorizations/{}/access-policies",
-            &dummy_app_authorization.id
+            "/projects/{}/item-connection-types",
+            &dummy_project.id
         ))
         .add_cookie(Cookie::new(
             "session_access_token",
@@ -236,15 +195,16 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     // Verify the response.
     assert_eq!(response.status_code(), StatusCode::OK);
 
-    let response_access_policies: ListResourcesResponseBody<AccessPolicy> = response.json();
-    assert_eq!(response_access_policies.total_count, 1);
-    assert_eq!(response_access_policies.data.len(), 1);
+    let response_item_connection_types: ListResourcesResponseBody<ItemConnectionType> =
+        response.json();
+    assert_eq!(response_item_connection_types.total_count, 1);
+    assert_eq!(response_item_connection_types.data.len(), 1);
 
     let query = format!(
-        "scoped_resource_type = 'AppAuthorization' AND scoped_app_authorization_id = {}",
-        quote_literal(&dummy_app_authorization.id.to_string())
+        "parent_project_id = {}",
+        quote_literal(&dummy_project.id.to_string())
     );
-    let actual_access_policy_count = AccessPolicy::count(
+    let actual_item_connection_type_count = ItemConnectionType::count(
         &query,
         &test_environment.database_pool,
         Some(&AccessPolicyPrincipalType::User),
@@ -252,11 +212,11 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     )
     .await?;
     assert_eq!(
-        response_access_policies.total_count,
-        actual_access_policy_count
+        response_item_connection_types.total_count,
+        actual_item_connection_type_count
     );
 
-    let actual_access_policies = AccessPolicy::list(
+    let actual_item_connection_types = ItemConnectionType::list(
         &query,
         &test_environment.database_pool,
         Some(&AccessPolicyPrincipalType::User),
@@ -264,29 +224,27 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     )
     .await?;
     assert_eq!(
-        response_access_policies.data.len(),
-        actual_access_policies.len()
+        response_item_connection_types.data.len(),
+        actual_item_connection_types.len()
     );
     assert_eq!(
-        response_access_policies.data[0].id,
-        actual_access_policies[0].id
+        response_item_connection_types.data[0].id,
+        actual_item_connection_types[0].id
     );
-    assert_eq!(response_access_policies.data[0].id, shown_access_policy.id);
+    assert_eq!(
+        response_item_connection_types.data[0].id,
+        shown_item_connection_type.id
+    );
 
     return Ok(());
 }
 
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
-async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
-    // Give the user access to the "accessPolicies.get" action.
+    // Give the user access to the "itemConnectionTypes.get" action.
     let plain_text_password = Uuid::now_v7().to_string();
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
@@ -298,51 +256,44 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     let session_token = session
         .generate_access_token(&json_web_token_private_key, session.expiration_date)
         .await?;
-    let get_access_policies_action =
-        Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
+    let get_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.get", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &get_access_policies_action.id,
+            &get_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
-    // Give the user access to the "accessPolicies.list" action.
-    let list_access_policies_action =
-        Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
+    // Give the user access to the "itemConnectionTypes.list" action.
+    let list_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.list", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &list_access_policies_action.id,
+            &list_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
     // Create a few dummy access policies.
-    let dummy_app_authorization = test_environment
-        .create_random_app_authorization(None)
-        .await?;
-    create_app_authorization_access_policy(
+    let dummy_project = test_environment.create_random_project(None).await?;
+    let shown_item_connection_type = ItemConnectionType::create(
+        &InitialItemConnectionTypeProperties {
+            display_name: Uuid::now_v7().to_string(),
+            inward_description: Uuid::now_v7().to_string(),
+            outward_description: Uuid::now_v7().to_string(),
+            parent_resource_type: ItemConnectionTypeParentResourceType::Project,
+            parent_project_id: Some(dummy_project.id),
+            parent_workspace_id: None,
+        },
         &test_environment.database_pool,
-        &dummy_app_authorization.id,
-        &user.id,
-        &list_access_policies_action.id,
-        &PermissionLevel::User,
-    )
-    .await?;
-
-    let shown_access_policy = create_app_authorization_access_policy(
-        &test_environment.database_pool,
-        &dummy_app_authorization.id,
-        &user.id,
-        &get_access_policies_action.id,
-        &PermissionLevel::Editor,
     )
     .await?;
 
     // Set up the server and send the request.
-    let additional_query = format!("permission_level = 'Editor'");
+    let additional_query = format!("parent_resource_type = 'Project'");
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -353,8 +304,8 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!(
-            "/app-authorizations/{}/access-policies",
-            &dummy_app_authorization.id
+            "/projects/{}/item-connection-types",
+            &dummy_project.id
         ))
         .add_cookie(Cookie::new(
             "session_access_token",
@@ -366,15 +317,17 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     // Verify the response.
     assert_eq!(response.status_code(), StatusCode::OK);
 
-    let response_access_policies: ListResourcesResponseBody<AccessPolicy> = response.json();
-    assert_eq!(response_access_policies.total_count, 1);
-    assert_eq!(response_access_policies.data.len(), 1);
+    let response_item_connection_types: ListResourcesResponseBody<ItemConnectionType> =
+        response.json();
+    assert_eq!(response_item_connection_types.total_count, 1);
+    assert_eq!(response_item_connection_types.data.len(), 1);
 
     let query = format!(
-        "scoped_resource_type = 'AppAuthorization' AND scoped_app_authorization_id = {} and permission_level = 'Editor'",
-        quote_literal(&dummy_app_authorization.id.to_string())
+        "parent_project_id = {} AND ({})",
+        quote_literal(&dummy_project.id.to_string()),
+        additional_query
     );
-    let actual_access_policy_count = AccessPolicy::count(
+    let actual_item_connection_type_count = ItemConnectionType::count(
         &query,
         &test_environment.database_pool,
         Some(&AccessPolicyPrincipalType::User),
@@ -382,11 +335,11 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     )
     .await?;
     assert_eq!(
-        response_access_policies.total_count,
-        actual_access_policy_count
+        response_item_connection_types.total_count,
+        actual_item_connection_type_count
     );
 
-    let actual_access_policies = AccessPolicy::list(
+    let actual_item_connection_types = ItemConnectionType::list(
         &query,
         &test_environment.database_pool,
         Some(&AccessPolicyPrincipalType::User),
@@ -394,14 +347,17 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     )
     .await?;
     assert_eq!(
-        response_access_policies.data.len(),
-        actual_access_policies.len()
+        response_item_connection_types.data.len(),
+        actual_item_connection_types.len()
     );
     assert_eq!(
-        response_access_policies.data[0].id,
-        actual_access_policies[0].id
+        response_item_connection_types.data[0].id,
+        actual_item_connection_types[0].id
     );
-    assert_eq!(response_access_policies.data[0].id, shown_access_policy.id);
+    assert_eq!(
+        response_item_connection_types.data[0].id,
+        shown_item_connection_type.id
+    );
 
     return Ok(());
 }
@@ -409,14 +365,9 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
 /// Verifies that the default access policy list limit is enforced.
 #[tokio::test]
 async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
-    // Give the user access to the "accessPolicies.get" action.
+    // Give the user access to the "itemConnectionTypes.get" action.
     let plain_text_password = Uuid::now_v7().to_string();
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
@@ -428,40 +379,40 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let session_token = session
         .generate_access_token(&json_web_token_private_key, session.expiration_date)
         .await?;
-    let get_access_policies_action =
-        Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
+    let get_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.get", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &get_access_policies_action.id,
+            &get_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
-    // Give the user access to the "accessPolicies.list" action.
-    let list_access_policies_action =
-        Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
+    // Give the user access to the "itemConnectionTypes.list" action.
+    let list_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.list", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &list_access_policies_action.id,
+            &list_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
     // Create dummy access policies.
-    let dummy_app_authorization = test_environment
-        .create_random_app_authorization(None)
-        .await?;
+    let dummy_project = test_environment.create_random_project(None).await?;
     for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
-        let random_action = test_environment.create_random_action(None).await?;
-        let random_user = test_environment.create_random_user(None).await?;
-        create_app_authorization_access_policy(
+        ItemConnectionType::create(
+            &InitialItemConnectionTypeProperties {
+                display_name: Uuid::now_v7().to_string(),
+                inward_description: Uuid::now_v7().to_string(),
+                outward_description: Uuid::now_v7().to_string(),
+                parent_resource_type: ItemConnectionTypeParentResourceType::Project,
+                parent_project_id: Some(dummy_project.id),
+                parent_workspace_id: None,
+            },
             &test_environment.database_pool,
-            &dummy_app_authorization.id,
-            &random_user.id,
-            &random_action.id,
-            &PermissionLevel::User,
         )
         .await?;
     }
@@ -476,8 +427,8 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!(
-            "/app-authorizations/{}/access-policies",
-            &dummy_app_authorization.id
+            "/projects/{}/item-connection-types",
+            &dummy_project.id
         ))
         .add_cookie(Cookie::new(
             "session_access_token",
@@ -487,7 +438,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 
     assert_eq!(response.status_code(), StatusCode::OK);
 
-    let response_body: ListResourcesResponseBody<AccessPolicy> = response.json();
+    let response_body: ListResourcesResponseBody<ItemConnectionType> = response.json();
     assert_eq!(
         response_body.data.len(),
         DEFAULT_RESOURCE_LIST_LIMIT as usize
@@ -498,13 +449,8 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 
 /// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
 #[tokio::test]
-async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+async fn verify_maximum_item_connection_type_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -518,29 +464,27 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     let session_token = session
         .generate_access_token(&json_web_token_private_key, session.expiration_date)
         .await?;
-    let get_access_policies_action =
-        Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
+    let get_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.get", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &get_access_policies_action.id,
+            &get_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
-    let list_access_policies_action =
-        Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
+    let list_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.list", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &list_access_policies_action.id,
+            &list_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
     // Create dummy resources.
-    let dummy_app_authorization = test_environment
-        .create_random_app_authorization(None)
-        .await?;
+    let dummy_project = test_environment.create_random_project(None).await?;
 
     // Set up the server and send the request.
     let state = AppState {
@@ -553,8 +497,8 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!(
-            "/app-authorizations/{}/access-policies",
-            &dummy_app_authorization.id
+            "/projects/{}/item-connection-types",
+            &dummy_project.id
         ))
         .add_query_param(
             "query",
@@ -574,13 +518,8 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
 
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
-async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+async fn verify_query_when_listing_item_connection_types() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -594,30 +533,28 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
     let session_token = session
         .generate_access_token(&json_web_token_private_key, session.expiration_date)
         .await?;
-    let get_access_policies_action =
-        Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
+    let get_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.get", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &get_access_policies_action.id,
+            &get_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
-    let list_access_policies_action =
-        Action::get_by_name("accessPolicies.list", &test_environment.database_pool).await?;
+    let list_item_connection_types_action =
+        Action::get_by_name("itemConnectionTypes.list", &test_environment.database_pool).await?;
     test_environment
         .create_server_access_policy(
             &user.id,
-            &list_access_policies_action.id,
+            &list_item_connection_types_action.id,
             &PermissionLevel::User,
         )
         .await?;
 
     // Create dummy resources.
-    let dummy_app_authorization = test_environment
-        .create_random_app_authorization(None)
-        .await?;
+    let dummy_project = test_environment.create_random_project(None).await?;
 
     // Set up the server and send the request.
     let state = AppState {
@@ -632,26 +569,26 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
     let bad_requests = vec![
         test_server
             .get(&format!(
-                "/app-authorizations/{}/access-policies",
-                &dummy_app_authorization.id
+                "/projects/{}/item-connection-types",
+                &dummy_project.id
             ))
-            .add_query_param("query", format!("SELECT * FROM access_policies")),
+            .add_query_param("query", format!("SELECT * FROM item_connection_types")),
         test_server
             .get(&format!(
-                "/app-authorizations/{}/access-policies",
-                &dummy_app_authorization.id
+                "/projects/{}/item-connection-types",
+                &dummy_project.id
             ))
             .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
         test_server
             .get(&format!(
-                "/app-authorizations/{}/access-policies",
-                &dummy_app_authorization.id
+                "/projects/{}/item-connection-types",
+                &dummy_project.id
             ))
             .add_query_param(
                 "query",
                 format!(
-                    "SELECT * FROM access_policies WHERE action_id = {}",
-                    get_access_policies_action.id
+                    "SELECT * FROM item_connection_types WHERE action_id = {}",
+                    get_item_connection_types_action.id
                 ),
             ),
     ];
@@ -670,17 +607,17 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
     let unprocessable_entity_requests = vec![
         test_server
             .get(&format!(
-                "/app-authorizations/{}/access-policies",
-                &dummy_app_authorization.id
+                "/projects/{}/item-connection-types",
+                &dummy_project.id
             ))
             .add_query_param(
                 "query",
-                format!("action_ied = {}", get_access_policies_action.id),
+                format!("action_ied = {}", get_item_connection_types_action.id),
             ),
         test_server
             .get(&format!(
-                "/app-authorizations/{}/access-policies",
-                &dummy_app_authorization.id
+                "/projects/{}/item-connection-types",
+                &dummy_project.id
             ))
             .add_query_param("query", format!("1 = 1")),
     ];
@@ -701,19 +638,12 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
 
 /// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
 #[tokio::test]
-async fn verify_authentication_when_listing_access_policies() -> Result<(), TestSlashstepServerError>
-{
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+async fn verify_authentication_when_listing_item_connection_types()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create a dummy action.
-    let dummy_app_authorization = test_environment
-        .create_random_app_authorization(None)
-        .await?;
+    let dummy_project = test_environment.create_random_project(None).await?;
 
     // Set up the server and send the request.
     let state = AppState {
@@ -726,8 +656,8 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!(
-            "/app-authorizations/{}/access-policies",
-            &dummy_app_authorization.id
+            "/projects/{}/item-connection-types",
+            &dummy_project.id
         ))
         .await;
 
@@ -739,13 +669,9 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
 
 /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 #[tokio::test]
-async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+async fn verify_permission_when_listing_item_connection_types()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -761,9 +687,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
         .await?;
 
     // Create a dummy action.
-    let dummy_app_authorization = test_environment
-        .create_random_app_authorization(None)
-        .await?;
+    let dummy_project = test_environment.create_random_project(None).await?;
 
     // Set up the server and send the request.
     let state = AppState {
@@ -776,8 +700,8 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!(
-            "/app-authorizations/{}/access-policies",
-            &dummy_app_authorization.id
+            "/projects/{}/item-connection-types",
+            &dummy_project.id
         ))
         .add_cookie(Cookie::new(
             "session_access_token",

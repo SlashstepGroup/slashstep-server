@@ -1,0 +1,877 @@
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use slashstep_server::{
+    AppState, get_json_web_token_private_key, initialize_required_tables,
+    predefinitions::{
+        initialize_predefined_actions, initialize_predefined_configurations,
+        initialize_predefined_groups, initialize_predefined_roles,
+    },
+    resources::{
+        access_policy::{AccessPolicyPrincipalType, PermissionLevel},
+        action::Action,
+        configuration::{Configuration, EditableConfigurationProperties},
+        project::{DEFAULT_RESOURCE_LIST_LIMIT, Project},
+    },
+    routes::{
+        ListResourcesResponseBody,
+        workspaces::workspace_id::projects::CreateProjectRequestBody,
+    },
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use rand::distr::{Alphanumeric, SampleString};
+use reqwest::StatusCode;
+use rust_decimal::Decimal;
+/**
+ *
+ * Any test cases for /workspaces/{workspace_id}/projects should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+use std::net::SocketAddr;
+use uuid::Uuid;
+
+#[tokio::test]
+async fn verify_successful_project_creation() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "projects.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_projects_action =
+        Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+    let initial_project_properties = CreateProjectRequestBody {
+        name: Uuid::now_v7().to_string(),
+        key: Alphanumeric.sample_string(&mut rand::rng(), 16),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+        start_date: Some(chrono::Utc::now()),
+        end_date: Some(chrono::Utc::now() + chrono::Duration::days(7)),
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/projects", dummy_workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_project_properties))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::CREATED);
+
+    let response_project: Project = response.json();
+    assert_eq!(response_project.name, initial_project_properties.name);
+    assert_eq!(
+        response_project.display_name,
+        initial_project_properties.display_name
+    );
+    assert_eq!(
+        response_project.description,
+        initial_project_properties.description
+    );
+    assert_eq!(
+        response_project.start_date.unwrap().timestamp_millis(),
+        initial_project_properties
+            .start_date
+            .unwrap()
+            .timestamp_millis()
+    );
+    assert_eq!(
+        response_project.end_date.unwrap().timestamp_millis(),
+        initial_project_properties
+            .end_date
+            .unwrap()
+            .timestamp_millis()
+    );
+    assert_eq!(response_project.parent_workspace_id, dummy_workspace.id);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the project name is over the maximum length.
+#[tokio::test]
+async fn verify_project_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError>
+{
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+    // Give the user access to the "projects.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_projects_action =
+        Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let workspace = test_environment.create_random_workspace().await?;
+    let maximum_project_name_length_configuration = Configuration::get_by_name(
+        "projects.maximumNameLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_project_name_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    let initial_project_properties = CreateProjectRequestBody {
+        name: Uuid::now_v7().to_string(),
+        key: Alphanumeric.sample_string(&mut rand::rng(), 16),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+        start_date: Some(chrono::Utc::now()),
+        end_date: Some(chrono::Utc::now() + chrono::Duration::days(7)),
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/projects", workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_project_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the project display name is over the maximum length.
+#[tokio::test]
+async fn verify_project_display_name_is_at_most_at_maximum_length()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+    // Give the user access to the "projects.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_projects_action =
+        Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let workspace = test_environment.create_random_workspace().await?;
+    let maximum_project_display_name_length_configuration = Configuration::get_by_name(
+        "projects.maximumDisplayNameLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_project_display_name_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    let initial_project_properties = CreateProjectRequestBody {
+        name: Uuid::now_v7().to_string(),
+        key: Alphanumeric.sample_string(&mut rand::rng(), 16),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+        start_date: Some(chrono::Utc::now()),
+        end_date: Some(chrono::Utc::now() + chrono::Duration::days(7)),
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/projects", workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_project_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the project description is over the maximum length.
+#[tokio::test]
+async fn verify_project_description_is_at_most_at_maximum_length()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+    // Give the user access to the "projects.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_projects_action =
+        Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let workspace = test_environment.create_random_workspace().await?;
+    let maximum_project_description_length_configuration = Configuration::get_by_name(
+        "projects.maximumDescriptionLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_project_description_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    let initial_project_properties = CreateProjectRequestBody {
+        name: Uuid::now_v7().to_string(),
+        key: Alphanumeric.sample_string(&mut rand::rng(), 16),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+        start_date: Some(chrono::Utc::now()),
+        end_date: Some(chrono::Utc::now() + chrono::Duration::days(7)),
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/projects", workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_project_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the project name doesn't match the allowed regex pattern.
+#[tokio::test]
+async fn verify_project_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    initialize_predefined_configurations(&test_environment.database_pool).await?;
+
+    // Give the user access to the "projects.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_projects_action =
+        Action::get_by_name("projects.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let workspace = test_environment.create_random_workspace().await?;
+    let allowed_project_name_regex_configuration =
+        Configuration::get_by_name("projects.allowedNameRegex", &test_environment.database_pool)
+            .await?;
+    allowed_project_name_regex_configuration
+        .update(
+            &EditableConfigurationProperties {
+                text_value: Some("^$".to_string()),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    let initial_project_properties = CreateProjectRequestBody {
+        name: Uuid::now_v7().to_string(),
+        key: Alphanumeric.sample_string(&mut rand::rng(), 16),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+        start_date: Some(chrono::Utc::now()),
+        end_date: Some(chrono::Utc::now() + chrono::Duration::days(7)),
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/projects", workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .json(&serde_json::json!(initial_project_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the router can return a 200 status code and the requested access policy list.
+#[tokio::test]
+async fn verify_returned_project_list_without_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "projects.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_projects_action =
+        Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Give the user access to the "projects.list" action.
+    let list_projects_action =
+        Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create dummy resources.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+    let shown_project = test_environment
+        .create_random_project(Some(&dummy_workspace.id))
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_projects: ListResourcesResponseBody<Project> = response.json();
+    assert_eq!(response_projects.total_count, 1);
+    assert_eq!(response_projects.data.len(), 1);
+
+    let query = format!(
+        "parent_workspace_id = {}",
+        quote_literal(&dummy_workspace.id.to_string())
+    );
+    let actual_project_count = Project::count(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_projects.total_count, actual_project_count);
+
+    let actual_projects = Project::list(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_projects.data.len(), actual_projects.len());
+    assert_eq!(response_projects.data[0].id, actual_projects[0].id);
+    assert_eq!(response_projects.data[0].id, shown_project.id);
+
+    return Ok(());
+}
+
+/// Verifies that the router can return a 200 status code and the requested access policy list.
+#[tokio::test]
+async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "projects.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_projects_action =
+        Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Give the user access to the "projects.list" action.
+    let list_projects_action =
+        Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create a few dummy access policies.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+    let shown_project = test_environment
+        .create_random_project(Some(&dummy_workspace.id))
+        .await?;
+
+    // Set up the server and send the request.
+    let additional_query = format!("id = '{}'", shown_project.id);
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .add_query_param("query", &additional_query)
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_projects: ListResourcesResponseBody<Project> = response.json();
+    assert_eq!(response_projects.total_count, 1);
+    assert_eq!(response_projects.data.len(), 1);
+
+    let query = format!(
+        "parent_workspace_id = {} AND ({})",
+        quote_literal(&dummy_workspace.id.to_string()),
+        additional_query
+    );
+    let actual_project_count = Project::count(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_projects.total_count, actual_project_count);
+
+    let actual_projects = Project::list(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_projects.data.len(), actual_projects.len());
+    assert_eq!(response_projects.data[0].id, actual_projects[0].id);
+    assert_eq!(response_projects.data[0].id, shown_project.id);
+
+    return Ok(());
+}
+
+/// Verifies that the default access policy list limit is enforced.
+#[tokio::test]
+async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "projects.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_projects_action =
+        Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Give the user access to the "projects.list" action.
+    let list_projects_action =
+        Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create dummy access policies.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+    for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
+        let _ = test_environment
+            .create_random_project(Some(&dummy_workspace.id))
+            .await?;
+    }
+
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_body: ListResourcesResponseBody<Project> = response.json();
+    assert_eq!(
+        response_body.data.len(),
+        DEFAULT_RESOURCE_LIST_LIMIT as usize
+    );
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
+#[tokio::test]
+async fn verify_maximum_project_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_projects_action =
+        Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User)
+        .await?;
+    let list_projects_action =
+        Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create dummy resources.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+        .add_query_param(
+            "query",
+            format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1),
+        )
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 400 status code when the query is invalid.
+#[tokio::test]
+async fn verify_query_when_listing_projects() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_projects_action =
+        Action::get_by_name("projects.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    let list_projects_action =
+        Action::get_by_name("projects.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_projects_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create dummy resources.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+
+    let bad_requests = vec![
+        test_server
+            .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+            .add_query_param("query", format!("SELECT * FROM projects")),
+        test_server
+            .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+            .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
+        test_server
+            .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+            .add_query_param(
+                "query",
+                format!(
+                    "SELECT * FROM projects WHERE action_id = {}",
+                    get_projects_action.id
+                ),
+            ),
+    ];
+
+    for request in bad_requests {
+        let response = request
+            .add_cookie(Cookie::new(
+                "session_access_token",
+                &session_token,
+            ))
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    }
+
+    let unprocessable_entity_requests = vec![
+        test_server
+            .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+            .add_query_param("query", format!("action_ied = {}", get_projects_action.id)),
+        test_server
+            .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+            .add_query_param("query", format!("1 = 1")),
+    ];
+
+    for request in unprocessable_entity_requests {
+        let response = request
+            .add_cookie(Cookie::new(
+                "session_access_token",
+                &session_token,
+            ))
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
+#[tokio::test]
+async fn verify_authentication_when_listing_projects() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create a dummy action.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
+#[tokio::test]
+async fn verify_permission_when_listing_projects() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+
+    // Create a dummy action.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = super::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/projects", &dummy_workspace.id))
+        .add_cookie(Cookie::new(
+            "session_access_token",
+            &session_token,
+        ))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+    return Ok(());
+}
