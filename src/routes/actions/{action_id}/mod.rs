@@ -1,3 +1,14 @@
+/**
+ *
+ * Any functionality for /actions/{action_id} should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -28,16 +39,6 @@ use axum::{
     extract::{Path, State, rejection::JsonRejection},
 };
 use reqwest::StatusCode;
-/**
- *
- * Any functionality for /actions/{action_id} should be handled here.
- *
- * Programmers:
- * - Christian Toney (https://christiantoney.com)
- *
- * © 2026 Beastslash LLC
- *
- */
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
@@ -416,6 +417,3 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         ))
         .merge(access_policies::get_router(state.clone()))
 }
-
-#[cfg(test)]
-mod tests;

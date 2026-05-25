@@ -1,25 +1,3 @@
-use crate::{
-    Action, AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
-        },
-        action::EditableActionProperties,
-        configuration::{Configuration, EditableConfigurationProperties},
-    },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
-    tests::{TestEnvironment, TestSlashstepServerError},
-};
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use ntest::timeout;
-use reqwest::StatusCode;
-use rust_decimal::Decimal;
 /**
  *
  * Any test cases for /actions/{action_id} should be handled here.
@@ -30,25 +8,42 @@ use rust_decimal::Decimal;
  * © 2026 Beastslash LLC
  *
  */
+
+use slashstep_server::{
+    AppState, get_json_web_token_private_key, resources::{
+        ResourceError, ResourceType,
+        access_policy::{
+            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
+        },
+        action::{Action, EditableActionProperties},
+        configuration::{Configuration, EditableConfigurationProperties},
+    },
+    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use ntest::timeout;
+use reqwest::StatusCode;
+use rust_decimal::Decimal;
 use std::net::SocketAddr;
 use uuid::Uuid;
+
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
 
 /// Verifies that the router can return a 200 status code and the requested action.
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -103,18 +98,13 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
 /// Verifies that the router can return a 400 if the action ID is not a UUID.
 #[tokio::test]
 async fn verify_uuid_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -128,18 +118,13 @@ async fn verify_uuid_when_getting_action_by_id() -> Result<(), TestSlashstepServ
 /// Verifies that the router can return a 401 status code if the user needs authentication.
 #[tokio::test]
 async fn verify_authentication_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -156,12 +141,7 @@ async fn verify_authentication_when_getting_action_by_id() -> Result<(), TestSla
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user, the session, and the action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -182,7 +162,7 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -203,12 +183,7 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -228,7 +203,7 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashste
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -249,12 +224,7 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashste
 #[tokio::test]
 async fn verify_successful_deletion_when_deleting_action_by_id()
 -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -292,7 +262,7 @@ async fn verify_successful_deletion_when_deleting_action_by_id()
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -321,19 +291,14 @@ async fn verify_successful_deletion_when_deleting_action_by_id()
 /// Verifies that the router can return a 400 status code if the action ID is not a UUID.
 #[tokio::test]
 async fn verify_uuid_when_deleting_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -348,12 +313,7 @@ async fn verify_uuid_when_deleting_action_by_id() -> Result<(), TestSlashstepSer
 #[tokio::test]
 async fn verify_authentication_when_deleting_action_by_id() -> Result<(), TestSlashstepServerError>
 {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create a dummy action.
     let action = test_environment.create_random_action(None).await?;
@@ -363,7 +323,7 @@ async fn verify_authentication_when_deleting_action_by_id() -> Result<(), TestSl
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -377,12 +337,7 @@ async fn verify_authentication_when_deleting_action_by_id() -> Result<(), TestSl
 /// Verifies that the router can return a 403 status code if the user does not have permission to delete the action.
 #[tokio::test]
 async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -405,7 +360,7 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -425,12 +380,7 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
 /// Verifies that the router can return a 404 status code if the action does not exist.
 #[tokio::test]
 async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -450,7 +400,7 @@ async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSla
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -470,12 +420,7 @@ async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSla
 /// Verifies that the router can return a 200 status code if the action is successfully patched.
 #[tokio::test]
 async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -509,7 +454,7 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -547,19 +492,14 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
 /// Verifies that the router can return a 400 status code if the request doesn't have a valid content type.
 #[tokio::test]
 async fn verify_content_type_when_patching_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -574,19 +514,14 @@ async fn verify_content_type_when_patching_action_by_id() -> Result<(), TestSlas
 #[tokio::test]
 async fn verify_request_body_exists_when_patching_action_by_id()
 -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -604,19 +539,14 @@ async fn verify_request_body_exists_when_patching_action_by_id()
 #[tokio::test]
 async fn verify_request_body_json_when_patching_action_by_id()
 -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -638,17 +568,12 @@ async fn verify_request_body_json_when_patching_action_by_id()
 /// Verifies that the router can return a 400 status code if the action ID is not a UUID.
 #[tokio::test]
 async fn verify_uuid_when_patching_action_by_id() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -668,12 +593,7 @@ async fn verify_uuid_when_patching_action_by_id() -> Result<(), TestSlashstepSer
 #[tokio::test]
 async fn verify_authentication_when_patching_action_by_id() -> Result<(), TestSlashstepServerError>
 {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Set up the server and send the request.
     let action = test_environment.create_random_action(None).await?;
@@ -681,7 +601,7 @@ async fn verify_authentication_when_patching_action_by_id() -> Result<(), TestSl
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -700,12 +620,7 @@ async fn verify_authentication_when_patching_action_by_id() -> Result<(), TestSl
 /// Verifies that the router can return a 403 status code if the user does not have permission to patch the action.
 #[tokio::test]
 async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -726,7 +641,7 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -750,19 +665,14 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
 /// Verifies that the router can return a 404 status code if the action does not exist.
 #[tokio::test]
 async fn verify_action_exists_when_patching_action() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -782,10 +692,7 @@ async fn verify_action_exists_when_patching_action() -> Result<(), TestSlashstep
 /// Verifies that the server returns a 422 status code when the action name is over the maximum length.
 #[tokio::test]
 async fn verify_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Give the user access to the "actions.update" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -824,7 +731,7 @@ async fn verify_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -849,12 +756,7 @@ async fn verify_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepS
 #[tokio::test]
 async fn verify_display_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError>
 {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Give the user access to the "actions.update" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -895,7 +797,7 @@ async fn verify_display_name_is_at_most_at_maximum_length() -> Result<(), TestSl
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -918,12 +820,7 @@ async fn verify_display_name_is_at_most_at_maximum_length() -> Result<(), TestSl
 
 #[tokio::test]
 async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Give the user access to the "actions.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -966,7 +863,7 @@ async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerErr
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -987,12 +884,7 @@ async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerErr
 
 #[tokio::test]
 async fn verify_action_display_name_matches_regex() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Give the user access to the "actions.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -1037,7 +929,7 @@ async fn verify_action_display_name_matches_regex() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::actions::action_id::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);

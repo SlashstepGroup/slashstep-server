@@ -1,3 +1,17 @@
+/**
+ *
+ * Any functionality for /actions should be handled here.
+ *
+ * Creating server level actions through the REST API is unsupported because server level actions are intended to be created by Slashstep Server.
+ * All other actions should be app level.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -26,19 +40,6 @@ use axum::{
     extract::{Query, State},
 };
 use reqwest::StatusCode;
-/**
- *
- * Any functionality for /actions should be handled here.
- *
- * Creating server level actions through the REST API is unsupported because server level actions are intended to be created by Slashstep Server.
- * All other actions should be app level.
- *
- * Programmers:
- * - Christian Toney (https://christiantoney.com)
- *
- * © 2026 Beastslash LLC
- *
- */
 use std::sync::Arc;
 
 #[path = "./{action_id}/mod.rs"]
@@ -232,6 +233,3 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         ))
         .merge(action_id::get_router(state.clone()))
 }
-
-#[cfg(test)]
-mod tests;
