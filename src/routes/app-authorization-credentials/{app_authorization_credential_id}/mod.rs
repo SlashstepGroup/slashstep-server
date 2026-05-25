@@ -10,9 +10,7 @@
  */
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
-#[cfg(test)]
-mod tests;
+pub mod access_policies;
 
 use crate::{
     AppState, HTTPError,

@@ -1,3 +1,14 @@
+/**
+ *
+ * Any functionality for /app-authorization-credentials/{app_authorization_credential_id}/access-policies should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -31,20 +42,7 @@ use axum::{
 };
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-/**
- *
- * Any functionality for /app-authorization-credentials/{app_authorization_credential_id}/access-policies should be handled here.
- *
- * Programmers:
- * - Christian Toney (https://christiantoney.com)
- *
- * © 2026 Beastslash LLC
- *
- */
 use std::sync::Arc;
-
-#[cfg(test)]
-mod tests;
 
 /// GET /app-authorization-credentials/{app_authorization_credential_id}/access-policies
 ///

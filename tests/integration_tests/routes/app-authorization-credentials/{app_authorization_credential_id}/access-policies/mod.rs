@@ -1,25 +1,3 @@
-use crate::{
-    AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
-        ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, DEFAULT_RESOURCE_LIST_LIMIT,
-            InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope,
-            PermissionLevel,
-        },
-        action::Action,
-    },
-    routes::{CreateResourceResponseBody, ListResourcesResponseBody},
-    tests::{TestEnvironment, TestSlashstepServerError},
-};
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use pg_escape::quote_literal;
-use reqwest::StatusCode;
 /**
  *
  * Any test cases for /app-authorization-credentials/{action_id}/access-policies should be handled here.
@@ -30,8 +8,27 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+
+use slashstep_server::{
+    AppState, get_json_web_token_private_key, resources::{
+        ResourceType,
+        access_policy::{
+            AccessPolicy, AccessPolicyPrincipalType, DEFAULT_RESOURCE_LIST_LIMIT,
+            InitialAccessPolicyProperties, InitialAccessPolicyPropertiesForPredefinedScope,
+            PermissionLevel,
+        },
+        action::Action,
+    },
+    routes::{CreateResourceResponseBody, ListResourcesResponseBody}
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
+
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 
 async fn create_app_authorization_credential_access_policy(
     database_pool: &deadpool_postgres::Pool,
@@ -45,7 +42,7 @@ async fn create_app_authorization_credential_access_policy(
             action_id: action_id.clone(),
             permission_level: permission_level.clone(),
             is_inheritance_enabled: true,
-            principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
+            principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
             principal_user_id: Some(user_id.clone()),
             scoped_resource_type: ResourceType::AppAuthorizationCredential,
             scoped_app_authorization_credential_id: Some(
@@ -62,12 +59,7 @@ async fn create_app_authorization_credential_access_policy(
 
 #[tokio::test]
 async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Give the user access to the "accessPolicies.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -113,7 +105,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -162,12 +154,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
 #[tokio::test]
 async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSlashstepServerError>
 {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Give the user access to the "accessPolicies.get" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -220,7 +207,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -281,12 +268,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
 /// Verifies that the router can return a 200 status code and the requested access policy list.
 #[tokio::test]
 async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Give the user access to the "accessPolicies.get" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -349,7 +331,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -411,12 +393,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
 /// Verifies that the default access policy list limit is enforced.
 #[tokio::test]
 async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Give the user access to the "accessPolicies.get" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -472,7 +449,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -501,12 +478,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 /// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
 #[tokio::test]
 async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -547,7 +519,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -575,12 +547,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
 async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -623,7 +590,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -702,12 +669,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
 #[tokio::test]
 async fn verify_authentication_when_listing_access_policies() -> Result<(), TestSlashstepServerError>
 {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create dummy resources.
     let dummy_app_authorization_credential = test_environment
@@ -719,7 +681,7 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -739,12 +701,7 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
 /// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
 #[tokio::test]
 async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the user and the session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -769,7 +726,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -793,19 +750,14 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
 #[tokio::test]
 async fn verify_parent_resource_not_found_when_listing_resources()
 -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::app_authorization_credentials::app_authorization_credential_id::access_policies::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
