@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /apps should be handled here.
  *

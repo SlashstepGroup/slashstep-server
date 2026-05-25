@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /delegation-policies should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /milestones should be handled here.
  *

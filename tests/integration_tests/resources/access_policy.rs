@@ -1,4 +1,4 @@
-/**
+/*
  *
  * This module contains integration tests for the access_policy resource module.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /roles/{role_id} should be handled here.
  *

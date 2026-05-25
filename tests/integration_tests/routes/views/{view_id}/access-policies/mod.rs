@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /views/{view_id}/access-policies should be handled here.
  *

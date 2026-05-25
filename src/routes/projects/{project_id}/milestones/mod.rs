@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /projects/{project_id}/milestones should be handled here.
  *

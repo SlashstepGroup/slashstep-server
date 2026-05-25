@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /iterations/{iteration_id} should be handled here.
  *

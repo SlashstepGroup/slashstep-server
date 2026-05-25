@@ -30,7 +30,7 @@ use axum::{
 };
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /roles/{role_id}/access-policies should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /app-authorization-credentials/{action_id} should be handled here.
  *

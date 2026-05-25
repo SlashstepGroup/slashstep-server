@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /action-log-entries should be handled here.
  *

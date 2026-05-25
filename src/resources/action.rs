@@ -1,4 +1,4 @@
-/**
+/*
  *
  * This module defines the implementation and types of an action.
  *

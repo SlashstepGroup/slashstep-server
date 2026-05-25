@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /sessions should be handled here.
  *

@@ -27,7 +27,7 @@ use axum::{
     extract::{Path, State, rejection::JsonRejection},
 };
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /item-type-icons/{item_type_icon_id} should be handled here.
  *

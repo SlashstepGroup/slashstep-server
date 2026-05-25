@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /item-types/{item_type_id}/access-policies should be handled here.
  *

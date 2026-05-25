@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /projects/{project_id}/access-policies should be handled here.
  *

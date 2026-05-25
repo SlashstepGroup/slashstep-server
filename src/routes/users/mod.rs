@@ -1,5 +1,5 @@
 
-/**
+/*
  *
  * Any functionality for /users should be handled here.
  *

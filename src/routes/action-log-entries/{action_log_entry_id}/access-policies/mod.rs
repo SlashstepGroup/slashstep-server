@@ -33,7 +33,7 @@ use axum::{
 };
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /action-log-entries/{action_log_entry_id}/access-policies should be handled here.
  *

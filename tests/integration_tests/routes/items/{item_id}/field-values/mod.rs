@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /items/{item_id}/field-values should be handled here.
  *

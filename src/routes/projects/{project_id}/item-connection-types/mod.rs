@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /projects/{project_id}/item-connection-types should be handled here.
  *

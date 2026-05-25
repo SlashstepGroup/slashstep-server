@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /users/{user_id}/sessions should be handled here.
  *

@@ -28,7 +28,7 @@ use axum::{
     extract::{Path, State, rejection::JsonRejection},
 };
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /item-connection-types/{item_connection_type_id} should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /app-credentials should be handled here.
  *

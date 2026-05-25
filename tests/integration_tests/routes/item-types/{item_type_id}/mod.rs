@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /item-types/{item_type_id} should be handled here.
  *

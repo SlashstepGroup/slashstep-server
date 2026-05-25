@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /actions/{action_id} should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /actions should be handled here.
  *

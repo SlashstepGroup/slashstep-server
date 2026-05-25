@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /configurations/{configuration_id}/access-policies should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /configurations should be handled here.
  *

@@ -6,7 +6,7 @@ use crate::{
         SlashstepQLSanitizeFunctionOptions,
     },
 };
-/**
+/*
  *
  * This module defines the implementation and types of an OAuth authorization.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /membership-invitations should be handled here.
  *

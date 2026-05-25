@@ -27,7 +27,7 @@ use axum::{
     extract::{Path, State, rejection::JsonRejection},
 };
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /groups/{group_id} should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /views should be handled here.
  *

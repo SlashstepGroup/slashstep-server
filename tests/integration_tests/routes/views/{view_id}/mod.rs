@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /views/{view_id} should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /access-policies should be handled here.
  *

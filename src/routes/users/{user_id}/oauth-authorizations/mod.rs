@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /users/{user_id}/oauth-authorizations should be handled here.
  *

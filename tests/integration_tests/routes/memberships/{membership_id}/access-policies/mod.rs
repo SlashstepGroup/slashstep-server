@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /memberships/{membership_id}/access-policies should be handled here.
  *

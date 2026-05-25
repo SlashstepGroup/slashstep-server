@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /configurations should be handled here.
  *

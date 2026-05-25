@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /sessions/{user_id}/sessions should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /actions/{action_id} should be handled here.
  *

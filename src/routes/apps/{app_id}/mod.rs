@@ -26,7 +26,7 @@ use axum::{
     extract::{Path, State, rejection::JsonRejection},
 };
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /apps/{app_id} should be handled here.
  *

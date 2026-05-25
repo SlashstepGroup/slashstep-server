@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /workspaces/{workspace_id}/roles should be handled here.
  *

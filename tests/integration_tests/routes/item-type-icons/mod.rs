@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /item-type-icons should be handled here.
  *

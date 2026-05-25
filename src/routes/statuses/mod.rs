@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /statuses should be handled here.
  *

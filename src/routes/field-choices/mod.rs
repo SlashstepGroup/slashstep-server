@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /field-choices should be handled here.
  *

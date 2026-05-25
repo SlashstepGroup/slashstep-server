@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /projects/{project_id}/item-types should be handled here.
  *

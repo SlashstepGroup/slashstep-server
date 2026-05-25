@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /projects should be handled here.
  *

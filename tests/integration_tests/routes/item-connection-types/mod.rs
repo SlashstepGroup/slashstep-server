@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /item-connection-types should be handled here.
  *

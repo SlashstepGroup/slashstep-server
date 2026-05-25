@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /app-authorizations/{app_authorization_id}/access-policies should be handled here.
  *

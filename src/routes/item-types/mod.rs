@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /item-types should be handled here.
  *

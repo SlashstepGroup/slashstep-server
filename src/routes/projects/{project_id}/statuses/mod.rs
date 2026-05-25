@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /projects/{project_id}/statuses should be handled here.
  *

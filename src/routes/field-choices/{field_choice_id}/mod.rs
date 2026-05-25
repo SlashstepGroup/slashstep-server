@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /field-choices/{field_choice_id} should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /groups/{app_id}/roles should be handled here.
  *

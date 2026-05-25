@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /delegation-policies should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /oauth-access-tokens should be handled here.
  *

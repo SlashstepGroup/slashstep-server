@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /memberships should be handled here.
  *

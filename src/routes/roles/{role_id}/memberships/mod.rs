@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /roles/{role_id}/memberships should be handled here.
  *

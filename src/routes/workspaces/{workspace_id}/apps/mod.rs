@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /workspaces/{workspace_id}/apps should be handled here.
  *

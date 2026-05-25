@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /action-log-entries/{action_log_entry_id} should be handled here.
  *

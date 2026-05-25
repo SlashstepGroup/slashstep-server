@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /items/{item_id} should be handled here.
  *

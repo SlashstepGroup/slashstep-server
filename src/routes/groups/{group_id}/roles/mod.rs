@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /groups/{group_id}/roles should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /apps should be handled here.
  *

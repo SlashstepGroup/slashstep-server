@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /views should be handled here.
  *

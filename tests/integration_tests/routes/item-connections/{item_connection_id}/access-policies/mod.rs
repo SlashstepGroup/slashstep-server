@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /item-connections/{item_connection_id}/access-policies should be handled here.
  *

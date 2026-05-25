@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /app-authorization-credentials/{app_authorization_credential_id} should be handled here.
  *

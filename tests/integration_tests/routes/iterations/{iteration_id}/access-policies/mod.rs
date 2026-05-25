@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /iterations/{iteration_id}/access-policies should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /sessions should be handled here.
  *

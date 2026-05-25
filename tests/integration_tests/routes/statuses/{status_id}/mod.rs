@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /statuses/{status_id} should be handled here.
  *

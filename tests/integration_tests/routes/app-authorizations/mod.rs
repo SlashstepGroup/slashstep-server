@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /app-authorizations should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /memberships/{membership_id} should be handled here.
  *

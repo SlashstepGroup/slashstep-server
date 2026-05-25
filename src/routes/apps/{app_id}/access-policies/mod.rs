@@ -31,7 +31,7 @@ use axum::{
 };
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /apps/{app_id}/access-policies should be handled here.
  *

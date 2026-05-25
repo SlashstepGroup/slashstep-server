@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /projects should be handled here.
  *

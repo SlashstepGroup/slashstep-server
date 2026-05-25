@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /roles/{app_id}/memberships should be handled here.
  *

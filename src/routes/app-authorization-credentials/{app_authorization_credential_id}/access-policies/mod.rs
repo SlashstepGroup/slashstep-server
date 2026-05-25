@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /app-authorization-credentials/{app_authorization_credential_id}/access-policies should be handled here.
  *

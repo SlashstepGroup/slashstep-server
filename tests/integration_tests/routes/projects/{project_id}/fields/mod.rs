@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /projects/{project_id}/fields should be handled here.
  *

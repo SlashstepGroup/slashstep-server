@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /view-fields should be handled here.
  *

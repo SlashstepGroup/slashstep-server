@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /workspaces/{workspace_id}/projects should be handled here.
  *

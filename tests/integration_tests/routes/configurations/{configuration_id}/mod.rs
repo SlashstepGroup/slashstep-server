@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /configurations/{configuration_id} should be handled here.
  *

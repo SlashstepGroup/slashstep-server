@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /items should be handled here.
  *

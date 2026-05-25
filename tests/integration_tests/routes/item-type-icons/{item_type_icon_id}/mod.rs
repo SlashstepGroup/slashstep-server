@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /item-type-icons/{item_type_icon_id} should be handled here.
  *

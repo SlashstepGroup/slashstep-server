@@ -28,7 +28,7 @@ use axum::{
 };
 use postgres::error::SqlState;
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /users/{user_id} should be handled here.
  *

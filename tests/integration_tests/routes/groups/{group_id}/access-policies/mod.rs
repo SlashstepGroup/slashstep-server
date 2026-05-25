@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /groups/{group_id}/access-policies should be handled here.
  *

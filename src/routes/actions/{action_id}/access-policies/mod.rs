@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /actions/{action_id}/access-policies should be handled here.
  *

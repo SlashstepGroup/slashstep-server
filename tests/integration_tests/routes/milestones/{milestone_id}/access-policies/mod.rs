@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /milestones/{milestone_id}/access-policies should be handled here.
  *

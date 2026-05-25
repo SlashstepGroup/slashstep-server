@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /groups/{group_id}/membership-invitations should be handled here.
  *

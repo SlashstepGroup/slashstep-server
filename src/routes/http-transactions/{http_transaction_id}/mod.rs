@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /http-transactions/{http_transaction_id} should be handled here.
  *

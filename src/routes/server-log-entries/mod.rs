@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /server-log-entries should be handled here.
  *

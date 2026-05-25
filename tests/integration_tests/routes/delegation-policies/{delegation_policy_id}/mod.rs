@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /delegation-policies/{delegation policy_id} should be handled here.
  *

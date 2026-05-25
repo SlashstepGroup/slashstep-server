@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /app-credentials should be handled here.
  *

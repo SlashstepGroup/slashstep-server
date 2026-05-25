@@ -26,7 +26,7 @@ use axum::{
     extract::{Query, State},
 };
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /action-log-entries should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /groups/{app_id}/memberships should be handled here.
  *

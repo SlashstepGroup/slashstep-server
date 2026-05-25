@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /users should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /groups/{group_id}/memberships should be handled here.
  *

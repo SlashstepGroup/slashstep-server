@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /actions should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /memberships should be handled here.
  *

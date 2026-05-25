@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /field-choices/{field_choice_id}/access-policies should be handled here.
  *

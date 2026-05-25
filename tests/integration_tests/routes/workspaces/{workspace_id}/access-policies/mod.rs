@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /workspaces/{workspace_id}/access-policies should be handled here.
  *

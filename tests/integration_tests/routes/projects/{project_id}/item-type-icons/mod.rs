@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /projects/{project_id}/item-type-icons should be handled here.
  *

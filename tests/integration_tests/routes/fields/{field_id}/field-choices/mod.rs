@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /field-choices/{field_id}/field-choices should be handled here.
  *

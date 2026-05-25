@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /statuses/{status_id}/access-policies should be handled here.
  *

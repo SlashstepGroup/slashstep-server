@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /milestones/{milestone_id} should be handled here.
  *

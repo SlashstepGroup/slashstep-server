@@ -1,5 +1,5 @@
 
-/**
+/*
  *
  * Any functionality for /view-fields should be handled here.
  *

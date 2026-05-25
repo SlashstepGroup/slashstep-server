@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /http-transactions should be handled here.
  *

@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /users/{user_id} should be handled here.
  *

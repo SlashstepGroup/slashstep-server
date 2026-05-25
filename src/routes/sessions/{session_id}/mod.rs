@@ -26,7 +26,7 @@ use axum::{
     extract::{Path, State},
 };
 use reqwest::StatusCode;
-/**
+/*
  *
  * Any functionality for /sessions/{session_id} should be handled here.
  *

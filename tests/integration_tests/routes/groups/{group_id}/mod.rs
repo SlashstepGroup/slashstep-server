@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /groups/{group_id} should be handled here.
  *

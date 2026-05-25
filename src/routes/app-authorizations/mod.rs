@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /app-authorizations should be handled here.
  *

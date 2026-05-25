@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any end-to-end test cases for /access-policies/{access_policy_id} should be handled here.
  *

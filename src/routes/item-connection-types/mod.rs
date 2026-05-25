@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /item-connection-types should be handled here.
  *

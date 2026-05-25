@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /groups should be handled here.
  *

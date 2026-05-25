@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any functionality for /workspaces should be handled here.
  *

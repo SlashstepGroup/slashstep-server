@@ -1,4 +1,4 @@
-/**
+/*
  *
  * Any test cases for /item-connections/{item_connection_id} should be handled here.
  *
