@@ -9,8 +9,6 @@
  *
  */
 
-
-
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -104,7 +102,8 @@ async fn handle_list_fields_request(
         "parent_project_id = {}{}",
         quote_literal(&project_id.to_string()),
         query_parameters
-            .query.map(|query| format!(" AND ({})", query))
+            .query
+            .map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match Field::list(
@@ -188,8 +187,12 @@ async fn handle_list_fields_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Project,
             target_project_id: Some(project_id),
             ..Default::default()
@@ -368,8 +371,12 @@ async fn handle_create_field_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Field,
             target_field_id: Some(field.id),
             ..Default::default()
@@ -390,7 +397,6 @@ async fn handle_create_field_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/projects/{project_id}/fields",

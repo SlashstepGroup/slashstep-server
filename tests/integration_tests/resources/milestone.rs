@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use slashstep_server::resources::milestone::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialMilestoneProperties, Milestone,
 };
@@ -8,12 +9,14 @@ use slashstep_server::{
         ResourceError, ResourceType,
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    }
+    },
 };
-use chrono::DateTime;
 use uuid::Uuid;
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_milestones_are_equal(milestone_1: &Milestone, milestone_2: &Milestone) {
     assert_eq!(milestone_1.id, milestone_2.id);
@@ -116,7 +119,8 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
         name: Uuid::now_v7().to_string(),
         display_name: Uuid::now_v7().to_string(),
         description: Some(Uuid::now_v7().to_string()),
-        parent_resource_type: slashstep_server::resources::milestone::MilestoneParentResourceType::Project,
+        parent_resource_type:
+            slashstep_server::resources::milestone::MilestoneParentResourceType::Project,
         parent_project_id: Some(project.id),
         ..Default::default()
     };
@@ -295,7 +299,8 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             &InitialAccessPolicyProperties {
                 action_id: get_milestones_action.id.clone(),
                 permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
-                principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
                 principal_user_id: Some(user.id.clone()),
                 scoped_resource_type: ResourceType::Milestone,
                 scoped_milestone_id: Some(scoped_milestone.id.clone()),

@@ -12,7 +12,6 @@
 #[path = "./{app_id}/mod.rs"]
 pub mod app_id;
 
-
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -321,8 +320,12 @@ async fn handle_list_apps_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Server,
             ..Default::default()
         },
@@ -518,8 +521,12 @@ async fn handle_create_app_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::App,
             target_app_id: Some(app.id),
             ..Default::default()
@@ -553,7 +560,6 @@ async fn handle_create_app_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route("/apps", axum::routing::get(handle_list_apps_request))
         .route("/apps", axum::routing::post(handle_create_app_request))

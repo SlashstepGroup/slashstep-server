@@ -1,6 +1,8 @@
 use uuid::Uuid;
 
-use slashstep_server::resources::item::{DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialItemProperties, Item};
+use slashstep_server::resources::item::{
+    DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialItemProperties, Item,
+};
 use slashstep_server::{
     initialize_required_tables,
     predefinitions::initialize_predefined_actions,
@@ -10,10 +12,13 @@ use slashstep_server::{
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
         field::{Field, FieldValueType, InitialFieldProperties},
         field_value::{FieldValue, InitialFieldValueProperties},
-    }
+    },
 };
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_fields_are_equal(item_1: &Item, item_2: &Item) {
     assert_eq!(item_1.id, item_2.id);
@@ -359,7 +364,8 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             &InitialAccessPolicyProperties {
                 action_id: get_fields_action.id.clone(),
                 permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
-                principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
                 principal_user_id: Some(user.id.clone()),
                 scoped_resource_type: ResourceType::Item,
                 scoped_item_id: Some(scoped_item.id.clone()),

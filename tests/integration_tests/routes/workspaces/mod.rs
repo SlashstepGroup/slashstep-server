@@ -9,24 +9,25 @@
  *
  */
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
-use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
-        access_policy::{AccessPolicyPrincipalType, PermissionLevel},
-        action::Action,
-        configuration::{Configuration, EditableConfigurationProperties},
-        workspace::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Workspace},
-    },
-    routes::{
-        ListResourcesResponseBody,
-        workspaces::CreateWorkspaceRequestBody,
-    },
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
 };
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use rust_decimal::Decimal;
+use slashstep_server::{
+    AppState, get_json_web_token_private_key,
+    resources::{
+        access_policy::{AccessPolicyPrincipalType, PermissionLevel},
+        action::Action,
+        configuration::{Configuration, EditableConfigurationProperties},
+        workspace::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Workspace},
+    },
+    routes::{ListResourcesResponseBody, workspaces::CreateWorkspaceRequestBody},
+};
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -85,10 +86,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -181,10 +179,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
     let query = format!("id = {}", quote_literal(&dummy_workspace.id.to_string()));
     let response = test_server
         .get(&format!("/workspaces"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_query_param("query", &query)
         .await;
 
@@ -279,10 +274,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -350,10 +342,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
             "query",
             format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -435,10 +424,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
 
     for request in bad_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -452,10 +438,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
 
     for request in unprocessable_entity_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -515,10 +498,7 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -569,10 +549,7 @@ async fn verify_successful_workspace_creation() -> Result<(), TestSlashstepServe
     let response = test_server
         .post(&format!("/workspaces"))
         .json(&serde_json::json!(initial_workspace_properties))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -649,10 +626,7 @@ async fn verify_workspace_name_is_at_most_at_maximum_length() -> Result<(), Test
     let response = test_server
         .post(&format!("/workspaces"))
         .json(&serde_json::json!(initial_workspace_properties))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -718,10 +692,7 @@ async fn verify_workspace_display_name_is_at_most_at_maximum_length()
     let response = test_server
         .post(&format!("/workspaces"))
         .json(&serde_json::json!(initial_workspace_properties))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -787,10 +758,7 @@ async fn verify_workspace_description_is_at_most_at_maximum_length()
     let response = test_server
         .post(&format!("/workspaces"))
         .json(&serde_json::json!(initial_workspace_properties))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -855,10 +823,7 @@ async fn verify_workspace_name_matches_regex() -> Result<(), TestSlashstepServer
     let response = test_server
         .post(&format!("/workspaces"))
         .json(&serde_json::json!(initial_workspace_properties))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.

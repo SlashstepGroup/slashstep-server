@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{
@@ -162,9 +161,8 @@ impl HTTPTransaction {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query = include_str!(
-            "../queries/http_transactions/delete_expired_http_transaction_rows.sql"
-        );
+        let query =
+            include_str!("../queries/http_transactions/delete_expired_http_transaction_rows.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }
@@ -176,8 +174,7 @@ impl HTTPTransaction {
     ) -> Result<Self, ResourceError> {
         let database_client = database_pool.get().await?;
         Self::delete_expired_http_transactions(database_pool).await?;
-        let query =
-            include_str!("../queries/http_transactions/get_http_transaction_row_by_id.sql");
+        let query = include_str!("../queries/http_transactions/get_http_transaction_row_by_id.sql");
         let row = match database_client.query_opt(query, &[&id]).await {
             Ok(row) => match row {
                 Some(row) => row,

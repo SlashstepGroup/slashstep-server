@@ -42,7 +42,6 @@ use std::sync::Arc;
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
 
-
 /// GET /delegation-policies/{delegation_policy_id}
 ///
 /// Gets an delegation_policy by its ID.
@@ -113,8 +112,12 @@ async fn handle_get_delegation_policy_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::DelegationPolicy,
             target_delegation_policy_id: Some(target_delegation_policy.id),
             ..Default::default()
@@ -227,8 +230,12 @@ async fn handle_delete_delegation_policy_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::DelegationPolicy,
             target_delegation_policy_id: Some(target_delegation_policy.id),
             ..Default::default()
@@ -354,8 +361,12 @@ async fn handle_patch_delegation_policy_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::DelegationPolicy,
             target_delegation_policy_id: Some(updated_target_delegation_policy.id),
             ..Default::default()
@@ -383,7 +394,6 @@ async fn handle_patch_delegation_policy_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/delegation-policies/{delegation_policy_id}",

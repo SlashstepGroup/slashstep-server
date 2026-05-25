@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{
@@ -234,9 +233,8 @@ impl AppAuthorization {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query = include_str!(
-            "../queries/app_authorizations/initialize_app_authorizations_table.sql"
-        );
+        let query =
+            include_str!("../queries/app_authorizations/initialize_app_authorizations_table.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }
@@ -245,8 +243,7 @@ impl AppAuthorization {
         initial_properties: &InitialAppAuthorizationProperties,
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<Self, ResourceError> {
-        let query =
-            include_str!("../queries/app_authorizations/insert_app_authorization_row.sql");
+        let query = include_str!("../queries/app_authorizations/insert_app_authorization_row.sql");
         let parameters: &[&(dyn ToSql + Sync)] = &[
             &initial_properties.app_id,
             &initial_properties.authorizing_resource_type,

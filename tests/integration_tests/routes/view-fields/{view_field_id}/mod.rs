@@ -9,17 +9,24 @@
  *
  */
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
-use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
-        ResourceError, access_policy::PermissionLevel, action::Action, view_field::{EditableViewFieldProperties, ViewField}
-    },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
 };
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
+use slashstep_server::{
+    AppState, get_json_web_token_private_key,
+    resources::{
+        ResourceError,
+        access_policy::PermissionLevel,
+        action::Action,
+        view_field::{EditableViewFieldProperties, ViewField},
+    },
+    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+};
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -65,10 +72,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
 
     let response = test_server
         .get(&format!("/view-fields/{}", view_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -171,10 +175,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/view-fields/{}", view_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -212,10 +213,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/view-fields/{}", uuid::Uuid::now_v7()))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -266,10 +264,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
     let test_server = TestServer::new(router);
     let response = test_server
         .delete(&format!("/view-fields/{}", view_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
@@ -369,10 +364,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
     let test_server = TestServer::new(router);
     let response = test_server
         .delete(&format!("/view-fields/{}", view_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -409,10 +401,7 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
     let test_server = TestServer::new(router);
     let response = test_server
         .delete(&format!("/view-fields/{}", uuid::Uuid::now_v7()))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -464,10 +453,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
     let test_server = TestServer::new(router);
     let response = test_server
         .patch(&format!("/view-fields/{}", original_view_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(updated_view_field_properties))
         .await;
 
@@ -650,10 +636,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
     let test_server = TestServer::new(router);
     let response = test_server
         .patch(&format!("/view-fields/{}", view_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!({
           "display_name": Uuid::now_v7().to_string()
         }))

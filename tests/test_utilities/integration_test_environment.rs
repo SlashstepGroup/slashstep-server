@@ -3,10 +3,30 @@ use std::{
     sync::Arc,
 };
 
+use chrono::{Duration, Utc};
+use deadpool_postgres::tokio_postgres;
+use ed25519_dalek::{
+    SigningKey,
+    ed25519::signature::rand_core::OsRng,
+    pkcs8::{EncodePublicKey, spki::der::pem::LineEnding},
+};
+use local_ip_address::local_ip;
+use postgres::NoTls;
+use rand::{
+    RngExt,
+    distr::{Alphanumeric, SampleString},
+};
 use slashstep_server::{
-    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles}, resources::{
+    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file, initialize_required_tables,
+    predefinitions::{
+        initialize_predefined_actions, initialize_predefined_configurations,
+        initialize_predefined_groups, initialize_predefined_roles,
+    },
+    resources::{
         ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel},
+        access_policy::{
+            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
+        },
         action::{Action, ActionParentResourceType, InitialActionProperties},
         action_log_entry::{ActionLogEntry, InitialActionLogEntryProperties},
         app::{App, AppClientType, AppParentResourceType, InitialAppProperties},
@@ -56,20 +76,7 @@ use slashstep_server::{
         view_field::{InitialViewFieldProperties, ViewField},
         webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType},
         workspace::{InitialWorkspaceProperties, Workspace},
-    }
-};
-use chrono::{Duration, Utc};
-use deadpool_postgres::tokio_postgres;
-use ed25519_dalek::{
-    SigningKey,
-    ed25519::signature::rand_core::OsRng,
-    pkcs8::{EncodePublicKey, spki::der::pem::LineEnding},
-};
-use local_ip_address::local_ip;
-use postgres::NoTls;
-use rand::{
-    RngExt,
-    distr::{Alphanumeric, SampleString},
+    },
 };
 use testcontainers::{ContainerAsync, ImageExt};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner, valkey::VALKEY_PORT};

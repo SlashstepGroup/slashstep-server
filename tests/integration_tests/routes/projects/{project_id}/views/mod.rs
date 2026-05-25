@@ -9,9 +9,18 @@
  *
  */
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
+use rust_decimal::Decimal;
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
+    AppState, get_json_web_token_private_key,
+    resources::{
         access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
         configuration::{Configuration, EditableConfigurationProperties},
@@ -22,11 +31,6 @@ use slashstep_server::{
     },
     routes::ListResourcesResponseBody,
 };
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use pg_escape::quote_literal;
-use reqwest::StatusCode;
-use rust_decimal::Decimal;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -71,10 +75,7 @@ async fn verify_successful_view_creation() -> Result<(), TestSlashstepServerErro
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/projects/{}/views", dummy_project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_view_properties))
         .await;
 
@@ -158,10 +159,7 @@ async fn verify_view_name_is_at_most_at_maximum_length() -> Result<(), TestSlash
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/projects/{}/views", project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_view_properties))
         .await;
 
@@ -227,10 +225,7 @@ async fn verify_view_display_name_is_at_most_at_maximum_length()
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/projects/{}/views", project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_view_properties))
         .await;
 
@@ -297,10 +292,7 @@ async fn verify_view_description_is_at_most_at_maximum_length()
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/projects/{}/views", project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_view_properties))
         .await;
 
@@ -363,10 +355,7 @@ async fn verify_view_name_matches_regex() -> Result<(), TestSlashstepServerError
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/projects/{}/views", project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_view_properties))
         .await;
 
@@ -426,10 +415,7 @@ async fn verify_returned_view_list_without_query() -> Result<(), TestSlashstepSe
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/projects/{}/views", &dummy_project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -517,10 +503,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/projects/{}/views", &dummy_project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_query_param("query", &additional_query)
         .await;
 
@@ -610,10 +593,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/projects/{}/views", &dummy_project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -673,10 +653,7 @@ async fn verify_maximum_view_list_limit() -> Result<(), TestSlashstepServerError
             "query",
             format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -747,10 +724,7 @@ async fn verify_query_when_listing_views() -> Result<(), TestSlashstepServerErro
 
     for request in bad_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -767,10 +741,7 @@ async fn verify_query_when_listing_views() -> Result<(), TestSlashstepServerErro
 
     for request in unprocessable_entity_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -838,10 +809,7 @@ async fn verify_permission_when_listing_views() -> Result<(), TestSlashstepServe
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/projects/{}/views", &dummy_project.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::FORBIDDEN);

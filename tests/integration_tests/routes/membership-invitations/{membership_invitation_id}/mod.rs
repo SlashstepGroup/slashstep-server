@@ -9,19 +9,27 @@
  *
  */
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
-use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
-        ResourceError, ResourceType, access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
-        }, action::Action, app::App, membership_invitation::MembershipInvitation
-    },
-    routes::GetResourceResponseBody,
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
 };
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
+use slashstep_server::{
+    AppState, get_json_web_token_private_key,
+    resources::{
+        ResourceError, ResourceType,
+        access_policy::{
+            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
+        },
+        action::Action,
+        app::App,
+        membership_invitation::MembershipInvitation,
+    },
+    routes::GetResourceResponseBody,
+};
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -38,7 +46,10 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -73,10 +84,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
             "/membership-invitations/{}",
             membership_invitation.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -137,7 +145,10 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -158,7 +169,10 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -205,7 +219,10 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -214,10 +231,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
             "/membership-invitations/{}",
             membership_invitation.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -249,16 +263,16 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/membership-invitations/{}", uuid::Uuid::now_v7()))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -312,7 +326,10 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -321,10 +338,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
             "/membership-invitations/{}",
             membership_invitation.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
@@ -351,7 +365,10 @@ async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerErro
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -379,7 +396,10 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -423,7 +443,10 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -432,10 +455,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
             "/membership-invitations/{}",
             membership_invitation.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -466,16 +486,16 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(state.clone())
+    let router =
+        slashstep_server::routes::membership_invitations::membership_invitation_id::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .delete(&format!("/membership-invitations/{}", uuid::Uuid::now_v7()))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.

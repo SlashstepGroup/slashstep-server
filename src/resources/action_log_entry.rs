@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, ResourceType, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{
@@ -529,8 +528,7 @@ impl ActionLogEntry {
         initial_properties: &InitialActionLogEntryProperties,
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<Self, ResourceError> {
-        let query =
-            include_str!("../queries/action_log_entries/insert_action_log_entry_row.sql");
+        let query = include_str!("../queries/action_log_entries/insert_action_log_entry_row.sql");
         let parameters: &[&(dyn ToSql + Sync)] = &[
             &initial_properties.action_id,
             &initial_properties.http_transaction_id,
@@ -593,8 +591,7 @@ impl ActionLogEntry {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query =
-            include_str!("../queries/action_log_entries/delete_action_log_entry_row.sql");
+        let query = include_str!("../queries/action_log_entries/delete_action_log_entry_row.sql");
         database_client.execute(query, &[&self.id]).await?;
         Ok(())
     }
@@ -603,9 +600,8 @@ impl ActionLogEntry {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query = include_str!(
-            "../queries/action_log_entries/delete_expired_action_log_entry_rows.sql"
-        );
+        let query =
+            include_str!("../queries/action_log_entries/delete_expired_action_log_entry_rows.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }
@@ -615,9 +611,8 @@ impl ActionLogEntry {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query = include_str!(
-            "../queries/action_log_entries/initialize_action_log_entries_table.sql"
-        );
+        let query =
+            include_str!("../queries/action_log_entries/initialize_action_log_entries_table.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }

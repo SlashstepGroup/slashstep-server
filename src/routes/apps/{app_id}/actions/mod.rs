@@ -90,7 +90,8 @@ async fn handle_list_actions_request(
         "parent_app_id = {}{}",
         quote_literal(&app_id.to_string()),
         query_parameters
-            .query.map(|query| format!(" AND ({})", query))
+            .query
+            .map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match Action::list(
@@ -174,8 +175,12 @@ async fn handle_list_actions_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::App,
             target_app_id: Some(target_app.id),
             ..Default::default()
@@ -304,8 +309,12 @@ async fn handle_create_action_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Action,
             target_action_id: Some(created_action.id),
             ..Default::default()
@@ -326,7 +335,6 @@ async fn handle_create_action_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/apps/{app_id}/actions",
@@ -353,5 +361,3 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             http_transaction_middleware::create_http_transaction,
         ))
 }
-
-

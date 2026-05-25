@@ -9,8 +9,17 @@
  *
  */
 
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
+    AppState, get_json_web_token_private_key,
+    resources::{
         ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
@@ -20,13 +29,8 @@ use slashstep_server::{
     },
     routes::ListResourcesResponseBody,
 };
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use pg_escape::quote_literal;
-use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 
 #[path = "./{action_log_entry_id}/mod.rs"]
 mod action_log_entry_id;
@@ -96,10 +100,7 @@ async fn verify_returned_action_log_entry_list_without_query()
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/action-log-entries"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -222,10 +223,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
     );
     let response = test_server
         .get(&format!("/action-log-entries"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_query_param("query", &query)
         .await;
 
@@ -338,10 +336,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/action-log-entries"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -421,10 +416,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
             "query",
             format!("limit {}", DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -513,10 +505,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
 
     for request in bad_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -536,10 +525,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
 
     for request in unprocessable_entity_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -605,10 +591,7 @@ async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestS
             "query",
             format!("limit {}", DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.

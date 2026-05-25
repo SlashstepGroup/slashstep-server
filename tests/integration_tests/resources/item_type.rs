@@ -10,10 +10,13 @@ use slashstep_server::{
         ResourceError, ResourceType,
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    }
+    },
 };
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_item_types_are_equal(item_type_1: &ItemType, item_type_2: &ItemType) {
     assert_eq!(item_type_1.id, item_type_2.id);
@@ -247,7 +250,8 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             &InitialAccessPolicyProperties {
                 action_id: get_item_types_action.id.clone(),
                 permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
-                principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
                 principal_user_id: Some(user.id.clone()),
                 scoped_resource_type: ResourceType::ItemType,
                 scoped_item_type_id: Some(scoped_item_type.id.clone()),

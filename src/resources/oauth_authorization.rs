@@ -269,9 +269,8 @@ impl OAuthAuthorization {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<Self, ResourceError> {
         let database_client = database_pool.get().await?;
-        let query = include_str!(
-            "../queries/oauth_authorizations/get_oauth_authorization_row_by_id.sql"
-        );
+        let query =
+            include_str!("../queries/oauth_authorizations/get_oauth_authorization_row_by_id.sql");
         let row = match database_client.query_opt(query, &[&id]).await {
             Ok(row) => match row {
                 Some(row) => row,

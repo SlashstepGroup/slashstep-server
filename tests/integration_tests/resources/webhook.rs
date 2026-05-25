@@ -11,10 +11,13 @@ use slashstep_server::{
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
         webhook::WebhookParentResourceType,
-    }
+    },
 };
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_webhooks_are_equal(webhook_1: &Webhook, webhook_2: &Webhook) {
     assert_eq!(webhook_1.id, webhook_2.id);
@@ -265,7 +268,8 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             &InitialAccessPolicyProperties {
                 action_id: get_webhooks_action.id.clone(),
                 permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
-                principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
                 principal_user_id: Some(user.id.clone()),
                 scoped_resource_type: ResourceType::Webhook,
                 scoped_webhook_id: Some(scoped_webhook.id.clone()),

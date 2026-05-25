@@ -1,13 +1,6 @@
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
-use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
-        app::{App, AppClientType, EditableAppProperties},
-        app_authorization_credential::AppAuthorizationCredentialClaims,
-    },
-    routes::oauth_access_tokens::{
-        CreateAccessTokenResponseBody, CreateOAuthAccessTokenQueryParameters, OAuthTokenError,
-        OAuthTokenErrorResponse,
-    },
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
 };
 use argon2::{
     Argon2, PasswordHasher,
@@ -19,6 +12,17 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::Header;
 use reqwest::StatusCode;
 use sha2::{Digest, Sha256};
+use slashstep_server::{
+    AppState, get_json_web_token_private_key,
+    resources::{
+        app::{App, AppClientType, EditableAppProperties},
+        app_authorization_credential::AppAuthorizationCredentialClaims,
+    },
+    routes::oauth_access_tokens::{
+        CreateAccessTokenResponseBody, CreateOAuthAccessTokenQueryParameters, OAuthTokenError,
+        OAuthTokenErrorResponse,
+    },
+};
 /*
  *
  * Any test cases for /oauth-access-tokens should be handled here.

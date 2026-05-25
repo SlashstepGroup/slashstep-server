@@ -7,12 +7,15 @@ use slashstep_server::{
     resources::{
         ResourceError, ResourceType,
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT}
-    }
+        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    },
 };
 use uuid::Uuid;
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_workspaces_are_equal(workspace_1: &Workspace, workspace_2: &Workspace) {
     assert_eq!(workspace_1.id, workspace_2.id);
@@ -237,7 +240,8 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             &InitialAccessPolicyProperties {
                 action_id: get_workspaces_action.id.clone(),
                 permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
-                principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
                 principal_user_id: Some(user.id.clone()),
                 scoped_resource_type: ResourceType::Workspace,
                 scoped_workspace_id: Some(scoped_workspace.id.clone()),

@@ -87,7 +87,8 @@ pub async fn create_http_transaction(
         let expiration_duration_milliseconds = should_http_transactions_expire_configuration
             .number_value
             .or(should_http_transactions_expire_configuration.default_number_value)
-            .and_then(|decimal| decimal.to_i64()).map(Duration::milliseconds);
+            .and_then(|decimal| decimal.to_i64())
+            .map(Duration::milliseconds);
 
         if let Some(duration) = expiration_duration_milliseconds {
             http_transaction = match http_transaction

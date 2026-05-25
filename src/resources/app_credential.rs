@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{
@@ -94,8 +93,7 @@ impl AppCredential {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query =
-            include_str!("../queries/app_credentials/initialize_app_credentials_table.sql");
+        let query = include_str!("../queries/app_credentials/initialize_app_credentials_table.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }
@@ -193,8 +191,7 @@ impl AppCredential {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query =
-            include_str!("../queries/app_credentials/delete_app_credential_row_by_id.sql");
+        let query = include_str!("../queries/app_credentials/delete_app_credential_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
         Ok(())
     }

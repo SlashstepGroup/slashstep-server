@@ -9,24 +9,28 @@
  *
  */
 
-use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
-        ResourceError, ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
-        },
-        action::Action
-    },
-    routes::{GetResourceResponseBody, PatchResourceResponseBody},
-};
 use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
+use slashstep_server::{
+    AppState, get_json_web_token_private_key,
+    resources::{
+        ResourceError, ResourceType,
+        access_policy::{
+            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
+        },
+        action::Action,
+    },
+    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+};
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 /// Verifies that the router can return a 200 status code and the requested access policy.
 #[tokio::test]
@@ -39,9 +43,10 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let plain_text_password = Uuid::now_v7().to_string();
@@ -71,10 +76,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
 
     let response = test_server
         .get(&format!("/access-policies/{}", access_policy.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
     assert_eq!(response.status_code(), StatusCode::OK);
 
@@ -164,9 +166,10 @@ async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), TestSlashs
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let response = test_server.get("/access-policies/not-a-uuid").await;
@@ -186,9 +189,10 @@ async fn verify_authentication_when_getting_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let access_policy = test_environment.create_random_access_policy().await?;
@@ -213,9 +217,10 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let plain_text_password = Uuid::now_v7().to_string();
@@ -233,10 +238,7 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
 
     let response = test_server
         .get(&format!("/access-policies/{}", access_policy.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
@@ -255,9 +257,10 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestS
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let plain_text_password = Uuid::now_v7().to_string();
@@ -274,10 +277,7 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestS
 
     let response = test_server
         .get(&format!("/access-policies/{}", uuid::Uuid::now_v7()))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
@@ -294,9 +294,10 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let plain_text_password = Uuid::now_v7().to_string();
@@ -326,10 +327,7 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id()
 
     let response = test_server
         .delete(&format!("/access-policies/{}", access_policy.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::NO_CONTENT);
@@ -355,9 +353,10 @@ async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), TestSlash
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let response = test_server.delete("/access-policies/not-a-uuid").await;
@@ -376,9 +375,10 @@ async fn verify_authentication_when_deleting_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let access_policy = test_environment.create_random_access_policy().await?;
@@ -402,9 +402,10 @@ async fn verify_permission_when_deleting_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let plain_text_password = Uuid::now_v7().to_string();
@@ -422,10 +423,7 @@ async fn verify_permission_when_deleting_access_policy_by_id()
 
     let response = test_server
         .delete(&format!("/access-policies/{}", access_policy.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
@@ -443,9 +441,10 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let plain_text_password = Uuid::now_v7().to_string();
@@ -462,10 +461,7 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id()
 
     let response = test_server
         .delete(&format!("/access-policies/{}", uuid::Uuid::now_v7()))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::NOT_FOUND);
@@ -482,9 +478,10 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let plain_text_password = Uuid::now_v7().to_string();
@@ -514,10 +511,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
 
     let response = test_server
         .patch(&format!("/access-policies/{}", access_policy.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!({
           "permission_level": "User",
           "is_inheritance_enabled": false
@@ -610,9 +604,10 @@ async fn verify_content_type_when_patching_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let response = test_server.patch("/access-policies/not-a-uuid").await;
@@ -631,9 +626,10 @@ async fn verify_request_body_exists_when_patching_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let response = test_server
@@ -655,9 +651,10 @@ async fn verify_request_body_json_when_patching_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let response = test_server
@@ -683,9 +680,10 @@ async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), TestSlash
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let response = test_server
@@ -711,9 +709,10 @@ async fn verify_authentication_when_patching_access_policy_by_id()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let user = test_environment.create_random_user(None).await?;
@@ -753,9 +752,10 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let plain_text_password = Uuid::now_v7().to_string();
@@ -785,10 +785,7 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
 
     let response = test_server
         .patch(&format!("/access-policies/{}", access_policy.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!({
           "permission_level": "User",
           "is_inheritance_enabled": false
@@ -810,9 +807,10 @@ async fn verify_access_policy_exists_when_patching_access_policy()
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::access_policies::access_policy_id::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let response = test_server

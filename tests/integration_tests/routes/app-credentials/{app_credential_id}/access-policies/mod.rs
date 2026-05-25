@@ -5,9 +5,17 @@
  *
  */
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
+    AppState, get_json_web_token_private_key,
+    resources::{
         ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, DEFAULT_RESOURCE_LIST_LIMIT,
@@ -18,10 +26,6 @@ use slashstep_server::{
     },
     routes::{CreateResourceResponseBody, ListResourcesResponseBody},
 };
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use pg_escape::quote_literal;
-use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -37,7 +41,8 @@ async fn create_app_credential_access_policy(
             action_id: action_id.clone(),
             permission_level: permission_level.clone(),
             is_inheritance_enabled: true,
-            principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+            principal_type:
+                slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
             principal_user_id: Some(user_id.clone()),
             scoped_resource_type: ResourceType::AppCredential,
             scoped_app_credential_id: Some(scoped_app_credential_id.clone()),
@@ -96,7 +101,10 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(state.clone())
+    let router =
+        slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -105,10 +113,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
             "/app-credentials/{}/access-policies",
             dummy_app_credential.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_access_policy_properties))
         .await;
 
@@ -196,7 +201,10 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(state.clone())
+    let router =
+        slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -205,10 +213,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
             "/app-credentials/{}/access-policies",
             &dummy_app_credential.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -318,7 +323,10 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(state.clone())
+    let router =
+        slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -327,10 +335,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
             "/app-credentials/{}/access-policies",
             &dummy_app_credential.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_query_param("query", &additional_query)
         .await;
 
@@ -434,7 +439,10 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(state.clone())
+    let router =
+        slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -443,10 +451,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
             "/app-credentials/{}/access-policies",
             &dummy_app_credential.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -504,7 +509,10 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(state.clone())
+    let router =
+        slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -517,10 +525,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
             "query",
             format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -574,7 +579,10 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(state.clone())
+    let router =
+        slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -608,10 +616,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
 
     for request in bad_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -637,10 +642,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
 
     for request in unprocessable_entity_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -663,7 +665,10 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(state.clone())
+    let router =
+        slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -706,7 +711,10 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(state.clone())
+    let router =
+        slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
+            state.clone(),
+        )
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -715,10 +723,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
             "/app-credentials/{}/access-policies",
             &dummy_app_credential.id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::FORBIDDEN);

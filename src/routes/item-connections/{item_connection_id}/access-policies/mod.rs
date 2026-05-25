@@ -43,8 +43,6 @@ use reqwest::StatusCode;
  */
 use std::sync::Arc;
 
-
-
 /// GET /item-connections/{item_connection_id}/access-policies
 ///
 /// Lists access policies for a item connection.
@@ -107,7 +105,8 @@ async fn handle_list_access_policies_request(
         "scoped_resource_type = 'ItemConnection' AND scoped_item_connection_id = {}{}",
         quote_literal(&item_connection_id.to_string()),
         query_parameters
-            .query.map(|query| format!(" AND ({})", query))
+            .query
+            .map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match AccessPolicy::list(
@@ -193,8 +192,12 @@ async fn handle_list_access_policies_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemConnection,
             target_item_connection_id: Some(item_connection_id),
             ..Default::default()
@@ -375,8 +378,12 @@ async fn handle_create_access_policy_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::AccessPolicy,
             target_access_policy_id: Some(access_policy.id),
             ..Default::default()
@@ -393,7 +400,6 @@ async fn handle_create_access_policy_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/item-connections/{item_connection_id}/access-policies",

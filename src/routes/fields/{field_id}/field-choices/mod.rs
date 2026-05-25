@@ -9,8 +9,6 @@
  *
  */
 
-
-
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -131,7 +129,8 @@ pub async fn handle_list_field_choices_request(
         "field_id = {}{}",
         quote_literal(&field_id.to_string()),
         query_parameters
-            .query.map(|query| format!(" AND ({})", query))
+            .query
+            .map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match FieldChoice::list(
@@ -217,8 +216,12 @@ pub async fn handle_list_field_choices_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Field,
             target_field_id: Some(target_field.id),
             ..Default::default()
@@ -382,8 +385,12 @@ async fn handle_create_field_choice_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::FieldChoice,
             target_field_choice_id: Some(created_field_choice.id),
             ..Default::default()
@@ -407,7 +414,6 @@ async fn handle_create_field_choice_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/fields/{field_id}/field-choices",

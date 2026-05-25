@@ -282,13 +282,9 @@ async fn handle_update_user_password_request(
             }
         } else {
             let http_error = HTTPError::BadRequest(Some("Either current_password or password_reset_authorization must be provided in the request body, unless should_bypass_password_validation is true.".to_string()));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
 
@@ -336,13 +332,9 @@ async fn handle_update_user_password_request(
                 "The new password must be at least {} characters long.",
                 minimum_password_length
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
 
@@ -382,13 +374,9 @@ async fn handle_update_user_password_request(
                 "The new password must be at most {} characters long.",
                 maximum_password_length
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
 
@@ -512,8 +500,12 @@ async fn handle_update_user_password_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::User,
             target_user_id: Some(target_user.id),
             ..Default::default()
@@ -587,7 +579,6 @@ async fn handle_update_user_password_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/users/{user_id}/password",

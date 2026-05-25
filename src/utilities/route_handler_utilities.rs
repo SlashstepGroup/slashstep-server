@@ -90,13 +90,9 @@ pub async fn get_action_log_entry_expiration_timestamp(
                 "Failed to retrieve configurations: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -148,13 +144,9 @@ pub async fn get_action_log_entry_expiration_timestamp(
                 "Failed to retrieve configurations: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -183,13 +175,9 @@ pub async fn get_json_web_token_public_key(
                 "Failed to get JSON web token public key: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(http_transaction_id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -209,13 +197,9 @@ pub async fn get_json_web_token_private_key(
                 "Failed to get JSON web token private key: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(http_transaction_id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -249,13 +233,9 @@ pub async fn get_action_by_name(
                 "Failed to get action \"{}\": {:?}",
                 action_name, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -269,7 +249,8 @@ pub enum AuthenticatedPrincipal {
 }
 
 pub fn is_authenticated_user_anonymous(authenticated_user: Option<&Arc<User>>) -> bool {
-    authenticated_user.map(|authenticated_user| authenticated_user.is_anonymous)
+    authenticated_user
+        .map(|authenticated_user| authenticated_user.is_anonymous)
         .unwrap_or(false)
 }
 
@@ -292,15 +273,11 @@ pub async fn can_delegate_perform_action(
         quote_literal(&app_authorization_id.to_string())
     );
     let delegation_policy = match DelegationPolicy::list(&query, database_pool, None, None).await {
-        Ok(delegation_policies) => {
-            
+        Ok(delegation_policies) => match delegation_policies.first() {
+            Some(delegation_policy) => delegation_policy.clone(),
 
-            match delegation_policies.first() {
-                Some(delegation_policy) => delegation_policy.clone(),
-
-                None => return Ok(false),
-            }
-        }
+            None => return Ok(false),
+        },
 
         Err(error) => {
             let http_error = match error {
@@ -309,13 +286,9 @@ pub async fn can_delegate_perform_action(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(http_transaction_id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -383,13 +356,9 @@ pub async fn can_principal_perform_action(
 
         Err(error) => {
             let http_error = map_postgres_error_to_http_error(error);
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -491,9 +460,7 @@ pub async fn verify_principal_permissions(
         };
         let message = format!(
             "You need at least {} permission to the \"{}\" action on {}.",
-            minimum_permission_level,
-            action.name,
-            location
+            minimum_permission_level, action.name, location
         );
         let http_error = if is_principal_anonymous {
             HTTPError::Unauthorized(Some(message))
@@ -657,13 +624,9 @@ pub async fn get_user_by_id(
                     user_id, error
                 ))),
             };
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -696,13 +659,9 @@ pub async fn get_user_by_username(
                     username, error
                 ))),
             };
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -742,13 +701,9 @@ pub async fn get_uuid_from_string(
                 "You must provide a valid UUID for the {} ID.",
                 resource_type_name_singular
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -1214,13 +1169,9 @@ where
                     resource_type_name_singular, resource_id, error
                 ))),
             };
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -1233,8 +1184,6 @@ pub fn match_slashstepql_error(
     maximum_limit: &i64,
     resource_type_plural: &str,
 ) -> HTTPError {
-    
-
     match error {
         SlashstepQLError::SlashstepQLInvalidLimitError(error) => {
             HTTPError::UnprocessableEntity(Some(format!(
@@ -1262,8 +1211,6 @@ pub fn match_slashstepql_error(
 }
 
 pub fn match_db_error(error: &postgres::Error, resource_type: &str) -> HTTPError {
-    
-
     match error.as_db_error() {
         Some(db_error) => match db_error.code() {
             &SqlState::UNDEFINED_FUNCTION => {
@@ -1287,7 +1234,8 @@ pub fn get_principal_type_and_id_from_principal(
     user: Option<&Arc<User>>,
     app: Option<&Arc<App>>,
 ) -> Result<(AccessPolicyPrincipalType, Uuid), HTTPError> {
-    if let Some((principal_type, principal_id)) = user.map(|user| (AccessPolicyPrincipalType::User, user.id))
+    if let Some((principal_type, principal_id)) = user
+        .map(|user| (AccessPolicyPrincipalType::User, user.id))
         .or_else(|| app.map(|app| (AccessPolicyPrincipalType::App, app.id)))
     {
         return Ok((principal_type, principal_id));
@@ -1317,9 +1265,15 @@ pub async fn get_request_body_without_json_rejection<T>(
                     HTTPError::BadRequest(Some(error.to_string()))
                 }
 
-                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some("Failed to parse request body. Ensure the request body is valid JSON.".to_string())),
+                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some(
+                    "Failed to parse request body. Ensure the request body is valid JSON."
+                        .to_string(),
+                )),
 
-                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some("Missing request body content type. It should be \"application/json\".".to_string())),
+                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some(
+                    "Missing request body content type. It should be \"application/json\"."
+                        .to_string(),
+                )),
 
                 JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(
                     format!("Failed to parse request body: {:?}", error),
@@ -1328,13 +1282,9 @@ pub async fn get_request_body_without_json_rejection<T>(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -1355,8 +1305,7 @@ pub async fn get_configuration_by_name(
     .await
     .ok();
 
-    let configuration = match Configuration::get_by_name(configuration_name, database_pool).await
-    {
+    let configuration = match Configuration::get_by_name(configuration_name, database_pool).await {
         Ok(configuration) => configuration,
 
         Err(error) => {
@@ -1371,13 +1320,9 @@ pub async fn get_configuration_by_name(
                     configuration_name, error
                 ))),
             };
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -1609,9 +1554,7 @@ pub async fn validate_decimal_is_within_range(
         }
     };
 
-    if minimum.map(|minimum| decimal < &minimum)
-        .unwrap_or(false)
-    {
+    if minimum.map(|minimum| decimal < &minimum).unwrap_or(false) {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
             "The \"{}\" must be at least {}.",
             field_name,
@@ -1638,9 +1581,7 @@ pub async fn validate_decimal_is_within_range(
         }
     };
 
-    if maximum.map(|maximum| decimal > &maximum)
-        .unwrap_or(false)
-    {
+    if maximum.map(|maximum| decimal > &maximum).unwrap_or(false) {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
             "The \"{}\" must be at most {}.",
             field_name,

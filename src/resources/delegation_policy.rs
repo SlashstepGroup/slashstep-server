@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{
         ResourceError,
@@ -95,9 +94,8 @@ impl DelegationPolicy {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query = include_str!(
-            "../queries/delegation_policies/initialize_delegation_policies_table.sql"
-        );
+        let query =
+            include_str!("../queries/delegation_policies/initialize_delegation_policies_table.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }
@@ -167,8 +165,7 @@ impl DelegationPolicy {
         initial_properties: &InitialDelegationPolicyProperties,
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<Self, ResourceError> {
-        let query =
-            include_str!("../queries/delegation_policies/insert_delegation_policy_row.sql");
+        let query = include_str!("../queries/delegation_policies/insert_delegation_policy_row.sql");
         let parameters: &[&(dyn ToSql + Sync)] = &[
             &initial_properties.action_id,
             &initial_properties.maximum_permission_level,
@@ -193,9 +190,8 @@ impl DelegationPolicy {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query = include_str!(
-            "../queries/delegation_policies/delete_delegation_policy_row_by_id.sql"
-        );
+        let query =
+            include_str!("../queries/delegation_policies/delete_delegation_policy_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
         Ok(())
     }

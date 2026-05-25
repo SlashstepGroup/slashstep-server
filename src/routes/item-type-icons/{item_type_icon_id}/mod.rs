@@ -42,7 +42,6 @@ use std::sync::Arc;
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
 
-
 /// GET /item-type-icons/{item_type_icon_id}
 ///
 /// Gets a item type icon by its ID.
@@ -106,8 +105,12 @@ async fn handle_get_item_type_icon_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemTypeIcon,
             target_item_type_icon_id: Some(target_item_type_icon.id),
             ..Default::default()
@@ -217,8 +220,12 @@ async fn handle_delete_item_type_icon_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemTypeIcon,
             target_item_type_icon_id: Some(target_item_type_icon.id),
             ..Default::default()
@@ -353,8 +360,12 @@ async fn handle_patch_item_type_icon_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemTypeIcon,
             target_item_type_icon_id: Some(updated_target_item_type_icon.id),
             ..Default::default()
@@ -382,7 +393,6 @@ async fn handle_patch_item_type_icon_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/item-type-icons/{item_type_icon_id}",

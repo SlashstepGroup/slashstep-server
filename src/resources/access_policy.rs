@@ -542,8 +542,7 @@ impl AccessPolicy {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query =
-            include_str!("../queries/access_policies/delete_access_policy_row_by_id.sql");
+        let query = include_str!("../queries/access_policies/delete_access_policy_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
         Ok(())
     }
@@ -721,9 +720,7 @@ impl AccessPolicy {
                     Ok(Box::new(permission_level))
                 }
 
-                _ => {
-                    Ok(Box::new(value))
-                }
+                _ => Ok(Box::new(value)),
             }
         }
     }
@@ -832,8 +829,6 @@ impl AccessPolicy {
     }
 
     pub fn get_scoped_resource_id(&self) -> Option<Uuid> {
-        
-
         match self.scoped_resource_type {
             ResourceType::AccessPolicy => self.scoped_access_policy_id,
             ResourceType::Action => self.scoped_action_id,

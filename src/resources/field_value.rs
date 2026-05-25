@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{
         ResourceError, StakeholderType, access_policy::AccessPolicyPrincipalType,
@@ -426,16 +425,18 @@ impl FieldValue {
             return Ok(Box::new(uuid));
         }
 
-        if key == "parent_resource_type" { match FieldValueParentResourceType::from_str(value) {
-            Ok(parent_resource_type) => return Ok(Box::new(parent_resource_type)),
+        if key == "parent_resource_type" {
+            match FieldValueParentResourceType::from_str(value) {
+                Ok(parent_resource_type) => return Ok(Box::new(parent_resource_type)),
 
-            Err(_) => {
-                return Err(SlashstepQLError::StringParserError(format!(
-                    "Failed to parse FieldValueParentResourceType from \"{}\" for key \"{}\".",
-                    value, key
-                )));
+                Err(_) => {
+                    return Err(SlashstepQLError::StringParserError(format!(
+                        "Failed to parse FieldValueParentResourceType from \"{}\" for key \"{}\".",
+                        value, key
+                    )));
+                }
             }
-        } }
+        }
 
         Ok(Box::new(value))
     }

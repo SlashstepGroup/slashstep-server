@@ -6,7 +6,7 @@ use uuid::Uuid;
 use slashstep_server::predefinitions::initialize_predefined_actions;
 use slashstep_server::{
     initialize_required_tables,
-    resources::app::{App, AppClientType, EditableAppProperties}
+    resources::app::{App, AppClientType, EditableAppProperties},
 };
 
 use crate::test_utilities::integration_test_environment::IntegrationTestEnvironment;

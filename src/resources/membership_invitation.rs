@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{
         ResourceError,
@@ -275,9 +274,8 @@ impl MembershipInvitation {
         initial_properties: &InitialMembershipInvitationProperties,
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<Self, ResourceError> {
-        let query = include_str!(
-            "../queries/membership_invitations/insert_membership_invitation_row.sql"
-        );
+        let query =
+            include_str!("../queries/membership_invitations/insert_membership_invitation_row.sql");
         let parameters: &[&(dyn ToSql + Sync)] = &[
             &initial_properties.parent_resource_type,
             &initial_properties.parent_group_id,

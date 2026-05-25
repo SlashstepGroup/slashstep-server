@@ -41,7 +41,6 @@ use std::sync::Arc;
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
 
-
 /// GET /configurations/{configuration_id}
 ///
 /// Gets an configuration by its ID.
@@ -108,8 +107,12 @@ async fn handle_get_configuration_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Configuration,
             target_configuration_id: Some(target_configuration.id),
             ..Default::default()
@@ -218,8 +221,12 @@ async fn handle_delete_configuration_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Configuration,
             target_configuration_id: Some(target_configuration.id),
             ..Default::default()
@@ -271,9 +278,15 @@ async fn handle_patch_configuration_request(
                     HTTPError::BadRequest(Some(error.to_string()))
                 }
 
-                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some("Failed to parse request body. Ensure the request body is valid JSON.".to_string())),
+                JsonRejection::JsonSyntaxError(_) => HTTPError::BadRequest(Some(
+                    "Failed to parse request body. Ensure the request body is valid JSON."
+                        .to_string(),
+                )),
 
-                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some("Missing request body content type. It should be \"application/json\".".to_string())),
+                JsonRejection::MissingJsonContentType(_) => HTTPError::BadRequest(Some(
+                    "Missing request body content type. It should be \"application/json\"."
+                        .to_string(),
+                )),
 
                 JsonRejection::BytesRejection(error) => HTTPError::InternalServerError(Some(
                     format!("Failed to parse request body: {:?}", error),
@@ -379,8 +392,12 @@ async fn handle_patch_configuration_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Configuration,
             target_configuration_id: Some(updated_target_configuration.id),
             ..Default::default()
@@ -408,7 +425,6 @@ async fn handle_patch_configuration_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/configurations/{configuration_id}",

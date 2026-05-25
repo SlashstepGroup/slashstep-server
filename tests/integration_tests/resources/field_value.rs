@@ -2,8 +2,7 @@ use slashstep_server::resources::field::FieldValueType;
 use uuid::Uuid;
 
 use slashstep_server::resources::field_value::{
-    DEFAULT_RESOURCE_LIST_LIMIT, FieldValue, GET_RESOURCE_ACTION_NAME,
-    InitialFieldValueProperties,
+    DEFAULT_RESOURCE_LIST_LIMIT, FieldValue, GET_RESOURCE_ACTION_NAME, InitialFieldValueProperties,
 };
 use slashstep_server::{
     initialize_required_tables,
@@ -12,10 +11,13 @@ use slashstep_server::{
         ResourceError, ResourceType,
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    }
+    },
 };
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_fields_are_equal(field_value_1: &FieldValue, field_value_2: &FieldValue) {
     assert_eq!(field_value_1.id, field_value_2.id);
@@ -283,7 +285,8 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             &InitialAccessPolicyProperties {
                 action_id: get_fields_action.id.clone(),
                 permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
-                principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
                 principal_user_id: Some(user.id.clone()),
                 scoped_resource_type: ResourceType::FieldValue,
                 scoped_field_value_id: Some(scoped_field_value.id.clone()),

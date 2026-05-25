@@ -9,8 +9,6 @@
  *
  */
 
-
-
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -169,8 +167,12 @@ pub async fn handle_create_membership_request(
                 } else {
                     ActionLogEntryActorType::App
                 },
-                actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-                actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+                actor_user_id: authenticated_user
+                    .as_ref()
+                    .map(|authenticated_user| authenticated_user.id),
+                actor_app_id: authenticated_app
+                    .as_ref()
+                    .map(|authenticated_app| authenticated_app.id),
                 target_resource_type: ResourceType::MembershipInvitation,
                 target_membership_invitation_id: Some(membership_invitation.id),
                 ..Default::default()
@@ -281,8 +283,12 @@ pub async fn handle_create_membership_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Membership,
             target_membership_id: Some(created_membership.id),
             ..Default::default()
@@ -353,7 +359,8 @@ pub async fn handle_list_memberships_request(
         "parent_role_id = {}{}",
         quote_literal(&role_id.to_string()),
         query_parameters
-            .query.map(|query| format!(" AND ({})", query))
+            .query
+            .map(|query| format!(" AND ({})", query))
             .unwrap_or("".to_string())
     );
     let queried_resources = match Membership::list(
@@ -439,8 +446,12 @@ pub async fn handle_list_memberships_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Role,
             target_role_id: Some(role_id),
             ..Default::default()
@@ -476,7 +487,6 @@ pub async fn handle_list_memberships_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/roles/{role_id}/memberships",

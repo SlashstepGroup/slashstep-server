@@ -18,10 +18,13 @@ use slashstep_server::{
             EditableAccessPolicyProperties, InitialAccessPolicyProperties, PermissionLevel,
         },
         action::Action,
-    }
+    },
 };
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 use std::cmp;
 
@@ -415,7 +418,10 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
     let retrieved_access_policy_count =
         AccessPolicy::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_access_policy_count, MAXIMUM_RESOURCE_COUNT + current_access_policy_count);
+    assert_eq!(
+        retrieved_access_policy_count,
+        MAXIMUM_RESOURCE_COUNT + current_access_policy_count
+    );
 
     return Ok(());
 }

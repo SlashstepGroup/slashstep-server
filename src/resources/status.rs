@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{
@@ -275,9 +274,8 @@ impl Status {
         );
         database_client.execute(query, &[]).await?;
 
-        let query = include_str!(
-            "../queries/statuses/create_function_update_statuses_next_status_id.sql"
-        );
+        let query =
+            include_str!("../queries/statuses/create_function_update_statuses_next_status_id.sql");
         database_client.execute(query, &[]).await?;
 
         Ok(())

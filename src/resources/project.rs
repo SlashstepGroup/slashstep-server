@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{
@@ -211,8 +210,7 @@ impl Project {
         let query = include_str!("../queries/projects/initialize_projects_table.sql");
         database_client.execute(query, &[]).await?;
 
-        let query =
-            include_str!("../queries/projects/create_function_create_project_sequence.sql");
+        let query = include_str!("../queries/projects/create_function_create_project_sequence.sql");
         database_client.execute(query, &[]).await?;
 
         Ok(())

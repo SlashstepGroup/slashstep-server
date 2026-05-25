@@ -138,8 +138,6 @@ pub fn translate_normal_assignment(
         ));
     }
 
-    
-
     SlashstepQLAssignmentTranslationResult {
         where_clause: assignment_properties.where_clause,
         parameters: assignment_properties.parameters,
@@ -191,20 +189,22 @@ impl SlashstepQLFilterSanitizer {
                 } else if regex_captures.name("assignment").is_some() {
                     // Ensure the key is a valid identifier. Very important to prevent SQL injection.
                     if let Some(original_key) = regex_captures
-                        .name("key").map(|string_match| string_match.as_str().to_string())
+                        .name("key")
+                        .map(|string_match| string_match.as_str().to_string())
                     {
                         let string_value = regex_captures
                             .name("stringDoubleQuotes")
-                            .or(regex_captures.name("stringSingleQuotes")).map(|string_match| string_match.as_str().to_string());
-                        let number_value = regex_captures.name("number").and_then(|string_match| {
-                            string_match.as_str().parse::<Decimal>().ok()
-                        });
-                        let boolean_value =
-                            regex_captures.name("boolean").and_then(|string_match| {
-                                string_match.as_str().parse::<bool>().ok()
-                            });
+                            .or(regex_captures.name("stringSingleQuotes"))
+                            .map(|string_match| string_match.as_str().to_string());
+                        let number_value = regex_captures
+                            .name("number")
+                            .and_then(|string_match| string_match.as_str().parse::<Decimal>().ok());
+                        let boolean_value = regex_captures
+                            .name("boolean")
+                            .and_then(|string_match| string_match.as_str().parse::<bool>().ok());
                         let operator = match regex_captures
-                            .name("operator").map(|string_match| string_match.as_str().to_string())
+                            .name("operator")
+                            .map(|string_match| string_match.as_str().to_string())
                         {
                             Some(operator) => operator,
 
@@ -335,10 +335,12 @@ impl SlashstepQLFilterSanitizer {
             format!(" WHERE {}", where_clause)
         };
         let limit_clause = sanitized_filter
-            .limit.map(|limit| format!(" LIMIT {}", limit))
+            .limit
+            .map(|limit| format!(" LIMIT {}", limit))
             .unwrap_or("".to_string());
         let offset_clause = sanitized_filter
-            .offset.map(|offset| format!(" OFFSET {}", offset))
+            .offset
+            .map(|offset| format!(" OFFSET {}", offset))
             .unwrap_or("".to_string());
         let query = format!(
             "SELECT {} FROM {}{}{}{}",
@@ -364,7 +366,11 @@ pub fn add_parameter_to_query<T: ToSql + Sync + Clone + Send + 'static>(
         query.push_str(
             format!(
                 "{}{} = ${}",
-                if !parameter_boxes.is_empty() { ", " } else { "" },
+                if !parameter_boxes.is_empty() {
+                    ", "
+                } else {
+                    ""
+                },
                 key,
                 parameter_boxes.len() + 1
             )

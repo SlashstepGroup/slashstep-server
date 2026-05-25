@@ -10,11 +10,14 @@ use slashstep_server::{
             Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, EditableActionProperties,
             InitialActionProperties,
         },
-    }
+    },
 };
 use uuid::Uuid;
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_actions_are_equal(action_1: &Action, action_2: &Action) {
     assert_eq!(action_1.id, action_2.id);

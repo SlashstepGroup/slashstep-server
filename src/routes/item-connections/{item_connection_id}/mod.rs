@@ -42,7 +42,6 @@ use std::sync::Arc;
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
 
-
 /// GET /item-connections/{item_connection_id}
 ///
 /// Gets a field choice by its ID.
@@ -110,8 +109,12 @@ async fn handle_get_item_connection_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemConnection,
             target_item_connection_id: Some(target_item_connection.id),
             ..Default::default()
@@ -221,8 +224,12 @@ async fn handle_delete_item_connection_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemConnection,
             target_item_connection_id: Some(target_item_connection.id),
             ..Default::default()
@@ -346,8 +353,12 @@ async fn handle_patch_item_connection_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::ItemConnection,
             target_item_connection_id: Some(updated_target_item_connection.id),
             ..Default::default()
@@ -375,7 +386,6 @@ async fn handle_patch_item_connection_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/item-connections/{item_connection_id}",

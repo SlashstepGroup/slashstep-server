@@ -110,7 +110,6 @@ async fn fallback() -> impl IntoResponse {
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),

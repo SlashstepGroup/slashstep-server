@@ -9,9 +9,17 @@
  *
  */
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
+    AppState, get_json_web_token_private_key,
+    resources::{
         access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
         item_connection::{
@@ -21,10 +29,6 @@ use slashstep_server::{
     },
     routes::ListResourcesResponseBody,
 };
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use pg_escape::quote_literal;
-use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -90,16 +94,14 @@ async fn verify_successful_item_connection_creation() -> Result<(), TestSlashste
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/items/{}/item-connections", outward_item.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_item_connection_properties))
         .await;
 
@@ -166,16 +168,14 @@ async fn verify_returned_item_connection_list_without_query() -> Result<(), Test
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/items/{}/item-connections", &outward_item.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -275,16 +275,14 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/items/{}/item-connections", &outward_item.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_query_param("query", &additional_query)
         .await;
 
@@ -391,16 +389,14 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/items/{}/item-connections", &outward_item.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -458,9 +454,10 @@ async fn verify_maximum_item_connection_list_limit() -> Result<(), TestSlashstep
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/items/{}/item-connections", &outward_item.id))
@@ -468,10 +465,7 @@ async fn verify_maximum_item_connection_list_limit() -> Result<(), TestSlashstep
             "query",
             format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -525,9 +519,10 @@ async fn verify_query_when_listing_item_connections() -> Result<(), TestSlashste
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let bad_requests = vec![
@@ -550,10 +545,7 @@ async fn verify_query_when_listing_item_connections() -> Result<(), TestSlashste
 
     for request in bad_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -573,10 +565,7 @@ async fn verify_query_when_listing_item_connections() -> Result<(), TestSlashste
 
     for request in unprocessable_entity_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -599,9 +588,10 @@ async fn verify_authentication_when_listing_item_connections()
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/items/{}/item-connections", &outward_item.id))
@@ -639,16 +629,14 @@ async fn verify_permission_when_listing_item_connections() -> Result<(), TestSla
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/items/{}/item-connections", &outward_item.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::FORBIDDEN);

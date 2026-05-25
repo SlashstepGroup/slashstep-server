@@ -9,8 +9,12 @@
  *
  */
 
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use reqwest::StatusCode;
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
+    AppState, get_json_web_token_private_key,
+    resources::{
         access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
         app_authorization_credential::{
@@ -18,15 +22,15 @@ use slashstep_server::{
             DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
         },
     },
-    routes::ListResourcesResponseBody
+    routes::ListResourcesResponseBody,
 };
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 #[path = "./{app_authorization_credential_id}/mod.rs"]
 mod app_authorization_credential_id;
@@ -91,10 +95,7 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/app-authorization-credentials"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -204,10 +205,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     );
     let response = test_server
         .get(&format!("/app-authorization-credentials"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_query_param("query", &query)
         .await;
 
@@ -313,10 +311,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/app-authorization-credentials"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -390,10 +385,7 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
             "query",
             format!("LIMIT {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -479,10 +471,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
 
     for request in bad_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -505,10 +494,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
 
     for request in unprocessable_entity_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -570,10 +556,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/app-authorization-credentials"))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.

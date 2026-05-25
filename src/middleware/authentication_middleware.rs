@@ -38,13 +38,9 @@ async fn get_jwt_public_key(
 
         Err(error) => {
             let http_error = HTTPError::InternalServerError(Some(format!("{:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(http_transaction_id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -64,13 +60,9 @@ pub async fn get_decoding_key(
                 "Failed to decode JWT public key: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(http_transaction_id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -116,13 +108,9 @@ async fn get_decoded_claims(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(http_transaction_id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
+                .await
+                .ok();
             return Err(http_error);
         }
     };
@@ -146,13 +134,9 @@ async fn get_user_by_id(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(http_transaction_id),
-                database_pool,
-            )
-            .await
-            .ok();
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
+                .await
+                .ok();
 
             return Err(http_error);
         }
@@ -228,7 +212,6 @@ pub async fn authenticate_user(
                         )
                         .await
                         .ok();
-                        
 
                         match User::create(
                             &InitialUserProperties {

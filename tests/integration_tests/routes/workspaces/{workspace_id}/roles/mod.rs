@@ -9,9 +9,18 @@
  *
  */
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
+use rust_decimal::Decimal;
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
+    AppState, get_json_web_token_private_key,
+    resources::{
         access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
         configuration::{Configuration, EditableConfigurationProperties},
@@ -22,11 +31,6 @@ use slashstep_server::{
     },
     routes::ListResourcesResponseBody,
 };
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use pg_escape::quote_literal;
-use reqwest::StatusCode;
-use rust_decimal::Decimal;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -63,16 +67,14 @@ async fn verify_successful_role_creation() -> Result<(), TestSlashstepServerErro
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/workspaces/{}/roles", dummy_workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_role_properties))
         .await;
 
@@ -144,16 +146,14 @@ async fn verify_role_name_is_at_most_at_maximum_length() -> Result<(), TestSlash
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/workspaces/{}/roles", workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_role_properties))
         .await;
 
@@ -213,16 +213,14 @@ async fn verify_role_display_name_is_at_most_at_maximum_length()
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/workspaces/{}/roles", workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_role_properties))
         .await;
 
@@ -283,16 +281,14 @@ async fn verify_role_description_is_at_most_at_maximum_length()
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/workspaces/{}/roles", workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_role_properties))
         .await;
 
@@ -349,16 +345,14 @@ async fn verify_role_name_matches_regex() -> Result<(), TestSlashstepServerError
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/workspaces/{}/roles", workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_role_properties))
         .await;
 
@@ -412,16 +406,14 @@ async fn verify_returned_role_list_without_query() -> Result<(), TestSlashstepSe
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -503,16 +495,14 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_query_param("query", &additional_query)
         .await;
 
@@ -596,16 +586,14 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -655,9 +643,10 @@ async fn verify_maximum_role_list_limit() -> Result<(), TestSlashstepServerError
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
@@ -665,10 +654,7 @@ async fn verify_maximum_role_list_limit() -> Result<(), TestSlashstepServerError
             "query",
             format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -714,9 +700,10 @@ async fn verify_query_when_listing_roles() -> Result<(), TestSlashstepServerErro
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let bad_requests = vec![
@@ -739,10 +726,7 @@ async fn verify_query_when_listing_roles() -> Result<(), TestSlashstepServerErro
 
     for request in bad_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -759,10 +743,7 @@ async fn verify_query_when_listing_roles() -> Result<(), TestSlashstepServerErro
 
     for request in unprocessable_entity_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -784,9 +765,10 @@ async fn verify_authentication_when_listing_roles() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
@@ -824,16 +806,14 @@ async fn verify_permission_when_listing_roles() -> Result<(), TestSlashstepServe
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::FORBIDDEN);

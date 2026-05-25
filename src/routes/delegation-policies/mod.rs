@@ -12,7 +12,6 @@
 #[path = "./{delegation_policy_id}/mod.rs"]
 pub mod delegation_policy_id;
 
-
 use std::sync::Arc;
 
 use crate::{
@@ -189,8 +188,12 @@ async fn handle_list_delegation_policies_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Server,
             ..Default::default()
         },
@@ -225,7 +228,6 @@ async fn handle_list_delegation_policies_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/delegation-policies",

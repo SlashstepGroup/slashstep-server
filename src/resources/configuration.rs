@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{
@@ -272,8 +271,7 @@ impl Configuration {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query =
-            include_str!("../queries/configurations/initialize_configurations_table.sql");
+        let query = include_str!("../queries/configurations/initialize_configurations_table.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }
@@ -363,9 +361,7 @@ impl Configuration {
                 Ok(Box::new(value_type))
             }
 
-            _ => {
-                Ok(Box::new(value))
-            }
+            _ => Ok(Box::new(value)),
         }
     }
 

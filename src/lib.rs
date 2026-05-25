@@ -397,7 +397,6 @@ pub async fn setup_admin_user_if_necessary(
     let mut slashstep_admin_password =
         match get_environment_variable("SLASHSTEP_ADMIN_PASSWORD_FILE_PATH") {
             Ok(slashstep_admin_password_file_path) => {
-                
                 std::fs::read_to_string(&slashstep_admin_password_file_path)?
             }
 

@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, StakeholderType, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{

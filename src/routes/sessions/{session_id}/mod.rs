@@ -41,7 +41,6 @@ use std::sync::Arc;
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
 
-
 /// GET /sessions/{session_id}
 ///
 /// Gets a session by its ID.
@@ -104,8 +103,12 @@ async fn handle_get_session_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Session,
             target_session_id: Some(target_session.id),
             ..Default::default()
@@ -205,8 +208,12 @@ async fn handle_delete_session_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::Session,
             target_session_id: Some(target_session.id),
             ..Default::default()
@@ -227,7 +234,6 @@ async fn handle_delete_session_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/sessions/{session_id}",

@@ -9,7 +9,6 @@
  *
  */
 
-
 use std::str::FromStr;
 
 use crate::{
@@ -187,8 +186,7 @@ impl ItemTypeIcon {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query =
-            include_str!("../queries/item_type_icons/initialize_item_type_icons_table.sql");
+        let query = include_str!("../queries/item_type_icons/initialize_item_type_icons_table.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }
@@ -223,8 +221,7 @@ impl ItemTypeIcon {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query =
-            include_str!("../queries/item_type_icons/delete_item_type_icon_row_by_id.sql");
+        let query = include_str!("../queries/item_type_icons/delete_item_type_icon_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
         Ok(())
     }
@@ -297,16 +294,18 @@ impl ItemTypeIcon {
             return Ok(Box::new(uuid));
         }
 
-        if key == "parent_resource_type" { match ItemTypeIconParentResourceType::from_str(value) {
-            Ok(parent_resource_type) => return Ok(Box::new(parent_resource_type)),
+        if key == "parent_resource_type" {
+            match ItemTypeIconParentResourceType::from_str(value) {
+                Ok(parent_resource_type) => return Ok(Box::new(parent_resource_type)),
 
-            Err(_) => {
-                return Err(SlashstepQLError::StringParserError(format!(
-                    "Failed to parse ItemTypeIconParentResourceType from \"{}\" for key \"{}\".",
-                    value, key
-                )));
+                Err(_) => {
+                    return Err(SlashstepQLError::StringParserError(format!(
+                        "Failed to parse ItemTypeIconParentResourceType from \"{}\" for key \"{}\".",
+                        value, key
+                    )));
+                }
             }
-        } }
+        }
 
         Ok(Box::new(value))
     }

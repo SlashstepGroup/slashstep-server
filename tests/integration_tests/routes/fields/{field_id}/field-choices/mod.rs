@@ -9,9 +9,18 @@
  *
  */
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use ntest::timeout;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, resources::{
+    AppState, get_json_web_token_private_key,
+    resources::{
         access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
         field_choice::{
@@ -24,11 +33,6 @@ use slashstep_server::{
         fields::field_id::field_choices::InitialFieldChoicePropertiesWithPredefinedFieldID,
     },
 };
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use ntest::timeout;
-use pg_escape::quote_literal;
-use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
@@ -78,19 +82,17 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!(
             "/fields/{}/field-choices",
             &dummy_field_choice.field_id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -174,19 +176,17 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!(
             "/fields/{}/field-choices",
             &dummy_field_choice.field_id
         ))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_query_param("query", &additional_query)
         .await;
 
@@ -283,16 +283,14 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/fields/{}/field-choices", &dummy_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -353,9 +351,10 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/fields/{}/field-choices", &dummy_field.id))
@@ -363,10 +362,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
             "query",
             format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -421,9 +417,10 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let bad_requests = vec![
@@ -446,10 +443,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
 
     for request in bad_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
@@ -469,10 +463,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
 
     for request in unprocessable_entity_requests {
         let response = request
-            .add_cookie(Cookie::new(
-                "session_access_token",
-                &session_token,
-            ))
+            .add_cookie(Cookie::new("session_access_token", &session_token))
             .await;
 
         assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -494,9 +485,10 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/fields/{}/field-choices", &dummy_field.id))
@@ -534,9 +526,10 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/fields/{}/field-choices", &dummy_field.id))
@@ -544,10 +537,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
             "query",
             format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1),
         )
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .await;
 
     // Verify the response.
@@ -567,9 +557,10 @@ async fn verify_parent_resource_not_found_when_listing_resources()
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .get(&format!("/fields/{}/field-choices", &Uuid::now_v7()))
@@ -621,16 +612,14 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/fields/{}/field-choices", dummy_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .json(&serde_json::json!(initial_field_choice_properties))
         .await;
 
@@ -692,9 +681,10 @@ async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSla
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/fields/{}/field-choices", dummy_field.id))
@@ -727,9 +717,10 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/fields/{}/field-choices", dummy_field.id))
@@ -773,16 +764,14 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
     let response = test_server
         .post(&format!("/fields/{}/field-choices", dummy_field.id))
-        .add_cookie(Cookie::new(
-            "session_access_token",
-            &session_token,
-        ))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
         .add_header("Content-Type", "application/json")
         .json(&serde_json::json!(initial_field_choice_properties))
         .await;
@@ -808,9 +797,10 @@ async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepSe
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let router =
+        slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
 
     let response = test_server

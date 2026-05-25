@@ -11,7 +11,7 @@ use slashstep_server::{
             AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
         },
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    }
+    },
 };
 
 use crate::test_utilities::integration_test_environment::IntegrationTestEnvironment;
@@ -284,7 +284,8 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             &InitialAccessPolicyProperties {
                 action_id: get_delegation_policies_action.id.clone(),
                 permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
-                principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
                 principal_user_id: Some(user.id.clone()),
                 scoped_resource_type: ResourceType::DelegationPolicy,
                 scoped_delegation_policy_id: Some(scoped_delegation_policy.id.clone()),

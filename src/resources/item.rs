@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
     utilities::slashstepql::{
@@ -228,9 +227,7 @@ impl Item {
         }
 
         // Since the key is dynamic, we'll use it as a hint to form a valid SQL query.
-        let identifier_parts = assignment_properties.key
-            .split('.')
-            .collect::<Vec<&str>>();
+        let identifier_parts = assignment_properties.key.split('.').collect::<Vec<&str>>();
         match identifier_parts[0] {
             "fields" => {
                 // In this case, the identifier should be made of two parts: the "fields" prefix and the field name. For example, "fields.priority".
@@ -257,11 +254,13 @@ impl Item {
                         // UUID field types: Iteration, Milestone, Stakeholder
 
                         // UUIDs are supposed to be globally unique, so it's generally safe to check the ID against all UUID columns.
-                        let uuid_column_name_map = [vec!["Iteration", "iteration_id_value"],
+                        let uuid_column_name_map = [
+                            vec!["Iteration", "iteration_id_value"],
                             vec!["Milestone", "milestone_id_value"],
                             vec!["Stakeholder", "stakeholder_user_id"],
                             vec!["Stakeholder", "stakeholder_group_id"],
-                            vec!["Stakeholder", "stakeholder_app_id"]];
+                            vec!["Stakeholder", "stakeholder_app_id"],
+                        ];
 
                         for index in 0..uuid_column_name_map.len() {
                             if index != 0 {

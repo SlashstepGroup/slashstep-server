@@ -8,10 +8,13 @@ use slashstep_server::{
         action_log_entry::{
             ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
         },
-    }
+    },
 };
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_action_log_entry_is_equal_to_initial_properties(
     action_log_entry: &ActionLogEntry,

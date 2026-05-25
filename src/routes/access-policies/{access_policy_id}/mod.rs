@@ -27,10 +27,9 @@ use crate::{
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
     utilities::route_handler_utilities::{
         get_access_policy_by_id, get_action_by_id, get_action_by_name,
-        get_action_log_entry_expiration_timestamp,
-        get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,
-        get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions,
-        verify_principal_permissions,
+        get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal,
+        get_request_body_without_json_rejection, get_uuid_from_string,
+        is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions,
     },
 };
 use axum::{
@@ -109,8 +108,12 @@ async fn handle_get_access_policy_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::AccessPolicy,
             target_access_policy_id: Some(access_policy.id),
             ..Default::default()
@@ -276,8 +279,12 @@ async fn handle_patch_access_policy_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::AccessPolicy,
             target_access_policy_id: Some(access_policy.id),
             ..Default::default()
@@ -384,8 +391,12 @@ async fn handle_delete_access_policy_request(
             } else {
                 ActionLogEntryActorType::App
             },
-            actor_user_id: authenticated_user.as_ref().map(|authenticated_user| authenticated_user.id),
-            actor_app_id: authenticated_app.as_ref().map(|authenticated_app| authenticated_app.id),
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
             target_resource_type: ResourceType::AccessPolicy,
             target_access_policy_id: Some(target_access_policy.id),
             ..Default::default()
@@ -409,7 +420,6 @@ async fn handle_delete_access_policy_request(
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-    
     Router::<AppState>::new()
         .route(
             "/access-policies/{access_policy_id}",

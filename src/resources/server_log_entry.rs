@@ -9,7 +9,6 @@
  *
  */
 
-
 use crate::{
     HTTPError,
     resources::{ResourceError, access_policy::AccessPolicyPrincipalType},
@@ -282,9 +281,8 @@ impl ServerLogEntry {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
-        let query = include_str!(
-            "../queries/server_log_entries/initialize_server_log_entries_table.sql"
-        );
+        let query =
+            include_str!("../queries/server_log_entries/initialize_server_log_entries_table.sql");
         database_client.execute(query, &[]).await?;
         Ok(())
     }
@@ -294,8 +292,7 @@ impl ServerLogEntry {
         initial_properties: &InitialServerLogEntryProperties,
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<Self, ResourceError> {
-        let query =
-            include_str!("../queries/server_log_entries/insert_server_log_entry_row.sql");
+        let query = include_str!("../queries/server_log_entries/insert_server_log_entry_row.sql");
         let parameters: &[&(dyn ToSql + Sync)] = &[
             &initial_properties.message,
             &initial_properties.http_transaction_id,
@@ -360,7 +357,7 @@ impl ServerLogEntry {
             None => String::new(),
         };
         let formatted_message = format!("{} {}{}", level_prefix, request_id_prefix, self.message);
-        
+
         match &self.level {
             ServerLogEntryLevel::Success => format!("{}", formatted_message.green()),
             ServerLogEntryLevel::Critical => format!("{}", formatted_message.on_red()),
@@ -452,9 +449,7 @@ impl ServerLogEntry {
                     Ok(Box::new(permission_level))
                 }
 
-                _ => {
-                    Ok(Box::new(value))
-                }
+                _ => Ok(Box::new(value)),
             }
         }
     }

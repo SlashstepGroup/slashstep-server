@@ -19,7 +19,10 @@ use slashstep_server::{
 };
 use uuid::Uuid;
 
-use crate::test_utilities::{end_to_end_test_environment::EndToEndTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    end_to_end_test_environment::EndToEndTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 /// Verifies that the router can return a 200 status code and the requested access policy.
 #[tokio::test]

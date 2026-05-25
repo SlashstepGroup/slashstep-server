@@ -1,6 +1,8 @@
 use uuid::Uuid;
 
-use slashstep_server::resources::group::{DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, Group, InitialGroupProperties};
+use slashstep_server::resources::group::{
+    DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, Group, InitialGroupProperties,
+};
 use slashstep_server::{
     initialize_required_tables,
     predefinitions::initialize_predefined_actions,
@@ -9,10 +11,13 @@ use slashstep_server::{
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
         group::GroupParentResourceType,
-    }
+    },
 };
 
-use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
 
 fn assert_groups_are_equal(group_1: &Group, group_2: &Group) {
     assert_eq!(group_1.id, group_2.id);
@@ -237,7 +242,8 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             &InitialAccessPolicyProperties {
                 action_id: get_groups_action.id.clone(),
                 permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
-                principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
                 principal_user_id: Some(user.id.clone()),
                 scoped_resource_type: ResourceType::Group,
                 scoped_group_id: Some(scoped_group.id.clone()),
