@@ -9,9 +9,6 @@
  *
  */
 
-#[cfg(test)]
-mod tests;
-
 use crate::{
     resources::{ResourceError, ResourceType},
     utilities::slashstepql::{
@@ -469,7 +466,7 @@ impl AccessPolicy {
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<Self, ResourceError> {
         // Insert the access policy into the database.
-        let query = include_str!("../../queries/access_policies/insert_access_policy_row.sql");
+        let query = include_str!("../queries/access_policies/insert_access_policy_row.sql");
         let parameters: &[&(dyn ToSql + Sync)] = &[
             &initial_properties.action_id,
             &initial_properties.permission_level,
@@ -546,7 +543,7 @@ impl AccessPolicy {
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
         let query =
-            include_str!("../../queries/access_policies/delete_access_policy_row_by_id.sql");
+            include_str!("../queries/access_policies/delete_access_policy_row_by_id.sql");
         database_client.execute(query, &[&self.id]).await?;
         Ok(())
     }
@@ -556,7 +553,7 @@ impl AccessPolicy {
         id: &Uuid,
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<Self, ResourceError> {
-        let query = include_str!("../../queries/access_policies/get_access_policy_row_by_id.sql");
+        let query = include_str!("../queries/access_policies/get_access_policy_row_by_id.sql");
         let parameters: &[&(dyn ToSql + Sync)] = &[&id];
         let database_client = database_pool.get().await?;
         let row = match database_client.query_opt(query, parameters).await {
@@ -637,25 +634,25 @@ impl AccessPolicy {
     ) -> Result<(), ResourceError> {
         let database_client = database_pool.get().await?;
         let table_query =
-            include_str!("../../queries/access_policies/initialize_access_policies_table.sql");
+            include_str!("../queries/access_policies/initialize_access_policies_table.sql");
         database_client.execute(table_query, &[]).await?;
 
         let get_prinicipal_access_policies_function = include_str!(
-            "../../queries/access_policies/create_function_get_principal_access_policies.sql"
+            "../queries/access_policies/create_function_get_principal_access_policies.sql"
         );
         database_client
             .execute(get_prinicipal_access_policies_function, &[])
             .await?;
 
         let get_principal_permission_level_function = include_str!(
-            "../../queries/access_policies/create_function_get_principal_permission_level.sql"
+            "../queries/access_policies/create_function_get_principal_permission_level.sql"
         );
         database_client
             .execute(get_principal_permission_level_function, &[])
             .await?;
 
         let get_scoped_resource_id_from_access_policy_function = include_str!(
-            "../../queries/access_policies/create_function_get_scoped_resource_id_from_access_policy.sql"
+            "../queries/access_policies/create_function_get_scoped_resource_id_from_access_policy.sql"
         );
         database_client
             .execute(get_scoped_resource_id_from_access_policy_function, &[])

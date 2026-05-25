@@ -1,4 +1,15 @@
-use crate::{
+/**
+ *
+ * This module contains integration tests for the access_policy resource module.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2025 – 2026 Beastslash LLC
+ *
+ */
+
+use slashstep_server::{
     initialize_required_tables,
     predefinitions::initialize_predefined_actions,
     resources::{
@@ -8,19 +19,11 @@ use crate::{
             EditableAccessPolicyProperties, InitialAccessPolicyProperties, PermissionLevel,
         },
         action::Action,
-    },
-    tests::{TestEnvironment, TestSlashstepServerError},
+    }
 };
-/**
- *
- * This module contains tests for the access_policy module.
- *
- * Programmers:
- * - Christian Toney (https://christiantoney.com)
- *
- * © 2025 – 2026 Beastslash LLC
- *
- */
+
+use crate::utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+
 use std::cmp;
 
 fn assert_access_policy_is_equal_to_initial_properties(
@@ -166,7 +169,7 @@ fn assert_access_policies_are_equal(
 /// Verifies that an access_policies table can be initialized.
 #[tokio::test]
 async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
 
     return Ok(());
@@ -175,7 +178,7 @@ async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
 /// Verifies that an access policy can be created.
 #[tokio::test]
 async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
 
@@ -204,7 +207,7 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn get_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_access_policy = test_environment.create_random_access_policy().await?;
@@ -219,7 +222,7 @@ async fn get_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 /// Verifies that a list of access policies can be retrieved without a query.
 #[tokio::test]
 async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
 
@@ -254,7 +257,7 @@ async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerE
 async fn list_access_policies_without_query_and_filter_based_on_requestor_permissions()
 -> Result<(), TestSlashstepServerError> {
     // Get the "accessPolicies.get" action one time.
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
     let user = test_environment.create_random_user(None).await?;
@@ -316,7 +319,7 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 /// Verifies that a list of access policies can be retrieved with a query.
 #[tokio::test]
 async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
 
@@ -375,7 +378,7 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
 /// Verifies that the implementation can return up to a maximum number of access policies by default.
 #[tokio::test]
 async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
@@ -401,7 +404,7 @@ async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepSe
 /// Verifies that the implementation can return an accurate count of access policies.
 #[tokio::test]
 async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
@@ -438,7 +441,7 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn delete_access_policy() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_access_policy = test_environment.create_random_access_policy().await?;
@@ -459,7 +462,7 @@ async fn delete_access_policy() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
-    let test_environment = TestEnvironment::new().await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
     initialize_required_tables(&test_environment.database_pool).await?;
     initialize_predefined_actions(&test_environment.database_pool).await?;
     let action = test_environment.create_random_action(None).await?;

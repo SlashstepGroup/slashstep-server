@@ -1,3 +1,14 @@
+/**
+ *
+ * Any functionality for /access-policies/{access_policy_id} should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2025 – 2026 Beastslash LLC
+ *
+ */
+
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -27,16 +38,6 @@ use axum::{
     extract::{Path, State, rejection::JsonRejection},
 };
 use reqwest::StatusCode;
-/**
- *
- * Any functionality for /access-policies/{access_policy_id} should be handled here.
- *
- * Programmers:
- * - Christian Toney (https://christiantoney.com)
- *
- * © 2025 – 2026 Beastslash LLC
- *
- */
 use std::sync::Arc;
 
 /// GET /access-policies/{access_policy_id}
@@ -439,6 +440,3 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             http_transaction_middleware::create_http_transaction,
         ))
 }
-
-#[cfg(test)]
-mod tests;

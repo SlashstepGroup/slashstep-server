@@ -45,7 +45,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 #[path = "./{access_policy_id}/mod.rs"]
-mod access_policy_id;
+pub mod access_policy_id;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateServerAccessPolicyRequestBody {
