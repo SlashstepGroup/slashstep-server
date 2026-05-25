@@ -11,12 +11,7 @@
 
 use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
+    AppState, get_json_web_token_private_key, resources::{
         access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
         configuration::{Configuration, EditableConfigurationProperties},
@@ -128,9 +123,6 @@ async fn verify_successful_field_creation() -> Result<(), TestSlashstepServerErr
 #[tokio::test]
 async fn verify_field_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "fields.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -198,9 +190,6 @@ async fn verify_field_name_is_at_most_at_maximum_length() -> Result<(), TestSlas
 async fn verify_field_display_name_is_at_most_at_maximum_length()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "fields.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -270,9 +259,6 @@ async fn verify_field_display_name_is_at_most_at_maximum_length()
 async fn verify_field_description_is_at_most_at_maximum_length()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "fields.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -342,9 +328,6 @@ async fn verify_field_description_is_at_most_at_maximum_length()
 #[tokio::test]
 async fn verify_field_name_matches_regex() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "fields.create" action.
     let plain_text_password = Uuid::now_v7().to_string();

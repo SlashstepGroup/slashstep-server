@@ -26,6 +26,10 @@ use uuid::Uuid;
 
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
+#[path = "./oauth-authorizations/mod.rs"]
+mod oauth_authorizations;
+mod password;
+mod sessions;
 
 /// Verifies that the router can return a 200 status code and the requested resource.
 #[tokio::test]
