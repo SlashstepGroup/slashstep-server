@@ -11,12 +11,7 @@
 
 use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
+    AppState, get_json_web_token_private_key, resources::{
         access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
         configuration::{Configuration, EditableConfigurationProperties},
@@ -31,6 +26,9 @@ use reqwest::StatusCode;
 use rust_decimal::Decimal;
 use std::net::SocketAddr;
 use uuid::Uuid;
+
+#[path = "./{role_id}/mod.rs"]
+mod role_id;
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]

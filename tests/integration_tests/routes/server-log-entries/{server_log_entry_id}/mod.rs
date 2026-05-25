@@ -41,7 +41,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
     redis_pool: test_environment.redis_pool.clone()
   };
 
-  let router = super::get_router(state.clone())
+  let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
@@ -88,7 +88,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
     redis_pool: test_environment.redis_pool.clone()
   };
 
-  let router = super::get_router(state.clone())
+  let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
@@ -116,7 +116,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     redis_pool: test_environment.redis_pool.clone()
   };
 
-  let router = super::get_router(state.clone())
+  let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
@@ -156,7 +156,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     database_pool: test_environment.database_pool.clone(),
     redis_pool: test_environment.redis_pool.clone()
   };
-  let router = super::get_router(state.clone())
+  let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
@@ -194,7 +194,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     database_pool: test_environment.database_pool.clone(),
     redis_pool: test_environment.redis_pool.clone()
   };
-  let router = super::get_router(state.clone())
+  let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
     .with_state(state)
     .into_make_service_with_connect_info::<SocketAddr>();
   let test_server = TestServer::new(router);
@@ -240,7 +240,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -274,7 +274,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //     database_pool: test_environment.database_pool.clone(),
 //   };
 
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -303,7 +303,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -338,7 +338,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -369,7 +369,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -418,7 +418,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -462,7 +462,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -488,7 +488,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -515,7 +515,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -545,7 +545,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -575,7 +575,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -611,7 +611,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
@@ -642,7 +642,7 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
 //   let state = AppState {
 //     database_pool: test_environment.database_pool.clone(),
 //   };
-//   let router = super::get_router(state.clone())
+//   let router = slashstep_server::routes::server_log_entries::server_log_entry_id::get_router(state.clone())
 //     .with_state(state)
 //     .into_make_service_with_connect_info::<SocketAddr>();
 //   let test_server = TestServer::new(router);
