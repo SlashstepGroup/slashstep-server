@@ -1,0 +1,240 @@
+use chrono::Utc;
+
+use slashstep_server::{
+    initialize_required_tables,
+    predefinitions::initialize_predefined_actions,
+    resources::{
+        ResourceError,
+        action_log_entry::{
+            ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
+        },
+    }
+};
+
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+
+fn assert_action_log_entry_is_equal_to_initial_properties(
+    action_log_entry: &ActionLogEntry,
+    initial_properties: &InitialActionLogEntryProperties,
+) {
+    assert_eq!(action_log_entry.action_id, initial_properties.action_id);
+    assert_eq!(
+        action_log_entry.http_transaction_id,
+        initial_properties.http_transaction_id
+    );
+    assert_eq!(action_log_entry.actor_type, initial_properties.actor_type);
+    assert_eq!(
+        action_log_entry.actor_user_id,
+        initial_properties.actor_user_id
+    );
+    assert_eq!(
+        action_log_entry.actor_app_id,
+        initial_properties.actor_app_id
+    );
+    assert_eq!(
+        action_log_entry.target_resource_type,
+        initial_properties.target_resource_type
+    );
+    assert_eq!(
+        action_log_entry.target_access_policy_id,
+        initial_properties.target_access_policy_id
+    );
+    assert_eq!(
+        action_log_entry.target_action_id,
+        initial_properties.target_action_id
+    );
+    assert_eq!(
+        action_log_entry.target_action_log_entry_id,
+        initial_properties.target_action_log_entry_id
+    );
+    assert_eq!(
+        action_log_entry.target_app_id,
+        initial_properties.target_app_id
+    );
+    assert_eq!(
+        action_log_entry.target_app_authorization_id,
+        initial_properties.target_app_authorization_id
+    );
+    assert_eq!(
+        action_log_entry.target_app_authorization_credential_id,
+        initial_properties.target_app_authorization_credential_id
+    );
+    assert_eq!(
+        action_log_entry.target_app_credential_id,
+        initial_properties.target_app_credential_id
+    );
+    assert_eq!(
+        action_log_entry.target_field_value_id,
+        initial_properties.target_field_value_id
+    );
+    assert_eq!(
+        action_log_entry.target_field_id,
+        initial_properties.target_field_id
+    );
+    assert_eq!(
+        action_log_entry.target_field_choice_id,
+        initial_properties.target_field_choice_id
+    );
+    assert_eq!(
+        action_log_entry.target_group_id,
+        initial_properties.target_group_id
+    );
+    assert_eq!(
+        action_log_entry.target_http_transaction_id,
+        initial_properties.target_http_transaction_id
+    );
+    assert_eq!(
+        action_log_entry.target_item_id,
+        initial_properties.target_item_connection_id
+    );
+    assert_eq!(
+        action_log_entry.target_item_connection_id,
+        initial_properties.target_item_connection_id
+    );
+    assert_eq!(
+        action_log_entry.target_item_connection_type_id,
+        initial_properties.target_item_connection_type_id
+    );
+    assert_eq!(
+        action_log_entry.target_membership_id,
+        initial_properties.target_membership_id
+    );
+    assert_eq!(
+        action_log_entry.target_milestone_id,
+        initial_properties.target_milestone_id
+    );
+    assert_eq!(
+        action_log_entry.target_oauth_authorization_id,
+        initial_properties.target_oauth_authorization_id
+    );
+    assert_eq!(
+        action_log_entry.target_project_id,
+        initial_properties.target_project_id
+    );
+    assert_eq!(
+        action_log_entry.target_role_id,
+        initial_properties.target_role_id
+    );
+    assert_eq!(
+        action_log_entry.target_server_log_entry_id,
+        initial_properties.target_server_log_entry_id
+    );
+    assert_eq!(
+        action_log_entry.target_session_id,
+        initial_properties.target_session_id
+    );
+    assert_eq!(
+        action_log_entry.target_user_id,
+        initial_properties.target_user_id
+    );
+    assert_eq!(
+        action_log_entry.target_workspace_id,
+        initial_properties.target_workspace_id
+    );
+    assert_eq!(action_log_entry.reason, initial_properties.reason);
+}
+
+/// Verifies that an action log entry can be created.
+#[tokio::test]
+async fn verify_action_log_entry_creation() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+
+    // Create the access policy.
+    let action = test_environment.create_random_action(None).await?;
+    let user = test_environment.create_random_user(None).await?;
+    let action_log_entry_properties = InitialActionLogEntryProperties {
+        action_id: action.id,
+        actor_type: ActionLogEntryActorType::User,
+        actor_user_id: Some(user.id),
+        ..Default::default()
+    };
+    let access_policy = ActionLogEntry::create(
+        &action_log_entry_properties,
+        &test_environment.database_pool,
+    )
+    .await?;
+
+    // Ensure that all the properties were set correctly.
+    assert_action_log_entry_is_equal_to_initial_properties(
+        &access_policy,
+        &action_log_entry_properties,
+    );
+
+    return Ok(());
+}
+
+/// Verifies that an action log entry can be deleted by its ID.
+#[tokio::test]
+async fn verify_action_log_entry_deletion_by_id() -> Result<(), TestSlashstepServerError> {
+    // Create the access policy.
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    let created_action_log_entry = test_environment.create_random_action_log_entry().await?;
+
+    created_action_log_entry
+        .delete(&test_environment.database_pool)
+        .await?;
+
+    // Ensure that the access policy is no longer in the database.
+    match ActionLogEntry::get_by_id(
+        &created_action_log_entry.id,
+        &test_environment.database_pool,
+    )
+    .await
+    {
+        Ok(_) => panic!("Expected an action log entry not found error."),
+
+        Err(error) => match error {
+            ResourceError::NotFoundError(_) => {}
+
+            error => return Err(TestSlashstepServerError::ResourceError(error)),
+        },
+    }
+
+    return Ok(());
+}
+
+/// Verifies that the struct can delete action log entries that have expired.
+#[tokio::test]
+async fn verify_deletion_of_expired_action_log_entries() -> Result<(), TestSlashstepServerError> {
+    // Create the access policy.
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    initialize_required_tables(&test_environment.database_pool).await?;
+    initialize_predefined_actions(&test_environment.database_pool).await?;
+    let app = test_environment.create_random_app(None, None).await?;
+    let action = test_environment.create_random_action(None).await?;
+    let created_action_log_entry = ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: action.id,
+            actor_type: ActionLogEntryActorType::App,
+            actor_app_id: Some(app.id),
+            expiration_timestamp: Some(Utc::now()),
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+
+    ActionLogEntry::delete_expired_action_log_entries(&test_environment.database_pool).await?;
+
+    // Ensure that the access policy is no longer in the database.
+    match ActionLogEntry::get_by_id(
+        &created_action_log_entry.id,
+        &test_environment.database_pool,
+    )
+    .await
+    {
+        Ok(_) => panic!("Expected an action log entry not found error."),
+
+        Err(error) => match error {
+            ResourceError::NotFoundError(_) => {}
+
+            error => return Err(TestSlashstepServerError::ResourceError(error)),
+        },
+    }
+
+    return Ok(());
+}

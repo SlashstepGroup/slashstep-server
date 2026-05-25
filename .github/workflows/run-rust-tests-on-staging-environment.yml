@@ -133,7 +133,7 @@ jobs:
         with:
           tool: nextest@0.9.132
 
-      - run: cargo nextest run -r --no-tests pass routes::${{ matrix.route-name }}
+      - run: cargo nextest run -r --no-tests pass --test integration-tests routes::${{ matrix.route-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
@@ -217,7 +217,7 @@ jobs:
         with:
           tool: nextest@0.9.132
 
-      - run: cargo nextest run -r --no-tests pass resources::${{ matrix.resource-name }}
+      - run: cargo nextest run --no-tests pass --test integration-tests resources::${{ matrix.resource-name }}
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem

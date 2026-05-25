@@ -4,8 +4,6 @@ pub mod middleware;
 pub mod predefinitions;
 pub mod resources;
 pub mod routes;
-#[cfg(test)]
-pub mod tests;
 pub mod utilities;
 
 pub const DEFAULT_APP_PORT: i16 = 8080;
