@@ -11,7 +11,6 @@
 
 use slashstep_server::{
     initialize_required_tables,
-    predefinitions::initialize_predefined_actions,
     resources::{
         ResourceType,
         access_policy::{
