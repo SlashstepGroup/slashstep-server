@@ -1,11 +1,17 @@
+/**
+ *
+ * Any test cases for /apps should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+
 use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
+    AppState, get_json_web_token_private_key, resources::{
         ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
@@ -25,18 +31,11 @@ use axum_extra::extract::cookie::Cookie;
 use axum_test::TestServer;
 use reqwest::StatusCode;
 use rust_decimal::Decimal;
-/**
- *
- * Any test cases for /apps should be handled here.
- *
- * Programmers:
- * - Christian Toney (https://christiantoney.com)
- *
- * © 2026 Beastslash LLC
- *
- */
 use std::net::SocketAddr;
 use uuid::Uuid;
+
+#[path = "./{app_id}/mod.rs"]
+mod app_id;
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -96,7 +95,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -203,7 +202,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -314,7 +313,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -393,7 +392,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -470,7 +469,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -532,7 +531,7 @@ async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -567,7 +566,7 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -590,9 +589,6 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
 async fn verify_successful_app_creation_with_public_client() -> Result<(), TestSlashstepServerError>
 {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "apps.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -623,7 +619,7 @@ async fn verify_successful_app_creation_with_public_client() -> Result<(), TestS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -656,9 +652,6 @@ async fn verify_successful_app_creation_with_public_client() -> Result<(), TestS
 async fn verify_successful_app_creation_with_confidential_client()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "apps.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -689,7 +682,7 @@ async fn verify_successful_app_creation_with_confidential_client()
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -721,9 +714,6 @@ async fn verify_successful_app_creation_with_confidential_client()
 #[tokio::test]
 async fn verify_app_name_matches_regex() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "apps.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -766,7 +756,7 @@ async fn verify_app_name_matches_regex() -> Result<(), TestSlashstepServerError>
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -788,9 +778,6 @@ async fn verify_app_name_matches_regex() -> Result<(), TestSlashstepServerError>
 #[tokio::test]
 async fn verify_app_display_name_matches_regex() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "apps.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -835,7 +822,7 @@ async fn verify_app_display_name_matches_regex() -> Result<(), TestSlashstepServ
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -859,9 +846,6 @@ async fn verify_app_display_name_matches_regex() -> Result<(), TestSlashstepServ
 async fn verify_app_display_name_is_at_most_at_maximum_length()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "apps.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -906,7 +890,7 @@ async fn verify_app_display_name_is_at_most_at_maximum_length()
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -929,9 +913,6 @@ async fn verify_app_display_name_is_at_most_at_maximum_length()
 #[tokio::test]
 async fn verify_app_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "apps.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -974,7 +955,7 @@ async fn verify_app_name_is_at_most_at_maximum_length() -> Result<(), TestSlashs
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::apps::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
