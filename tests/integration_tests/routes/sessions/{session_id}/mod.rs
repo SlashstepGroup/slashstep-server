@@ -26,6 +26,9 @@ use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
+
 /// Verifies that the router can return a 200 status code and the requested resource.
 #[tokio::test]
 #[timeout(40000)]

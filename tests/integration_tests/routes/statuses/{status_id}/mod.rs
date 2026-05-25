@@ -1,3 +1,14 @@
+/**
+ *
+ * Any test cases for /statuses/{status_id} should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+
 use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 use slashstep_server::{
     Action, AppState, get_json_web_token_private_key, initialize_required_tables,
@@ -18,18 +29,11 @@ use axum_test::TestServer;
 use ntest::timeout;
 use reqwest::StatusCode;
 use rust_decimal::Decimal;
-/**
- *
- * Any test cases for /statuses/{status_id} should be handled here.
- *
- * Programmers:
- * - Christian Toney (https://christiantoney.com)
- *
- * © 2026 Beastslash LLC
- *
- */
 use std::net::SocketAddr;
 use uuid::Uuid;
+
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
 
 /// Verifies that the router can return a 200 status code and the requested resource.
 #[tokio::test]

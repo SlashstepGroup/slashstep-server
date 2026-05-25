@@ -1,3 +1,14 @@
+/**
+ *
+ * Any test cases for /projects/{project_id} should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+
 use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 use slashstep_server::{
     Action, AppState, get_json_web_token_private_key, initialize_required_tables,
@@ -19,18 +30,23 @@ use ntest::timeout;
 use rand::distr::{Alphanumeric, SampleString};
 use reqwest::StatusCode;
 use rust_decimal::Decimal;
-/**
- *
- * Any test cases for /projects/{project_id} should be handled here.
- *
- * Programmers:
- * - Christian Toney (https://christiantoney.com)
- *
- * © 2026 Beastslash LLC
- *
- */
 use std::net::SocketAddr;
 use uuid::Uuid;
+
+#[path = "./access-policies/mod.rs"]
+mod access_policies;
+mod fields;
+#[path = "./item-connection-types/mod.rs"]
+mod item_connection_types;
+#[path = "./item-type-icons/mod.rs"]
+mod item_type_icons;
+#[path = "./item-types/mod.rs"]
+mod item_types;
+mod iterations;
+mod milestones;
+mod roles;
+mod statuses;
+mod views;
 
 /// Verifies that the router can return a 200 status code and the requested resource.
 #[tokio::test]
