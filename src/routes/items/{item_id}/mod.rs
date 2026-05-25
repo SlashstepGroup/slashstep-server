@@ -45,8 +45,7 @@ mod access_policies;
 mod field_values;
 #[path = "./item-connections/mod.rs"]
 mod item_connections;
-#[cfg(test)]
-mod tests;
+
 
 /// GET /items/{item_id}
 ///

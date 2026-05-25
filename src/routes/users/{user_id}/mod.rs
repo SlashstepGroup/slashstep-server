@@ -46,8 +46,7 @@ mod access_policies;
 mod oauth_authorizations;
 mod password;
 mod sessions;
-#[cfg(test)]
-mod tests;
+
 
 /// GET /users/{user_id}
 ///

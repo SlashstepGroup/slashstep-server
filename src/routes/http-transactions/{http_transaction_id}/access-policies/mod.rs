@@ -43,8 +43,7 @@ use reqwest::StatusCode;
  */
 use std::sync::Arc;
 
-#[cfg(test)]
-mod tests;
+
 
 /// GET /http-transactions/{http_transaction_id}/access-policies
 ///

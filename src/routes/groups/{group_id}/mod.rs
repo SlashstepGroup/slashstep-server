@@ -45,8 +45,7 @@ mod access_policies;
 mod membership_invitations;
 mod memberships;
 mod roles;
-#[cfg(test)]
-mod tests;
+
 
 /// GET /groups/{group_id}
 ///

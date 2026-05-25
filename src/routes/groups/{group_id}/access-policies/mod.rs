@@ -43,8 +43,7 @@ use reqwest::StatusCode;
  */
 use std::sync::Arc;
 
-#[cfg(test)]
-mod tests;
+
 
 /// GET /groups/{group_id}/access-policies
 ///

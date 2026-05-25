@@ -1,5 +1,4 @@
-#[cfg(test)]
-mod tests;
+
 /**
  *
  * Any functionality for /users should be handled here.

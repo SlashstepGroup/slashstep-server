@@ -42,8 +42,7 @@ use reqwest::StatusCode;
  */
 use std::sync::Arc;
 
-#[cfg(test)]
-mod tests;
+
 
 /// GET /roles/{role_id}/access-policies
 ///

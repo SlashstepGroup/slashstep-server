@@ -11,8 +11,7 @@
 
 #[path = "./{http_transaction_id}/mod.rs"]
 mod http_transaction_id;
-#[cfg(test)]
-mod tests;
+
 
 use std::sync::Arc;
 

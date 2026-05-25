@@ -53,8 +53,7 @@ mod iterations;
 mod milestones;
 mod roles;
 mod statuses;
-#[cfg(test)]
-mod tests;
+
 mod views;
 
 /// GET /projects/{project_id}

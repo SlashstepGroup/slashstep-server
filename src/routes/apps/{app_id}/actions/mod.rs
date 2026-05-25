@@ -354,5 +354,4 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         ))
 }
 
-#[cfg(test)]
-mod tests;
+

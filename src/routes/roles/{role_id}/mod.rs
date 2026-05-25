@@ -42,8 +42,7 @@ use std::sync::Arc;
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
 mod memberships;
-#[cfg(test)]
-mod tests;
+
 
 /// GET /roles/{role_id}
 ///

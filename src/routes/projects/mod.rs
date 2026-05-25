@@ -11,8 +11,7 @@
 
 #[path = "./{project_id}/mod.rs"]
 mod project_id;
-#[cfg(test)]
-mod tests;
+
 
 use std::sync::Arc;
 

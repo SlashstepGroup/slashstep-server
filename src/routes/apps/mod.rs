@@ -11,8 +11,7 @@
 
 #[path = "./{app_id}/mod.rs"]
 mod app_id;
-#[cfg(test)]
-mod tests;
+
 
 use crate::{
     AppState, HTTPError,

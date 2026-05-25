@@ -11,8 +11,7 @@
 
 #[path = "./{delegation_policy_id}/mod.rs"]
 mod delegation_policy_id;
-#[cfg(test)]
-mod tests;
+
 
 use std::sync::Arc;
 

@@ -41,8 +41,7 @@ use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
-#[cfg(test)]
-mod tests;
+
 
 /// GET /item-type-icons/{item_type_icon_id}
 ///

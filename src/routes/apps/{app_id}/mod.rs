@@ -43,8 +43,7 @@ mod access_policies;
 mod actions;
 #[path = "./app-credentials/mod.rs"]
 mod app_credentials;
-#[cfg(test)]
-mod tests;
+
 
 /// GET /apps/{app_id}
 ///

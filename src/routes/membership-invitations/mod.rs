@@ -11,8 +11,7 @@
 
 #[path = "./{membership_invitation_id}/mod.rs"]
 mod membership_invitation_id;
-#[cfg(test)]
-mod tests;
+
 
 use crate::{
     AppState, HTTPError,

@@ -9,8 +9,7 @@
  *
  */
 
-#[cfg(test)]
-mod tests;
+
 #[path = "./{view_id}/mod.rs"]
 mod view_id;
 

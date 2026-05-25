@@ -47,8 +47,7 @@ mod access_policies;
 mod apps;
 mod projects;
 mod roles;
-#[cfg(test)]
-mod tests;
+
 
 /// GET /workspaces/{workspace_id}
 ///

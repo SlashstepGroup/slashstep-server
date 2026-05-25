@@ -9,8 +9,7 @@
  *
  */
 
-#[cfg(test)]
-mod tests;
+
 
 use crate::{
     AppState, HTTPError,

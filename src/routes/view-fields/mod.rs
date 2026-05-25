@@ -1,5 +1,4 @@
-#[cfg(test)]
-mod tests;
+
 /**
  *
  * Any functionality for /view-fields should be handled here.

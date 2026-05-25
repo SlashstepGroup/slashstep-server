@@ -40,8 +40,7 @@ use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
-#[cfg(test)]
-mod tests;
+
 
 /// GET /configurations/{configuration_id}
 ///

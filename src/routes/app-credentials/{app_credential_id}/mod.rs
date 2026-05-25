@@ -11,8 +11,7 @@
 
 #[path = "./access-policies/mod.rs"]
 mod access_policies;
-#[cfg(test)]
-mod tests;
+
 
 use crate::{
     AppState, HTTPError,

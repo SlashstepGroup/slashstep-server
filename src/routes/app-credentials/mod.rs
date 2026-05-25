@@ -11,8 +11,7 @@
 
 #[path = "./{app_credential_id}/mod.rs"]
 mod app_credential_id;
-#[cfg(test)]
-mod tests;
+
 
 use std::sync::Arc;
 

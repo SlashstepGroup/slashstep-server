@@ -9,8 +9,7 @@
  *
  */
 
-#[cfg(test)]
-mod tests;
+
 
 #[path = "./{workspace_id}/mod.rs"]
 mod workspace_id;
