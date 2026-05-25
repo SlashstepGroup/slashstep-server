@@ -85,7 +85,7 @@ impl EndToEndTestEnvironment {
         println!("Starting Valkey test server...");
         let valkey_container = Arc::new(
             testcontainers_modules::valkey::Valkey::default()
-                .with_tag("latest")
+                .with_tag("9.1.0")
                 .start()
                 .await
                 .expect("Failed to start Valkey test server"),
