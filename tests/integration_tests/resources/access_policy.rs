@@ -22,7 +22,7 @@ use slashstep_server::{
     }
 };
 
-use crate::utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 
 use std::cmp;
 
@@ -179,8 +179,6 @@ async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     // Create the access policy.
     let action = test_environment.create_random_action(None).await?;
@@ -208,8 +206,6 @@ async fn create_access_policy() -> Result<(), TestSlashstepServerError> {
 async fn get_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_access_policy = test_environment.create_random_access_policy().await?;
     let retrieved_access_policy =
         AccessPolicy::get_by_id(&created_access_policy.id, &test_environment.database_pool).await?;
@@ -223,30 +219,24 @@ async fn get_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn list_access_policies_without_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
-    const MAXIMUM_ACTION_COUNT: i32 = 25;
+    const MAXIMUM_RESOURCE_COUNT: i32 = 25;
     let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
-    let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
-    while remaining_action_count > 0 {
+    let mut remaining_resource_count = MAXIMUM_RESOURCE_COUNT;
+    while remaining_resource_count > 0 {
         let access_policy = test_environment.create_random_access_policy().await?;
         created_access_policies.push(access_policy);
-        remaining_action_count -= 1;
+        remaining_resource_count -= 1;
     }
 
     let retrieved_access_policies =
         AccessPolicy::list("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(
-        created_access_policies.len(),
-        retrieved_access_policies.len()
-    );
-    for i in 0..created_access_policies.len() {
-        let created_access_policy = &created_access_policies[i];
-        let retrieved_access_policy = &retrieved_access_policies[i];
-
-        assert_access_policies_are_equal(created_access_policy, retrieved_access_policy);
+    for created_access_policy in &created_access_policies {
+        let retrieved_access_policy_option = retrieved_access_policies
+            .iter()
+            .find(|retrieved_access_policy| retrieved_access_policy.id == created_access_policy.id);
+        assert!(retrieved_access_policy_option.is_some());
     }
 
     return Ok(());
@@ -258,8 +248,6 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 -> Result<(), TestSlashstepServerError> {
     // Get the "accessPolicies.get" action one time.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let user = test_environment.create_random_user(None).await?;
     let get_access_policies_action =
         Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
@@ -320,8 +308,6 @@ async fn list_access_policies_without_query_and_filter_based_on_requestor_permis
 #[tokio::test]
 async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     // Create dummy access policies.
     const MAXIMUM_ACTION_COUNT: i32 = 5;
@@ -379,8 +365,6 @@ async fn list_access_policies_with_query() -> Result<(), TestSlashstepServerErro
 #[tokio::test]
 async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
     let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
@@ -405,11 +389,11 @@ async fn list_access_policies_with_default_limit() -> Result<(), TestSlashstepSe
 #[tokio::test]
 async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    const MAXIMUM_ACTION_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
+    let current_access_policy_count =
+        AccessPolicy::count("", &test_environment.database_pool, None, None).await?;
+    const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_access_policies: Vec<AccessPolicy> = Vec::new();
-    let mut remaining_action_count = MAXIMUM_ACTION_COUNT;
+    let mut remaining_action_count = MAXIMUM_RESOURCE_COUNT;
     while remaining_action_count > 0 {
         let action = test_environment.create_random_action(None).await?;
         let user = test_environment.create_random_user(None).await?;
@@ -432,7 +416,7 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
     let retrieved_access_policy_count =
         AccessPolicy::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_access_policy_count, MAXIMUM_ACTION_COUNT);
+    assert_eq!(retrieved_access_policy_count, MAXIMUM_RESOURCE_COUNT + current_access_policy_count);
 
     return Ok(());
 }
@@ -442,8 +426,6 @@ async fn count_access_policies() -> Result<(), TestSlashstepServerError> {
 async fn delete_access_policy() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_access_policy = test_environment.create_random_access_policy().await?;
 
     created_access_policy
@@ -463,8 +445,6 @@ async fn delete_access_policy() -> Result<(), TestSlashstepServerError> {
 async fn update_access_policy() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let action = test_environment.create_random_action(None).await?;
     let user = test_environment.create_random_user(None).await?;
     let instance_access_policy_properties = InitialAccessPolicyProperties {

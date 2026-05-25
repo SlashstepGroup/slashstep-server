@@ -30,7 +30,7 @@ use testcontainers::{ContainerAsync, ImageExt, runners::AsyncRunner};
 use testcontainers_modules::valkey::VALKEY_PORT;
 use uuid::Uuid;
 
-use crate::utilities::test_slashstep_server_error::TestSlashstepServerError;
+use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
 
 pub struct EndToEndTestEnvironment {
     pub database_pool: deadpool_postgres::Pool,

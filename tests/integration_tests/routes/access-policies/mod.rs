@@ -9,13 +9,12 @@
  *
  */
 
+
+
+#[path = "./{access_policy_id}/mod.rs"]
+mod access_policy_id;
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
+    AppState, get_json_web_token_private_key, resources::{
         ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, DEFAULT_RESOURCE_LIST_LIMIT,
@@ -34,17 +33,12 @@ use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-use crate::utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 
 /// Verifies that the router can return a 201 status code and the created access policy when creating an access policy.
 #[tokio::test]
 async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     // Give the user access to the "accessPolicies.create" action.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -140,11 +134,6 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
 async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSlashstepServerError>
 {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -253,11 +242,6 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
 #[tokio::test]
 async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -364,11 +348,6 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
 #[tokio::test]
 async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -464,11 +443,6 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
 #[tokio::test]
 async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -545,11 +519,6 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
 #[tokio::test]
 async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -665,11 +634,6 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
 async fn verify_authentication_when_listing_access_policies() -> Result<(), TestSlashstepServerError>
 {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -691,11 +655,6 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
 #[tokio::test]
 async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),

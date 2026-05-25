@@ -1,24 +1,3 @@
-use crate::{
-    AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
-        ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
-        },
-        action::Action,
-        action_log_entry::{ActionLogEntry, DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT},
-    },
-    routes::ListResourcesResponseBody,
-    tests::{TestEnvironment, TestSlashstepServerError},
-};
-use axum_extra::extract::cookie::Cookie;
-use axum_test::TestServer;
-use pg_escape::quote_literal;
-use reqwest::StatusCode;
 /**
  *
  * Any test cases for /action-log-entries should be handled here.
@@ -29,19 +8,34 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+
+use slashstep_server::{
+    AppState, get_json_web_token_private_key, resources::{
+        ResourceType,
+        access_policy::{
+            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
+        },
+        action::Action,
+        action_log_entry::{ActionLogEntry, DEFAULT_ACTION_LOG_ENTRY_LIST_LIMIT},
+    },
+    routes::ListResourcesResponseBody,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+
+#[path = "./{action_log_entry_id}/mod.rs"]
+mod action_log_entry_id;
 
 /// Verifies that the router can return a 200 status code and the requested action log entry list.
 #[tokio::test]
 async fn verify_returned_action_log_entry_list_without_query()
 -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "actionLogEntries.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -96,7 +90,7 @@ async fn verify_returned_action_log_entry_list_without_query()
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -163,12 +157,7 @@ async fn verify_returned_action_log_entry_list_without_query()
 #[tokio::test]
 async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSlashstepServerError>
 {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "actionLogEntries.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -223,7 +212,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -284,12 +273,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
 /// Verifies that there's a default action log entry list limit.
 #[tokio::test]
 async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "actionLogEntries.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -348,7 +332,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -375,12 +359,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
 /// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
 #[tokio::test]
 async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "actionLogEntries.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -432,7 +411,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -456,12 +435,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
 /// Verifies that the server returns a 400 status code when the query is invalid.
 #[tokio::test]
 async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Grant access to the "actionLogEntries.get" action to the user.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -514,7 +488,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
         redis_pool: test_environment.redis_pool.clone(),
     };
 
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -578,19 +552,14 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
 #[tokio::test]
 async fn verify_authentication_when_listing_action_log_entries()
 -> Result<(), TestSlashstepServerError> {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);
@@ -606,12 +575,7 @@ async fn verify_authentication_when_listing_action_log_entries()
 #[tokio::test]
 async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestSlashstepServerError>
 {
-    let test_environment = TestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
+    let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create a user and a session.
     let plain_text_password = Uuid::now_v7().to_string();
@@ -631,7 +595,7 @@ async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestS
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
     };
-    let router = super::get_router(state.clone())
+    let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
         .into_make_service_with_connect_info::<SocketAddr>();
     let test_server = TestServer::new(router);

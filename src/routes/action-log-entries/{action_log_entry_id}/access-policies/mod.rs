@@ -45,9 +45,6 @@ use reqwest::StatusCode;
  */
 use std::sync::Arc;
 
-#[cfg(test)]
-mod tests;
-
 /// GET /action-log-entries/{action_log_entry_id}/access-policies
 ///
 /// Lists access policies for an action log entry.

@@ -4,8 +4,7 @@ use std::{
 };
 
 use slashstep_server::{
-    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file,
-    resources::{
+    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file, initialize_required_tables, predefinitions::{initialize_predefined_actions, initialize_predefined_configurations, initialize_predefined_groups, initialize_predefined_roles}, resources::{
         ResourceType,
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel},
         action::{Action, ActionParentResourceType, InitialActionProperties},
@@ -57,7 +56,7 @@ use slashstep_server::{
         view_field::{InitialViewFieldProperties, ViewField},
         webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType},
         workspace::{InitialWorkspaceProperties, Workspace},
-    },
+    }
 };
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
@@ -76,7 +75,7 @@ use testcontainers::{ContainerAsync, ImageExt};
 use testcontainers_modules::{testcontainers::runners::AsyncRunner, valkey::VALKEY_PORT};
 use uuid::Uuid;
 
-use crate::utilities::test_slashstep_server_error::TestSlashstepServerError;
+use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
 
 pub struct IntegrationTestEnvironment {
     pub database_pool: deadpool_postgres::Pool,
@@ -146,6 +145,12 @@ impl IntegrationTestEnvironment {
         let database_pool = deadpool_postgres::Pool::builder(manager)
             .max_size(DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT as usize)
             .build()?;
+
+        initialize_required_tables(&database_pool).await?;
+        initialize_predefined_actions(&database_pool).await?;
+        initialize_predefined_roles(&database_pool).await?;
+        initialize_predefined_groups(&database_pool).await?;
+        initialize_predefined_configurations(&database_pool).await?;
 
         println!("Signing into Valkey test server...");
         let valkey_container = Self::start_valkey_container().await;

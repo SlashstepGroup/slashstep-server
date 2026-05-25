@@ -10,12 +10,7 @@
  */
 
 use slashstep_server::{
-    AppState, get_json_web_token_private_key, initialize_required_tables,
-    predefinitions::{
-        initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
+    AppState, get_json_web_token_private_key, resources::{
         ResourceError, ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
@@ -31,18 +26,13 @@ use reqwest::StatusCode;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-use crate::utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
+use crate::test_utilities::{integration_test_environment::IntegrationTestEnvironment, test_slashstep_server_error::TestSlashstepServerError};
 
 /// Verifies that the router can return a 200 status code and the requested access policy.
 #[tokio::test]
 #[timeout(40000)]
 async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
@@ -168,11 +158,6 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
 #[tokio::test]
 async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
@@ -195,11 +180,6 @@ async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), TestSlashs
 async fn verify_authentication_when_getting_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
@@ -227,11 +207,6 @@ async fn verify_authentication_when_getting_access_policy_by_id()
 async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), TestSlashstepServerError>
 {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
@@ -274,11 +249,6 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
 async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestSlashstepServerError>
 {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
@@ -319,11 +289,6 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestS
 async fn verify_successful_deletion_when_deleting_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -385,11 +350,6 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id()
 #[tokio::test]
 async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -411,11 +371,6 @@ async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), TestSlash
 async fn verify_authentication_when_deleting_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -441,11 +396,6 @@ async fn verify_authentication_when_deleting_access_policy_by_id()
 async fn verify_permission_when_deleting_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
@@ -487,11 +437,6 @@ async fn verify_permission_when_deleting_access_policy_by_id()
 async fn verify_access_policy_exists_when_deleting_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
@@ -531,11 +476,6 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id()
 #[tokio::test]
 async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
 
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
@@ -665,11 +605,6 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
 async fn verify_content_type_when_patching_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -691,11 +626,6 @@ async fn verify_content_type_when_patching_access_policy_by_id()
 async fn verify_request_body_exists_when_patching_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -720,11 +650,6 @@ async fn verify_request_body_exists_when_patching_access_policy_by_id()
 async fn verify_request_body_json_when_patching_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -753,11 +678,6 @@ async fn verify_request_body_json_when_patching_access_policy_by_id()
 #[tokio::test]
 async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -786,11 +706,6 @@ async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), TestSlash
 async fn verify_authentication_when_patching_access_policy_by_id()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -833,11 +748,6 @@ async fn verify_authentication_when_patching_access_policy_by_id()
 #[tokio::test]
 async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
@@ -895,11 +805,6 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
 async fn verify_access_policy_exists_when_patching_access_policy()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
-    initialize_predefined_roles(&test_environment.database_pool).await?;
-    initialize_predefined_groups(&test_environment.database_pool).await?;
-    initialize_predefined_configurations(&test_environment.database_pool).await?;
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
