@@ -39,10 +39,10 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
-mod actions;
+pub mod access_policies;
+pub mod actions;
 #[path = "./app-credentials/mod.rs"]
-mod app_credentials;
+pub mod app_credentials;
 
 
 /// GET /apps/{app_id}

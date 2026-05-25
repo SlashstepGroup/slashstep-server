@@ -10,7 +10,7 @@
  */
 
 #[path = "./{app_authorization_id}/mod.rs"]
-mod app_authorization_id;
+pub mod app_authorization_id;
 
 
 use std::sync::Arc;

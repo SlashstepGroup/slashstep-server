@@ -45,7 +45,7 @@ async fn create_milestone_access_policy(
             action_id: action_id.clone(),
             permission_level: permission_level.clone(),
             is_inheritance_enabled: true,
-            principal_type: crate::resources::access_policy::AccessPolicyPrincipalType::User,
+            principal_type: slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
             principal_user_id: Some(user_id.clone()),
             scoped_resource_type: ResourceType::Milestone,
             scoped_milestone_id: Some(scoped_milestone_id.clone()),

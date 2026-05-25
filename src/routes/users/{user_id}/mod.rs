@@ -41,11 +41,11 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
+pub mod access_policies;
 #[path = "./oauth-authorizations/mod.rs"]
-mod oauth_authorizations;
-mod password;
-mod sessions;
+pub mod oauth_authorizations;
+pub mod password;
+pub mod sessions;
 
 
 /// GET /users/{user_id}

@@ -10,7 +10,7 @@
  */
 
 #[path = "./{configuration_id}/mod.rs"]
-mod configuration_id;
+pub mod configuration_id;
 
 
 use std::sync::Arc;

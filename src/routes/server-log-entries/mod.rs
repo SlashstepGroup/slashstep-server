@@ -15,9 +15,9 @@ use axum_extra::response::ErasedJson;
 use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware}, resources::{access_policy::ResourceType, action_log_entry::ResourceType, app::{App, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}};
 
 #[path = "./{server_log_entry_id}/mod.rs"]
-mod server_log_entry_id;
+pub mod server_log_entry_id;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 // /// GET /server-log-entries
 // ///

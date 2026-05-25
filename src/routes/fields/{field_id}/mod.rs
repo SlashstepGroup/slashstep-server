@@ -10,9 +10,9 @@
  */
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
+pub mod access_policies;
 #[path = "./field-choices/mod.rs"]
-mod field_choices;
+pub mod field_choices;
 
 
 use crate::{

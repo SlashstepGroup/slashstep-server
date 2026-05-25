@@ -10,7 +10,7 @@
  */
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
+pub mod access_policies;
 
 
 use crate::{

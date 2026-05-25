@@ -43,10 +43,10 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
-mod apps;
-mod projects;
-mod roles;
+pub mod access_policies;
+pub mod apps;
+pub mod projects;
+pub mod roles;
 
 
 /// GET /workspaces/{workspace_id}

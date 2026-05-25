@@ -10,7 +10,7 @@
  */
 
 #[path = "./{delegation_policy_id}/mod.rs"]
-mod delegation_policy_id;
+pub mod delegation_policy_id;
 
 
 use std::sync::Arc;

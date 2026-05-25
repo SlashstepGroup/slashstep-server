@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
+pub mod access_policies;
 
 
 /// GET /memberships/{membership_id}

@@ -10,7 +10,7 @@
  */
 
 #[path = "./{app_id}/mod.rs"]
-mod app_id;
+pub mod app_id;
 
 
 use crate::{

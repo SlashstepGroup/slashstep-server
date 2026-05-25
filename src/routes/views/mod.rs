@@ -11,7 +11,7 @@
 
 
 #[path = "./{view_id}/mod.rs"]
-mod view_id;
+pub mod view_id;
 
 use std::sync::Arc;
 

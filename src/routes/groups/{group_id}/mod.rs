@@ -40,11 +40,11 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
+pub mod access_policies;
 #[path = "./membership-invitations/mod.rs"]
-mod membership_invitations;
-mod memberships;
-mod roles;
+pub mod membership_invitations;
+pub mod memberships;
+pub mod roles;
 
 
 /// GET /groups/{group_id}

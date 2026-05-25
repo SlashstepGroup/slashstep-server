@@ -41,20 +41,20 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
-mod fields;
+pub mod access_policies;
+pub mod fields;
 #[path = "./item-connection-types/mod.rs"]
-mod item_connection_types;
+pub mod item_connection_types;
 #[path = "./item-type-icons/mod.rs"]
-mod item_type_icons;
+pub mod item_type_icons;
 #[path = "./item-types/mod.rs"]
-mod item_types;
-mod iterations;
-mod milestones;
-mod roles;
-mod statuses;
+pub mod item_types;
+pub mod iterations;
+pub mod milestones;
+pub mod roles;
+pub mod statuses;
 
-mod views;
+pub mod views;
 
 /// GET /projects/{project_id}
 ///

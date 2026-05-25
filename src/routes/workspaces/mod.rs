@@ -12,7 +12,7 @@
 
 
 #[path = "./{workspace_id}/mod.rs"]
-mod workspace_id;
+pub mod workspace_id;
 
 use std::sync::Arc;
 

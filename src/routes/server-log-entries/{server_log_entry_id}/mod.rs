@@ -24,7 +24,7 @@ use crate::{
 // #[path = "./access-policies/mod.rs"]
 // mod access_policies;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 /// GET /server-log-entries/{server_log_entry_id}
 ///

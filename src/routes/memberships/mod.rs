@@ -10,7 +10,7 @@
  */
 
 #[path = "./{membership_id}/mod.rs"]
-mod membership_id;
+pub mod membership_id;
 
 
 use crate::{

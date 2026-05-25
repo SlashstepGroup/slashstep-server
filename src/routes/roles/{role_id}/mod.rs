@@ -40,8 +40,8 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
-mod memberships;
+pub mod access_policies;
+pub mod memberships;
 
 
 /// GET /roles/{role_id}

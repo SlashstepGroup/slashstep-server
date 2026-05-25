@@ -40,11 +40,11 @@ use reqwest::StatusCode;
 use std::sync::Arc;
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
+pub mod access_policies;
 #[path = "./field-values/mod.rs"]
-mod field_values;
+pub mod field_values;
 #[path = "./item-connections/mod.rs"]
-mod item_connections;
+pub mod item_connections;
 
 
 /// GET /items/{item_id}
