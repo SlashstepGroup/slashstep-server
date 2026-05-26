@@ -2,12 +2,10 @@ use chrono::DateTime;
 use slashstep_server::resources::milestone::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialMilestoneProperties, Milestone,
 };
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
 };
 use uuid::Uuid;
 
@@ -230,7 +228,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         Milestone::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_milestone in &created_resources {
         let retrieved_milestone_option = retrieved_resources
             .iter()

@@ -4,13 +4,11 @@ use slashstep_server::resources::server_log_entry::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialServerLogEntryProperties,
     ServerLogEntry,
 };
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-        server_log_entry::ServerLogEntryLevel,
-    },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    server_log_entry::ServerLogEntryLevel,
 };
 
 use crate::test_utilities::{
@@ -194,11 +192,14 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         ServerLogEntry::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_server_log_entry in &created_resources {
-        let retrieved_server_log_entry_option = retrieved_resources
-            .iter()
-            .find(|retrieved_server_log_entry| retrieved_server_log_entry.id == created_server_log_entry.id);
+        let retrieved_server_log_entry_option =
+            retrieved_resources
+                .iter()
+                .find(|retrieved_server_log_entry| {
+                    retrieved_server_log_entry.id == created_server_log_entry.id
+                });
         assert!(retrieved_server_log_entry_option.is_some());
     }
 

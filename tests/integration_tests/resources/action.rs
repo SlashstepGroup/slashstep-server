@@ -1,15 +1,13 @@
-use slashstep_server::
-    resources::{
-        ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
-        },
-        action::{
-            Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, EditableActionProperties,
-            InitialActionProperties,
-        },
-    }
-;
+use slashstep_server::resources::{
+    ResourceType,
+    access_policy::{
+        AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
+    },
+    action::{
+        Action, ActionParentResourceType, DEFAULT_ACTION_LIST_LIMIT, EditableActionProperties,
+        InitialActionProperties,
+    },
+};
 use uuid::Uuid;
 
 use crate::test_utilities::{

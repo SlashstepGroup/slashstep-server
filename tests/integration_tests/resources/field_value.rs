@@ -4,13 +4,11 @@ use uuid::Uuid;
 use slashstep_server::resources::field_value::{
     DEFAULT_RESOURCE_LIST_LIMIT, FieldValue, GET_RESOURCE_ACTION_NAME, InitialFieldValueProperties,
 };
-use slashstep_server::
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    }
-;
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+};
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,
@@ -216,7 +214,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         FieldValue::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_field_value in &created_resources {
         let retrieved_field_value_option = retrieved_resources
             .iter()

@@ -3,12 +3,10 @@ use uuid::Uuid;
 use slashstep_server::resources::item_type::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialItemTypeProperties, ItemType,
 };
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
 };
 
 use crate::test_utilities::{
@@ -182,7 +180,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         ItemType::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_item_type in &created_resources {
         let retrieved_item_type_option = retrieved_resources
             .iter()

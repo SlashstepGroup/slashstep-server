@@ -6,12 +6,10 @@ use slashstep_server::resources::http_transaction::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, HTTPTransaction,
     InitialHTTPTransactionProperties,
 };
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
 };
 
 use crate::test_utilities::{
@@ -223,11 +221,14 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_http_transactions =
         HTTPTransaction::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_http_transaction in &created_http_transactions {
-        let retrieved_http_transaction_option = retrieved_http_transactions
-            .iter()
-            .find(|retrieved_http_transaction| retrieved_http_transaction.id == created_http_transaction.id);
+        let retrieved_http_transaction_option =
+            retrieved_http_transactions
+                .iter()
+                .find(|retrieved_http_transaction| {
+                    retrieved_http_transaction.id == created_http_transaction.id
+                });
         assert!(retrieved_http_transaction_option.is_some());
     }
 

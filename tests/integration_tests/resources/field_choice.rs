@@ -1,15 +1,13 @@
 use uuid::Uuid;
 
-use slashstep_server::
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-        field_choice::{
-            DEFAULT_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType, InitialFieldChoiceProperties,
-        },
-    }
-;
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    field_choice::{
+        DEFAULT_RESOURCE_LIST_LIMIT, FieldChoice, FieldChoiceType, InitialFieldChoiceProperties,
+    },
+};
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,
@@ -181,7 +179,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_fields =
         FieldChoice::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_field_choice in &created_field_choices {
         let retrieved_field_option = retrieved_fields
             .iter()

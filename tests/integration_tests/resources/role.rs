@@ -1,12 +1,10 @@
 use slashstep_server::resources::role::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialRoleProperties, Role,
 };
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
 };
 use uuid::Uuid;
 
@@ -184,7 +182,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
     }
 
     let retrieved_resources = Role::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_role in &created_resources {
         let retrieved_role_option = retrieved_resources
             .iter()

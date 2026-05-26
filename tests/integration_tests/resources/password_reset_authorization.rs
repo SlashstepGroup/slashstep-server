@@ -1,14 +1,12 @@
 use chrono::{DateTime, Duration, Utc};
 
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-        password_reset_authorization::{
-            DEFAULT_PASSWORD_RESET_AUTHORIZATION_LIST_LIMIT,
-            InitialPasswordResetAuthorizationProperties, PasswordResetAuthorization,
-        },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    password_reset_authorization::{
+        DEFAULT_PASSWORD_RESET_AUTHORIZATION_LIST_LIMIT,
+        InitialPasswordResetAuthorizationProperties, PasswordResetAuthorization,
     },
 };
 
@@ -246,11 +244,13 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
         created_password_reset_authorizations.len(),
         retrieved_password_reset_authorizations.len()
     );
-    
+
     for created_password_reset_authorization in &created_password_reset_authorizations {
         let retrieved_password_reset_authorization_option = retrieved_password_reset_authorizations
             .iter()
-            .find(|retrieved_password_reset_authorization| retrieved_password_reset_authorization.id == created_password_reset_authorization.id);
+            .find(|retrieved_password_reset_authorization| {
+                retrieved_password_reset_authorization.id == created_password_reset_authorization.id
+            });
         assert!(retrieved_password_reset_authorization_option.is_some());
     }
 

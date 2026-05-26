@@ -9,14 +9,12 @@ use slashstep_server::resources::configuration::{
     Configuration, DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME,
     InitialConfigurationProperties,
 };
-use slashstep_server::
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-        configuration::ConfigurationValueType,
-    }
-;
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    configuration::ConfigurationValueType,
+};
 
 fn assert_configurations_are_equal(
     configuration_1: &Configuration,
@@ -52,7 +50,10 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let retrieved_resource_count =
         Configuration::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_resource_count, MAXIMUM_RESOURCE_COUNT + initial_resource_count);
+    assert_eq!(
+        retrieved_resource_count,
+        MAXIMUM_RESOURCE_COUNT + initial_resource_count
+    );
 
     return Ok(());
 }
@@ -182,7 +183,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         Configuration::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_configuration in &created_resources {
         let retrieved_configuration_option = retrieved_resources
             .iter()

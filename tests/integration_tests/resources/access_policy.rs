@@ -9,16 +9,14 @@
  *
  */
 
-use slashstep_server::
-    resources::{
-        ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, DEFAULT_RESOURCE_LIST_LIMIT,
-            EditableAccessPolicyProperties, InitialAccessPolicyProperties, PermissionLevel,
-        },
-        action::Action,
-    }
-;
+use slashstep_server::resources::{
+    ResourceType,
+    access_policy::{
+        AccessPolicy, AccessPolicyPrincipalType, DEFAULT_RESOURCE_LIST_LIMIT,
+        EditableAccessPolicyProperties, InitialAccessPolicyProperties, PermissionLevel,
+    },
+    action::Action,
+};
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,

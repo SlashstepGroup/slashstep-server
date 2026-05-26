@@ -4,12 +4,10 @@ use uuid::Uuid;
 use slashstep_server::resources::project::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialProjectProperties, Project,
 };
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
 };
 
 use crate::test_utilities::{
@@ -233,7 +231,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         Project::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_project in &created_resources {
         let retrieved_project_option = retrieved_resources
             .iter()

@@ -2,15 +2,13 @@ use slashstep_server::resources::delegation_policy::{
     DEFAULT_RESOURCE_LIST_LIMIT, DelegationPolicy, GET_RESOURCE_ACTION_NAME,
     InitialDelegationPolicyProperties,
 };
-use slashstep_server::
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
-        },
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    }
-;
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{
+        AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
+    },
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+};
 
 use crate::test_utilities::integration_test_environment::IntegrationTestEnvironment;
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
@@ -215,11 +213,14 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_delegation_policies =
         DelegationPolicy::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_delegation_policy in &created_delegation_policies {
-        let retrieved_delegation_policy_option = retrieved_delegation_policies
-            .iter()
-            .find(|retrieved_delegation_policy| retrieved_delegation_policy.id == created_delegation_policy.id);
+        let retrieved_delegation_policy_option =
+            retrieved_delegation_policies
+                .iter()
+                .find(|retrieved_delegation_policy| {
+                    retrieved_delegation_policy.id == created_delegation_policy.id
+                });
         assert!(retrieved_delegation_policy_option.is_some());
     }
 

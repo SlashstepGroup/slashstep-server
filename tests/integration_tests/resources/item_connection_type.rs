@@ -4,13 +4,11 @@ use slashstep_server::resources::item_connection_type::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialItemConnectionTypeProperties,
     ItemConnectionType,
 };
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-        item_connection_type::ItemConnectionTypeParentResourceType,
-    },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    item_connection_type::ItemConnectionTypeParentResourceType,
 };
 
 use crate::test_utilities::{
@@ -242,11 +240,14 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         ItemConnectionType::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_item_connection_type in &created_resources {
-        let retrieved_item_connection_type_option = retrieved_resources
-            .iter()
-            .find(|retrieved_item_connection_type| retrieved_item_connection_type.id == created_item_connection_type.id);
+        let retrieved_item_connection_type_option =
+            retrieved_resources
+                .iter()
+                .find(|retrieved_item_connection_type| {
+                    retrieved_item_connection_type.id == created_item_connection_type.id
+                });
         assert!(retrieved_item_connection_type_option.is_some());
     }
 

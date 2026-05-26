@@ -1,13 +1,9 @@
 use chrono::Utc;
 
-use slashstep_server::
-    resources::{
-        ResourceError,
-        action_log_entry::{
-            ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
-        },
-    }
-;
+use slashstep_server::resources::{
+    ResourceError,
+    action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties},
+};
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,

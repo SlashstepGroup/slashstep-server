@@ -4,13 +4,11 @@ use slashstep_server::resources::item_type_icon::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialItemTypeIconProperties,
     ItemTypeIcon,
 };
-use slashstep_server::{
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-        item_type_icon::ItemTypeIconParentResourceType,
-    },
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    item_type_icon::ItemTypeIconParentResourceType,
 };
 
 use crate::test_utilities::{
@@ -193,11 +191,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         ItemTypeIcon::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_item_type_icon in &created_resources {
-        let retrieved_item_type_icon_option = retrieved_resources
-            .iter()
-            .find(|retrieved_item_type_icon| retrieved_item_type_icon.id == created_item_type_icon.id);
+        let retrieved_item_type_icon_option =
+            retrieved_resources.iter().find(|retrieved_item_type_icon| {
+                retrieved_item_type_icon.id == created_item_type_icon.id
+            });
         assert!(retrieved_item_type_icon_option.is_some());
     }
 

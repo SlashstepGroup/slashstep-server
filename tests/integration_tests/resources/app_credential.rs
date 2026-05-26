@@ -7,16 +7,12 @@ use ed25519_dalek::{
 use local_ip_address::local_ip;
 use uuid::Uuid;
 
-use slashstep_server::
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-        app_credential::{
-            AppCredential, DEFAULT_RESOURCE_LIST_LIMIT, InitialAppCredentialProperties,
-        },
-    }
-;
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    app_credential::{AppCredential, DEFAULT_RESOURCE_LIST_LIMIT, InitialAppCredentialProperties},
+};
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,
@@ -225,11 +221,14 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_app_credentials =
         AppCredential::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_app_credential in &created_app_credentials {
-        let retrieved_app_credential_option = retrieved_app_credentials
-            .iter()
-            .find(|retrieved_app_credential| retrieved_app_credential.id == created_app_credential.id);
+        let retrieved_app_credential_option =
+            retrieved_app_credentials
+                .iter()
+                .find(|retrieved_app_credential| {
+                    retrieved_app_credential.id == created_app_credential.id
+                });
         assert!(retrieved_app_credential_option.is_some());
     }
 

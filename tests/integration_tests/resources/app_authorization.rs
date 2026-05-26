@@ -1,14 +1,12 @@
-use slashstep_server::
-    resources::{
-        ResourceError, ResourceType,
-        access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
-        action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-        app_authorization::{
-            AppAuthorization, AppAuthorizationAuthorizingResourceType,
-            DEFAULT_APP_AUTHORIZATION_LIST_LIMIT, InitialAppAuthorizationProperties,
-        },
-    }
-;
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    app_authorization::{
+        AppAuthorization, AppAuthorizationAuthorizingResourceType,
+        DEFAULT_APP_AUTHORIZATION_LIST_LIMIT, InitialAppAuthorizationProperties,
+    },
+};
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,
@@ -240,11 +238,14 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_app_authorizations =
         AppAuthorization::list("", &test_environment.database_pool, None, None).await?;
-    
+
     for created_app_authorization in &created_app_authorizations {
-        let retrieved_app_authorization_option = retrieved_app_authorizations
-            .iter()
-            .find(|retrieved_app_authorization| retrieved_app_authorization.id == created_app_authorization.id);
+        let retrieved_app_authorization_option =
+            retrieved_app_authorizations
+                .iter()
+                .find(|retrieved_app_authorization| {
+                    retrieved_app_authorization.id == created_app_authorization.id
+                });
         assert!(retrieved_app_authorization_option.is_some());
     }
 

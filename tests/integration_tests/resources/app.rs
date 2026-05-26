@@ -3,9 +3,7 @@ use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHasher};
 use uuid::Uuid;
 
-use slashstep_server::
-    resources::app::{App, AppClientType, EditableAppProperties}
-;
+use slashstep_server::resources::app::{App, AppClientType, EditableAppProperties};
 
 use crate::test_utilities::integration_test_environment::IntegrationTestEnvironment;
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
