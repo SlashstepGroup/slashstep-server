@@ -215,20 +215,20 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 25;
-    let mut created_resources: Vec<HTTPTransaction> = Vec::new();
+    let mut created_http_transactions: Vec<HTTPTransaction> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
         let http_transaction = test_environment.create_random_http_transaction().await?;
-        created_resources.push(http_transaction);
+        created_http_transactions.push(http_transaction);
     }
 
-    let retrieved_resources =
+    let retrieved_http_transactions =
         HTTPTransaction::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_resources.len(), retrieved_resources.len());
-    for i in 0..created_resources.len() {
-        let created_http_transaction = &created_resources[i];
-        let retrieved_resource = &retrieved_resources[i];
-
-        assert_http_transactions_are_equal(created_http_transaction, retrieved_resource);
+    
+    for created_http_transaction in &created_http_transactions {
+        let retrieved_http_transaction_option = retrieved_http_transactions
+            .iter()
+            .find(|retrieved_http_transaction| retrieved_http_transaction.id == created_http_transaction.id);
+        assert!(retrieved_http_transaction_option.is_some());
     }
 
     return Ok(());

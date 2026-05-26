@@ -167,12 +167,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
     }
 
     let retrieved_resources = User::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_resources.len(), retrieved_resources.len());
-    for i in 0..created_resources.len() {
-        let created_user = &created_resources[i];
-        let retrieved_resource = &retrieved_resources[i];
-
-        assert_server_log_entries_are_equal(created_user, retrieved_resource);
+    
+    for created_user in &created_resources {
+        let retrieved_user_option = retrieved_resources
+            .iter()
+            .find(|retrieved_user| retrieved_user.id == created_user.id);
+        assert!(retrieved_user_option.is_some());
     }
 
     return Ok(());

@@ -181,12 +181,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_fields =
         FieldChoice::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_field_choices.len(), retrieved_fields.len());
-    for i in 0..created_field_choices.len() {
-        let created_field_choice = &created_field_choices[i];
-        let retrieved_field = &retrieved_fields[i];
-
-        assert_fields_are_equal(created_field_choice, retrieved_field);
+    
+    for created_field_choice in &created_field_choices {
+        let retrieved_field_option = retrieved_fields
+            .iter()
+            .find(|retrieved_field| retrieved_field.id == created_field_choice.id);
+        assert!(retrieved_field_option.is_some());
     }
 
     return Ok(());

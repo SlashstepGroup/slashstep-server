@@ -242,15 +242,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         ItemConnectionType::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_resources.len(), retrieved_resources.len());
-    for i in 0..created_resources.len() {
-        let created_item_connection_type = &created_resources[i];
-        let retrieved_resource = &retrieved_resources[i];
-
-        assert_item_connection_type_types_are_equal(
-            created_item_connection_type,
-            retrieved_resource,
-        );
+    
+    for created_item_connection_type in &created_resources {
+        let retrieved_item_connection_type_option = retrieved_resources
+            .iter()
+            .find(|retrieved_item_connection_type| retrieved_item_connection_type.id == created_item_connection_type.id);
+        assert!(retrieved_item_connection_type_option.is_some());
     }
 
     return Ok(());

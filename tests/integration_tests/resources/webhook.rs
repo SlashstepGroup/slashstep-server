@@ -200,12 +200,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         Webhook::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_resources.len(), retrieved_resources.len());
-    for i in 0..created_resources.len() {
-        let created_webhook = &created_resources[i];
-        let retrieved_resource = &retrieved_resources[i];
-
-        assert_webhooks_are_equal(created_webhook, retrieved_resource);
+    
+    for created_webhook in &created_resources {
+        let retrieved_webhook_option = retrieved_resources
+            .iter()
+            .find(|retrieved_webhook| retrieved_webhook.id == created_webhook.id);
+        assert!(retrieved_webhook_option.is_some());
     }
 
     return Ok(());

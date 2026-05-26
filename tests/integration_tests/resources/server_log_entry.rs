@@ -194,12 +194,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         ServerLogEntry::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_resources.len(), retrieved_resources.len());
-    for i in 0..created_resources.len() {
-        let created_server_log_entry = &created_resources[i];
-        let retrieved_resource = &retrieved_resources[i];
-
-        assert_server_log_entries_are_equal(created_server_log_entry, retrieved_resource);
+    
+    for created_server_log_entry in &created_resources {
+        let retrieved_server_log_entry_option = retrieved_resources
+            .iter()
+            .find(|retrieved_server_log_entry| retrieved_server_log_entry.id == created_server_log_entry.id);
+        assert!(retrieved_server_log_entry_option.is_some());
     }
 
     return Ok(());

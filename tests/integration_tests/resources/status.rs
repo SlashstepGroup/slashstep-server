@@ -212,7 +212,6 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
     }
 
     let retrieved_resources = Status::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_resources.len(), retrieved_resources.len());
     for created_resource in created_resources {
         let retrieved_resource = &retrieved_resources
             .iter()

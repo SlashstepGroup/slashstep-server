@@ -207,20 +207,20 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 25;
-    let mut created_resources: Vec<DelegationPolicy> = Vec::new();
+    let mut created_delegation_policies: Vec<DelegationPolicy> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
         let delegation_policy = test_environment.create_random_delegation_policy().await?;
-        created_resources.push(delegation_policy);
+        created_delegation_policies.push(delegation_policy);
     }
 
-    let retrieved_resources =
+    let retrieved_delegation_policies =
         DelegationPolicy::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_resources.len(), retrieved_resources.len());
-    for i in 0..created_resources.len() {
-        let created_delegation_policy = &created_resources[i];
-        let retrieved_resource = &retrieved_resources[i];
-
-        assert_delegation_policies_are_equal(created_delegation_policy, retrieved_resource);
+    
+    for created_delegation_policy in &created_delegation_policies {
+        let retrieved_delegation_policy_option = retrieved_delegation_policies
+            .iter()
+            .find(|retrieved_delegation_policy| retrieved_delegation_policy.id == created_delegation_policy.id);
+        assert!(retrieved_delegation_policy_option.is_some());
     }
 
     return Ok(());

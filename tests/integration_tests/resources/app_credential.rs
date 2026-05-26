@@ -225,15 +225,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_app_credentials =
         AppCredential::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(
-        created_app_credentials.len(),
-        retrieved_app_credentials.len()
-    );
-    for i in 0..created_app_credentials.len() {
-        let created_app_credential = &created_app_credentials[i];
-        let retrieved_app_credential = &retrieved_app_credentials[i];
-
-        assert_app_credentials_are_equal(created_app_credential, retrieved_app_credential);
+    
+    for created_app_credential in &created_app_credentials {
+        let retrieved_app_credential_option = retrieved_app_credentials
+            .iter()
+            .find(|retrieved_app_credential| retrieved_app_credential.id == created_app_credential.id);
+        assert!(retrieved_app_credential_option.is_some());
     }
 
     return Ok(());

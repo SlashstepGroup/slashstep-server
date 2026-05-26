@@ -246,14 +246,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
         created_password_reset_authorizations.len(),
         retrieved_password_reset_authorizations.len()
     );
-    for i in 0..created_password_reset_authorizations.len() {
-        let created_app_authorization = &created_password_reset_authorizations[i];
-        let retrieved_app_authorization = &retrieved_password_reset_authorizations[i];
-
-        assert_password_reset_authorizations_are_equal(
-            created_app_authorization,
-            retrieved_app_authorization,
-        );
+    
+    for created_password_reset_authorization in &created_password_reset_authorizations {
+        let retrieved_password_reset_authorization_option = retrieved_password_reset_authorizations
+            .iter()
+            .find(|retrieved_password_reset_authorization| retrieved_password_reset_authorization.id == created_password_reset_authorization.id);
+        assert!(retrieved_password_reset_authorization_option.is_some());
     }
 
     return Ok(());

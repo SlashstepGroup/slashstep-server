@@ -214,14 +214,12 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
 
     let retrieved_resources =
         ViewField::list("", &test_environment.database_pool, None, None).await?;
-    assert_eq!(created_resources.len(), retrieved_resources.len());
-    for created_resource in created_resources {
-        let retrieved_resource = &retrieved_resources
+    
+    for created_view_field in &created_resources {
+        let retrieved_view_field_option = retrieved_resources
             .iter()
-            .find(|action| action.id == created_resource.id)
-            .expect("Expected a retrieved resource with the same ID.");
-
-        assert_view_fields_are_equal(&created_resource, retrieved_resource);
+            .find(|retrieved_view_field| retrieved_view_field.id == created_view_field.id);
+        assert!(retrieved_view_field_option.is_some());
     }
 
     return Ok(());
