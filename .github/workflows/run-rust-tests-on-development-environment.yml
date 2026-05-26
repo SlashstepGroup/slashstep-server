@@ -45,10 +45,13 @@ jobs:
 
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
       
-      - run: |
+      - name: Cache Docker images
+        run: |
           docker pull postgres:18
+          docker pull valkey/valkey:9.1.0
           mkdir -p ~/image-cache
           docker image save postgres:18 -o ~/image-cache/postgres.tar
+          docker image save valkey/valkey:9.1.0 -o ~/image-cache/valkey.tar
 
       - name: Cache dependencies
         uses: actions/cache/save@v5
@@ -121,7 +124,9 @@ jobs:
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Load Docker images
-        run: docker image load --input ~/image-cache/postgres.tar
+        run: |
+          docker image load --input ~/image-cache/postgres.tar
+          docker image load --input ~/image-cache/valkey.tar
 
       - name: Install mkcert CA
         run: mkcert -install
@@ -138,7 +143,7 @@ jobs:
         with:
           tool: nextest@0.9.132
 
-      - run: cargo nextest run --no-tests pass routes::${{ matrix.route-name }}
+      - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(routes::${{ matrix.route-name }}::)'
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
@@ -206,7 +211,9 @@ jobs:
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Load Docker images
-        run: docker image load --input ~/image-cache/postgres.tar
+        run: |
+          docker image load --input ~/image-cache/postgres.tar
+          docker image load --input ~/image-cache/valkey.tar
 
       - name: Install mkcert CA
         run: mkcert -install
@@ -222,7 +229,7 @@ jobs:
         with:
           tool: nextest@0.9.132
 
-      - run: cargo nextest run --no-tests pass resources::${{ matrix.resource-name }}
+      - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(resources::${{ matrix.resource-name }}::)'
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem

@@ -1,321 +1,583 @@
-/**
- * 
+/*
+ *
  * Any functionality for /apps should be handled here.
- * 
- * Programmers: 
+ *
+ * Programmers:
  * - Christian Toney (https://christiantoney.com)
- * 
+ *
  * © 2026 Beastslash LLC
- * 
+ *
  */
 
 #[path = "./{app_id}/mod.rs"]
-mod app_id;
-#[cfg(test)]
-mod tests;
+pub mod app_id;
 
-use std::sync::Arc;
-use argon2::{Argon2, PasswordHasher, password_hash::{SaltString, rand_core::{OsRng}}};
-use axum::{Extension, Json, Router, extract::{Query, State, rejection::JsonRejection}};
+use crate::{
+    AppState, HTTPError,
+    middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
+    resources::{
+        ResourceError, ResourceType,
+        access_policy::PermissionLevel,
+        action_log_entry::{
+            ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
+        },
+        app::{
+            App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
+            InitialAppProperties,
+        },
+        app_authorization::AppAuthorization,
+        http_transaction::HTTPTransaction,
+        server_log_entry::ServerLogEntry,
+        user::User,
+    },
+    routes::{AppWithClientSecret, ListResourcesResponseBody, ResourceListQueryParameters},
+    utilities::route_handler_utilities::{
+        get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name,
+        get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,
+        is_authenticated_user_anonymous, match_db_error, match_slashstepql_error,
+        validate_field_length, verify_delegate_permissions, verify_principal_permissions,
+    },
+};
+use argon2::{
+    Argon2, PasswordHasher,
+    password_hash::{SaltString, rand_core::OsRng},
+};
+use axum::{
+    Extension, Json, Router,
+    extract::{Query, State, rejection::JsonRejection},
+};
 use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceError, ResourceType, access_policy::ActionPermissionLevel, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::{App, AppClientType, AppParentResourceType, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppProperties}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{AppWithClientSecret, ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_configuration_by_name, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, validate_field_length, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct InitialAppPropertiesWithoutClientSecretHash {
-  pub name: String,
-  pub display_name: String,
-  pub description: Option<String>,
-  pub client_type: AppClientType,
-  pub parent_resource_type: AppParentResourceType,
-  pub parent_workspace_id: Option<Uuid>,
-  pub parent_user_id: Option<Uuid>
+    pub name: String,
+    pub display_name: String,
+    pub description: Option<String>,
+    pub client_type: AppClientType,
+    pub parent_resource_type: AppParentResourceType,
+    pub parent_workspace_id: Option<Uuid>,
+    pub parent_user_id: Option<Uuid>,
 }
 
-pub async fn validate_app_name(name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn validate_app_name(
+    name: &str,
+    http_transaction: &HTTPTransaction,
+    database_pool: &deadpool_postgres::Pool,
+) -> Result<(), HTTPError> {
+    let allowed_name_regex_configuration =
+        get_configuration_by_name("apps.allowedNameRegex", http_transaction, database_pool).await?;
+    let allowed_name_regex_string = match allowed_name_regex_configuration
+        .text_value
+        .or(allowed_name_regex_configuration.default_text_value)
+    {
+        Some(allowed_name_regex_string) => allowed_name_regex_string,
 
-  let allowed_name_regex_configuration = get_configuration_by_name("apps.allowedNameRegex", http_transaction, database_pool).await?;
-  let allowed_name_regex_string = match allowed_name_regex_configuration.text_value.or(allowed_name_regex_configuration.default_text_value) {
+        None => {
+            ServerLogEntry::warning("Missing value and default value for configuration apps.allowedNameRegex. Using default regex pattern that allows any non-empty string as an app name. Consider setting a restrictive regex pattern in the configuration for better security.", Some(&http_transaction.id), database_pool).await.ok();
+            return Ok(());
+        }
+    };
 
-    Some(allowed_name_regex_string) => allowed_name_regex_string,
+    ServerLogEntry::trace(
+        "Creating regex for validating app names...",
+        Some(&http_transaction.id),
+        database_pool,
+    )
+    .await
+    .ok();
+    let regex = match regex::Regex::new(&allowed_name_regex_string) {
+        Ok(regex) => regex,
 
-    None => {
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to create regex for validating app names: {:?}",
+                error
+            )));
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
+            return Err(http_error);
+        }
+    };
 
-      ServerLogEntry::warning("Missing value and default value for configuration apps.allowedNameRegex. Using default regex pattern that allows any non-empty string as an app name. Consider setting a restrictive regex pattern in the configuration for better security.", Some(&http_transaction.id), database_pool).await.ok();
-      return Ok(());
-
+    ServerLogEntry::trace(
+        "Validating app name against regex...",
+        Some(&http_transaction.id),
+        database_pool,
+    )
+    .await
+    .ok();
+    if !regex.is_match(name) {
+        let http_error = HTTPError::UnprocessableEntity(Some(format!(
+            "App names must match the allowed pattern: {}",
+            allowed_name_regex_string
+        )));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+            .await
+            .ok();
+        return Err(http_error);
     }
 
-  };
-
-  ServerLogEntry::trace("Creating regex for validating app names...", Some(&http_transaction.id), database_pool).await.ok();
-  let regex = match regex::Regex::new(&allowed_name_regex_string) {
-
-    Ok(regex) => regex,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create regex for validating app names: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
-      return Err(http_error)
-
-    }
-
-  };
-
-  ServerLogEntry::trace("Validating app name against regex...", Some(&http_transaction.id), database_pool).await.ok();
-  if !regex.is_match(name) {
-
-    let http_error = HTTPError::UnprocessableEntity(Some(format!("App names must match the allowed pattern: {}", allowed_name_regex_string)));
-    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
-    return Err(http_error);
-
-  }
-
-  Ok(())
-
+    Ok(())
 }
 
-pub async fn validate_app_display_name(name: &str, http_transaction: &HTTPTransaction, database_pool: &deadpool_postgres::Pool) -> Result<(), HTTPError> {
+pub async fn validate_app_display_name(
+    name: &str,
+    http_transaction: &HTTPTransaction,
+    database_pool: &deadpool_postgres::Pool,
+) -> Result<(), HTTPError> {
+    let allowed_display_name_regex_configuration = get_configuration_by_name(
+        "apps.allowedDisplayNameRegex",
+        http_transaction,
+        database_pool,
+    )
+    .await?;
+    let allowed_display_name_regex_string = match allowed_display_name_regex_configuration
+        .text_value
+        .or(allowed_display_name_regex_configuration.default_text_value)
+    {
+        Some(allowed_display_name_regex_string) => allowed_display_name_regex_string,
 
-  let allowed_display_name_regex_configuration = get_configuration_by_name("apps.allowedDisplayNameRegex", http_transaction, database_pool).await?;
-  let allowed_display_name_regex_string = match allowed_display_name_regex_configuration.text_value.or(allowed_display_name_regex_configuration.default_text_value) {
+        None => {
+            ServerLogEntry::warning("Missing value and default value for configuration apps.allowedDisplayNameRegex. Consider setting a regex pattern in the configuration for better security.", Some(&http_transaction.id), database_pool).await.ok();
+            return Ok(());
+        }
+    };
 
-    Some(allowed_display_name_regex_string) => allowed_display_name_regex_string,
+    ServerLogEntry::trace(
+        "Creating regex for validating app display names...",
+        Some(&http_transaction.id),
+        database_pool,
+    )
+    .await
+    .ok();
+    let regex = match regex::Regex::new(&allowed_display_name_regex_string) {
+        Ok(regex) => regex,
 
-    None => {
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to create regex for validating app display names: {:?}",
+                error
+            )));
+            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+                .await
+                .ok();
+            return Err(http_error);
+        }
+    };
 
-      ServerLogEntry::warning("Missing value and default value for configuration apps.allowedDisplayNameRegex. Consider setting a regex pattern in the configuration for better security.", Some(&http_transaction.id), database_pool).await.ok();
-      return Ok(());
-
+    ServerLogEntry::trace(
+        "Validating app display name against regex...",
+        Some(&http_transaction.id),
+        database_pool,
+    )
+    .await
+    .ok();
+    if !regex.is_match(name) {
+        let http_error = HTTPError::UnprocessableEntity(Some(format!(
+            "App display names must match the allowed pattern: {}",
+            allowed_display_name_regex_string
+        )));
+        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
+            .await
+            .ok();
+        return Err(http_error);
     }
 
-  };
-
-  ServerLogEntry::trace("Creating regex for validating app display names...", Some(&http_transaction.id), database_pool).await.ok();
-  let regex = match regex::Regex::new(&allowed_display_name_regex_string) {
-
-    Ok(regex) => regex,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create regex for validating app display names: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
-      return Err(http_error)
-
-    }
-
-  };
-
-  ServerLogEntry::trace("Validating app display name against regex...", Some(&http_transaction.id), database_pool).await.ok();
-  if !regex.is_match(name) {
-
-    let http_error = HTTPError::UnprocessableEntity(Some(format!("App display names must match the allowed pattern: {}", allowed_display_name_regex_string)));
-    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool).await.ok();
-    return Err(http_error);
-
-  }
-
-  Ok(())
-
+    Ok(())
 }
 
 /// GET /apps
-/// 
+///
 /// Lists apps.
 #[axum::debug_handler]
 async fn handle_list_apps_request(
-  Query(query_parameters): Query<ResourceListQueryParameters>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+    Query(query_parameters): Query<ResourceListQueryParameters>,
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<App>>), HTTPError> {
+    // Make sure the principal has access to list resources.
+    let list_resources_action =
+        get_action_by_name("apps.list", &http_transaction, &state.database_pool).await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &list_resources_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::Server,
+        None,
+        &list_resources_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  // Make sure the principal has access to list resources.
-  let list_resources_action = get_action_by_name("apps.list", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+    ServerLogEntry::trace(
+        "Listing apps...",
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    let query = query_parameters.query.unwrap_or("".to_string());
+    let queried_resources = match App::list(
+        &query,
+        &state.database_pool,
+        Some(&principal_type),
+        Some(&principal_id),
+    )
+    .await
+    {
+        Ok(queried_resources) => queried_resources,
 
-  ServerLogEntry::trace("Listing apps...", Some(&http_transaction.id), &state.database_pool).await.ok();
-  let query = query_parameters.query.unwrap_or("".to_string());
-  let queried_resources = match App::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
+        Err(error) => {
+            let http_error = match error {
+                ResourceError::SlashstepQLError(error) => {
+                    match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "apps")
+                }
 
-    Ok(queried_resources) => queried_resources,
+                ResourceError::PostgresError(error) => match_db_error(&error, "apps"),
 
-    Err(error) => {
+                _ => HTTPError::InternalServerError(Some(format!(
+                    "Failed to list apps: {:?}",
+                    error
+                ))),
+            };
 
-      let http_error = match error {
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "apps"),
+    ServerLogEntry::trace(
+        "Counting apps...",
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    let resource_count = match App::count(
+        &query,
+        &state.database_pool,
+        Some(&principal_type),
+        Some(&principal_id),
+    )
+    .await
+    {
+        Ok(resource_count) => resource_count,
 
-        ResourceError::PostgresError(error) => match_db_error(&error, "apps"),
+        Err(error) => {
+            let http_error =
+                HTTPError::InternalServerError(Some(format!("Failed to count apps: {:?}", error)));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to list apps: {:?}", error)))
+    let expiration_timestamp =
+        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: list_resources_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            expiration_timestamp,
+            reason: None, // TODO: Support reasons.
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
+            target_resource_type: ResourceType::Server,
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-      };
+    let queried_app_list_length = queried_resources.len();
+    ServerLogEntry::success(
+        &format!(
+            "Successfully returned {} {}.",
+            queried_app_list_length,
+            if queried_app_list_length == 1 {
+                "app"
+            } else {
+                "apps"
+            }
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
+    let response_body = ListResourcesResponseBody::<App> {
+        data: queried_resources,
+        total_count: resource_count,
+    };
 
-    }
-
-  };
-
-  ServerLogEntry::trace(&format!("Counting apps..."), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let resource_count = match App::count(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
-
-    Ok(resource_count) => resource_count,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count apps: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: list_resources_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    expiration_timestamp: expiration_timestamp,
-    reason: None, // TODO: Support reasons.
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::Server,
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-  
-  let queried_app_list_length = queried_resources.len();
-  ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_app_list_length, if queried_app_list_length == 1 { "app" } else { "apps" }), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let response_body = ListResourcesResponseBody::<App> {
-    resources: queried_resources,
-    total_count: resource_count
-  };
-  
-  return Ok((StatusCode::OK, Json(response_body)));
-
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 /// POST /apps
-/// 
+///
 /// Creates an app on the server level.
 #[axum::debug_handler]
 async fn handle_create_app_request(
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-  body: Result<Json<InitialAppPropertiesWithoutClientSecretHash>, JsonRejection>
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+    body: Result<Json<InitialAppPropertiesWithoutClientSecretHash>, JsonRejection>,
 ) -> Result<(StatusCode, Json<AppWithClientSecret>), HTTPError> {
+    let app_properties_json =
+        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+            .await?;
+    validate_app_name(
+        &app_properties_json.name,
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    validate_field_length(
+        &app_properties_json.name,
+        "apps.maximumNameLength",
+        "name",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    validate_app_display_name(
+        &app_properties_json.display_name,
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    validate_field_length(
+        &app_properties_json.display_name,
+        "apps.maximumDisplayNameLength",
+        "display_name",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
 
-  let app_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
-  validate_app_name(&app_properties_json.name, &http_transaction, &state.database_pool).await?;
-  validate_field_length(&app_properties_json.name, "apps.maximumNameLength", "name", &http_transaction, &state.database_pool).await?;
-  validate_app_display_name(&app_properties_json.display_name, &http_transaction, &state.database_pool).await?;
-  validate_field_length(&app_properties_json.display_name, "apps.maximumDisplayNameLength", "display_name", &http_transaction, &state.database_pool).await?;
+    // Make sure the authenticated_user can create apps for the target action log entry.
+    let create_apps_action =
+        get_action_by_name("apps.create", &http_transaction, &state.database_pool).await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &create_apps_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::Server,
+        None,
+        &create_apps_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  // Make sure the authenticated_user can create apps for the target action log entry.
-  let create_apps_action = get_action_by_name("apps.create", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_apps_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::Server, None, &create_apps_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+    let mut client_secret_hash = None;
+    let mut client_secret = None;
+    if app_properties_json.client_type == AppClientType::Confidential {
+        ServerLogEntry::trace(
+            "Generating client secret for confidential app...",
+            Some(&http_transaction.id),
+            &state.database_pool,
+        )
+        .await
+        .ok();
+        let argon2 = Argon2::default();
+        let salt = SaltString::generate(&mut OsRng);
+        let some_client_secret = rand::rng()
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .map(char::from)
+            .collect::<String>();
+        client_secret = Some(some_client_secret.clone());
+        client_secret_hash = match argon2.hash_password(some_client_secret.as_bytes(), &salt) {
+            Ok(hash) => Some(hash.to_string()),
 
-  let mut client_secret_hash = None;
-  let mut client_secret = None;
-  if app_properties_json.client_type == AppClientType::Confidential {
-
-    ServerLogEntry::trace("Generating client secret for confidential app...", Some(&http_transaction.id), &state.database_pool).await.ok();
-    let argon2 = Argon2::default();
-    let salt = SaltString::generate(&mut OsRng);
-    let some_client_secret = rand::rng().sample_iter(&Alphanumeric).take(32).map(char::from).collect::<String>();
-    client_secret = Some(some_client_secret.clone());
-    client_secret_hash = match argon2.hash_password(some_client_secret.as_bytes(), &salt) {
-
-      Ok(hash) => Some(hash.to_string()),
-
-      Err(error) => {
-
-        let http_error = HTTPError::InternalServerError(Some(format!("Failed to hash client secret: {:?}", error)));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-        return Err(http_error);
-
-      }
-
-    };
-
-  }
-
-  // Create the app.
-  ServerLogEntry::trace("Creating app for server...", Some(&http_transaction.id), &state.database_pool).await.ok();
-  let app = match App::create(&InitialAppProperties {
-    name: app_properties_json.name.clone(),
-    display_name: app_properties_json.display_name.clone(),
-    description: app_properties_json.description.clone(),
-    parent_resource_type: AppParentResourceType::Server,
-    client_type: app_properties_json.client_type.clone(),
-    client_secret_hash,
-    ..Default::default()
-  }, &state.database_pool).await {
-
-    Ok(app) => app,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create app: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error)
-
+            Err(error) => {
+                let http_error = HTTPError::InternalServerError(Some(format!(
+                    "Failed to hash client secret: {:?}",
+                    error
+                )));
+                ServerLogEntry::from_http_error(
+                    &http_error,
+                    Some(&http_transaction.id),
+                    &state.database_pool,
+                )
+                .await
+                .ok();
+                return Err(http_error);
+            }
+        };
     }
 
-  };
+    // Create the app.
+    ServerLogEntry::trace(
+        "Creating app for server...",
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    let app = match App::create(
+        &InitialAppProperties {
+            name: app_properties_json.name.clone(),
+            display_name: app_properties_json.display_name.clone(),
+            description: app_properties_json.description.clone(),
+            parent_resource_type: AppParentResourceType::Server,
+            client_type: app_properties_json.client_type.clone(),
+            client_secret_hash,
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    {
+        Ok(app) => app,
 
-  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: create_apps_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    expiration_timestamp,
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::App,
-    target_app_id: Some(app.id),
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-  ServerLogEntry::success(&format!("Successfully created app {}.", app.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+        Err(error) => {
+            let http_error =
+                HTTPError::InternalServerError(Some(format!("Failed to create app: {:?}", error)));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-  return Ok((StatusCode::CREATED, Json(AppWithClientSecret {
-    id: app.id,
-    name: app.name,
-    display_name: app.display_name,
-    description: app.description,
-    client_type: app.client_type,
-    client_secret,
-    parent_resource_type: app.parent_resource_type,
-    parent_workspace_id: app.parent_workspace_id,
-    parent_user_id: app.parent_user_id
-  })));
+    let expiration_timestamp =
+        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: create_apps_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            expiration_timestamp,
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
+            target_resource_type: ResourceType::App,
+            target_app_id: Some(app.id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    ServerLogEntry::success(
+        &format!("Successfully created app {}.", app.id),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
+    Ok((
+        StatusCode::CREATED,
+        Json(AppWithClientSecret {
+            id: app.id,
+            name: app.name,
+            display_name: app.display_name,
+            description: app.description,
+            client_type: app.client_type,
+            client_secret,
+            parent_resource_type: app.parent_resource_type,
+            parent_workspace_id: app.parent_workspace_id,
+            parent_user_id: app.parent_user_id,
+        }),
+    ))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-
-  let router = Router::<AppState>::new()
-    .route("/apps", axum::routing::get(handle_list_apps_request))
-    .route("/apps", axum::routing::post(handle_create_app_request))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
-    .merge(app_id::get_router(state.clone()));
-  return router;
-
+    Router::<AppState>::new()
+        .route("/apps", axum::routing::get(handle_list_apps_request))
+        .route("/apps", axum::routing::post(handle_create_app_request))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            rate_limit_middleware::verify_absolute_maximum_rate_limits,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            authentication_middleware::authenticate_user,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            authentication_middleware::authenticate_app,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            http_transaction_middleware::create_http_transaction,
+        ))
+        .merge(app_id::get_router(state.clone()))
 }

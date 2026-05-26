@@ -1,190 +1,433 @@
-/**
- * 
+/*
+ *
  * Any functionality for /field-choices/{field_choice_id} should be handled here.
- * 
- * Programmers: 
+ *
+ * Programmers:
  * - Christian Toney (https://christiantoney.com)
- * 
+ *
  * © 2026 Beastslash LLC
- * 
+ *
  */
 
 #[path = "./access-policies/mod.rs"]
-mod access_policies;
-#[cfg(test)]
-mod tests;
+pub mod access_policies;
 
-use std::sync::Arc;
-use axum::{Extension, Json, Router, extract::{Path, State, rejection::JsonRejection}};
-use reqwest::StatusCode;
 use crate::{
-  AppState, 
-  HTTPError, 
-  middleware::{authentication_middleware, http_transaction_middleware}, 
-  resources::{
-    ResourceType, access_policy::{ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, field_choice::{EditableFieldChoiceProperties, FieldChoice}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User
-  }, 
-  utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_field_choice_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, validate_decimal_is_within_range, validate_field_length, verify_delegate_permissions, verify_principal_permissions}
+    AppState, HTTPError,
+    middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
+    resources::{
+        ResourceType,
+        access_policy::PermissionLevel,
+        action_log_entry::{
+            ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
+        },
+        app::App,
+        app_authorization::AppAuthorization,
+        field_choice::{EditableFieldChoiceProperties, FieldChoice},
+        http_transaction::HTTPTransaction,
+        server_log_entry::ServerLogEntry,
+        user::User,
+    },
+    routes::{GetResourceResponseBody, PatchResourceResponseBody},
+    utilities::route_handler_utilities::{
+        get_action_by_name, get_action_log_entry_expiration_timestamp, get_field_choice_by_id,
+        get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,
+        get_uuid_from_string, is_authenticated_user_anonymous, validate_decimal_is_within_range,
+        validate_field_length, verify_delegate_permissions, verify_principal_permissions,
+    },
 };
+use axum::{
+    Extension, Json, Router,
+    extract::{Path, State, rejection::JsonRejection},
+};
+use reqwest::StatusCode;
+use std::sync::Arc;
 
 /// GET /field-choices/{field_choice_id}
-/// 
+///
 /// Gets a field choice by its ID.
 #[axum::debug_handler]
 async fn handle_get_field_choice_request(
-  Path(field_choice_id): Path<String>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
-) -> Result<Json<FieldChoice>, HTTPError> {
+    Path(field_choice_id): Path<String>,
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+) -> Result<Json<GetResourceResponseBody<FieldChoice>>, HTTPError> {
+    let field_choice_id = get_uuid_from_string(
+        &field_choice_id,
+        "field choice",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    let target_field_choice =
+        get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
+    let get_field_choices_action =
+        get_action_by_name("fieldChoices.get", &http_transaction, &state.database_pool).await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &get_field_choices_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::FieldChoice,
+        Some(&target_field_choice.id),
+        &get_field_choices_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
-  let target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
-  let get_field_choices_action = get_action_by_name("fieldChoices.get", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &get_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&target_field_choice.id), &get_field_choices_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-  
-  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: get_field_choices_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    expiration_timestamp,
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::FieldChoice,
-    target_field_choice_id: Some(target_field_choice.id),
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-  ServerLogEntry::success(&format!("Successfully returned field choice {}.", target_field_choice.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+    let expiration_timestamp =
+        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: get_field_choices_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            expiration_timestamp,
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
+            target_resource_type: ResourceType::FieldChoice,
+            target_field_choice_id: Some(target_field_choice.id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    ServerLogEntry::success(
+        &format!(
+            "Successfully returned field choice {}.",
+            target_field_choice.id
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-  return Ok(Json(target_field_choice));
+    let response_body = GetResourceResponseBody {
+        data: target_field_choice.clone(),
+    };
 
+    Ok(Json(response_body))
 }
 
 /// DELETE /field-choices/{field_choice_id}
-/// 
+///
 /// Deletes an field choice by its ID.
 #[axum::debug_handler]
 async fn handle_delete_field_choice_request(
-  Path(field_choice_id): Path<String>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+    Path(field_choice_id): Path<String>,
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
+    let field_choice_id = get_uuid_from_string(
+        &field_choice_id,
+        "field choice",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    let target_field_choice =
+        get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
+    let delete_field_choices_action = get_action_by_name(
+        "fieldChoices.delete",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &delete_field_choices_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::FieldChoice,
+        Some(&target_field_choice.id),
+        &delete_field_choices_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
-  let target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
-  let delete_field_choices_action = get_action_by_name("fieldChoices.delete", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &delete_field_choices_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&target_field_choice.id), &delete_field_choices_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+    if let Err(error) = target_field_choice.delete(&state.database_pool).await {
+        let http_error = HTTPError::InternalServerError(Some(format!(
+            "Failed to delete field choice: {:?}",
+            error
+        )));
+        ServerLogEntry::from_http_error(
+            &http_error,
+            Some(&http_transaction.id),
+            &state.database_pool,
+        )
+        .await
+        .ok();
+        return Err(http_error);
+    }
 
-  if let Err(error) = target_field_choice.delete(&state.database_pool).await {
+    let expiration_timestamp =
+        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: delete_field_choices_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            expiration_timestamp,
+            reason: None, // TODO: Support reasons.
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
+            target_resource_type: ResourceType::FieldChoice,
+            target_field_choice_id: Some(target_field_choice.id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-    let http_error = HTTPError::InternalServerError(Some(format!("Failed to delete field choice: {:?}", error)));
-    ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-    return Err(http_error);
-
-  }
-
-  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: delete_field_choices_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    expiration_timestamp: expiration_timestamp,
-    reason: None, // TODO: Support reasons.
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::FieldChoice,
-    target_field_choice_id: Some(target_field_choice.id),
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-
-  ServerLogEntry::success(&format!("Successfully deleted field choice {}.", target_field_choice.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-  return Ok(StatusCode::NO_CONTENT);
-
+    ServerLogEntry::success(
+        &format!(
+            "Successfully deleted field choice {}.",
+            target_field_choice.id
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    Ok(StatusCode::NO_CONTENT)
 }
 
 // //// PATCH /field-choices/{field_choice_id}
-/// 
+///
 /// Updates a field choice by its ID.
 #[axum::debug_handler]
 async fn handle_patch_field_choice_request(
-  Path(field_choice_id): Path<String>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-  body: Result<Json<EditableFieldChoiceProperties>, JsonRejection>
-) -> Result<Json<FieldChoice>, HTTPError> {
-
-  let updated_field_choice_properties = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
-  if let Some(Some(field_choice_text_value)) = &updated_field_choice_properties.text_value { 
-
-    validate_field_length(field_choice_text_value, "fieldValues.maximumTextValueLength", "text_value", &http_transaction, &state.database_pool).await?;
-
-  }
-  if let Some(Some(field_choice_number_value)) = &updated_field_choice_properties.number_value {
-
-    validate_decimal_is_within_range(field_choice_number_value, "fieldValues.minimumNumberValue", "fieldValues.maximumNumberValue", "number_value", &http_transaction, &state.database_pool).await?;
-
-  }
-  let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice", &http_transaction, &state.database_pool).await?;
-  let original_target_field_choice = get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
-  let update_access_policy_action = get_action_by_name("fieldChoices.update", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::FieldChoice, Some(&original_target_field_choice.id), &update_access_policy_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
-
-  ServerLogEntry::trace(&format!("Updating field choice {}...", original_target_field_choice.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let updated_target_field_choice = match original_target_field_choice.update(&updated_field_choice_properties, &state.database_pool).await {
-
-    Ok(updated_target_field_choice) => updated_target_field_choice,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to update field choice {}: {:?}", original_target_field_choice.id, error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
-
+    Path(field_choice_id): Path<String>,
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+    body: Result<Json<EditableFieldChoiceProperties>, JsonRejection>,
+) -> Result<Json<PatchResourceResponseBody<FieldChoice>>, HTTPError> {
+    let updated_field_choice_properties =
+        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+            .await?;
+    if let Some(Some(field_choice_text_value)) = &updated_field_choice_properties.text_value {
+        validate_field_length(
+            field_choice_text_value,
+            "fieldValues.maximumTextValueLength",
+            "text_value",
+            &http_transaction,
+            &state.database_pool,
+        )
+        .await?;
     }
+    if let Some(Some(field_choice_number_value)) = &updated_field_choice_properties.number_value {
+        validate_decimal_is_within_range(
+            field_choice_number_value,
+            "fieldValues.minimumNumberValue",
+            "fieldValues.maximumNumberValue",
+            "number_value",
+            &http_transaction,
+            &state.database_pool,
+        )
+        .await?;
+    }
+    let field_choice_id = get_uuid_from_string(
+        &field_choice_id,
+        "field choice",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    let original_target_field_choice =
+        get_field_choice_by_id(&field_choice_id, &http_transaction, &state.database_pool).await?;
+    let update_access_policy_action = get_action_by_name(
+        "fieldChoices.update",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &update_access_policy_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::FieldChoice,
+        Some(&original_target_field_choice.id),
+        &update_access_policy_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  };
+    ServerLogEntry::trace(
+        &format!(
+            "Updating field choice {}...",
+            original_target_field_choice.id
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    let updated_target_field_choice = match original_target_field_choice
+        .update(&updated_field_choice_properties, &state.database_pool)
+        .await
+    {
+        Ok(updated_target_field_choice) => updated_target_field_choice,
 
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: update_access_policy_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::FieldChoice,
-    target_field_choice_id: Some(updated_target_field_choice.id),
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-  ServerLogEntry::success(&format!("Successfully updated field choice {}.", updated_target_field_choice.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to update field choice {}: {:?}",
+                original_target_field_choice.id, error
+            )));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-  return Ok(Json(updated_target_field_choice));
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: update_access_policy_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
+            target_resource_type: ResourceType::FieldChoice,
+            target_field_choice_id: Some(updated_target_field_choice.id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    ServerLogEntry::success(
+        &format!(
+            "Successfully updated field choice {}.",
+            updated_target_field_choice.id
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
+    let response_body = PatchResourceResponseBody {
+        data: updated_target_field_choice,
+    };
+
+    Ok(Json(response_body))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-
-  let router = Router::<AppState>::new()
-    .route("/field-choices/{field_choice_id}", axum::routing::get(handle_get_field_choice_request))
-    .route("/field-choices/{field_choice_id}", axum::routing::delete(handle_delete_field_choice_request))
-    .route("/field-choices/{field_choice_id}", axum::routing::patch(handle_patch_field_choice_request))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction))
-    .merge(access_policies::get_router(state.clone()));
-  return router;
-
+    Router::<AppState>::new()
+        .route(
+            "/field-choices/{field_choice_id}",
+            axum::routing::get(handle_get_field_choice_request),
+        )
+        .route(
+            "/field-choices/{field_choice_id}",
+            axum::routing::delete(handle_delete_field_choice_request),
+        )
+        .route(
+            "/field-choices/{field_choice_id}",
+            axum::routing::patch(handle_patch_field_choice_request),
+        )
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            rate_limit_middleware::verify_absolute_maximum_rate_limits,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            authentication_middleware::authenticate_user,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            authentication_middleware::authenticate_app,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            http_transaction_middleware::create_http_transaction,
+        ))
+        .merge(access_policies::get_router(state.clone()))
 }

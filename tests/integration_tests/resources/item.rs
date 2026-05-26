@@ -1,0 +1,375 @@
+use uuid::Uuid;
+
+use slashstep_server::resources::item::{
+    DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialItemProperties, Item,
+};
+use slashstep_server::resources::{
+    ResourceError, ResourceType,
+    access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
+    action::{Action, DEFAULT_ACTION_LIST_LIMIT},
+    field::{Field, FieldValueType, InitialFieldProperties},
+    field_value::{FieldValue, InitialFieldValueProperties},
+};
+
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+
+fn assert_fields_are_equal(item_1: &Item, item_2: &Item) {
+    assert_eq!(item_1.id, item_2.id);
+    assert_eq!(item_1.summary, item_2.summary);
+    assert_eq!(item_1.parent_project_id, item_2.parent_project_id);
+    assert_eq!(item_1.number, item_2.number);
+}
+
+fn assert_field_is_equal_to_initial_properties(
+    item: &Item,
+    initial_properties: &InitialItemProperties,
+) {
+    assert_eq!(item.summary, initial_properties.summary);
+    assert_eq!(item.parent_project_id, initial_properties.parent_project_id);
+}
+
+#[tokio::test]
+async fn verify_count() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    let initial_resource_count =
+        Item::count("", &test_environment.database_pool, None, None).await?;
+    const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
+    let mut created_resources: Vec<Item> = Vec::new();
+    for _ in 0..MAXIMUM_RESOURCE_COUNT {
+        let resource = test_environment.create_random_item(None).await?;
+        created_resources.push(resource);
+    }
+
+    let retrieved_resource_count =
+        Item::count("", &test_environment.database_pool, None, None).await?;
+
+    assert_eq!(
+        retrieved_resource_count,
+        MAXIMUM_RESOURCE_COUNT + initial_resource_count
+    );
+
+    return Ok(());
+}
+
+#[tokio::test]
+async fn verify_creation() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the access policy.
+    let project = test_environment.create_random_project(None).await?;
+    let field_properties = InitialItemProperties {
+        summary: Uuid::now_v7().to_string(),
+        parent_project_id: project.id,
+        ..Default::default()
+    };
+    let item = Item::create(&field_properties, &test_environment.database_pool).await?;
+
+    // Ensure that all the properties were set correctly.
+    assert_field_is_equal_to_initial_properties(&item, &field_properties);
+
+    return Ok(());
+}
+
+#[tokio::test]
+async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
+    // Create the access policy.
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    let created_item = test_environment.create_random_item(None).await?;
+
+    created_item.delete(&test_environment.database_pool).await?;
+
+    // Ensure that the access policy is no longer in the database.
+    match Item::get_by_id(&created_item.id, &test_environment.database_pool).await {
+        Ok(_) => panic!("Expected a resource not found error."),
+
+        Err(error) => match error {
+            ResourceError::NotFoundError(_) => {}
+
+            error => return Err(TestSlashstepServerError::ResourceError(error)),
+        },
+    };
+
+    return Ok(());
+}
+
+#[tokio::test]
+async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let created_item = test_environment.create_random_item(None).await?;
+    let retrieved_resource =
+        Item::get_by_id(&created_item.id, &test_environment.database_pool).await?;
+    assert_fields_are_equal(&created_item, &retrieved_resource);
+
+    return Ok(());
+}
+
+/// Verifies that the implementation can return up to a maximum number of resources by default.
+#[tokio::test]
+async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
+    let mut fields: Vec<Item> = Vec::new();
+    for _ in 0..MAXIMUM_RESOURCE_COUNT {
+        let item = test_environment.create_random_item(None).await?;
+        fields.push(item);
+    }
+
+    let retrieved_resources = Item::list("", &test_environment.database_pool, None, None).await?;
+
+    assert_eq!(
+        retrieved_resources.len(),
+        DEFAULT_ACTION_LIST_LIMIT as usize
+    );
+
+    return Ok(());
+}
+
+#[tokio::test]
+async fn verify_list_resources_with_query_and_field_references()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let project = test_environment.create_random_project(None).await?;
+    test_environment
+        .create_random_item(Some(&project.id))
+        .await?;
+    let item = test_environment
+        .create_random_item(Some(&project.id))
+        .await?;
+    let field = test_environment
+        .create_random_field(Some(&project.id))
+        .await?;
+    let field_value = FieldValue::create(
+        &InitialFieldValueProperties {
+            field_id: field.id,
+            value_type: FieldValueType::Text,
+            text_value: Some(Uuid::now_v7().to_string()),
+            parent_item_id: Some(item.id),
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+
+    let query = format!(
+        "parent_project_id = \"{}\" AND fields.{} = \"{}\"",
+        &project.id,
+        &field.name,
+        &field_value
+            .text_value
+            .as_ref()
+            .expect("Expected a text value.")
+    );
+    let retrieved_resources =
+        Item::list(&query, &test_environment.database_pool, None, None).await?;
+    assert_eq!(retrieved_resources.len(), 1);
+    assert_fields_are_equal(&item, &retrieved_resources[0]);
+
+    let query = format!(
+        "parent_project_id = \"{}\" AND fields.{} = \"{}\"",
+        &project.id,
+        Uuid::now_v7().to_string(),
+        &field_value
+            .text_value
+            .as_ref()
+            .expect("Expected a text value.")
+    );
+    let retrieved_resources =
+        Item::list(&query, &test_environment.database_pool, None, None).await?;
+    assert_eq!(retrieved_resources.len(), 0);
+
+    let item_on_different_project = test_environment.create_random_item(None).await?;
+    let field_with_same_name_on_different_project = Field::create(
+        &InitialFieldProperties {
+            name: field.name.clone(),
+            parent_project_id: item_on_different_project.parent_project_id,
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+    FieldValue::create(
+        &InitialFieldValueProperties {
+            field_id: field_with_same_name_on_different_project.id,
+            value_type: FieldValueType::Text,
+            text_value: Some(
+                field_value
+                    .text_value
+                    .as_ref()
+                    .expect("Expected a text value.")
+                    .clone(),
+            ),
+            parent_item_id: Some(item_on_different_project.id),
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+
+    let query = format!(
+        "parent_project_id = \"{}\" AND fields.{} = \"{}\"",
+        &project.id,
+        &field.name,
+        &field_value
+            .text_value
+            .as_ref()
+            .expect("Expected a text value.")
+    );
+    let retrieved_resources =
+        Item::list(&query, &test_environment.database_pool, None, None).await?;
+    assert_eq!(retrieved_resources.len(), 1);
+    assert_fields_are_equal(&item, &retrieved_resources[0]);
+
+    let query = format!(
+        "fields.{} = \"{}\"",
+        &field.name,
+        &field_value
+            .text_value
+            .as_ref()
+            .expect("Expected a text value.")
+    );
+    let retrieved_resources =
+        Item::list(&query, &test_environment.database_pool, None, None).await?;
+    assert_eq!(retrieved_resources.len(), 2);
+
+    // let query = format!("fields.{} = \"{}\"", &field.name, &Utc::now().to_rfc3339());
+    // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+    // assert_eq!(retrieved_resources.len(), 0);
+
+    // let query = format!("fields.{} = {}", &field.name, true);
+    // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+    // assert_eq!(retrieved_resources.len(), 0);
+
+    // let query = format!("fields.{} = {}", &field.name, 2);
+    // let retrieved_resources = Item::list(&query, &test_environment.database_pool, None, None).await?;
+    // assert_eq!(retrieved_resources.len(), 0);
+
+    return Ok(());
+}
+
+/// Verifies that a list of resources can be retrieved with a query.
+#[tokio::test]
+async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    const MAXIMUM_RESOURCE_COUNT: i32 = 5;
+    let mut created_resources: Vec<Item> = Vec::new();
+    for _ in 0..MAXIMUM_RESOURCE_COUNT {
+        let resource = test_environment.create_random_item(None).await?;
+        created_resources.push(resource);
+    }
+
+    let query = format!("id = \"{}\"", created_resources[0].id);
+    let retrieved_resources =
+        Item::list(&query, &test_environment.database_pool, None, None).await?;
+
+    let created_resources_with_specific_id: Vec<&Item> = created_resources
+        .iter()
+        .filter(|item| item.id == created_resources[0].id)
+        .collect();
+    assert_eq!(
+        created_resources_with_specific_id.len(),
+        retrieved_resources.len()
+    );
+    for i in 0..created_resources_with_specific_id.len() {
+        let created_resource = &created_resources_with_specific_id[i];
+        let retrieved_resource = &retrieved_resources[i];
+
+        assert_fields_are_equal(created_resource, retrieved_resource);
+    }
+
+    return Ok(());
+}
+
+#[tokio::test]
+async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+    const MAXIMUM_RESOURCE_COUNT: i32 = 25;
+    let mut created_resources: Vec<Item> = Vec::new();
+    for _ in 0..MAXIMUM_RESOURCE_COUNT {
+        let item = test_environment.create_random_item(None).await?;
+        created_resources.push(item);
+    }
+
+    let retrieved_resources = Item::list("", &test_environment.database_pool, None, None).await?;
+
+    for created_item in &created_resources {
+        let retrieved_item_option = retrieved_resources
+            .iter()
+            .find(|retrieved_item| retrieved_item.id == created_item.id);
+        assert!(retrieved_item_option.is_some());
+    }
+
+    return Ok(());
+}
+
+/// Verifies that a list of resources can be retrieved without a query.
+#[tokio::test]
+async fn verify_list_resources_without_query_and_filter_based_on_requestor_permissions()
+-> Result<(), TestSlashstepServerError> {
+    // Make sure there are at least two actions.
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    const MINIMUM_RESOURCE_COUNT: i32 = 2;
+    let mut current_resources = Item::list("", &test_environment.database_pool, None, None).await?;
+    if current_resources.len() < MINIMUM_RESOURCE_COUNT as usize {
+        let remaining_action_count = MINIMUM_RESOURCE_COUNT - current_resources.len() as i32;
+        for _ in 0..remaining_action_count {
+            let item = test_environment.create_random_item(None).await?;
+            current_resources.push(item);
+        }
+    }
+
+    // Get the "fields.get" action one time.
+    let user = test_environment.create_random_user(None).await?;
+    let get_fields_action =
+        Action::get_by_name(GET_RESOURCE_ACTION_NAME, &test_environment.database_pool).await?;
+
+    // Grant access to the "fields.get" action to the user for half of the actions.
+    let allowed_resource_count = current_resources.len() / 2;
+    let mut allowed_resources = Vec::new();
+    for index in 0..allowed_resource_count {
+        let scoped_item = &current_resources[index];
+
+        AccessPolicy::create(
+            &InitialAccessPolicyProperties {
+                action_id: get_fields_action.id.clone(),
+                permission_level: slashstep_server::resources::access_policy::PermissionLevel::User,
+                principal_type:
+                    slashstep_server::resources::access_policy::AccessPolicyPrincipalType::User,
+                principal_user_id: Some(user.id.clone()),
+                scoped_resource_type: ResourceType::Item,
+                scoped_item_id: Some(scoped_item.id.clone()),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+        allowed_resources.push(scoped_item.clone());
+    }
+
+    // Make sure the user only sees the allowed actions.
+    let retrieved_resources = Item::list(
+        "",
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+
+    assert_eq!(allowed_resources.len(), retrieved_resources.len());
+    for allowed_resource in allowed_resources {
+        let retrieved_resource = &retrieved_resources
+            .iter()
+            .find(|action| action.id == allowed_resource.id)
+            .expect("Expected a retrieved resource with the same ID.");
+
+        assert_fields_are_equal(&allowed_resource, retrieved_resource);
+    }
+
+    return Ok(());
+}

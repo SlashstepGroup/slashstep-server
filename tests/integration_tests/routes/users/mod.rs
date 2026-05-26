@@ -1,0 +1,853 @@
+/*
+ *
+ * Any test cases for /users should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
+use rust_decimal::Decimal;
+use slashstep_server::{
+    AppState, get_json_web_token_private_key,
+    resources::{
+        ResourceType,
+        access_policy::{
+            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
+        },
+        action::Action,
+        configuration::{Configuration, EditableConfigurationProperties},
+        group::{Group, GroupParentResourceType, PredefinedGroupType},
+        user::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, User},
+    },
+    routes::{CreateResourceResponseBody, ListResourcesResponseBody, users::CreateUserRequestBody},
+};
+use std::net::SocketAddr;
+use uuid::Uuid;
+
+#[path = "./{user_id}/mod.rs"]
+mod user_id;
+
+/// Verifies that the router can return a 200 status code and the requested list.
+#[tokio::test]
+async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Grant access to the "users.get" action to the user.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_delegation_policies_action =
+        Action::get_by_name("users.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &get_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Grant access to the "users.list" action to the user.
+    let list_delegation_policies_action =
+        Action::get_by_name("users.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &list_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Create a dummy delegation policy.
+    test_environment.create_random_user(None).await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/users"))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_json: ListResourcesResponseBody<User> = response.json();
+    assert!(response_json.total_count > 0);
+    assert!(response_json.data.len() > 0);
+
+    let actual_user_count = User::count(
+        "",
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_json.total_count, actual_user_count);
+
+    let actual_delegation_policies = User::list(
+        "",
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_json.data.len(), actual_delegation_policies.len());
+
+    for actual_user in actual_delegation_policies {
+        let found_access_policy = response_json
+            .data
+            .iter()
+            .find(|user| user.id == actual_user.id);
+        assert!(found_access_policy.is_some());
+    }
+
+    return Ok(());
+}
+
+/// Verifies that the router can return a 200 status code and the requested list.
+#[tokio::test]
+async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Grant access to the "apps.get" action to the user.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_delegation_policies_action =
+        Action::get_by_name("users.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &get_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Grant access to the "apps.list" action to the user.
+    let list_delegation_policies_action =
+        Action::get_by_name("users.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &list_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Create a dummy delegation policy.
+    let dummy_user = test_environment.create_random_user(None).await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let query = format!("id = {}", quote_literal(&dummy_user.id.to_string()));
+    let response = test_server
+        .get(&format!("/users"))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .add_query_param("query", &query)
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_json: ListResourcesResponseBody<User> = response.json();
+    assert!(response_json.total_count > 0);
+    assert!(response_json.data.len() > 0);
+
+    let actual_user_count = User::count(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_json.total_count, actual_user_count);
+
+    let actual_delegation_policies = User::list(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_json.data.len(), actual_delegation_policies.len());
+
+    for actual_user in actual_delegation_policies {
+        let found_action = response_json
+            .data
+            .iter()
+            .find(|user| user.id == actual_user.id);
+        assert!(found_action.is_some());
+    }
+
+    return Ok(());
+}
+
+/// Verifies that there's a default list limit.
+#[tokio::test]
+async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Grant access to the "users.get" action to the user.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_delegation_policies_action =
+        Action::get_by_name("users.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &get_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Grant access to the "users.list" action to the user.
+    let list_delegation_policies_action =
+        Action::get_by_name("users.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &list_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Create dummy delegation policies.
+    let user_count = User::count("", &test_environment.database_pool, None, None).await?;
+    for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT - user_count + 1) {
+        test_environment.create_random_user(None).await?;
+    }
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/users"))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_body: ListResourcesResponseBody<User> = response.json();
+    assert_eq!(
+        response_body.data.len(),
+        DEFAULT_RESOURCE_LIST_LIMIT as usize
+    );
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
+#[tokio::test]
+async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Grant access to the "users.get" action to the user.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_delegation_policies_action =
+        Action::get_by_name("users.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &get_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Grant access to the "apps.list" action to the user.
+    let list_delegation_policies_action =
+        Action::get_by_name("users.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &list_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/users"))
+        .add_query_param(
+            "query",
+            format!("limit {}", DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT + 1),
+        )
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 400 status code when the query is invalid.
+#[tokio::test]
+async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Grant access to the "users.get" action to the user.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_delegation_policies_action =
+        Action::get_by_name("users.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &get_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Grant access to the "users.list" action to the user.
+    let list_delegation_policies_action =
+        Action::get_by_name("users.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(
+            &user.id,
+            &list_delegation_policies_action.id,
+            &PermissionLevel::User,
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+
+    let bad_requests = vec![
+        test_server.get(&format!("/users")).add_query_param(
+            "query",
+            format!(
+                "id ~ {}",
+                quote_literal(&get_delegation_policies_action.id.to_string())
+            ),
+        ),
+        test_server
+            .get(&format!("/users"))
+            .add_query_param("query", format!("SELECT * FROM delegation_policies")),
+        test_server
+            .get(&format!("/users"))
+            .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
+        test_server.get(&format!("/users")).add_query_param(
+            "query",
+            format!(
+                "id = null; SELECT * FROM delegation_policies WHERE id = {}",
+                quote_literal(&get_delegation_policies_action.id.to_string())
+            ),
+        ),
+    ];
+
+    for request in bad_requests {
+        let response = request
+            .add_cookie(Cookie::new("session_access_token", &session_token))
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    }
+
+    let unprocessable_entity_requests = vec![
+        test_server
+            .get(&format!("/users"))
+            .add_query_param("query", format!("1 = 1")),
+    ];
+
+    for request in unprocessable_entity_requests {
+        let response = request
+            .add_cookie(Cookie::new("session_access_token", &session_token))
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
+#[tokio::test]
+async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server.get(&format!("/users")).await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
+#[tokio::test]
+async fn verify_permission() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create a user and a session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/users"))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+    return Ok(());
+}
+
+/// Verifies that the server can create a user and return a 201 status code.
+#[tokio::test]
+async fn verify_successful_user_creation() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "users.create" action.
+    let create_users_action =
+        Action::get_by_name("users.create", &test_environment.database_pool).await?;
+    let anonymous_users_group = Group::get_protected_group_by_type(
+        &GroupParentResourceType::Server,
+        None,
+        &PredefinedGroupType::AnonymousUsers,
+        &test_environment.database_pool,
+    )
+    .await?;
+    AccessPolicy::create(
+        &InitialAccessPolicyProperties {
+            principal_type: AccessPolicyPrincipalType::Group,
+            principal_group_id: Some(anonymous_users_group.id),
+            action_id: create_users_action.id,
+            permission_level: PermissionLevel::User,
+            is_inheritance_enabled: true,
+            scoped_resource_type: ResourceType::Server,
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+    let plain_text_password = Uuid::now_v7().to_string();
+    let initial_user_properties = CreateUserRequestBody {
+        username: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Some(Uuid::now_v7().to_string()),
+        password: plain_text_password,
+    };
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/users"))
+        .json(&serde_json::json!(initial_user_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::CREATED);
+
+    let create_user_response_body: CreateResourceResponseBody<User> = response.json();
+    let response_user = create_user_response_body.data;
+    assert_eq!(
+        initial_user_properties.username,
+        response_user.username.expect("Username should be present.")
+    );
+    assert_eq!(
+        initial_user_properties.display_name,
+        response_user.display_name
+    );
+    assert_eq!(false, response_user.is_anonymous);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the username is over the maximum length.
+#[tokio::test]
+async fn verify_user_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let create_users_action =
+        Action::get_by_name("users.create", &test_environment.database_pool).await?;
+    let anonymous_users_group = Group::get_protected_group_by_type(
+        &GroupParentResourceType::Server,
+        None,
+        &PredefinedGroupType::AnonymousUsers,
+        &test_environment.database_pool,
+    )
+    .await?;
+    AccessPolicy::create(
+        &InitialAccessPolicyProperties {
+            principal_type: AccessPolicyPrincipalType::Group,
+            principal_group_id: Some(anonymous_users_group.id),
+            action_id: create_users_action.id,
+            permission_level: PermissionLevel::User,
+            is_inheritance_enabled: true,
+            scoped_resource_type: ResourceType::Server,
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+    let plain_text_password = Uuid::now_v7().to_string();
+    let initial_user_properties = CreateUserRequestBody {
+        username: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Some(Uuid::now_v7().to_string()),
+        password: plain_text_password,
+    };
+
+    let maximum_name_length_configuration =
+        Configuration::get_by_name("users.maximumNameLength", &test_environment.database_pool)
+            .await?;
+    maximum_name_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/users"))
+        .json(&serde_json::json!(initial_user_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the group display name is over the maximum length.
+#[tokio::test]
+async fn verify_user_display_name_is_at_most_at_maximum_length()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let create_users_action =
+        Action::get_by_name("users.create", &test_environment.database_pool).await?;
+    let anonymous_users_group = Group::get_protected_group_by_type(
+        &GroupParentResourceType::Server,
+        None,
+        &PredefinedGroupType::AnonymousUsers,
+        &test_environment.database_pool,
+    )
+    .await?;
+    AccessPolicy::create(
+        &InitialAccessPolicyProperties {
+            principal_type: AccessPolicyPrincipalType::Group,
+            principal_group_id: Some(anonymous_users_group.id),
+            action_id: create_users_action.id,
+            permission_level: PermissionLevel::User,
+            is_inheritance_enabled: true,
+            scoped_resource_type: ResourceType::Server,
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+    let plain_text_password = Uuid::now_v7().to_string();
+    let initial_user_properties = CreateUserRequestBody {
+        username: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Some(Uuid::now_v7().to_string()),
+        password: plain_text_password,
+    };
+
+    let maximum_display_name_length_configuration = Configuration::get_by_name(
+        "users.maximumDisplayNameLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_display_name_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/users"))
+        .json(&serde_json::json!(initial_user_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the user password is over the maximum length.
+#[tokio::test]
+async fn verify_user_password_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError>
+{
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let create_users_action =
+        Action::get_by_name("users.create", &test_environment.database_pool).await?;
+    let anonymous_users_group = Group::get_protected_group_by_type(
+        &GroupParentResourceType::Server,
+        None,
+        &PredefinedGroupType::AnonymousUsers,
+        &test_environment.database_pool,
+    )
+    .await?;
+    AccessPolicy::create(
+        &InitialAccessPolicyProperties {
+            principal_type: AccessPolicyPrincipalType::Group,
+            principal_group_id: Some(anonymous_users_group.id),
+            action_id: create_users_action.id,
+            permission_level: PermissionLevel::User,
+            is_inheritance_enabled: true,
+            scoped_resource_type: ResourceType::Server,
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+    let plain_text_password = Uuid::now_v7().to_string();
+    let initial_user_properties = CreateUserRequestBody {
+        username: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Some(Uuid::now_v7().to_string()),
+        password: plain_text_password,
+    };
+
+    let maximum_password_length_configuration = Configuration::get_by_name(
+        "users.maximumPasswordLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_password_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/users"))
+        .json(&serde_json::json!(initial_user_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the username doesn't match the allowed regex pattern.
+#[tokio::test]
+async fn verify_username_matches_regex() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    let create_users_action =
+        Action::get_by_name("users.create", &test_environment.database_pool).await?;
+    let anonymous_users_group = Group::get_protected_group_by_type(
+        &GroupParentResourceType::Server,
+        None,
+        &PredefinedGroupType::AnonymousUsers,
+        &test_environment.database_pool,
+    )
+    .await?;
+    AccessPolicy::create(
+        &InitialAccessPolicyProperties {
+            principal_type: AccessPolicyPrincipalType::Group,
+            principal_group_id: Some(anonymous_users_group.id),
+            action_id: create_users_action.id,
+            permission_level: PermissionLevel::User,
+            is_inheritance_enabled: true,
+            scoped_resource_type: ResourceType::Server,
+            ..Default::default()
+        },
+        &test_environment.database_pool,
+    )
+    .await?;
+    let plain_text_password = Uuid::now_v7().to_string();
+    let initial_user_properties = CreateUserRequestBody {
+        username: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Some(Uuid::now_v7().to_string()),
+        password: plain_text_password,
+    };
+
+    let allowed_name_regex_configuration =
+        Configuration::get_by_name("users.allowedNameRegex", &test_environment.database_pool)
+            .await?;
+    allowed_name_regex_configuration
+        .update(
+            &EditableConfigurationProperties {
+                text_value: Some("^$".to_string()),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router = slashstep_server::routes::users::get_router(state.clone())
+        .with_state(state)
+        .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/users"))
+        .json(&serde_json::json!(initial_user_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}

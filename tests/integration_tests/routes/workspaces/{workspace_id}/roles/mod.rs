@@ -1,0 +1,822 @@
+/*
+ *
+ * Any test cases for /workspaces/{workspace_id}/roles should be handled here.
+ *
+ * Programmers:
+ * - Christian Toney (https://christiantoney.com)
+ *
+ * © 2026 Beastslash LLC
+ *
+ */
+
+use crate::test_utilities::{
+    integration_test_environment::IntegrationTestEnvironment,
+    test_slashstep_server_error::TestSlashstepServerError,
+};
+use axum_extra::extract::cookie::Cookie;
+use axum_test::TestServer;
+use pg_escape::quote_literal;
+use reqwest::StatusCode;
+use rust_decimal::Decimal;
+use slashstep_server::{
+    AppState, get_json_web_token_private_key,
+    resources::{
+        access_policy::{AccessPolicyPrincipalType, PermissionLevel},
+        action::Action,
+        configuration::{Configuration, EditableConfigurationProperties},
+        role::{
+            DEFAULT_RESOURCE_LIST_LIMIT, InitialRolePropertiesWithPredefinedParent, Role,
+            RoleParentResourceType,
+        },
+    },
+    routes::ListResourcesResponseBody,
+};
+use std::net::SocketAddr;
+use uuid::Uuid;
+
+#[tokio::test]
+async fn verify_successful_role_creation() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "roles.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_roles_action =
+        Action::get_by_name("roles.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+    let initial_role_properties = InitialRolePropertiesWithPredefinedParent {
+        name: Uuid::now_v7().to_string(),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/roles", dummy_workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .json(&serde_json::json!(initial_role_properties))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::CREATED);
+
+    let response_role: Role = response.json();
+    assert_eq!(response_role.name, initial_role_properties.name);
+    assert_eq!(
+        response_role.display_name,
+        initial_role_properties.display_name
+    );
+    assert_eq!(
+        response_role.description,
+        initial_role_properties.description
+    );
+    assert_eq!(
+        response_role.parent_resource_type,
+        RoleParentResourceType::Workspace
+    );
+    assert_eq!(response_role.parent_workspace_id, Some(dummy_workspace.id));
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the role name is over the maximum length.
+#[tokio::test]
+async fn verify_role_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "roles.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_roles_action =
+        Action::get_by_name("roles.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let workspace = test_environment.create_random_workspace().await?;
+    let maximum_role_name_length_configuration =
+        Configuration::get_by_name("roles.maximumNameLength", &test_environment.database_pool)
+            .await?;
+    maximum_role_name_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    let initial_role_properties = InitialRolePropertiesWithPredefinedParent {
+        name: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Uuid::now_v7().to_string(),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/roles", workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .json(&serde_json::json!(initial_role_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the role display name is over the maximum length.
+#[tokio::test]
+async fn verify_role_display_name_is_at_most_at_maximum_length()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "roles.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_roles_action =
+        Action::get_by_name("roles.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let workspace = test_environment.create_random_workspace().await?;
+    let maximum_role_display_name_length_configuration = Configuration::get_by_name(
+        "roles.maximumDisplayNameLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_role_display_name_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    let initial_role_properties = InitialRolePropertiesWithPredefinedParent {
+        name: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Uuid::now_v7().to_string(),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/roles", workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .json(&serde_json::json!(initial_role_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the role description is over the maximum length.
+#[tokio::test]
+async fn verify_role_description_is_at_most_at_maximum_length()
+-> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "roles.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_roles_action =
+        Action::get_by_name("roles.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let workspace = test_environment.create_random_workspace().await?;
+    let maximum_role_description_length_configuration = Configuration::get_by_name(
+        "roles.maximumDescriptionLength",
+        &test_environment.database_pool,
+    )
+    .await?;
+    maximum_role_description_length_configuration
+        .update(
+            &EditableConfigurationProperties {
+                number_value: Some(Decimal::from(0 as i64)),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    let initial_role_properties = InitialRolePropertiesWithPredefinedParent {
+        name: Uuid::now_v7().to_string().replace("-", ""),
+        display_name: Uuid::now_v7().to_string(),
+        description: Some(Uuid::now_v7().to_string()),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/roles", workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .json(&serde_json::json!(initial_role_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the role name doesn't match the allowed regex pattern.
+#[tokio::test]
+async fn verify_role_name_matches_regex() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "roles.create" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let create_roles_action =
+        Action::get_by_name("roles.create", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &create_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Set up the server and send the request.
+    let workspace = test_environment.create_random_workspace().await?;
+    let allowed_role_name_regex_configuration =
+        Configuration::get_by_name("roles.allowedNameRegex", &test_environment.database_pool)
+            .await?;
+    allowed_role_name_regex_configuration
+        .update(
+            &EditableConfigurationProperties {
+                text_value: Some("^[a-zA-Z0-9._-]+$".to_string()),
+                ..Default::default()
+            },
+            &test_environment.database_pool,
+        )
+        .await?;
+
+    let initial_role_properties = InitialRolePropertiesWithPredefinedParent {
+        name: "Invalid Role Name With Spaces".to_string(),
+        display_name: Uuid::now_v7().to_string(),
+        ..Default::default()
+    };
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .post(&format!("/workspaces/{}/roles", workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .json(&serde_json::json!(initial_role_properties))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the router can return a 200 status code and the requested access policy list.
+#[tokio::test]
+async fn verify_returned_role_list_without_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "roles.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_roles_action =
+        Action::get_by_name("roles.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Give the user access to the "roles.list" action.
+    let list_roles_action =
+        Action::get_by_name("roles.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create dummy resources.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+    let shown_role = test_environment
+        .create_random_role(
+            Some(&RoleParentResourceType::Workspace),
+            Some(&dummy_workspace.id),
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_roles: ListResourcesResponseBody<Role> = response.json();
+    assert_eq!(response_roles.total_count, 1);
+    assert_eq!(response_roles.data.len(), 1);
+
+    let query = format!(
+        "parent_workspace_id = {}",
+        quote_literal(&dummy_workspace.id.to_string())
+    );
+    let actual_role_count = Role::count(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_roles.total_count, actual_role_count);
+
+    let actual_roles = Role::list(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_roles.data.len(), actual_roles.len());
+    assert_eq!(response_roles.data[0].id, actual_roles[0].id);
+    assert_eq!(response_roles.data[0].id, shown_role.id);
+
+    return Ok(());
+}
+
+/// Verifies that the router can return a 200 status code and the requested access policy list.
+#[tokio::test]
+async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "roles.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_roles_action =
+        Action::get_by_name("roles.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Give the user access to the "roles.list" action.
+    let list_roles_action =
+        Action::get_by_name("roles.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create a few dummy access policies.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+    let shown_role = test_environment
+        .create_random_role(
+            Some(&RoleParentResourceType::Workspace),
+            Some(&dummy_workspace.id),
+        )
+        .await?;
+
+    // Set up the server and send the request.
+    let additional_query = format!("id = '{}'", shown_role.id);
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .add_query_param("query", &additional_query)
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_roles: ListResourcesResponseBody<Role> = response.json();
+    assert_eq!(response_roles.total_count, 1);
+    assert_eq!(response_roles.data.len(), 1);
+
+    let query = format!(
+        "parent_workspace_id = {} AND ({})",
+        quote_literal(&dummy_workspace.id.to_string()),
+        additional_query
+    );
+    let actual_role_count = Role::count(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_roles.total_count, actual_role_count);
+
+    let actual_roles = Role::list(
+        &query,
+        &test_environment.database_pool,
+        Some(&AccessPolicyPrincipalType::User),
+        Some(&user.id),
+    )
+    .await?;
+    assert_eq!(response_roles.data.len(), actual_roles.len());
+    assert_eq!(response_roles.data[0].id, actual_roles[0].id);
+    assert_eq!(response_roles.data[0].id, shown_role.id);
+
+    return Ok(());
+}
+
+/// Verifies that the default access policy list limit is enforced.
+#[tokio::test]
+async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Give the user access to the "roles.get" action.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_roles_action =
+        Action::get_by_name("roles.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Give the user access to the "roles.list" action.
+    let list_roles_action =
+        Action::get_by_name("roles.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create dummy access policies.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+    for _ in 0..(DEFAULT_RESOURCE_LIST_LIMIT + 1) {
+        let _ = test_environment
+            .create_random_role(
+                Some(&RoleParentResourceType::Workspace),
+                Some(&dummy_workspace.id),
+            )
+            .await?;
+    }
+
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::OK);
+
+    let response_body: ListResourcesResponseBody<Role> = response.json();
+    assert_eq!(
+        response_body.data.len(),
+        DEFAULT_RESOURCE_LIST_LIMIT as usize
+    );
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 422 status code when the provided limit is over the maximum limit.
+#[tokio::test]
+async fn verify_maximum_role_list_limit() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_roles_action =
+        Action::get_by_name("roles.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User)
+        .await?;
+    let list_roles_action =
+        Action::get_by_name("roles.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create dummy resources.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+        .add_query_param(
+            "query",
+            format!("LIMIT {}", DEFAULT_RESOURCE_LIST_LIMIT + 1),
+        )
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 400 status code when the query is invalid.
+#[tokio::test]
+async fn verify_query_when_listing_roles() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+    let get_roles_action =
+        Action::get_by_name("roles.get", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &get_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    let list_roles_action =
+        Action::get_by_name("roles.list", &test_environment.database_pool).await?;
+    test_environment
+        .create_server_access_policy(&user.id, &list_roles_action.id, &PermissionLevel::User)
+        .await?;
+
+    // Create dummy resources.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+
+    let bad_requests = vec![
+        test_server
+            .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+            .add_query_param("query", format!("SELECT * FROM roles")),
+        test_server
+            .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+            .add_query_param("query", format!("SELECT PG_SLEEP(10)")),
+        test_server
+            .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+            .add_query_param(
+                "query",
+                format!(
+                    "SELECT * FROM roles WHERE action_id = {}",
+                    get_roles_action.id
+                ),
+            ),
+    ];
+
+    for request in bad_requests {
+        let response = request
+            .add_cookie(Cookie::new("session_access_token", &session_token))
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
+    }
+
+    let unprocessable_entity_requests = vec![
+        test_server
+            .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+            .add_query_param("query", format!("action_ied = {}", get_roles_action.id)),
+        test_server
+            .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+            .add_query_param("query", format!("1 = 1")),
+    ];
+
+    for request in unprocessable_entity_requests {
+        let response = request
+            .add_cookie(Cookie::new("session_access_token", &session_token))
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 401 status code when the user lacks permissions and is unauthenticated.
+#[tokio::test]
+async fn verify_authentication_when_listing_roles() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create a dummy action.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+        .await;
+
+    // Verify the response.
+    assert_eq!(response.status_code(), StatusCode::UNAUTHORIZED);
+
+    return Ok(());
+}
+
+/// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
+#[tokio::test]
+async fn verify_permission_when_listing_roles() -> Result<(), TestSlashstepServerError> {
+    let test_environment = IntegrationTestEnvironment::new().await?;
+
+    // Create the user and the session.
+    let plain_text_password = Uuid::now_v7().to_string();
+    let user = test_environment
+        .create_random_user(Some(&plain_text_password))
+        .await?;
+    let session = test_environment
+        .create_random_session(Some(&user.id))
+        .await?;
+    let json_web_token_private_key = get_json_web_token_private_key().await?;
+    let session_token = session
+        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+        .await?;
+
+    // Create a dummy action.
+    let dummy_workspace = test_environment.create_random_workspace().await?;
+
+    // Set up the server and send the request.
+    let state = AppState {
+        database_pool: test_environment.database_pool.clone(),
+        redis_pool: test_environment.redis_pool.clone(),
+    };
+    let router =
+        slashstep_server::routes::workspaces::workspace_id::roles::get_router(state.clone())
+            .with_state(state)
+            .into_make_service_with_connect_info::<SocketAddr>();
+    let test_server = TestServer::new(router);
+    let response = test_server
+        .get(&format!("/workspaces/{}/roles", &dummy_workspace.id))
+        .add_cookie(Cookie::new("session_access_token", &session_token))
+        .await;
+
+    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
+
+    return Ok(());
+}

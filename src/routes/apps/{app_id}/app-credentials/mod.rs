@@ -1,242 +1,460 @@
-/**
- * 
+/*
+ *
  * Any functionality for /apps/{app_id}/app-credentials should be handled here.
- * 
- * Programmers: 
+ *
+ * Programmers:
  * - Christian Toney (https://christiantoney.com)
- * 
+ *
  * © 2026 Beastslash LLC
- * 
+ *
  */
 
-#[cfg(test)]
-mod tests;
-
-use std::{net::IpAddr, sync::Arc};
-use axum::{Extension, Json, Router, extract::{Path, Query, State, rejection::JsonRejection}};
+use crate::{
+    AppState, HTTPError,
+    middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
+    resources::{
+        ResourceError, ResourceType,
+        access_policy::PermissionLevel,
+        action_log_entry::{
+            ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
+        },
+        app::App,
+        app_authorization::AppAuthorization,
+        app_credential::{
+            AppCredential, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppCredentialProperties,
+            InitialAppCredentialPropertiesForPredefinedScope,
+        },
+        http_transaction::HTTPTransaction,
+        server_log_entry::ServerLogEntry,
+        user::User,
+    },
+    routes::{ListResourcesResponseBody, ResourceListQueryParameters},
+    utilities::route_handler_utilities::{
+        get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id,
+        get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,
+        get_uuid_from_string, is_authenticated_user_anonymous, match_db_error,
+        match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions,
+    },
+};
+use axum::{
+    Extension, Json, Router,
+    extract::{Path, Query, State, rejection::JsonRejection},
+};
 use chrono::{DateTime, Utc};
-use ed25519_dalek::{SigningKey, ed25519::signature::rand_core::OsRng, pkcs8::{EncodePrivateKey, EncodePublicKey, spki::der::pem::LineEnding}};
+use ed25519_dalek::{
+    SigningKey,
+    ed25519::signature::rand_core::OsRng,
+    pkcs8::{EncodePrivateKey, EncodePublicKey, spki::der::pem::LineEnding},
+};
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use std::{net::IpAddr, sync::Arc};
 use uuid::Uuid;
-use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware}, resources::{ResourceType, ResourceError, access_policy::{ActionPermissionLevel}, action_log_entry::{ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties}, app::App, app_authorization::AppAuthorization, app_credential::{AppCredential, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialAppCredentialProperties, InitialAppCredentialPropertiesForPredefinedScope}, http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User}, routes::{ListResourcesResponseBody, ResourceListQueryParameters}, utilities::route_handler_utilities::{get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_uuid_from_string, is_authenticated_user_anonymous, match_db_error, match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions}};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateAppCredentialResponseBody {
-  pub id: Uuid,
-  pub app_id: Uuid,
-  pub description: Option<String>,
-  pub expiration_date: Option<DateTime<Utc>>,
-  pub creation_ip_address: IpAddr,
-  pub public_key: String,
-  pub private_key: String
+    pub id: Uuid,
+    pub app_id: Uuid,
+    pub description: Option<String>,
+    pub expiration_date: Option<DateTime<Utc>>,
+    pub creation_ip_address: IpAddr,
+    pub public_key: String,
+    pub private_key: String,
 }
 
 /// GET /apps/{app_id}/app-credentials
-/// 
+///
 /// Lists app credentials for an app.
 #[axum::debug_handler]
 pub async fn handle_list_app_credentials_request(
-  Path(app_id): Path<String>,
-  Query(query_parameters): Query<ResourceListQueryParameters>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>
+    Path(app_id): Path<String>,
+    Query(query_parameters): Query<ResourceListQueryParameters>,
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<AppCredential>>), HTTPError> {
+    // Make sure the principal has access to list resources.
+    let app_id =
+        get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
+    let list_resources_action = get_action_by_name(
+        "appCredentials.list",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &list_resources_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::App,
+        Some(&target_app.id),
+        &list_resources_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  // Make sure the principal has access to list resources.
-  let app_id = get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
-  let list_resources_action = get_action_by_name("appCredentials.list", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &list_resources_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::App, Some(&target_app.id), &list_resources_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+    let query = format!(
+        "app_id = {}{}",
+        quote_literal(&app_id.to_string()),
+        query_parameters
+            .query
+            .map(|query| format!(" AND ({})", query))
+            .unwrap_or("".to_string())
+    );
+    let queried_resources = match AppCredential::list(
+        &query,
+        &state.database_pool,
+        Some(&principal_type),
+        Some(&principal_id),
+    )
+    .await
+    {
+        Ok(queried_resources) => queried_resources,
 
-  let query = format!(
-    "app_id = {}{}", 
-    quote_literal(&app_id.to_string()), 
-    query_parameters.query.and_then(|query| Some(format!(" AND ({})", query))).unwrap_or("".to_string())
-  );
-  let queried_resources = match AppCredential::list(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
+        Err(error) => {
+            let http_error = match error {
+                ResourceError::SlashstepQLError(error) => match_slashstepql_error(
+                    &error,
+                    &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
+                    "app credentials",
+                ),
 
-    Ok(queried_resources) => queried_resources,
+                ResourceError::PostgresError(error) => match_db_error(&error, "app credentials"),
 
-    Err(error) => {
+                _ => HTTPError::InternalServerError(Some(format!(
+                    "Failed to list app credentials: {:?}",
+                    error
+                ))),
+            };
 
-      let http_error = match error {
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-        ResourceError::SlashstepQLError(error) => match_slashstepql_error(&error, &DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, "app credentials"),
+    ServerLogEntry::trace(
+        "Counting app credentials...",
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    let resource_count = match AppCredential::count(
+        &query,
+        &state.database_pool,
+        Some(&principal_type),
+        Some(&principal_id),
+    )
+    .await
+    {
+        Ok(resource_count) => resource_count,
 
-        ResourceError::PostgresError(error) => match_db_error(&error, "app credentials"),
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to count app credentials: {:?}",
+                error
+            )));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-        _ => HTTPError::InternalServerError(Some(format!("Failed to list app credentials: {:?}", error)))
+    let expiration_timestamp =
+        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: list_resources_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            expiration_timestamp,
+            reason: None, // TODO: Support reasons.
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
+            target_resource_type: ResourceType::App,
+            target_app_id: Some(target_app.id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-      };
+    let queried_resource_list_length = queried_resources.len();
+    ServerLogEntry::success(
+        &format!(
+            "Successfully returned {} {}.",
+            queried_resource_list_length,
+            if queried_resource_list_length == 1 {
+                "app credential"
+            } else {
+                "app credentials"
+            }
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
+    let response_body = ListResourcesResponseBody::<AppCredential> {
+        data: queried_resources,
+        total_count: resource_count,
+    };
 
-    }
-
-  };
-
-  ServerLogEntry::trace(&format!("Counting app credentials..."), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let resource_count = match AppCredential::count(&query, &state.database_pool, Some(&principal_type), Some(&principal_id)).await {
-
-    Ok(resource_count) => resource_count,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to count app credentials: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: list_resources_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    expiration_timestamp: expiration_timestamp,
-    reason: None, // TODO: Support reasons.
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::App,
-    target_app_id: Some(target_app.id),
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-  
-  let queried_resource_list_length = queried_resources.len();
-  ServerLogEntry::success(&format!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "app credential" } else { "app credentials" }), Some(&http_transaction.id), &state.database_pool).await.ok();
-  let response_body = ListResourcesResponseBody::<AppCredential> {
-    resources: queried_resources,
-    total_count: resource_count
-  };
-  
-  return Ok((StatusCode::OK, Json(response_body)));
-
+    Ok((StatusCode::OK, Json(response_body)))
 }
 
 /// POST /apps/{app_id}/app-credentials
-/// 
+///
 /// Creates an app credential for an app.
 #[axum::debug_handler]
 async fn handle_create_app_credential_request(
-  Path(app_id): Path<String>,
-  State(state): State<AppState>, 
-  Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
-  Extension(authenticated_user): Extension<Option<Arc<User>>>,
-  Extension(authenticated_app): Extension<Option<Arc<App>>>,
-  Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
-  body: Result<Json<InitialAppCredentialPropertiesForPredefinedScope>, JsonRejection>
+    Path(app_id): Path<String>,
+    State(state): State<AppState>,
+    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
+    Extension(authenticated_user): Extension<Option<Arc<User>>>,
+    Extension(authenticated_app): Extension<Option<Arc<App>>>,
+    Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
+    body: Result<Json<InitialAppCredentialPropertiesForPredefinedScope>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateAppCredentialResponseBody>), HTTPError> {
+    let app_id =
+        get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
+    let app_credential_properties_json =
+        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+            .await?;
 
-  let app_id = get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
-  let app_credential_properties_json = get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool).await?;
+    // Make sure the authenticated_user can create access policies for the target action.
+    let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
+    let create_app_credentials_action = get_action_by_name(
+        "appCredentials.create",
+        &http_transaction,
+        &state.database_pool,
+    )
+    .await?;
+    verify_delegate_permissions(
+        authenticated_app_authorization
+            .as_ref()
+            .map(|app_authorization| &app_authorization.id),
+        &create_app_credentials_action.id,
+        &http_transaction.id,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
+    let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
+        authenticated_user.as_ref(),
+        authenticated_app.as_ref(),
+    )?;
+    verify_principal_permissions(
+        &principal_type,
+        &principal_id,
+        is_authenticated_user_anonymous(authenticated_user.as_ref()),
+        &ResourceType::App,
+        Some(&target_app.id),
+        &create_app_credentials_action,
+        &http_transaction,
+        &PermissionLevel::User,
+        &state.database_pool,
+    )
+    .await?;
 
-  // Make sure the authenticated_user can create access policies for the target action.
-  let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
-  let create_app_credentials_action = get_action_by_name("appCredentials.create", &http_transaction, &state.database_pool).await?;
-  verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &create_app_credentials_action.id, &http_transaction.id, &ActionPermissionLevel::User, &state.database_pool).await?;
-  let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::App, Some(&target_app.id), &create_app_credentials_action, &http_transaction, &ActionPermissionLevel::User, &state.database_pool).await?;
+    // Create the key pair.
+    let mut os_rng = OsRng;
+    let signing_key = SigningKey::generate(&mut os_rng);
+    let private_key = match signing_key.to_pkcs8_pem(LineEnding::LF) {
+        Ok(private_key) => private_key,
 
-  // Create the key pair.
-  let mut os_rng = OsRng;
-  let signing_key = SigningKey::generate(&mut os_rng);
-  let private_key = match signing_key.to_pkcs8_pem(LineEnding::LF) {
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to create app credential: {:?}",
+                error
+            )));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-    Ok(private_key) => private_key,
+    let verifying_key = signing_key.verifying_key();
+    let public_key = match verifying_key.to_public_key_pem(LineEnding::LF) {
+        Ok(public_key) => public_key,
 
-    Err(error) => {
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to create app credential: {:?}",
+                error
+            )));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
 
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create app credential: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
+    // Create the authenticated app credential.
+    ServerLogEntry::trace(
+        &format!("Creating app credential for app {}...", target_app.id),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-    }
+    let created_app_credential = match AppCredential::create(
+        &InitialAppCredentialProperties {
+            app_id: target_app.id,
+            description: app_credential_properties_json.description.clone(),
+            expiration_date: app_credential_properties_json.expiration_date,
+            creation_ip_address: http_transaction.ip_address,
+            public_key: public_key.clone(),
+        },
+        &state.database_pool,
+    )
+    .await
+    {
+        Ok(created_app_credential) => created_app_credential,
 
-  };
+        Err(error) => {
+            let http_error = HTTPError::InternalServerError(Some(format!(
+                "Failed to create app credential: {:?}",
+                error
+            )));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
+    let create_app_credential_response_body = CreateAppCredentialResponseBody {
+        id: created_app_credential.id,
+        app_id: created_app_credential.app_id,
+        description: created_app_credential.description,
+        expiration_date: created_app_credential.expiration_date,
+        creation_ip_address: created_app_credential.creation_ip_address,
+        public_key: public_key.to_string(),
+        private_key: private_key.to_string(),
+    };
 
-  let verifying_key = signing_key.verifying_key();
-  let public_key = match verifying_key.to_public_key_pem(LineEnding::LF) {
+    let expiration_timestamp =
+        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+    ActionLogEntry::create(
+        &InitialActionLogEntryProperties {
+            action_id: create_app_credentials_action.id,
+            http_transaction_id: Some(http_transaction.id),
+            expiration_timestamp,
+            actor_type: if authenticated_user.is_some() {
+                ActionLogEntryActorType::User
+            } else {
+                ActionLogEntryActorType::App
+            },
+            actor_user_id: authenticated_user
+                .as_ref()
+                .map(|authenticated_user| authenticated_user.id),
+            actor_app_id: authenticated_app
+                .as_ref()
+                .map(|authenticated_app| authenticated_app.id),
+            target_resource_type: ResourceType::AppCredential,
+            target_app_credential_id: Some(created_app_credential.id),
+            ..Default::default()
+        },
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    ServerLogEntry::success(
+        &format!(
+            "Successfully created authenticated_app credential {}.",
+            created_app_credential.id
+        ),
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
 
-    Ok(public_key) => public_key,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create app credential: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error);
-
-    }
-
-  };
-
-  // Create the authenticated app credential.
-  ServerLogEntry::trace(&format!("Creating app credential for app {}...", target_app.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-
-  let created_app_credential = match AppCredential::create(&InitialAppCredentialProperties {
-    app_id: target_app.id,
-    description: app_credential_properties_json.description.clone(),
-    expiration_date: app_credential_properties_json.expiration_date,
-    creation_ip_address: http_transaction.ip_address.clone(),
-    public_key: public_key.clone()
-  }, &state.database_pool).await {
-
-    Ok(created_app_credential) => created_app_credential,
-
-    Err(error) => {
-
-      let http_error = HTTPError::InternalServerError(Some(format!("Failed to create app credential: {:?}", error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
-      return Err(http_error)
-
-    }
-
-  };
-  let create_app_credential_response_body = CreateAppCredentialResponseBody {
-    id: created_app_credential.id,
-    app_id: created_app_credential.app_id,
-    description: created_app_credential.description,
-    expiration_date: created_app_credential.expiration_date,
-    creation_ip_address: created_app_credential.creation_ip_address,
-    public_key: public_key.to_string(),
-    private_key: private_key.to_string()
-  };
-
-  let expiration_timestamp = get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
-  ActionLogEntry::create(&InitialActionLogEntryProperties {
-    action_id: create_app_credentials_action.id,
-    http_transaction_id: Some(http_transaction.id),
-    expiration_timestamp,
-    actor_type: if authenticated_user.is_some() { ActionLogEntryActorType::User } else { ActionLogEntryActorType::App },
-    actor_user_id: if let Some(authenticated_user) = &authenticated_user { Some(authenticated_user.id.clone()) } else { None },
-    actor_app_id: if let Some(authenticated_app) = &authenticated_app { Some(authenticated_app.id.clone()) } else { None },
-    target_resource_type: ResourceType::AppCredential,
-    target_app_credential_id: Some(created_app_credential.id),
-    ..Default::default()
-  }, &state.database_pool).await.ok();
-  ServerLogEntry::success(&format!("Successfully created authenticated_app credential {}.", created_app_credential.id), Some(&http_transaction.id), &state.database_pool).await.ok();
-
-  return Ok((StatusCode::CREATED, Json(create_app_credential_response_body)));
-
+    Ok((
+        StatusCode::CREATED,
+        Json(create_app_credential_response_body),
+    ))
 }
 
 pub fn get_router(state: AppState) -> Router<AppState> {
-
-  let router = Router::<AppState>::new()
-    .route("/apps/{app_id}/app-credentials", axum::routing::get(handle_list_app_credentials_request))
-    .route("/apps/{app_id}/app-credentials", axum::routing::post(handle_create_app_credential_request))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_user))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), authentication_middleware::authenticate_app))
-    .layer(axum::middleware::from_fn_with_state(state.clone(), http_transaction_middleware::create_http_transaction));
-  return router;
-
+    Router::<AppState>::new()
+        .route(
+            "/apps/{app_id}/app-credentials",
+            axum::routing::get(handle_list_app_credentials_request),
+        )
+        .route(
+            "/apps/{app_id}/app-credentials",
+            axum::routing::post(handle_create_app_credential_request),
+        )
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            rate_limit_middleware::verify_absolute_maximum_rate_limits,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            authentication_middleware::authenticate_user,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            authentication_middleware::authenticate_app,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            http_transaction_middleware::create_http_transaction,
+        ))
 }

@@ -3,7 +3,7 @@ SELECT
 FROM
   groups
 WHERE
-  protected_group_type = $1
+  predefined_group_type = $1
   AND parent_resource_type = $2
   AND (
     parent_resource_type = 'Server' 
