@@ -54,7 +54,10 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let retrieved_field_count =
         FieldChoice::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_field_count, MAXIMUM_FIELD_CHOICE_COUNT + initial_resource_count);
+    assert_eq!(
+        retrieved_field_count,
+        MAXIMUM_FIELD_CHOICE_COUNT + initial_resource_count
+    );
 
     return Ok(());
 }

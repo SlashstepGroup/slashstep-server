@@ -101,7 +101,10 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let retrieved_resource_count =
         Project::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_resource_count, MAXIMUM_RESOURCE_COUNT + initial_resource_count);
+    assert_eq!(
+        retrieved_resource_count,
+        MAXIMUM_RESOURCE_COUNT + initial_resource_count
+    );
 
     return Ok(());
 }

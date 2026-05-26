@@ -77,7 +77,10 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let retrieved_app_credential_count =
         AppCredential::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_app_credential_count, MAXIMUM_APP_CREDENTIAL_COUNT + initial_resource_count);
+    assert_eq!(
+        retrieved_app_credential_count,
+        MAXIMUM_APP_CREDENTIAL_COUNT + initial_resource_count
+    );
 
     return Ok(());
 }
