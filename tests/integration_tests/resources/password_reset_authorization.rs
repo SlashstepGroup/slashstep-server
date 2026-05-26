@@ -55,6 +55,8 @@ fn assert_app_authorization_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
+    let initial_resource_count =
+        PasswordResetAuthorization::count("", &test_environment.database_pool, None, None).await?;
     const MAXIMUM_PASSWORD_RESET_AUTHORIZATION_COUNT: i64 =
         DEFAULT_PASSWORD_RESET_AUTHORIZATION_LIST_LIMIT + 1;
     let mut created_password_reset_authorizations: Vec<PasswordResetAuthorization> = Vec::new();
@@ -70,7 +72,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 
     assert_eq!(
         retrieved_password_reset_authorization_count,
-        MAXIMUM_PASSWORD_RESET_AUTHORIZATION_COUNT
+        MAXIMUM_PASSWORD_RESET_AUTHORIZATION_COUNT + initial_resource_count
     );
 
     return Ok(());

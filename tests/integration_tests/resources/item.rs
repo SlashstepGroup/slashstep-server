@@ -34,6 +34,8 @@ fn assert_field_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
+    let initial_resource_count =
+        Item::count("", &test_environment.database_pool, None, None).await?;
     const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_resources: Vec<Item> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -44,7 +46,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let retrieved_resource_count =
         Item::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_resource_count, MAXIMUM_RESOURCE_COUNT);
+    assert_eq!(retrieved_resource_count, MAXIMUM_RESOURCE_COUNT + initial_resource_count);
 
     return Ok(());
 }

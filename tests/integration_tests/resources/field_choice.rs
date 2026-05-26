@@ -42,6 +42,8 @@ fn assert_field_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
+    let initial_resource_count =
+        FieldChoice::count("", &test_environment.database_pool, None, None).await?;
     const MAXIMUM_FIELD_CHOICE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_field_choices: Vec<FieldChoice> = Vec::new();
     for _ in 0..MAXIMUM_FIELD_CHOICE_COUNT {
@@ -52,7 +54,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let retrieved_field_count =
         FieldChoice::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_field_count, MAXIMUM_FIELD_CHOICE_COUNT);
+    assert_eq!(retrieved_field_count, MAXIMUM_FIELD_CHOICE_COUNT + initial_resource_count);
 
     return Ok(());
 }

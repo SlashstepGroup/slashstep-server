@@ -65,6 +65,8 @@ fn assert_app_credential_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
+    let initial_resource_count =
+        AppCredential::count("", &test_environment.database_pool, None, None).await?;
     const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_app_credentials: Vec<AppCredential> = Vec::new();
     for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
@@ -75,7 +77,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let retrieved_app_credential_count =
         AppCredential::count("", &test_environment.database_pool, None, None).await?;
 
-    assert_eq!(retrieved_app_credential_count, MAXIMUM_APP_CREDENTIAL_COUNT);
+    assert_eq!(retrieved_app_credential_count, MAXIMUM_APP_CREDENTIAL_COUNT + initial_resource_count);
 
     return Ok(());
 }
