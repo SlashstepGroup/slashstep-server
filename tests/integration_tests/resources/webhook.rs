@@ -4,8 +4,6 @@ use slashstep_server::resources::webhook::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialWebhookProperties, Webhook,
 };
 use slashstep_server::{
-    initialize_required_tables,
-    predefinitions::initialize_predefined_actions,
     resources::{
         ResourceError, ResourceType,
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
@@ -66,8 +64,6 @@ fn assert_webhook_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_resources: Vec<Webhook> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -86,7 +82,6 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn verify_creation() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
 
     let webhook_properties = InitialWebhookProperties {
         display_name: Uuid::now_v7().to_string(),
@@ -106,8 +101,6 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_webhook = test_environment.create_random_webhook().await?;
 
     created_webhook
@@ -129,17 +122,8 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 }
 
 #[tokio::test]
-async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
-    let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-
-    return Ok(());
-}
-
-#[tokio::test]
 async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
 
     let created_webhook = test_environment.create_random_webhook().await?;
     let retrieved_resource =
@@ -153,8 +137,6 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut webhooks: Vec<Webhook> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -177,8 +159,6 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 #[tokio::test]
 async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 5;
     let mut created_resources: Vec<Webhook> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -211,8 +191,6 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 #[tokio::test]
 async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 25;
     let mut created_resources: Vec<Webhook> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -239,8 +217,6 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
 -> Result<(), TestSlashstepServerError> {
     // Make sure there are at least two actions.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     const MINIMUM_RESOURCE_COUNT: i32 = 2;
     let mut current_resources =

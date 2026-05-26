@@ -3,11 +3,9 @@ use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHasher};
 use uuid::Uuid;
 
-use slashstep_server::predefinitions::initialize_predefined_actions;
-use slashstep_server::{
-    initialize_required_tables,
-    resources::app::{App, AppClientType, EditableAppProperties},
-};
+use slashstep_server::
+    resources::app::{App, AppClientType, EditableAppProperties}
+;
 
 use crate::test_utilities::integration_test_environment::IntegrationTestEnvironment;
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
@@ -16,8 +14,6 @@ use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError
 #[tokio::test]
 async fn verify_list_excludes_nonexistent_resources() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     let apps = App::list(
         &format!("id = '{}'", Uuid::now_v7().to_string()),
@@ -37,8 +33,6 @@ async fn verify_update() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
 
     // Create the app and update everything.
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let original_app = test_environment.create_random_app(None, None).await?;
     let new_name = Uuid::now_v7().to_string();
     let new_display_name = Uuid::now_v7().to_string();
@@ -93,8 +87,6 @@ async fn verify_update() -> Result<(), TestSlashstepServerError> {
 async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_app = test_environment.create_random_app(None, None).await?;
 
     created_app.delete(&test_environment.database_pool).await?;

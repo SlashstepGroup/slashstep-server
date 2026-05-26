@@ -1,15 +1,13 @@
 use chrono::Utc;
 
-use slashstep_server::{
-    initialize_required_tables,
-    predefinitions::initialize_predefined_actions,
+use slashstep_server::
     resources::{
         ResourceError,
         action_log_entry::{
             ActionLogEntry, ActionLogEntryActorType, InitialActionLogEntryProperties,
         },
-    },
-};
+    }
+;
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,
@@ -141,8 +139,6 @@ fn assert_action_log_entry_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_action_log_entry_creation() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     // Create the access policy.
     let action = test_environment.create_random_action(None).await?;
@@ -173,8 +169,6 @@ async fn verify_action_log_entry_creation() -> Result<(), TestSlashstepServerErr
 async fn verify_action_log_entry_deletion_by_id() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_action_log_entry = test_environment.create_random_action_log_entry().await?;
 
     created_action_log_entry
@@ -205,8 +199,6 @@ async fn verify_action_log_entry_deletion_by_id() -> Result<(), TestSlashstepSer
 async fn verify_deletion_of_expired_action_log_entries() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let app = test_environment.create_random_app(None, None).await?;
     let action = test_environment.create_random_action(None).await?;
     let created_action_log_entry = ActionLogEntry::create(

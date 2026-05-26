@@ -7,9 +7,7 @@ use ed25519_dalek::{
 use local_ip_address::local_ip;
 use uuid::Uuid;
 
-use slashstep_server::{
-    initialize_required_tables,
-    predefinitions::initialize_predefined_actions,
+use slashstep_server::
     resources::{
         ResourceError, ResourceType,
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
@@ -17,8 +15,8 @@ use slashstep_server::{
         app_credential::{
             AppCredential, DEFAULT_RESOURCE_LIST_LIMIT, InitialAppCredentialProperties,
         },
-    },
-};
+    }
+;
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,
@@ -71,8 +69,6 @@ fn assert_app_credential_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_app_credentials: Vec<AppCredential> = Vec::new();
     for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
@@ -91,8 +87,6 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn verify_creation() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     // Create the resource.
     let mut os_rng = OsRng;
@@ -124,8 +118,6 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_app_credential = test_environment.create_random_app_credential(None).await?;
 
     created_app_credential
@@ -149,17 +141,8 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 }
 
 #[tokio::test]
-async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
-    let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-
-    return Ok(());
-}
-
-#[tokio::test]
 async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
 
     let created_app_credential = test_environment.create_random_app_credential(None).await?;
     let retrieved_app_credential =
@@ -174,8 +157,6 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_APP_CREDENTIAL_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut app_credentials: Vec<AppCredential> = Vec::new();
     for _ in 0..MAXIMUM_APP_CREDENTIAL_COUNT {
@@ -198,8 +179,6 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 #[tokio::test]
 async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 5;
     let mut created_app_credentials: Vec<AppCredential> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -237,8 +216,6 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 #[tokio::test]
 async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 25;
     let mut created_app_credentials: Vec<AppCredential> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -268,8 +245,6 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
 -> Result<(), TestSlashstepServerError> {
     // Make sure there are at least two actions.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     const MINIMUM_ACTION_COUNT: i32 = 2;
     let mut current_app_credentials =

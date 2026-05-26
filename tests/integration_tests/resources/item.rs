@@ -4,8 +4,6 @@ use slashstep_server::resources::item::{
     DEFAULT_RESOURCE_LIST_LIMIT, GET_RESOURCE_ACTION_NAME, InitialItemProperties, Item,
 };
 use slashstep_server::{
-    initialize_required_tables,
-    predefinitions::initialize_predefined_actions,
     resources::{
         ResourceError, ResourceType,
         access_policy::{AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties},
@@ -38,8 +36,6 @@ fn assert_field_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_resources: Vec<Item> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -58,8 +54,6 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn verify_creation() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     // Create the access policy.
     let project = test_environment.create_random_project(None).await?;
@@ -80,8 +74,6 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_item = test_environment.create_random_item(None).await?;
 
     created_item.delete(&test_environment.database_pool).await?;
@@ -101,17 +93,8 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 }
 
 #[tokio::test]
-async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
-    let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-
-    return Ok(());
-}
-
-#[tokio::test]
 async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
 
     let created_item = test_environment.create_random_item(None).await?;
     let retrieved_resource =
@@ -125,8 +108,6 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut fields: Vec<Item> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -148,8 +129,6 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 async fn verify_list_resources_with_query_and_field_references()
 -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     let project = test_environment.create_random_project(None).await?;
     test_environment
@@ -273,8 +252,6 @@ async fn verify_list_resources_with_query_and_field_references()
 #[tokio::test]
 async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 5;
     let mut created_resources: Vec<Item> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -307,8 +284,6 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 #[tokio::test]
 async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 25;
     let mut created_resources: Vec<Item> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -336,8 +311,6 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
 -> Result<(), TestSlashstepServerError> {
     // Make sure there are at least two actions.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     const MINIMUM_RESOURCE_COUNT: i32 = 2;
     let mut current_resources = Item::list("", &test_environment.database_pool, None, None).await?;

@@ -2,17 +2,15 @@ use slashstep_server::resources::delegation_policy::{
     DEFAULT_RESOURCE_LIST_LIMIT, DelegationPolicy, GET_RESOURCE_ACTION_NAME,
     InitialDelegationPolicyProperties,
 };
-use slashstep_server::{
-    initialize_required_tables,
-    predefinitions::initialize_predefined_actions,
+use slashstep_server::
     resources::{
         ResourceError, ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
         },
         action::{Action, DEFAULT_ACTION_LIST_LIMIT},
-    },
-};
+    }
+;
 
 use crate::test_utilities::integration_test_environment::IntegrationTestEnvironment;
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
@@ -59,8 +57,6 @@ fn assert_delegation_policy_is_equal_to_initial_properties(
 #[tokio::test]
 async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut created_resources: Vec<DelegationPolicy> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -79,8 +75,6 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn verify_creation() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     // Create the access policy.
     let action = test_environment.create_random_action(None).await?;
@@ -115,8 +109,6 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
 async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
     // Create the access policy.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     let created_delegation_policy = test_environment.create_random_delegation_policy().await?;
     created_delegation_policy
         .delete(&test_environment.database_pool)
@@ -142,17 +134,8 @@ async fn verify_deletion() -> Result<(), TestSlashstepServerError> {
 }
 
 #[tokio::test]
-async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
-    let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-
-    return Ok(());
-}
-
-#[tokio::test]
 async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
 
     let created_delegation_policy = test_environment.create_random_delegation_policy().await?;
     let retrieved_resource = DelegationPolicy::get_by_id(
@@ -169,8 +152,6 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
 #[tokio::test]
 async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i64 = DEFAULT_RESOURCE_LIST_LIMIT + 1;
     let mut delegation_policies: Vec<DelegationPolicy> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -193,8 +174,6 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
 #[tokio::test]
 async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 5;
     let mut created_resources: Vec<DelegationPolicy> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -227,8 +206,6 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
 #[tokio::test]
 async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
     const MAXIMUM_RESOURCE_COUNT: i32 = 25;
     let mut created_resources: Vec<DelegationPolicy> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
@@ -255,8 +232,6 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
 -> Result<(), TestSlashstepServerError> {
     // Make sure there are at least two actions.
     let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-    initialize_predefined_actions(&test_environment.database_pool).await?;
 
     const MINIMUM_RESOURCE_COUNT: i32 = 2;
     let mut current_resources =

@@ -9,8 +9,7 @@
  *
  */
 
-use slashstep_server::{
-    initialize_required_tables,
+use slashstep_server::
     resources::{
         ResourceType,
         access_policy::{
@@ -18,8 +17,8 @@ use slashstep_server::{
             EditableAccessPolicyProperties, InitialAccessPolicyProperties, PermissionLevel,
         },
         action::Action,
-    },
-};
+    }
+;
 
 use crate::test_utilities::{
     integration_test_environment::IntegrationTestEnvironment,
@@ -166,15 +165,6 @@ fn assert_access_policies_are_equal(
         access_policy_1.scoped_user_id,
         access_policy_2.scoped_user_id
     );
-}
-
-/// Verifies that an access_policies table can be initialized.
-#[tokio::test]
-async fn initialize_resource_table() -> Result<(), TestSlashstepServerError> {
-    let test_environment = IntegrationTestEnvironment::new().await?;
-    initialize_required_tables(&test_environment.database_pool).await?;
-
-    return Ok(());
 }
 
 /// Verifies that an access policy can be created.
