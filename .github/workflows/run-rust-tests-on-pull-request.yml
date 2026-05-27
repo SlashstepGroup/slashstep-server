@@ -32,9 +32,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
 
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.10
-
       - name: Install nextest
         uses: taiki-e/install-action@v2.75.5
         with:
@@ -131,9 +128,6 @@ jobs:
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.10
-
       - name: Install mkcert CA
         run: mkcert -install
 
@@ -213,9 +207,6 @@ jobs:
             ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
-
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Install mkcert CA
         run: mkcert -install

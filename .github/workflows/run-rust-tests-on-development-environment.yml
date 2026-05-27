@@ -65,8 +65,7 @@ jobs:
             /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
@@ -123,8 +122,7 @@ jobs:
             /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
@@ -137,11 +135,6 @@ jobs:
           cd tls
           mkcert localhost 127.0.0.1 ::1
           cd ..
-
-      - name: Install nextest
-        uses: taiki-e/install-action@v2.75.5
-        with:
-          tool: nextest@0.9.132
 
       - name: Set up Redis
         uses: shogo82148/actions-setup-redis@v1.51.0
@@ -210,8 +203,7 @@ jobs:
             /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
@@ -224,10 +216,6 @@ jobs:
           cd tls
           mkcert localhost 127.0.0.1 ::1
           cd ..
-
-      - uses: taiki-e/install-action@v2.75.5
-        with:
-          tool: nextest@0.9.132
 
       - name: Set up Redis
         uses: shogo82148/actions-setup-redis@v1.51.0
