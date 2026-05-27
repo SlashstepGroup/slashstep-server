@@ -18,6 +18,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  POSTGRESQL_VERSION: "18.3.0"
+
 jobs:
   compile-rust-code:
     name: Compile Rust code
@@ -29,9 +32,10 @@ jobs:
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - run: cargo test --no-run
-        env:
-          RUSTFLAGS: "-Awarnings"
+      - name: Install nextest
+        uses: taiki-e/install-action@v2.75.5
+        with:
+          tool: nextest@0.9.132
 
       - name: Install mkcert
         run: |
@@ -40,19 +44,22 @@ jobs:
           chmod +x mkcert
           sudo mv mkcert /usr/local/bin/mkcert
 
+      - name: Install PostgreSQL
+        run: |
+          RUST_HOST=$(rustc -vV | sed -n 's/host: //p')
+          mkdir -p ${HOME}/.theseus/postgresql
+          wget -qO - https://github.com/theseus-rs/postgresql-binaries/releases/download/${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}-${RUST_HOST}.tar.gz | tar -xz -C ${HOME}/.theseus/postgresql
+          mv ${HOME}/.theseus/postgresql/postgresql-${POSTGRESQL_VERSION}-${RUST_HOST} ${HOME}/.theseus/postgresql/${POSTGRESQL_VERSION}
+
       - run: mkdir secrets
 
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
 
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
-      
-      - name: Cache Docker images
-        run: |
-          docker pull postgres:18
-          docker pull valkey/valkey:9.1.0
-          mkdir -p ~/image-cache
-          docker image save postgres:18 -o ~/image-cache/postgres.tar
-          docker image save valkey/valkey:9.1.0 -o ~/image-cache/valkey.tar
+
+      - run: cargo nextest run --no-run
+        env:
+          RUSTFLAGS: "-Awarnings"
 
       - name: Cache dependencies
         uses: actions/cache/save@v5
@@ -60,9 +67,7 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
-            ./target
-            ~/.cargo
-            ~/image-cache
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
   test-routes:
@@ -118,15 +123,8 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
-            ./target
-            ~/.cargo
-            ~/image-cache
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
-
-      - name: Load Docker images
-        run: |
-          docker image load --input ~/image-cache/postgres.tar
-          docker image load --input ~/image-cache/valkey.tar
 
       - name: Install mkcert CA
         run: mkcert -install
@@ -142,6 +140,12 @@ jobs:
         uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
+
+      - name: Set up Redis
+        uses: shogo82148/actions-setup-redis@v1.51.0
+        with:
+          redis-version: "8.6.3"
+          auto-start: "false"
 
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(routes::${{ matrix.route-name }}::)'
         env:
@@ -204,15 +208,8 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
-            ./target
-            ~/.cargo
-            ~/image-cache
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
-
-      - name: Load Docker images
-        run: |
-          docker image load --input ~/image-cache/postgres.tar
-          docker image load --input ~/image-cache/valkey.tar
 
       - name: Install mkcert CA
         run: mkcert -install
@@ -227,6 +224,12 @@ jobs:
       - uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
+
+      - name: Set up Redis
+        uses: shogo82148/actions-setup-redis@v1.51.0
+        with:
+          redis-version: "8.6.3"
+          auto-start: "false"
 
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(resources::${{ matrix.resource-name }}::)'
         env:

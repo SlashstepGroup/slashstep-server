@@ -1,7 +1,6 @@
 use std::{
-    net::{IpAddr, Ipv6Addr},
-    sync::Arc,
-};
+    net::{IpAddr, Ipv6Addr}, str::FromStr}
+;
 
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
@@ -12,10 +11,12 @@ use ed25519_dalek::{
 };
 use local_ip_address::local_ip;
 use postgres::NoTls;
+use postgresql_embedded::PostgreSQL;
 use rand::{
     RngExt,
     distr::{Alphanumeric, SampleString},
 };
+use redis_test::server::RedisServer;
 use slashstep_server::{
     DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file, initialize_required_tables,
     predefinitions::{
@@ -78,68 +79,43 @@ use slashstep_server::{
         workspace::{InitialWorkspaceProperties, Workspace},
     },
 };
-use testcontainers::{ContainerAsync, ImageExt};
-use testcontainers_modules::{testcontainers::runners::AsyncRunner, valkey::VALKEY_PORT};
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
 
 pub struct IntegrationTestEnvironment {
     pub database_pool: deadpool_postgres::Pool,
-
     pub redis_pool: deadpool_redis::Pool,
-
-    pub redis_container: Arc<ContainerAsync<testcontainers_modules::valkey::Valkey>>,
-
+    pub redis_server: RedisServer,
     // This is required to prevent the compiler from complaining about unused fields.
     // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
     #[allow(dead_code)]
-    pub postgres_container:
-        Arc<testcontainers::ContainerAsync<testcontainers_modules::postgres::Postgres>>,
+    pub embedded_postgresql: PostgreSQL,
 }
 
 impl IntegrationTestEnvironment {
-    pub async fn start_postgresql_container()
-    -> Arc<ContainerAsync<testcontainers_modules::postgres::Postgres>> {
-        println!("Starting PostgreSQL test server...");
-        let postgres_container = Arc::new(
-            testcontainers_modules::postgres::Postgres::default()
-                .with_tag("18")
-                .start()
-                .await
-                .expect("Failed to start PostgreSQL test server"),
-        );
-
-        return postgres_container;
-    }
-
-    pub async fn start_valkey_container()
-    -> Arc<ContainerAsync<testcontainers_modules::valkey::Valkey>> {
-        println!("Starting Valkey test server...");
-        let valkey_container = Arc::new(
-            testcontainers_modules::valkey::Valkey::default()
-                .with_tag("9.1.0")
-                .start()
-                .await
-                .expect("Failed to start Valkey test server"),
-        );
-
-        return valkey_container;
-    }
 
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
         import_env_file();
 
-        let postgres_container = Self::start_postgresql_container().await;
-        let postgres_host = postgres_container.get_host().await?;
-        let postgres_port = postgres_container.get_host_port_ipv4(5432).await?;
+        let postgres_version = std::env::var("POSTGRESQL_VERSION").unwrap_or("18.3.0".to_string());
+        println!("Setting up PostgreSQL test server...");
+        let embedded_postgresql_settings = postgresql_embedded::Settings {
+            version: postgresql_embedded::VersionReq::from_str(&format!("={}", postgres_version))?,
+            ..Default::default()
+        };
+        let mut embedded_postgresql = PostgreSQL::new(embedded_postgresql_settings);
+        embedded_postgresql.setup().await?;
+
+        println!("Starting PostgreSQL test server...");
+        embedded_postgresql.start().await?;
 
         println!("Signing into PostgreSQL test server...");
         let mut postgres_config = tokio_postgres::Config::new();
-        postgres_config.host(postgres_host.to_string());
-        postgres_config.port(postgres_port);
-        postgres_config.user("postgres");
-        postgres_config.password("postgres");
+        postgres_config.host(embedded_postgresql.settings().host.clone());
+        postgres_config.port(embedded_postgresql.settings().port.clone());
+        postgres_config.user(embedded_postgresql.settings().username.clone());
+        postgres_config.password(embedded_postgresql.settings().password.clone());
         postgres_config.dbname("postgres");
         let manager_config = deadpool_postgres::ManagerConfig {
             recycling_method: deadpool_postgres::RecyclingMethod::Fast,
@@ -160,17 +136,16 @@ impl IntegrationTestEnvironment {
         initialize_predefined_configurations(&database_pool).await?;
 
         println!("Signing into Valkey test server...");
-        let valkey_container = Self::start_valkey_container().await;
-        let valkey_host = valkey_container.get_host().await?;
-        let valkey_port = valkey_container.get_host_port_ipv4(VALKEY_PORT).await?;
-        let valkey_url = format!("redis://{valkey_host}:{valkey_port}");
-        let valkey_config = deadpool_redis::Config::from_url(valkey_url);
-        let valkey_pool = valkey_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
+        let redis_server = RedisServer::new();
+        let (redis_host, redis_port) = redis_server.host_and_port().expect("Failed to get Redis server host and port");
+        let redis_url = format!("redis://{redis_host}:{redis_port}");
+        let redis_config = deadpool_redis::Config::from_url(redis_url);
+        let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
         let environment = IntegrationTestEnvironment {
             database_pool,
-            postgres_container,
-            redis_pool: valkey_pool,
-            redis_container: valkey_container,
+            embedded_postgresql,
+            redis_pool,
+            redis_server,
         };
 
         return Ok(environment);

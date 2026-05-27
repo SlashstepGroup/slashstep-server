@@ -52,7 +52,15 @@ time = "0.3.47"
 deadpool-redis = "0.23.0"
 
 [dev-dependencies]
-testcontainers = { version = "0.26.3" }
-testcontainers-modules = { version = "0.14.0", features = ["postgres", "blocking", "valkey"] }
 axum-test = "20.0.0"
 anyhow = "1.0.102"
+postgresql_embedded = { version = "0.20.2", features = ["bundled"] }
+redis-test = "1.0.3"
+semver = "1.0.28"
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = 'abort'
+strip = true

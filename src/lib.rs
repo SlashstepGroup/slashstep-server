@@ -94,6 +94,9 @@ pub enum SlashstepServerError {
 pub async fn initialize_required_tables(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), SlashstepServerError> {
+    
+    println!("Initializing required tables...");
+    
     let create_general_types_query = include_str!("./queries/create_general_types.sql");
     database_pool
         .get()
