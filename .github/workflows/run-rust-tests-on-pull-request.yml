@@ -54,6 +54,7 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
   test-routes:
@@ -111,6 +112,7 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA
@@ -197,6 +199,7 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA

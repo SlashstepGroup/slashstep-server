@@ -98,8 +98,11 @@ impl IntegrationTestEnvironment {
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
         import_env_file();
 
+        println!("Setting up PostgreSQL test server...");
         let mut embedded_postgresql = PostgreSQL::default();
         embedded_postgresql.setup().await?;
+
+        println!("Starting PostgreSQL test server...");
         embedded_postgresql.start().await?;
 
         println!("Signing into PostgreSQL test server...");
