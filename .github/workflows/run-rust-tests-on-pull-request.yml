@@ -128,6 +128,12 @@ jobs:
         with:
           tool: nextest@0.9.132
 
+      - name: Setup Redis
+        uses: shogo82148/actions-setup-redis@v1
+        with:
+          redis-version: "8.8.0"
+          auto-start: "false"
+
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(routes::${{ matrix.route-name }}::)'
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
@@ -206,6 +212,12 @@ jobs:
       - uses: taiki-e/install-action@v2.75.5
         with:
           tool: nextest@0.9.132
+
+      - name: Setup Redis
+        uses: shogo82148/actions-setup-redis@v1
+        with:
+          redis-version: "8.8.0"
+          auto-start: "false"
 
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(resources::${{ matrix.resource-name }}::)'
         env:
