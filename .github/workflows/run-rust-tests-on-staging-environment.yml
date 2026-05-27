@@ -51,7 +51,6 @@ jobs:
 
       - run: cargo nextest run -r --no-run
         env:
-          RUSTFLAGS: "-Awarnings"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cache dependencies
@@ -149,7 +148,6 @@ jobs:
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
-          RUSTFLAGS: "-Awarnings"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_TERM_COLOR: always
     
@@ -236,7 +234,6 @@ jobs:
         env:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
-          RUSTFLAGS: "-Awarnings"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_TERM_COLOR: always
   
