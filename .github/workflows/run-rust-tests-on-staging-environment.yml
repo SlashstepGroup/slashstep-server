@@ -52,8 +52,6 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
-            ./target
-            ~/.cargo
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
   test-routes:
@@ -110,8 +108,6 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
-            ./target
-            ~/.cargo
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA
@@ -198,8 +194,6 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
-            ./target
-            ~/.cargo
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA
