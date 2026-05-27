@@ -18,6 +18,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  POSTGRESQL_VERSION: "18.3.0"
+
 jobs:
   compile-rust-code:
     name: Compile Rust code
@@ -41,6 +44,13 @@ jobs:
           chmod +x mkcert
           sudo mv mkcert /usr/local/bin/mkcert
 
+      - name: Install PostgreSQL
+        run: |
+          RUST_HOST=$(rustc -vV | sed -n 's/host: //p')
+          mkdir -p ${HOME}/.theseus/postgresql
+          wget -qO - https://github.com/theseus-rs/postgresql-binaries/releases/download/${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}-${RUST_HOST}.tar.gz | tar -xz -C ${HOME}/.theseus/postgresql
+          mv ${HOME}/.theseus/postgresql/postgresql-${POSTGRESQL_VERSION}-${RUST_HOST} ${HOME}/.theseus/postgresql/${POSTGRESQL_VERSION}
+
       - run: mkdir secrets
 
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
@@ -50,7 +60,6 @@ jobs:
       - run: cargo nextest run --no-run
         env:
           RUSTFLAGS: "-Awarnings"
-          POSTGRESQL_VERSION: "18.3.0"
 
       - name: Cache dependencies
         uses: actions/cache/save@v5
@@ -58,6 +67,7 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
   test-routes:
@@ -113,6 +123,7 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA
@@ -141,7 +152,6 @@ jobs:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
           RUSTFLAGS: "-Awarnings"
-          POSTGRESQL_VERSION: "18.3.0"
           CARGO_TERM_COLOR: always
     
   test-resources:
@@ -198,6 +208,7 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA
@@ -225,7 +236,6 @@ jobs:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
           RUSTFLAGS: "-Awarnings"
-          POSTGRESQL_VERSION: "18.3.0"
           CARGO_TERM_COLOR: always
   
   # This job is here for branch protection rules.
