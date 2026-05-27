@@ -25,9 +25,6 @@ pub enum TestSlashstepServerError {
     LocalIPAddressError(#[from] local_ip_address::Error),
 
     #[error(transparent)]
-    TestcontainersError(#[from] testcontainers::TestcontainersError),
-
-    #[error(transparent)]
     PKCS8Error(#[from] ed25519_dalek::pkcs8::Error),
 
     #[error(transparent)]
@@ -44,4 +41,7 @@ pub enum TestSlashstepServerError {
 
     #[error(transparent)]
     JsonWebTokenError(#[from] jsonwebtoken::errors::Error),
+
+    #[error(transparent)]
+    PostgreSQLEmbeddedError(#[from] postgresql_embedded::Error),
 }

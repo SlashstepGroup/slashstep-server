@@ -1,4 +1,5 @@
 FROM mcr.microsoft.com/devcontainers/rust:2-1-trixie
 RUN apt-get update && apt-get install gnupg2 -y
+RUN apt-get install redis-server -y
 RUN curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get -y install --no-install-recommends mold clang

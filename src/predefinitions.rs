@@ -722,6 +722,18 @@ pub async fn initialize_predefined_actions(
       ..Default::default()
     },
     InitialActionProperties {
+      name: "passwordResetAuthorizations.get".to_string(),
+      display_name: "Get password reset authorizations".to_string(),
+      description: "Get a specific password reset authorization on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
+      name: "passwordResetAuthorizations.list".to_string(),
+      display_name: "List password reset authorizations".to_string(),
+      description: "List all password reset authorizations on a particular scope.".to_string(),
+      ..Default::default()
+    },
+    InitialActionProperties {
       name: "projects.get".to_string(),
       display_name: "Get projects".to_string(),
       description: "Get a specific project on a particular scope.".to_string(),

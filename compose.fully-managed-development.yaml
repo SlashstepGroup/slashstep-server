@@ -48,6 +48,7 @@ services:
       - jwt-public-key
       - jwt-private-key
       - self-signed-tls-private-key
+      - slashstep-admin-password
     volumes:
       - type: bind
         source: ./tls/localhost+2.pem
