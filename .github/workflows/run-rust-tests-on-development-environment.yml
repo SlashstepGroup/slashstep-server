@@ -123,6 +123,7 @@ jobs:
           path: |
             /usr/local/bin/mkcert
             ./secrets
+            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA
