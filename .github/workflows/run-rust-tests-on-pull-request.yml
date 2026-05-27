@@ -129,9 +129,9 @@ jobs:
           tool: nextest@0.9.132
 
       - name: Setup Redis
-        uses: shogo82148/actions-setup-redis@v1
+        uses: shogo82148/actions-setup-redis@v1.51.0
         with:
-          redis-version: "8.8.0"
+          redis-version: "8.6.3"
           auto-start: "false"
 
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(routes::${{ matrix.route-name }}::)'
@@ -214,9 +214,9 @@ jobs:
           tool: nextest@0.9.132
 
       - name: Setup Redis
-        uses: shogo82148/actions-setup-redis@v1
+        uses: shogo82148/actions-setup-redis@v1.51.0
         with:
-          redis-version: "8.8.0"
+          redis-version: "8.6.3"
           auto-start: "false"
 
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(resources::${{ matrix.resource-name }}::)'
