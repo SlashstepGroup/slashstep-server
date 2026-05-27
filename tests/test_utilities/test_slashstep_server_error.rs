@@ -44,4 +44,7 @@ pub enum TestSlashstepServerError {
 
     #[error(transparent)]
     PostgreSQLEmbeddedError(#[from] postgresql_embedded::Error),
+
+    #[error(transparent)]
+    SemverParseError(#[from] semver::Error),
 }

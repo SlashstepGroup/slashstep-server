@@ -29,9 +29,15 @@ jobs:
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - run: cargo test --no-run
+      - name: Install nextest
+        uses: taiki-e/install-action@v2.75.5
+        with:
+          tool: nextest@0.9.132
+
+      - run: cargo nextest run --no-run
         env:
           RUSTFLAGS: "-Awarnings"
+          POSTGRESQL_VERSION: "18.3.0"
 
       - name: Install mkcert
         run: |
@@ -54,7 +60,6 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
-            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
   test-routes:
@@ -112,7 +117,6 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
-            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA
@@ -141,6 +145,7 @@ jobs:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
           RUSTFLAGS: "-Awarnings"
+          POSTGRESQL_VERSION: "18.3.0"
           CARGO_TERM_COLOR: always
     
   test-resources:
@@ -199,7 +204,6 @@ jobs:
             ./secrets
             ./target
             ~/.cargo
-            ~/.theseus
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
       - name: Install mkcert CA
@@ -227,6 +231,7 @@ jobs:
           JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
           JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
           RUSTFLAGS: "-Awarnings"
+          POSTGRESQL_VERSION: "18.3.0"
           CARGO_TERM_COLOR: always
   
   # This job is here for branch protection rules.
