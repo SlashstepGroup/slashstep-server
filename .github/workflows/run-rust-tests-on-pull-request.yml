@@ -71,8 +71,7 @@ jobs:
             /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
@@ -128,8 +127,7 @@ jobs:
             /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
@@ -212,8 +210,7 @@ jobs:
             /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
