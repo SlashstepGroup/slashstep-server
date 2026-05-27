@@ -28,11 +28,6 @@ jobs:
         with:
           tool: nextest@0.9.132
 
-      - run: cargo nextest run -r --no-run
-        env:
-          RUSTFLAGS: "-Awarnings"
-          POSTGRESQL_VERSION: "18.3.0"
-
       - name: Install mkcert
         run: |
           MKCERT_VERSION="v1.4.4"
@@ -45,6 +40,11 @@ jobs:
       - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
 
       - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
+
+      - run: cargo nextest run -r --no-run
+        env:
+          RUSTFLAGS: "-Awarnings"
+          POSTGRESQL_VERSION: "18.3.0"
 
       - name: Cache dependencies
         uses: actions/cache/save@v5
@@ -129,7 +129,7 @@ jobs:
         with:
           tool: nextest@0.9.132
 
-      - name: Setup Redis
+      - name: Set up Redis
         uses: shogo82148/actions-setup-redis@v1.51.0
         with:
           redis-version: "8.6.3"
@@ -216,7 +216,7 @@ jobs:
         with:
           tool: nextest@0.9.132
 
-      - name: Setup Redis
+      - name: Set up Redis
         uses: shogo82148/actions-setup-redis@v1.51.0
         with:
           redis-version: "8.6.3"

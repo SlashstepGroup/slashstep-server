@@ -98,9 +98,10 @@ impl IntegrationTestEnvironment {
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
         import_env_file();
 
+        let postgres_version = std::env::var("POSTGRESQL_VERSION").unwrap_or("18.3.0".to_string());
         println!("Setting up PostgreSQL test server...");
         let embedded_postgresql_settings = postgresql_embedded::Settings {
-            version: postgresql_embedded::VersionReq::from_str("=18.3.0")?,
+            version: postgresql_embedded::VersionReq::from_str(&format!("={}", postgres_version))?,
             ..Default::default()
         };
         let mut embedded_postgresql = PostgreSQL::new(embedded_postgresql_settings);
