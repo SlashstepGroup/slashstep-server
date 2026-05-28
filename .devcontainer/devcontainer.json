@@ -1,50 +1,42 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/rust
 {
-	"name": "Rust",
-
+	"name": "slashstep-server",
 	"build": {
 		"dockerfile": "Containerfile"
 	},
-
 	"containerEnv": {
 		"RUSTFLAGS": "-C linker=clang -C link-arg=-fuse-ld=mold"
 	},
-
-	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
-
+	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}; podman system service --time 0",
 	"mounts": [
 		"type=bind,source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,readonly"
 	],
-	
-	"runArgs": ["--network=host"],
-
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1.9.1": {
-			"version": "latest",
-			"moby": false
-		}
-	},
+	// "privileged": true,
 	"customizations": {
 		"vscode": {
 			"extensions": [
 				"github.vscode-github-actions",
 				"vadimcn.vscode-lldb",
-				"rust-lang.rust-analyzer"
-			]
+				"rust-lang.rust-analyzer",
+				"ms-azuretools.vscode-containers"
+			],
+			"settings": {
+				"dev.containers.dockerPath": "podman",
+				"dev.containers.dockerComposePath": "podman-compose",
+				"containers.containerClient": "com.microsoft.visualstudio.containers.podman",
+				"containers.orchestratorClient": "com.microsoft.visualstudio.orchestrators.podmancompose"
+			}
 		}
-	}
-
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
-
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "rustc --version",
-
-	// Configure tool-specific properties.
-	// "customizations": {},
-
-	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
+	},
+	"runArgs": [
+		"--device=/dev/fuse",
+		"--security-opt", "label=disable",
+		"--security-opt", "unmask=/proc/*",
+		"--cap-add=SYS_ADMIN",
+		"--device=/dev/net/tun"
+	],
+	"forwardPorts": [
+		3001
+	]
 }

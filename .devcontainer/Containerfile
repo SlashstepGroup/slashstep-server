@@ -1,6 +1,14 @@
 FROM mcr.microsoft.com/devcontainers/rust:2-1-trixie
-RUN apt-get update && apt-get install gnupg2 -y
-RUN apt-get install redis-server -y
+RUN apt-get update
+RUN apt-get -y install gnupg2 
+RUN apt-get -y install redis-server
 RUN curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get -y install --no-install-recommends mold clang
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get -y install --no-install-recommends mold clang
+RUN apt-get -y install podman podman-compose podman-docker
+RUN apt-get update && apt-get install -y sudo \
+    && echo "vscode ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/vscode \
+    && chmod 0440 /etc/sudoers.d/vscode
 ENV POSTGRESQL_VERSION=18.3.0
+RUN mkdir -p ~/.config/containers/
+COPY containers.conf /etc/containers/containers.conf

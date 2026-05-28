@@ -38,6 +38,7 @@ services:
       MAXIMUM_POSTGRESQL_CONNECTION_COUNT: 20
       SLASHSTEP_ADMIN_USERNAME: Admin
       SLASHSTEP_ADMIN_PASSWORD_FILE_PATH: /run/secrets/slashstep-admin-password
+      REDIS_URL: redis://localhost:6379
     secrets:
       - postgresql-password
       - jwt-public-key
@@ -45,6 +46,7 @@ services:
       - slashstep-admin-password
     depends_on:
       - postgresql-server
+      - valkey-server
 
   postgresql-server:
     image: postgres:18.3
@@ -61,5 +63,13 @@ services:
     secrets:
       - postgresql-password
 
+  valkey-server:
+    image: valkey/valkey:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey-data:/data
+
 volumes:
   postgresql-data:
+  valkey-data:
