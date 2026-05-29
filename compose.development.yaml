@@ -43,6 +43,7 @@ services:
       SELF_SIGNED_TLS_PRIVATE_KEY_PATH: /run/secrets/self-signed-tls-private-key
       SLASHSTEP_ADMIN_USERNAME: Admin
       SLASHSTEP_ADMIN_PASSWORD_FILE_PATH: /run/secrets/slashstep-admin-password
+      REDIS_URL: redis://valkey-server:6379
     secrets:
       - postgresql-password
       - jwt-public-key
@@ -55,6 +56,7 @@ services:
         target: /run/tls/localhost+2.pem
     depends_on:
       - postgresql-server
+      - valkey-server
 
   postgresql-server:
     image: postgres:18.3
@@ -71,5 +73,13 @@ services:
     secrets:
       - postgresql-password
 
+  valkey-server:
+    image: valkey/valkey:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey-data:/data
+
 volumes:
   postgresql-data:
+  valkey-data:
