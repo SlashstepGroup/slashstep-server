@@ -2,11 +2,6 @@ name: Run Rust tests on pull request
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths: 
-      - src/**
-      - Cargo.toml
-      - Cargo.lock
-      - .github/workflows/run-rust-tests-on-pull-request.yml
   workflow_dispatch:
   merge_group:
     types: [checks_requested]
@@ -22,10 +17,32 @@ env:
   POSTGRESQL_VERSION: "18.3.0"
 
 jobs:
+  check-file-changes:
+    name: Check file changes
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    outputs:
+      rust-code-changed: ${{ steps.filter.outputs.rust-code-changed }}
+    steps:
+      - uses: actions/checkout@v6.0.0
+
+      - name: Check for Rust code changes
+        id: filter
+        uses: dorny/paths-filter@v3.0.0
+        with:
+          filters: |
+            rust-code:
+              - 'src/**'
+              - 'tests/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - '.github/workflows/run-rust-tests-on-pull-request.yml'
+
   compile-rust-code:
     name: Compile Rust code
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    needs: check-file-changes
+    if: needs.check-file-changes.outputs.rust-code-changed == 'true'
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.0
@@ -235,11 +252,11 @@ jobs:
     name: Announce success
     runs-on: ubuntu-latest
     timeout-minutes: 1
-    needs: [test-routes, test-resources]
+    needs: [test-routes, test-resources, check-file-changes]
     if: always()
     steps:
       - name: Check results
-        if: needs.test-routes.result != 'success' || needs.test-resources.result != 'success'
+        if: needs.check-file-changes.outputs.rust-code-changed == 'true' && (needs.test-routes.result != 'success' || needs.test-resources.result != 'success')
         run: |
           echo "One or more test jobs failed. Please check the logs for details."
           exit 1 
