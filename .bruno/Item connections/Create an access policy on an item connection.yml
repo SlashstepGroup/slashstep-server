@@ -1,7 +1,6 @@
 info:
   name: Create an access policy on an item connection
   type: http
-  seq: 1
 
 http:
   method: POST

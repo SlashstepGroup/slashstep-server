@@ -1,7 +1,6 @@
 info:
   name: List apps
   type: http
-  seq: 2
 
 http:
   method: GET

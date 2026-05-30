@@ -1,7 +1,6 @@
 info:
   name: List actions
   type: http
-  seq: 2
 
 http:
   method: get

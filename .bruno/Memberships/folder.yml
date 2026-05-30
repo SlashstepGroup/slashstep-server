@@ -1,6 +1,5 @@
 info:
   name: Memberships
   type: folder
-  seq: 1
 
 request: {}

@@ -1,6 +1,5 @@
 info:
   name: App credentials
   type: folder
-  seq: 1
 
 request: {}

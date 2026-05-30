@@ -1,7 +1,6 @@
 info:
   name: Create an access policy on the server
   type: http
-  seq: 2
 
 http:
   method: POST

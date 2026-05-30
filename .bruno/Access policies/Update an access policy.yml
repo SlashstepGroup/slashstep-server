@@ -1,7 +1,6 @@
 info:
   name: Update an access policy
   type: http
-  seq: 5
 
 http:
   method: PATCH

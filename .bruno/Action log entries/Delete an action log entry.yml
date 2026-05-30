@@ -1,7 +1,6 @@
 info:
   name: Delete an action log entry
   type: http
-  seq: 1
 
 http:
   method: DELETE

@@ -1,7 +1,6 @@
 info:
   name: Get an access policy
   type: http
-  seq: 4
 
 http:
   method: GET

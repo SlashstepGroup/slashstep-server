@@ -1,6 +1,5 @@
 info:
   name: Action log entries
   type: folder
-  seq: 1
 
 request: {}

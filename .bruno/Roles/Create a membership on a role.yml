@@ -1,7 +1,6 @@
 info:
   name: Create a membership on a role
   type: http
-  seq: 1
 
 http:
   method: POST

@@ -1,7 +1,6 @@
 info:
   name: Get a session
   type: http
-  seq: 1
 
 http:
   method: GET

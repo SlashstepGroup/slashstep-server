@@ -1,7 +1,6 @@
 info:
   name: List access policies on a user
   type: http
-  seq: 1
 
 http:
   method: GET

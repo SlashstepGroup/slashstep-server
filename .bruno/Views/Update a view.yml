@@ -1,7 +1,6 @@
 info:
   name: Update a view
   type: http
-  seq: 1
 
 http:
   method: PATCH

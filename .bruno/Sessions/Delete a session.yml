@@ -1,7 +1,6 @@
 info:
   name: Delete a session
   type: http
-  seq: 1
 
 http:
   method: DELETE

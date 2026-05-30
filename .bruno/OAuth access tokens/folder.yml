@@ -1,6 +1,5 @@
 info:
   name: OAuth access tokens
   type: folder
-  seq: 1
 
 request: {}

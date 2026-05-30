@@ -1,7 +1,6 @@
 info:
   name: Get an action
   type: http
-  seq: 1
 
 http:
   method: GET
