@@ -1,0 +1,22 @@
+info:
+  name: List access policies on an app
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/apps/:app_id/access-policies"
+  params:
+    - name: app_id
+      value: ""
+      type: path
+    - name: query
+      value: ""
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

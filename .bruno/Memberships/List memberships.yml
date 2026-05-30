@@ -1,0 +1,19 @@
+info:
+  name: List memberships
+  type: http
+
+http:
+  method: GET
+  url: ""
+  auth: inherit
+  params:
+    - name: query
+      value: ""
+      type: query
+      disabled: true
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,18 @@
+info:
+  name: Create an access policy on an app authorization
+  type: http
+
+http:
+  method: POST
+  url: "{{base_url}}/app-authorizations/:app_authorization_id/access-policies"
+  params:
+    - name: app_authorization_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

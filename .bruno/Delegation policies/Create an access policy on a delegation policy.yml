@@ -1,0 +1,18 @@
+info:
+  name: Create an access policy on a delegation policy
+  type: http
+
+http:
+  method: POST
+  url: "{{base_url}}/delegation-policies/:delegation_policy_id/access-policies"
+  params:
+    - name: delegation_policy_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

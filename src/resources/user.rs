@@ -51,6 +51,7 @@ pub struct User {
     pub display_name: Option<String>,
 
     /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
+    #[serde(skip)]
     hashed_password: Option<String>,
 
     /// Whether the user is anonymous.
@@ -60,6 +61,7 @@ pub struct User {
     ///
     /// If you need the IP address of a registered user, you might be able to find it
     /// by searching HTTP transactions and filtering by user ID.
+    #[serde(skip)]
     ip_address: Option<IpAddr>,
 }
 

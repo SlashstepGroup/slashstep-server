@@ -1,0 +1,18 @@
+info:
+  name: Get a delegation policy
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/delegation-policies/:delegation_policy_id"
+  params:
+    - name: delegation_policy_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

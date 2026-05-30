@@ -10,7 +10,7 @@ use slashstep_server::{
     get_environment_variable, import_env_file, initialize_required_tables,
     predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_roles,
+        initialize_predefined_groups, initialize_predefined_roles,
     },
     routes, setup_admin_user_if_necessary,
 };
@@ -63,7 +63,6 @@ async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServ
     let maximum_postgres_connection_count =
         maximum_postgres_connection_count_string.parse::<usize>()?;
 
-    println!("Connecting to the PostgreSQL server...");
     let pool = Pool::builder(manager)
         .max_size(maximum_postgres_connection_count)
         .build()?;
@@ -144,6 +143,7 @@ async fn main() -> Result<(), SlashstepServerError> {
     initialize_predefined_actions(&state.database_pool).await?;
     initialize_predefined_roles(&state.database_pool).await?;
     initialize_predefined_configurations(&state.database_pool).await?;
+    initialize_predefined_groups(&state.database_pool).await?;
     setup_admin_user_if_necessary(&state.database_pool).await?;
 
     let app_port = get_app_port_string();

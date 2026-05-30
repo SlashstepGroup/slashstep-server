@@ -1,0 +1,15 @@
+info:
+  name: Create an app on the server
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/apps"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

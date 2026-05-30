@@ -357,8 +357,16 @@ async fn handle_create_user_request(
         Ok(user) => user,
 
         Err(error) => {
-            let http_error =
-                HTTPError::InternalServerError(Some(format!("Failed to create user: {:?}", error)));
+            let http_error = match error {
+                ResourceError::ConflictError(_) => HTTPError::ConflictError(Some(
+                    "A user with the same username already exists.".to_string(),
+                )),
+                error => HTTPError::InternalServerError(Some(format!(
+                    "Failed to create user: {:?}",
+                    error
+                ))),
+            };
+
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),

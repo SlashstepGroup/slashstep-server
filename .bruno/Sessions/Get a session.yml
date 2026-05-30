@@ -1,0 +1,24 @@
+info:
+  name: Get a session
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{base_url}}/sessions/:session_id"
+  params:
+    - name: session_id
+      value: "{{session_id}}"
+      type: path
+  auth: inherit
+
+runtime:
+  variables:
+    - name: session_id
+      value: 019e70db-1f1f-7902-9e3e-b5e14c6cb52a
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,15 @@
+info:
+  name: Create an access policy on the server
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/access-policies"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

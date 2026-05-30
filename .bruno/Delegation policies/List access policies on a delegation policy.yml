@@ -1,0 +1,23 @@
+info:
+  name: List access policies on a delegation policy
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/delegation-policies/:delegation_policy_id/access-policies"
+  params:
+    - name: delegation_policy_id
+      value: ""
+      type: path
+    - name: query
+      value: ""
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+​

@@ -1,0 +1,19 @@
+info:
+  name: Delete an action log entry
+  type: http
+  seq: 1
+
+http:
+  method: DELETE
+  url: "{{base_url}}/action-log-entries/:action_log_entry_id"
+  params:
+    - name: action_log_entry_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

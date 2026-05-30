@@ -1,0 +1,18 @@
+info:
+  name: Update an access policy
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{base_url}}/access-policies/:access_policy_id"
+  params:
+    - name: access_policy_id
+      value: "{{access_policy_id}}"
+      type: path
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

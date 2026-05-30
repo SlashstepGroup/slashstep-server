@@ -105,7 +105,9 @@ impl EndToEndTestEnvironment {
 
         println!("Signing into Valkey test server...");
         let redis_server = RedisServer::new();
-        let (redis_host, redis_port) = redis_server.host_and_port().expect("Failed to get Redis server host and port");
+        let (redis_host, redis_port) = redis_server
+            .host_and_port()
+            .expect("Failed to get Redis server host and port");
         let redis_url = format!("redis://{redis_host}:{redis_port}");
         let redis_config = deadpool_redis::Config::from_url(redis_url);
         let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;

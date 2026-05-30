@@ -1,0 +1,4 @@
+name: Local development
+variables:
+  - name: base_url
+    value: http://localhost:3001

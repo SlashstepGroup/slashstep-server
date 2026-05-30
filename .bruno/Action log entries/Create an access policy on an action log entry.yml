@@ -1,0 +1,18 @@
+info:
+  name: Create an access policy on an action log entry
+  type: http
+
+http:
+  method: POST
+  url: "{{base_url}}/action-log-entries/:action_log_entries"
+  params:
+    - name: action_log_entries
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

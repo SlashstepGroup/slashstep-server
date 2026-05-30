@@ -1,0 +1,4 @@
+name: Local development (secure)
+variables:
+  - name: base_url
+    value: https://localhost:3001
