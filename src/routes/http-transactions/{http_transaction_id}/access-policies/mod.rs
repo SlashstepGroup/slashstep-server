@@ -53,7 +53,6 @@ async fn handle_list_access_policies_request(
     Path(http_transaction_id): Path<String>,
     Query(query_parameters): Query<ResourceListQueryParameters>,
     State(state): State<AppState>,
-    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
     Extension(authenticated_user): Extension<Option<Arc<User>>>,
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
@@ -61,13 +60,10 @@ async fn handle_list_access_policies_request(
     let http_transaction_id = get_uuid_from_string(
         &http_transaction_id,
         "HTTP transaction",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let http_transaction = get_http_transaction_by_id(
         &http_transaction_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -75,7 +71,6 @@ async fn handle_list_access_policies_request(
     // Make sure the principal has access to list resources.
     let list_resources_action = get_action_by_name(
         "accessPolicies.list",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -84,7 +79,6 @@ async fn handle_list_access_policies_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -100,7 +94,6 @@ async fn handle_list_access_policies_request(
         &ResourceType::HTTPTransaction,
         Some(&http_transaction.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -167,7 +160,7 @@ async fn handle_list_access_policies_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -229,24 +222,20 @@ async fn handle_create_access_policy_request(
     let http_transaction_id = get_uuid_from_string(
         &http_transaction_id,
         "HTTP transaction",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let access_policy_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
 
     // Make sure the authenticated_user can create access policies for the target HTTP transaction.
     let target_http_transaction = get_http_transaction_by_id(
         &http_transaction_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let create_access_policies_action = get_action_by_name(
         "accessPolicies.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -255,7 +244,6 @@ async fn handle_create_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_access_policies_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -271,7 +259,6 @@ async fn handle_create_access_policy_request(
         &ResourceType::HTTPTransaction,
         Some(&target_http_transaction.id),
         &create_access_policies_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -280,7 +267,6 @@ async fn handle_create_access_policy_request(
     // Make sure the authenticated_user has at least editor access to the access policy's action.
     let access_policy_action = get_action_by_id(
         &access_policy_properties_json.action_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -297,7 +283,6 @@ async fn handle_create_access_policy_request(
         &ResourceType::HTTPTransaction,
         Some(&target_http_transaction.id),
         &access_policy_action,
-        &http_transaction,
         &minimum_permission_level,
         &state.database_pool,
     )
@@ -339,7 +324,7 @@ async fn handle_create_access_policy_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_access_policies_action.id,

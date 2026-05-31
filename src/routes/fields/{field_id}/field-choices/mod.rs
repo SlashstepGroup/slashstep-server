@@ -96,20 +96,19 @@ pub async fn handle_list_field_choices_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<FieldChoice>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let field_id =
-        get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&field_id, "field").await?;
     let list_resources_action =
-        get_action_by_name("fieldChoices.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("fieldChoices.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
+    let target_field = get_field_by_id(&field_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -121,7 +120,6 @@ pub async fn handle_list_field_choices_request(
         &ResourceType::Field,
         Some(&target_field.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -188,7 +186,7 @@ pub async fn handle_list_field_choices_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -248,16 +246,15 @@ async fn handle_create_field_choice_request(
     body: Result<Json<InitialFieldChoicePropertiesWithPredefinedFieldID>, JsonRejection>,
 ) -> Result<(StatusCode, Json<FieldChoice>), HTTPError> {
     let field_id =
-        get_uuid_from_string(&field_id, "field", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&field_id, "field").await?;
     let field_choice_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(field_choice_text_value) = &field_choice_properties_json.text_value {
         validate_field_length(
             field_choice_text_value,
             "fieldValues.maximumTextValueLength",
             "text_value",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -268,15 +265,13 @@ async fn handle_create_field_choice_request(
             "fieldValues.minimumNumberValue",
             "fieldValues.maximumNumberValue",
             "number_value",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
-    let target_field = get_field_by_id(&field_id, &http_transaction, &state.database_pool).await?;
+    let target_field = get_field_by_id(&field_id, &state.database_pool).await?;
     let create_field_choices_action = get_action_by_name(
         "fieldChoices.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -285,7 +280,6 @@ async fn handle_create_field_choice_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_field_choices_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -301,7 +295,6 @@ async fn handle_create_field_choice_request(
         &ResourceType::Field,
         Some(&target_field.id),
         &create_field_choices_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -340,7 +333,7 @@ async fn handle_create_field_choice_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_field_choices_action.id,

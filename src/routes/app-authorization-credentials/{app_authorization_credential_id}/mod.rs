@@ -60,19 +60,15 @@ async fn handle_get_app_authorization_credential_request(
     let app_authorization_credential_id = get_uuid_from_string(
         &app_authorization_credential_id,
         "app authorization credential",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_app_authorization_credential = get_app_authorization_credential_by_id(
         &app_authorization_credential_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let get_app_authorizations_action = get_action_by_name(
         "appAuthorizationCredentials.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -81,7 +77,6 @@ async fn handle_get_app_authorization_credential_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_app_authorizations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -97,14 +92,13 @@ async fn handle_get_app_authorization_credential_request(
         &ResourceType::AppAuthorizationCredential,
         Some(&target_app_authorization_credential.id),
         &get_app_authorizations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_app_authorizations_action.id,
@@ -156,19 +150,15 @@ async fn handle_delete_app_authorization_credential_request(
     let app_authorization_credential_id = get_uuid_from_string(
         &app_authorization_credential_id,
         "app authorization credential",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_app_authorization_credential = get_app_authorization_credential_by_id(
         &app_authorization_credential_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let delete_app_authorization_credentials_action = get_action_by_name(
         "appAuthorizationCredentials.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -177,7 +167,6 @@ async fn handle_delete_app_authorization_credential_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_app_authorization_credentials_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -193,7 +182,6 @@ async fn handle_delete_app_authorization_credential_request(
         &ResourceType::AppAuthorizationCredential,
         Some(&target_app_authorization_credential.id),
         &delete_app_authorization_credentials_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -212,7 +200,7 @@ async fn handle_delete_app_authorization_credential_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_app_authorization_credentials_action.id,

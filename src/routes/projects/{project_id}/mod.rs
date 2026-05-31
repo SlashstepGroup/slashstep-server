@@ -73,20 +73,17 @@ async fn handle_get_project_request(
     let project_id = get_uuid_from_string(
         &project_id,
         "project",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+        get_project_by_id(&project_id, &state.database_pool).await?;
     let get_projects_action =
-        get_action_by_name("projects.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("projects.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_projects_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -102,14 +99,13 @@ async fn handle_get_project_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &get_projects_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_projects_action.id,
@@ -158,20 +154,17 @@ async fn handle_delete_project_request(
     let project_id = get_uuid_from_string(
         &project_id,
         "project",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+        get_project_by_id(&project_id, &state.database_pool).await?;
     let delete_projects_action =
-        get_action_by_name("projects.delete", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("projects.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_projects_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -187,7 +180,6 @@ async fn handle_delete_project_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &delete_projects_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -201,7 +193,7 @@ async fn handle_delete_project_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_projects_action.id,
@@ -248,19 +240,16 @@ async fn handle_patch_project_request(
     let project_id = get_uuid_from_string(
         &project_id,
         "project",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let updated_project_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(name) = &updated_project_properties.name {
         validate_field_length(
             name,
             "projects.maximumNameLength",
             "name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -268,7 +257,6 @@ async fn handle_patch_project_request(
             name,
             "projects.allowedNameRegex",
             "project",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -279,7 +267,6 @@ async fn handle_patch_project_request(
             display_name,
             "projects.maximumDisplayNameLength",
             "display name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -290,7 +277,6 @@ async fn handle_patch_project_request(
             name,
             "projects.maximumKeyLength",
             "key",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -298,7 +284,6 @@ async fn handle_patch_project_request(
             name,
             "projects.allowedKeyRegex",
             "project",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -309,22 +294,20 @@ async fn handle_patch_project_request(
             description,
             "projects.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
 
     let original_target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+        get_project_by_id(&project_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("projects.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("projects.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -340,7 +323,6 @@ async fn handle_patch_project_request(
         &ResourceType::Project,
         Some(&original_target_project.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )

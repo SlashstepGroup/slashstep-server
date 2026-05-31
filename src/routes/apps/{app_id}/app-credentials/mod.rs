@@ -80,10 +80,9 @@ pub async fn handle_list_app_credentials_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<AppCredential>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let app_id =
-        get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&app_id, "app").await?;
     let list_resources_action = get_action_by_name(
         "appCredentials.list",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -92,12 +91,11 @@ pub async fn handle_list_app_credentials_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
+    let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -109,7 +107,6 @@ pub async fn handle_list_app_credentials_request(
         &ResourceType::App,
         Some(&target_app.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -176,7 +173,7 @@ pub async fn handle_list_app_credentials_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -236,16 +233,15 @@ async fn handle_create_app_credential_request(
     body: Result<Json<InitialAppCredentialPropertiesForPredefinedScope>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateAppCredentialResponseBody>), HTTPError> {
     let app_id =
-        get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&app_id, "app").await?;
     let app_credential_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
 
     // Make sure the authenticated_user can create access policies for the target action.
-    let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
+    let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
     let create_app_credentials_action = get_action_by_name(
         "appCredentials.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -254,7 +250,6 @@ async fn handle_create_app_credential_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_app_credentials_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -270,7 +265,6 @@ async fn handle_create_app_credential_request(
         &ResourceType::App,
         Some(&target_app.id),
         &create_app_credentials_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -343,7 +337,7 @@ async fn handle_create_app_credential_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_app_credentials_action.id,

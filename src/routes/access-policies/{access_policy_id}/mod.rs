@@ -57,12 +57,10 @@ async fn handle_get_access_policy_request(
     let access_policy_id = get_uuid_from_string(
         &access_policy_id,
         "access policy",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let access_policy =
-        get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
+        get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
 
     // Make sure the delegate and principal have access to the resource.
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
@@ -71,7 +69,6 @@ async fn handle_get_access_policy_request(
     )?;
     let action = get_action_by_name(
         "accessPolicies.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -80,7 +77,6 @@ async fn handle_get_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -92,14 +88,13 @@ async fn handle_get_access_policy_request(
         &ResourceType::AccessPolicy,
         Some(&access_policy.id),
         &action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: action.id,
@@ -151,20 +146,17 @@ async fn handle_patch_access_policy_request(
     let access_policy_id = get_uuid_from_string(
         &access_policy_id,
         "access policy",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let updated_access_policy_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
 
     // Make sure the delegate and principal have access to the resource.
     let access_policy =
-        get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
+        get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
     let update_access_policy_action = get_action_by_name(
         "accessPolicies.update",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -173,7 +165,6 @@ async fn handle_patch_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -189,14 +180,12 @@ async fn handle_patch_access_policy_request(
         &ResourceType::AccessPolicy,
         Some(&access_policy.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
     let access_policy_action = get_action_by_id(
         &access_policy.action_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -216,7 +205,6 @@ async fn handle_patch_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &access_policy_action.id,
-        &http_transaction.id,
         &minimum_permission_level,
         &state.database_pool,
     )
@@ -228,14 +216,13 @@ async fn handle_patch_access_policy_request(
         &ResourceType::AccessPolicy,
         Some(&access_policy.id),
         &access_policy_action,
-        &http_transaction,
         &minimum_permission_level,
         &state.database_pool,
     )
     .await?;
     if let Some(principal_role_id) = access_policy.principal_role_id {
         let principal_role =
-            get_role_by_id(&principal_role_id, &http_transaction, &state.database_pool).await?;
+            get_role_by_id(&principal_role_id, &state.database_pool).await?;
         if principal_role.predefined_role_type.is_some() {
             let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly updated by Slashstep Server. Use custom roles if you need more control.".to_string()));
             http_error.log();
@@ -261,7 +248,7 @@ async fn handle_patch_access_policy_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: update_access_policy_action.id,
@@ -311,15 +298,12 @@ async fn handle_delete_access_policy_request(
     let access_policy_id = get_uuid_from_string(
         &access_policy_id,
         "access policy",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_access_policy =
-        get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
+        get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
     let delete_resources_action = get_action_by_name(
         "accessPolicies.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -328,7 +312,6 @@ async fn handle_delete_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -344,14 +327,13 @@ async fn handle_delete_access_policy_request(
         &ResourceType::AccessPolicy,
         Some(&target_access_policy.id),
         &delete_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
     if let Some(principal_role_id) = target_access_policy.principal_role_id {
         let principal_role =
-            get_role_by_id(&principal_role_id, &http_transaction, &state.database_pool).await?;
+            get_role_by_id(&principal_role_id, &state.database_pool).await?;
         if principal_role.predefined_role_type.is_some() {
             let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly deleted by Slashstep Server. Use custom roles if you need more control.".to_string()));
             http_error.log();
@@ -369,7 +351,7 @@ async fn handle_delete_access_policy_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_resources_action.id,

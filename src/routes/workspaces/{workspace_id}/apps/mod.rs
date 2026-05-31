@@ -74,24 +74,21 @@ async fn handle_list_apps_request(
     let workspace_id = get_uuid_from_string(
         &workspace_id,
         "workspace",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let list_resources_action =
-        get_action_by_name("apps.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("apps.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
     let target_workspace =
-        get_workspace_by_id(&workspace_id, &http_transaction, &state.database_pool).await?;
+        get_workspace_by_id(&workspace_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -103,7 +100,6 @@ async fn handle_list_apps_request(
         &ResourceType::Workspace,
         Some(&target_workspace.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -166,7 +162,7 @@ async fn handle_list_apps_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -226,13 +222,12 @@ async fn handle_create_app_request(
     body: Result<Json<CreateAppRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<AppWithClientSecret>), HTTPError> {
     let app_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     validate_resource_name(
         &app_properties_json.name,
         "apps.allowedNameRegex",
         "app",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -240,7 +235,6 @@ async fn handle_create_app_request(
         &app_properties_json.name,
         "apps.maximumNameLength",
         "name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -248,7 +242,6 @@ async fn handle_create_app_request(
         &app_properties_json.display_name,
         "apps.allowedDisplayNameRegex",
         "app",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -256,7 +249,6 @@ async fn handle_create_app_request(
         &app_properties_json.display_name,
         "apps.maximumDisplayNameLength",
         "display_name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -264,22 +256,19 @@ async fn handle_create_app_request(
     let workspace_id = get_uuid_from_string(
         &workspace_id,
         "workspace",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let workspace =
-        get_workspace_by_id(&workspace_id, &http_transaction, &state.database_pool).await?;
+        get_workspace_by_id(&workspace_id, &state.database_pool).await?;
 
     // Make sure the authenticated_user can create apps for the target action log entry.
     let create_apps_action =
-        get_action_by_name("apps.create", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("apps.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_apps_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -295,7 +284,6 @@ async fn handle_create_app_request(
         &ResourceType::Server,
         None,
         &create_apps_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -355,7 +343,7 @@ async fn handle_create_app_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_apps_action.id,
@@ -446,7 +434,7 @@ async fn handle_create_app_request(
     };
     for action_name in allowed_actions {
         let action =
-            get_action_by_name(action_name, &http_transaction, &state.database_pool).await?;
+            get_action_by_name(action_name, &state.database_pool).await?;
 
         trace!(
             "Creating access policy for action {} in workspace admins role...",

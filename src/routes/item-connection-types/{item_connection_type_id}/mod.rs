@@ -60,19 +60,15 @@ async fn handle_get_item_connection_type_request(
     let item_connection_type_id = get_uuid_from_string(
         &item_connection_type_id,
         "item connection type",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_item_connection_type = get_item_connection_type_by_id(
         &item_connection_type_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let get_item_connection_types_action = get_action_by_name(
         "itemConnectionTypes.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -81,7 +77,6 @@ async fn handle_get_item_connection_type_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_item_connection_types_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -97,14 +92,13 @@ async fn handle_get_item_connection_type_request(
         &ResourceType::ItemConnectionType,
         Some(&target_item_connection_type.id),
         &get_item_connection_types_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_item_connection_types_action.id,
@@ -156,19 +150,15 @@ async fn handle_delete_item_connection_type_request(
     let item_connection_type_id = get_uuid_from_string(
         &item_connection_type_id,
         "item connection type",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_item_connection_type = get_item_connection_type_by_id(
         &item_connection_type_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let delete_item_connection_types_action = get_action_by_name(
         "itemConnectionTypes.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -177,7 +167,6 @@ async fn handle_delete_item_connection_type_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_item_connection_types_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -193,7 +182,6 @@ async fn handle_delete_item_connection_type_request(
         &ResourceType::ItemConnectionType,
         Some(&target_item_connection_type.id),
         &delete_item_connection_types_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -212,7 +200,7 @@ async fn handle_delete_item_connection_type_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_item_connection_types_action.id,
@@ -262,12 +250,10 @@ async fn handle_patch_item_connection_type_request(
     let item_connection_type_id = get_uuid_from_string(
         &item_connection_type_id,
         "item connection type",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let updated_item_connection_type_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(updated_item_connection_type_display_name) =
         &updated_item_connection_type_properties.display_name
@@ -276,7 +262,6 @@ async fn handle_patch_item_connection_type_request(
             updated_item_connection_type_display_name,
             "itemConnectionTypes.maximumDisplayNameLength",
             "display_name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -288,7 +273,6 @@ async fn handle_patch_item_connection_type_request(
             updated_item_connection_type_inward_description,
             "itemConnectionTypes.maximumDescriptionLength",
             "inward_description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -300,20 +284,17 @@ async fn handle_patch_item_connection_type_request(
             updated_item_connection_type_outward_description,
             "itemConnectionTypes.maximumDescriptionLength",
             "outward_description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
     let original_target_item_connection_type = get_item_connection_type_by_id(
         &item_connection_type_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let update_access_policy_action = get_action_by_name(
         "itemConnectionTypes.update",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -322,7 +303,6 @@ async fn handle_patch_item_connection_type_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -338,7 +318,6 @@ async fn handle_patch_item_connection_type_request(
         &ResourceType::ItemConnectionType,
         Some(&original_target_item_connection_type.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )

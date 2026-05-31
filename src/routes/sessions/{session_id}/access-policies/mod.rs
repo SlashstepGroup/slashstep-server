@@ -60,16 +60,13 @@ async fn handle_list_access_policies_request(
     let session_id = get_uuid_from_string(
         &session_id,
         "session",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
-    let session = get_session_by_id(&session_id, &http_transaction, &state.database_pool).await?;
+    let session = get_session_by_id(&session_id, &state.database_pool).await?;
 
     // Make sure the principal has access to list resources.
     let list_resources_action = get_action_by_name(
         "accessPolicies.list",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -78,7 +75,6 @@ async fn handle_list_access_policies_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -94,7 +90,6 @@ async fn handle_list_access_policies_request(
         &ResourceType::Session,
         Some(&session.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -161,7 +156,7 @@ async fn handle_list_access_policies_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -223,20 +218,17 @@ async fn handle_create_access_policy_request(
     let session_id = get_uuid_from_string(
         &session_id,
         "session",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let access_policy_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
 
     // Make sure the authenticated_user can create access policies for the target session.
     let target_session =
-        get_session_by_id(&session_id, &http_transaction, &state.database_pool).await?;
+        get_session_by_id(&session_id, &state.database_pool).await?;
     let create_access_policies_action = get_action_by_name(
         "accessPolicies.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -245,7 +237,6 @@ async fn handle_create_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_access_policies_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -261,7 +252,6 @@ async fn handle_create_access_policy_request(
         &ResourceType::Session,
         Some(&target_session.id),
         &create_access_policies_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -270,7 +260,6 @@ async fn handle_create_access_policy_request(
     // Make sure the authenticated_user has at least editor access to the access policy's action.
     let access_policy_action = get_action_by_id(
         &access_policy_properties_json.action_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -287,7 +276,6 @@ async fn handle_create_access_policy_request(
         &ResourceType::Session,
         Some(&target_session.id),
         &access_policy_action,
-        &http_transaction,
         &minimum_permission_level,
         &state.database_pool,
     )
@@ -326,7 +314,7 @@ async fn handle_create_access_policy_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_access_policies_action.id,

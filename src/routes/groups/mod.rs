@@ -73,13 +73,12 @@ async fn handle_list_groups_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Group>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let list_resources_action =
-        get_action_by_name("groups.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("groups.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -95,7 +94,6 @@ async fn handle_list_groups_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -154,7 +152,7 @@ async fn handle_list_groups_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -201,7 +199,6 @@ async fn handle_list_groups_request(
 
 async fn create_role(
     initial_role_properties: &InitialRoleProperties,
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Role, HTTPError> {
     trace!("Creating role \"{}\"...", initial_role_properties.name);
@@ -220,7 +217,6 @@ async fn create_role(
 
 async fn create_membership(
     initial_membership_properties: &InitialMembershipProperties,
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Membership, HTTPError> {
     trace!("Creating membership for principal...");
@@ -241,7 +237,6 @@ async fn create_membership(
 
 async fn create_default_child_resources(
     group: &Group,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
     principal_type: &AccessPolicyPrincipalType,
     principal_id: &Uuid,
@@ -261,7 +256,6 @@ async fn create_default_child_resources(
             predefined_role_type: Some(PredefinedRoleType::GroupAdmins),
             ..Default::default()
         },
-        &http_transaction.id,
         database_pool,
     )
     .await?;
@@ -294,7 +288,7 @@ async fn create_default_child_resources(
 
     for group_admin_action_name in group_admin_action_names {
         let group_admin_action =
-            get_action_by_name(group_admin_action_name, http_transaction, database_pool).await?;
+            get_action_by_name(group_admin_action_name, database_pool).await?;
         match AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 action_id: group_admin_action.id,
@@ -344,7 +338,6 @@ async fn create_default_child_resources(
             },
             ..Default::default()
         },
-        &http_transaction.id,
         database_pool,
     )
     .await?;
@@ -363,7 +356,6 @@ async fn create_default_child_resources(
             predefined_role_type: Some(PredefinedRoleType::GroupMembers),
             ..Default::default()
         },
-        &http_transaction.id,
         database_pool,
     )
     .await?;
@@ -383,7 +375,7 @@ async fn create_default_child_resources(
 
     for group_member_action_name in group_member_action_names {
         let group_member_action =
-            get_action_by_name(group_member_action_name, http_transaction, database_pool).await?;
+            get_action_by_name(group_member_action_name, database_pool).await?;
         match AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 action_id: group_member_action.id,
@@ -433,7 +425,6 @@ async fn create_default_child_resources(
             },
             ..Default::default()
         },
-        &http_transaction.id,
         database_pool,
     )
     .await?;
@@ -469,13 +460,12 @@ async fn handle_create_group_request(
 ) -> Result<(StatusCode, Json<Group>), HTTPError> {
     // TODO: Add configurations to verify inputs.
     let initial_group_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     validate_resource_name(
         &initial_group_properties.name,
         "groups.allowedNameRegex",
         "group",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -483,7 +473,6 @@ async fn handle_create_group_request(
         &initial_group_properties.name,
         "groups.maximumNameLength",
         "name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -491,7 +480,6 @@ async fn handle_create_group_request(
         &initial_group_properties.display_name,
         "groups.maximumDisplayNameLength",
         "display name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -500,7 +488,6 @@ async fn handle_create_group_request(
             field_description,
             "groups.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -508,13 +495,12 @@ async fn handle_create_group_request(
 
     // Make sure the authenticated_user can create apps for the target action log entry.
     let create_groups_action =
-        get_action_by_name("groups.create", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("groups.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_groups_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -530,7 +516,6 @@ async fn handle_create_group_request(
         &ResourceType::Server,
         None,
         &create_groups_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -564,7 +549,7 @@ async fn handle_create_group_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_groups_action.id,
@@ -593,7 +578,6 @@ async fn handle_create_group_request(
 
     if let Err(error) = create_default_child_resources(
         &group,
-        &http_transaction,
         &state.database_pool,
         &principal_type,
         &principal_id,

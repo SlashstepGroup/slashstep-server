@@ -66,7 +66,6 @@ async fn handle_list_item_connection_types_request(
     // Make sure the principal has access to list resources.
     let list_resources_action = get_action_by_name(
         "itemConnectionTypes.list",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -75,7 +74,6 @@ async fn handle_list_item_connection_types_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -91,7 +89,6 @@ async fn handle_list_item_connection_types_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -154,7 +151,7 @@ async fn handle_list_item_connection_types_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,

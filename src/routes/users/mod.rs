@@ -81,13 +81,12 @@ async fn handle_list_users_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<User>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let list_resources_action =
-        get_action_by_name("users.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("users.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -103,7 +102,6 @@ async fn handle_list_users_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -160,7 +158,7 @@ async fn handle_list_users_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -218,13 +216,12 @@ async fn handle_create_user_request(
     body: Result<Json<CreateUserRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateResourceResponseBody<User>>), HTTPError> {
     let create_user_request_body =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     validate_resource_name(
         &create_user_request_body.username,
         "users.allowedNameRegex",
         "user",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -232,7 +229,6 @@ async fn handle_create_user_request(
         &create_user_request_body.username,
         "users.maximumNameLength",
         "username",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -240,7 +236,6 @@ async fn handle_create_user_request(
         &create_user_request_body.password,
         "users.maximumPasswordLength",
         "password",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -250,7 +245,6 @@ async fn handle_create_user_request(
             display_name,
             "users.maximumDisplayNameLength",
             "display name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -258,13 +252,12 @@ async fn handle_create_user_request(
 
     // Make sure the authenticated_user can create apps for the target action log entry.
     let create_users_action =
-        get_action_by_name("users.create", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("users.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_users_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -280,7 +273,6 @@ async fn handle_create_user_request(
         &ResourceType::Server,
         None,
         &create_users_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -333,7 +325,7 @@ async fn handle_create_user_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_users_action.id,
@@ -462,7 +454,7 @@ async fn handle_create_user_request(
 
     for action_name in allowed_actions {
         let action =
-            get_action_by_name(action_name, &http_transaction, &state.database_pool).await?;
+            get_action_by_name(action_name, &state.database_pool).await?;
 
         trace!(
             "Creating access policy for action {} in user account owners role...",

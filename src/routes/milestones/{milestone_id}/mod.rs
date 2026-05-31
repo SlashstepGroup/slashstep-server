@@ -59,20 +59,17 @@ async fn handle_get_milestone_request(
     let milestone_id = get_uuid_from_string(
         &milestone_id,
         "milestone",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_milestone =
-        get_milestone_by_id(&milestone_id, &http_transaction, &state.database_pool).await?;
+        get_milestone_by_id(&milestone_id, &state.database_pool).await?;
     let get_milestones_action =
-        get_action_by_name("milestones.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("milestones.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_milestones_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -88,14 +85,13 @@ async fn handle_get_milestone_request(
         &ResourceType::Milestone,
         Some(&target_milestone.id),
         &get_milestones_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_milestones_action.id,
@@ -144,20 +140,17 @@ async fn handle_delete_milestone_request(
     let milestone_id = get_uuid_from_string(
         &milestone_id,
         "milestone",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_milestone =
-        get_milestone_by_id(&milestone_id, &http_transaction, &state.database_pool).await?;
+        get_milestone_by_id(&milestone_id, &state.database_pool).await?;
     let delete_milestones_action =
-        get_action_by_name("milestones.delete", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("milestones.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_milestones_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -173,7 +166,6 @@ async fn handle_delete_milestone_request(
         &ResourceType::Milestone,
         Some(&target_milestone.id),
         &delete_milestones_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -189,7 +181,7 @@ async fn handle_delete_milestone_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_milestones_action.id,
@@ -234,14 +226,13 @@ async fn handle_patch_milestone_request(
     body: Result<Json<EditableMilestoneProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Milestone>>, HTTPError> {
     let updated_milestone_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(Some(milestone_description)) = &updated_milestone_properties.description {
         validate_field_length(
             milestone_description,
             "milestones.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -251,7 +242,6 @@ async fn handle_patch_milestone_request(
             milestone_display_name,
             "milestones.maximumDisplayNameLength",
             "display_name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -261,7 +251,6 @@ async fn handle_patch_milestone_request(
             milestone_name,
             "milestones.maximumNameLength",
             "name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -269,7 +258,6 @@ async fn handle_patch_milestone_request(
             milestone_name,
             "milestones.allowedNameRegex",
             "milestone",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -277,20 +265,17 @@ async fn handle_patch_milestone_request(
     let milestone_id = get_uuid_from_string(
         &milestone_id,
         "milestone",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let original_target_milestone =
-        get_milestone_by_id(&milestone_id, &http_transaction, &state.database_pool).await?;
+        get_milestone_by_id(&milestone_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("milestones.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("milestones.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -306,7 +291,6 @@ async fn handle_patch_milestone_request(
         &ResourceType::Milestone,
         Some(&original_target_milestone.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )

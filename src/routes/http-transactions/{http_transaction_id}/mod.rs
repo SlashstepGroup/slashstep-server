@@ -58,19 +58,15 @@ async fn handle_get_http_transaction_request(
     let http_transaction_id = get_uuid_from_string(
         &http_transaction_id,
         "HTTP transaction",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_http_transaction = get_http_transaction_by_id(
         &http_transaction_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let get_http_transactions_action = get_action_by_name(
         "httpTransactions.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -79,7 +75,6 @@ async fn handle_get_http_transaction_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_http_transactions_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -95,14 +90,13 @@ async fn handle_get_http_transaction_request(
         &ResourceType::HTTPTransaction,
         Some(&target_http_transaction.id),
         &get_http_transactions_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_http_transactions_action.id,
@@ -154,19 +148,15 @@ async fn handle_delete_http_transaction_request(
     let http_transaction_id = get_uuid_from_string(
         &http_transaction_id,
         "HTTP transaction",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_http_transaction = get_http_transaction_by_id(
         &http_transaction_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let delete_http_transactions_action = get_action_by_name(
         "httpTransactions.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -175,7 +165,6 @@ async fn handle_delete_http_transaction_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_http_transactions_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -191,7 +180,6 @@ async fn handle_delete_http_transaction_request(
         &ResourceType::HTTPTransaction,
         Some(&target_http_transaction.id),
         &delete_http_transactions_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -207,7 +195,7 @@ async fn handle_delete_http_transaction_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_http_transactions_action.id,

@@ -74,7 +74,6 @@ async fn handle_list_access_policies_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<AccessPolicy>>), HTTPError> {
     let list_resources_action = get_action_by_name(
         "accessPolicies.list",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -83,7 +82,6 @@ async fn handle_list_access_policies_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -99,7 +97,6 @@ async fn handle_list_access_policies_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -158,7 +155,7 @@ async fn handle_list_access_policies_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -216,13 +213,12 @@ async fn handle_create_access_policy_request(
     body: Result<Json<CreateServerAccessPolicyRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateResourceResponseBody<AccessPolicy>>), HTTPError> {
     let create_server_access_policy_request_body =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
 
     // Make sure the authenticated_user can create access policies for the target action log entry.
     let create_access_policies_action = get_action_by_name(
         "accessPolicies.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -231,7 +227,6 @@ async fn handle_create_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_access_policies_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -247,7 +242,6 @@ async fn handle_create_access_policy_request(
         &ResourceType::Server,
         None,
         &create_access_policies_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -256,7 +250,6 @@ async fn handle_create_access_policy_request(
     // Make sure the authenticated_user has at least editor access to the access policy's action.
     let access_policy_action = get_action_by_id(
         &create_server_access_policy_request_body.action_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -271,7 +264,6 @@ async fn handle_create_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &access_policy_action.id,
-        &http_transaction.id,
         &minimum_permission_level,
         &state.database_pool,
     )
@@ -283,7 +275,6 @@ async fn handle_create_access_policy_request(
         &ResourceType::Server,
         None,
         &access_policy_action,
-        &http_transaction,
         &minimum_permission_level,
         &state.database_pool,
     )
@@ -321,7 +312,7 @@ async fn handle_create_access_policy_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_access_policies_action.id,

@@ -45,9 +45,7 @@ async fn get_jwt_public_key() -> Result<String, HTTPError> {
 }
 
 pub async fn get_decoding_key(
-    http_transaction_id: &Uuid,
-    database_pool: &deadpool_postgres::Pool,
-    jwt_public_key: &str,
+    jwt_public_key: &str
 ) -> Result<jsonwebtoken::DecodingKey, HTTPError> {
     let decoding_key = match jsonwebtoken::DecodingKey::from_ed_pem(jwt_public_key.as_bytes()) {
         Ok(decoding_key) => decoding_key,
@@ -65,8 +63,6 @@ pub async fn get_decoding_key(
 }
 
 async fn get_decoded_claims(
-    http_transaction_id: &Uuid,
-    database_pool: &deadpool_postgres::Pool,
     session_token: &str,
     decoding_key: &jsonwebtoken::DecodingKey,
     validation: &jsonwebtoken::Validation,
@@ -105,7 +101,6 @@ async fn get_decoded_claims(
 }
 
 async fn get_user_by_id(
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
     user_id: &Uuid,
 ) -> Result<User, HTTPError> {
@@ -130,7 +125,6 @@ async fn get_user_by_id(
 }
 
 async fn get_session_by_id(
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
     session_id: &Uuid,
 ) -> Result<Session, HTTPError> {
@@ -161,7 +155,6 @@ async fn get_session_by_id(
 }
 
 async fn get_session_credential_by_id(
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
     session_id: &Uuid,
 ) -> Result<SessionCredential, HTTPError> {
@@ -331,10 +324,8 @@ pub async fn authenticate_user(
     let jwt_public_key = get_jwt_public_key().await?;
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
     let decoding_key =
-        get_decoding_key(&http_transaction.id, &state.database_pool, &jwt_public_key).await?;
+        get_decoding_key(&jwt_public_key).await?;
     let decoded_claims = get_decoded_claims(
-        &http_transaction.id,
-        &state.database_pool,
         &session_token,
         &decoding_key,
         &validation,
@@ -371,14 +362,13 @@ pub async fn authenticate_user(
     };
     trace!("Getting session credential...");
     let session_credential = get_session_credential_by_id(
-        &http_transaction.id,
         &state.database_pool,
         &session_credential_id,
     )
     .await?;
     trace!("Getting session from session credential...");
     let session =
-        get_session_by_id(&http_transaction.id, &state.database_pool, &session_id).await?;
+        get_session_by_id(&state.database_pool, &session_id).await?;
     trace!("Checking if session is still active...");
     if session.expiration_date < chrono::Utc::now() {
         let http_error =
@@ -387,7 +377,7 @@ pub async fn authenticate_user(
         return Err(http_error);
     }
     trace!("Getting user from session credential...");
-    let user = get_user_by_id(&http_transaction.id, &state.database_pool, &user_id).await?;
+    let user = get_user_by_id(&state.database_pool, &user_id).await?;
     trace!("Adding user and session to request extensions...");
     request
         .extensions_mut()
@@ -409,7 +399,6 @@ pub async fn authenticate_user(
 #[axum_macros::debug_middleware]
 pub async fn authenticate_app(
     State(state): State<AppState>,
-    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
     headers: HeaderMap,
     mut request: Request<Body>,
     next: Next,
@@ -451,10 +440,8 @@ pub async fn authenticate_app(
     let jwt_public_key = get_jwt_public_key().await?;
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
     let decoding_key =
-        get_decoding_key(&http_transaction.id, &state.database_pool, &jwt_public_key).await?;
+        get_decoding_key(&jwt_public_key).await?;
     let decoded_claims = get_decoded_claims(
-        &http_transaction.id,
-        &state.database_pool,
         &authorization_token,
         &decoding_key,
         &validation,
@@ -475,7 +462,7 @@ pub async fn authenticate_app(
     };
 
     let app_credential =
-        match get_app_credential_by_id(&app_credential_id, &http_transaction, &state.database_pool)
+        match get_app_credential_by_id(&app_credential_id, &state.database_pool)
             .await
         {
             Ok(app_credential) => app_credential,
@@ -495,7 +482,6 @@ pub async fn authenticate_app(
 
     let app = match get_app_by_id(
         &app_credential.app_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await

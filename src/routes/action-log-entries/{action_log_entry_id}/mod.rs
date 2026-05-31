@@ -58,19 +58,15 @@ async fn handle_get_action_log_entry_request(
     let action_log_entry_id = get_uuid_from_string(
         &action_log_entry_id,
         "action log entry",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let action_log_entry = get_action_log_entry_by_id(
         &action_log_entry_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let get_action_log_entries_action = get_action_by_name(
         "actionLogEntries.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -79,7 +75,6 @@ async fn handle_get_action_log_entry_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_action_log_entries_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -95,14 +90,13 @@ async fn handle_get_action_log_entry_request(
         &ResourceType::ActionLogEntry,
         Some(&action_log_entry_id),
         &get_action_log_entries_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_action_log_entries_action.id,
@@ -154,19 +148,15 @@ async fn handle_delete_action_log_entry_request(
     let action_log_entry_id = get_uuid_from_string(
         &action_log_entry_id,
         "action log entry",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_action_log_entry = get_action_log_entry_by_id(
         &action_log_entry_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let delete_resources_action = get_action_by_name(
         "actionLogEntries.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -175,7 +165,6 @@ async fn handle_delete_action_log_entry_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -191,7 +180,6 @@ async fn handle_delete_action_log_entry_request(
         &ResourceType::ActionLogEntry,
         Some(&action_log_entry_id),
         &delete_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -207,7 +195,7 @@ async fn handle_delete_action_log_entry_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_resources_action.id,

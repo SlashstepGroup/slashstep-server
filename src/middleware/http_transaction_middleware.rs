@@ -77,7 +77,6 @@ pub async fn create_http_transaction(
 
     let should_http_transactions_expire_configuration = get_configuration_by_name(
         "httpTransactions.shouldExpire",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;

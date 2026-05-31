@@ -63,20 +63,19 @@ async fn handle_list_field_values_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<FieldValue>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&item_id, "item").await?;
     let list_resources_action =
-        get_action_by_name("fieldValues.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("fieldValues.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
+    let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -88,7 +87,6 @@ async fn handle_list_field_values_request(
         &ResourceType::Item,
         Some(&target_item.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -155,7 +153,7 @@ async fn handle_list_field_values_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -216,16 +214,15 @@ async fn handle_create_field_value_request(
 ) -> Result<(StatusCode, Json<FieldValue>), HTTPError> {
     // Make sure the user can create field values for the target action.
     let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&item_id, "item").await?;
     let field_value_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(field_value_text_value) = &field_value_properties_json.text_value {
         validate_field_length(
             field_value_text_value,
             "fieldValues.maximumTextValueLength",
             "text_value",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -236,15 +233,13 @@ async fn handle_create_field_value_request(
             "fieldValues.minimumNumberValue",
             "fieldValues.maximumNumberValue",
             "number_value",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
-    let target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
+    let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let create_field_values_action = get_action_by_name(
         "fieldValues.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -253,7 +248,6 @@ async fn handle_create_field_value_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_field_values_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -269,7 +263,6 @@ async fn handle_create_field_value_request(
         &ResourceType::Item,
         Some(&target_item.id),
         &create_field_values_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -278,7 +271,6 @@ async fn handle_create_field_value_request(
     // Verify the field is a part of the same project.
     let field = get_field_by_id(
         &field_value_properties_json.field_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -327,7 +319,7 @@ async fn handle_create_field_value_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_field_values_action.id,

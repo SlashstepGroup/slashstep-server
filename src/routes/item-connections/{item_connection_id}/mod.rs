@@ -59,16 +59,13 @@ async fn handle_get_item_connection_request(
     let item_connection_id = get_uuid_from_string(
         &item_connection_id,
         "item connection",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_item_connection =
-        get_item_connection_by_id(&item_connection_id, &http_transaction, &state.database_pool)
+        get_item_connection_by_id(&item_connection_id, &state.database_pool)
             .await?;
     let get_item_connections_action = get_action_by_name(
         "itemConnections.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -77,7 +74,6 @@ async fn handle_get_item_connection_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_item_connections_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -93,14 +89,13 @@ async fn handle_get_item_connection_request(
         &ResourceType::ItemConnection,
         Some(&target_item_connection.id),
         &get_item_connections_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_item_connections_action.id,
@@ -152,16 +147,13 @@ async fn handle_delete_item_connection_request(
     let item_connection_id = get_uuid_from_string(
         &item_connection_id,
         "item connection",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_item_connection =
-        get_item_connection_by_id(&item_connection_id, &http_transaction, &state.database_pool)
+        get_item_connection_by_id(&item_connection_id, &state.database_pool)
             .await?;
     let delete_item_connections_action = get_action_by_name(
         "itemConnections.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -170,7 +162,6 @@ async fn handle_delete_item_connection_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_item_connections_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -186,7 +177,6 @@ async fn handle_delete_item_connection_request(
         &ResourceType::ItemConnection,
         Some(&target_item_connection.id),
         &delete_item_connections_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -202,7 +192,7 @@ async fn handle_delete_item_connection_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_item_connections_action.id,
@@ -252,20 +242,17 @@ async fn handle_patch_item_connection_request(
     let item_connection_id = get_uuid_from_string(
         &item_connection_id,
         "item connection",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let updated_item_connection_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
 
     let original_target_item_connection =
-        get_item_connection_by_id(&item_connection_id, &http_transaction, &state.database_pool)
+        get_item_connection_by_id(&item_connection_id, &state.database_pool)
             .await?;
     let update_access_policy_action = get_action_by_name(
         "itemConnections.update",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -274,7 +261,6 @@ async fn handle_patch_item_connection_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -290,7 +276,6 @@ async fn handle_patch_item_connection_request(
         &ResourceType::ItemConnection,
         Some(&original_target_item_connection.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )

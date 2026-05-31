@@ -58,15 +58,12 @@ async fn handle_get_configuration_request(
     let configuration_id = get_uuid_from_string(
         &configuration_id,
         "configuration",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_configuration =
-        get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
+        get_configuration_by_id(&configuration_id, &state.database_pool).await?;
     let get_configurations_action = get_action_by_name(
         "configurations.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -75,7 +72,6 @@ async fn handle_get_configuration_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_configurations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -91,14 +87,13 @@ async fn handle_get_configuration_request(
         &ResourceType::Configuration,
         Some(&target_configuration.id),
         &get_configurations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_configurations_action.id,
@@ -150,15 +145,12 @@ async fn handle_delete_configuration_request(
     let configuration_id = get_uuid_from_string(
         &configuration_id,
         "configuration",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_configuration =
-        get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
+        get_configuration_by_id(&configuration_id, &state.database_pool).await?;
     let delete_configurations_action = get_action_by_name(
         "configurations.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -167,7 +159,6 @@ async fn handle_delete_configuration_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_configurations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -183,7 +174,6 @@ async fn handle_delete_configuration_request(
         &ResourceType::Configuration,
         Some(&target_configuration.id),
         &delete_configurations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -199,7 +189,7 @@ async fn handle_delete_configuration_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_configurations_action.id,
@@ -281,15 +271,12 @@ async fn handle_patch_configuration_request(
     let configuration_id = get_uuid_from_string(
         &configuration_id,
         "configuration",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let original_target_configuration =
-        get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
+        get_configuration_by_id(&configuration_id, &state.database_pool).await?;
     let update_access_policy_action = get_action_by_name(
         "configurations.update",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -298,7 +285,6 @@ async fn handle_patch_configuration_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -314,7 +300,6 @@ async fn handle_patch_configuration_request(
         &ResourceType::Configuration,
         Some(&original_target_configuration.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -341,7 +326,7 @@ async fn handle_patch_configuration_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: update_access_policy_action.id,

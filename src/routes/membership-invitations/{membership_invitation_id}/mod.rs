@@ -60,19 +60,15 @@ async fn handle_get_membership_invitation_request(
     let membership_invitation_id = get_uuid_from_string(
         &membership_invitation_id,
         "membership invitation",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_membership_invitation = get_membership_invitation_by_id(
         &membership_invitation_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let get_membership_invitations_action = get_action_by_name(
         "membershipInvitations.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -81,7 +77,6 @@ async fn handle_get_membership_invitation_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_membership_invitations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -97,14 +92,13 @@ async fn handle_get_membership_invitation_request(
         &ResourceType::MembershipInvitation,
         Some(&target_membership_invitation.id),
         &get_membership_invitations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_membership_invitations_action.id,
@@ -156,19 +150,15 @@ async fn handle_delete_membership_invitation_request(
     let membership_invitation_id = get_uuid_from_string(
         &membership_invitation_id,
         "membership invitation",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_membership_invitation = get_membership_invitation_by_id(
         &membership_invitation_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let delete_membership_invitations_action = get_action_by_name(
         "membershipInvitations.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -177,7 +167,6 @@ async fn handle_delete_membership_invitation_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_membership_invitations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -193,7 +182,6 @@ async fn handle_delete_membership_invitation_request(
         &ResourceType::MembershipInvitation,
         Some(&target_membership_invitation.id),
         &delete_membership_invitations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -212,7 +200,7 @@ async fn handle_delete_membership_invitation_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_membership_invitations_action.id,

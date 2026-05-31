@@ -61,20 +61,17 @@ async fn handle_get_action_request(
     let action_id = get_uuid_from_string(
         &action_id,
         "action",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_action =
-        get_action_by_id(&action_id, &http_transaction, &state.database_pool).await?;
+        get_action_by_id(&action_id, &state.database_pool).await?;
     let get_actions_action =
-        get_action_by_name("actions.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("actions.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_actions_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -90,14 +87,13 @@ async fn handle_get_action_request(
         &ResourceType::Action,
         Some(&target_action.id),
         &get_actions_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_actions_action.id,
@@ -147,19 +143,16 @@ async fn handle_patch_action_request(
     let action_id = get_uuid_from_string(
         &action_id,
         "action",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let updated_action_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(updated_action_name) = &updated_action_properties.name {
         validate_field_length(
             updated_action_name,
             "actions.maximumNameLength",
             "name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -167,7 +160,6 @@ async fn handle_patch_action_request(
             updated_action_name,
             "actions.allowedNameRegex",
             "Action",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -177,7 +169,6 @@ async fn handle_patch_action_request(
             updated_action_display_name,
             "actions.maximumDisplayNameLength",
             "display_name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -185,21 +176,19 @@ async fn handle_patch_action_request(
             updated_action_display_name,
             "actions.allowedDisplayNameRegex",
             "Action",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     };
     let original_target_action =
-        get_action_by_id(&action_id, &http_transaction, &state.database_pool).await?;
+        get_action_by_id(&action_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("actions.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("actions.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -215,7 +204,6 @@ async fn handle_patch_action_request(
         &ResourceType::Action,
         Some(&original_target_action.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -239,7 +227,7 @@ async fn handle_patch_action_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: update_access_policy_action.id,
@@ -288,20 +276,17 @@ async fn handle_delete_action_request(
     let action_id = get_uuid_from_string(
         &action_id,
         "action",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_action =
-        get_action_by_id(&action_id, &http_transaction, &state.database_pool).await?;
+        get_action_by_id(&action_id, &state.database_pool).await?;
     let delete_resources_action =
-        get_action_by_name("actions.delete", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("actions.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -317,7 +302,6 @@ async fn handle_delete_action_request(
         &ResourceType::Action,
         Some(&target_action.id),
         &delete_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -331,7 +315,7 @@ async fn handle_delete_action_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_resources_action.id,

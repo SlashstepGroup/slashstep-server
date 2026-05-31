@@ -88,10 +88,7 @@ async fn handle_create_session_credential_request(
     ),
     HTTPError,
 > {
-    async fn get_invalid_refresh_token_http_error(
-        http_transaction: &HTTPTransaction,
-        database_pool: &deadpool_postgres::Pool,
-    ) -> HTTPError {
+    fn get_invalid_refresh_token_http_error() -> HTTPError {
         let http_error = HTTPError::Unauthorized(Some(
             "Invalid refresh token. Check your credentials and try again.".to_string(),
         ));
@@ -99,10 +96,7 @@ async fn handle_create_session_credential_request(
         http_error
     }
 
-    async fn get_invalid_login_credentials_http_error(
-        http_transaction: &HTTPTransaction,
-        database_pool: &deadpool_postgres::Pool,
-    ) -> HTTPError {
+    fn get_invalid_login_credentials_http_error() -> HTTPError {
         let http_error = HTTPError::Unauthorized(Some(
             "Invalid username or password. Check your credentials and try again.".to_string(),
         ));
@@ -112,7 +106,6 @@ async fn handle_create_session_credential_request(
 
     async fn get_user_from_authentication_credentials(
         authentication_credentials: &Json<AuthenticationCredentials>,
-        http_transaction: &HTTPTransaction,
         database_pool: &deadpool_postgres::Pool,
         cookie_jar: &CookieJar,
     ) -> Result<User, HTTPError> {
@@ -126,7 +119,7 @@ async fn handle_create_session_credential_request(
                     return Err(http_error);
                 };
 
-                Ok(get_user_by_username(&username, &http_transaction, &database_pool).await?)
+                Ok(get_user_by_username(&username, &database_pool).await?)
             }
 
             AuthenticationMethod::RefreshToken => {
@@ -144,46 +137,38 @@ async fn handle_create_session_credential_request(
 
                 let decoded_claims = match SessionCredential::decode_token(
                     &session_refresh_token,
-                    &get_json_web_token_private_key(&http_transaction.id, &database_pool).await?,
+                    &get_json_web_token_private_key().await?,
                 ) {
                     Ok(decoded_claims) => decoded_claims,
 
                     Err(_) => {
-                        return Err(get_invalid_refresh_token_http_error(
-                            http_transaction,
-                            database_pool,
-                        )
-                        .await);
+                        return Err(get_invalid_refresh_token_http_error());
                     }
                 };
                 let user_id_string = decoded_claims.sub;
                 let user_id = get_uuid_from_string(
                     &user_id_string,
-                    "user",
-                    &http_transaction,
-                    &database_pool,
+                    "user"
                 )
                 .await?;
-                Ok(get_user_by_id(&user_id, &http_transaction, &database_pool).await?)
+                Ok(get_user_by_id(&user_id, &database_pool).await?)
             }
         }
     }
 
     // Make sure the requestor can create sessions on the target user.
     let authentication_credentials =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
 
     let target_user = get_user_from_authentication_credentials(
         &authentication_credentials,
-        &http_transaction,
         &state.database_pool,
         &cookie_jar,
     )
     .await?;
     let create_session_credentials_action = get_action_by_name(
         "sessionCredentials.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -196,7 +181,6 @@ async fn handle_create_session_credential_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_session_credentials_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -208,7 +192,6 @@ async fn handle_create_session_credential_request(
         &ResourceType::User,
         Some(&target_user.id),
         &create_session_credentials_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -229,11 +212,7 @@ async fn handle_create_session_credential_request(
                 let http_error = match error {
                     ResourceError::Argon2PasswordHashError(error) => match error {
                         argon2::password_hash::Error::Password => {
-                            return Err(get_invalid_login_credentials_http_error(
-                                &http_transaction,
-                                &state.database_pool,
-                            )
-                            .await);
+                            return Err(get_invalid_login_credentials_http_error());
                         }
 
                         _ => None,
@@ -264,24 +243,18 @@ async fn handle_create_session_credential_request(
             };
             let decoded_claims = match SessionCredential::decode_token(
                 &session_refresh_token,
-                &get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await?,
+                &get_json_web_token_private_key().await?,
             ) {
                 Ok(decoded_claims) => decoded_claims,
 
                 Err(_) => {
-                    return Err(get_invalid_refresh_token_http_error(
-                        &http_transaction,
-                        &state.database_pool,
-                    )
-                    .await);
+                    return Err(get_invalid_refresh_token_http_error());
                 }
             };
             let session_credential_id_string = decoded_claims.jti;
             let session_credential_id = get_uuid_from_string(
                 &session_credential_id_string,
-                "session credential",
-                &http_transaction,
-                &state.database_pool,
+                "session credential"
             )
             .await?;
             let session_credential =
@@ -360,7 +333,6 @@ async fn handle_create_session_credential_request(
         &ResourceType::User,
         Some(&target_user.id),
         &create_session_credentials_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -371,7 +343,6 @@ async fn handle_create_session_credential_request(
 
     let maximum_session_lifetime_milliseconds = match get_configuration_by_name(
         "sessions.maximumLifetimeMilliseconds",
-        &http_transaction,
         &state.database_pool,
     )
     .await
@@ -420,7 +391,6 @@ async fn handle_create_session_credential_request(
 
     let maximum_access_token_lifetime_milliseconds = match get_configuration_by_name(
         "sessionCredentials.maximumAccessTokenLifetimeMilliseconds",
-        &http_transaction,
         &state.database_pool,
     )
     .await
@@ -446,7 +416,6 @@ async fn handle_create_session_credential_request(
 
     let maximum_refresh_token_lifetime_milliseconds = match get_configuration_by_name(
         "sessionCredentials.maximumRefreshTokenLifetimeMilliseconds",
-        &http_transaction,
         &state.database_pool,
     )
     .await
@@ -499,7 +468,7 @@ async fn handle_create_session_credential_request(
 
     // Add the session token to the client's cookies.
     let jwt_private_key =
-        get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await?;
+        get_json_web_token_private_key().await?;
 
     let access_token = if let Ok(token) = created_session_credential
         .generate_access_token(&jwt_private_key)
@@ -548,7 +517,7 @@ async fn handle_create_session_credential_request(
         .add(session_refresh_token_cookie);
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_session_credentials_action.id,
@@ -597,7 +566,6 @@ async fn handle_list_session_credentials_request(
     // Make sure the principal has access to list resources.
     let list_resources_action = get_action_by_name(
         "sessionCredentials.list",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -606,7 +574,6 @@ async fn handle_list_session_credentials_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -622,7 +589,6 @@ async fn handle_list_session_credentials_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -683,7 +649,7 @@ async fn handle_list_session_credentials_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,

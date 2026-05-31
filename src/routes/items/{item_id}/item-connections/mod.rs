@@ -62,10 +62,9 @@ async fn handle_list_item_connections_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<ItemConnection>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&item_id, "item").await?;
     let list_resources_action = get_action_by_name(
         "itemConnections.list",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -74,12 +73,11 @@ async fn handle_list_item_connections_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
+    let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -91,7 +89,6 @@ async fn handle_list_item_connections_request(
         &ResourceType::Item,
         Some(&target_item.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -159,7 +156,7 @@ async fn handle_list_item_connections_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -223,20 +220,18 @@ async fn handle_create_item_connection_request(
 ) -> Result<(StatusCode, Json<ItemConnection>), HTTPError> {
     // Make sure the user can create item connections for the target action.
     let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&item_id, "item").await?;
     let item_connection_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
-    let outward_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
+    let outward_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let inward_item = get_item_by_id(
         &item_connection_properties_json.inward_item_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let create_item_connections_action = get_action_by_name(
         "itemConnections.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -245,7 +240,6 @@ async fn handle_create_item_connection_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_item_connections_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -261,7 +255,6 @@ async fn handle_create_item_connection_request(
         &ResourceType::Item,
         Some(&outward_item.id),
         &create_item_connections_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -276,7 +269,6 @@ async fn handle_create_item_connection_request(
                     &ResourceType::Item,
                     Some(&inward_item.id),
                     &create_item_connections_action,
-                    &http_transaction,
                     &PermissionLevel::User,
                     &state.database_pool,
                 )
@@ -312,7 +304,7 @@ async fn handle_create_item_connection_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_item_connections_action.id,

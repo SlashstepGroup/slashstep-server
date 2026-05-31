@@ -49,9 +49,7 @@ use tracing::{info, trace};
 use uuid::Uuid;
 
 pub async fn create_regex(
-    string: &str,
-    http_transaction: &HTTPTransaction,
-    database_pool: &deadpool_postgres::Pool,
+    string: &str
 ) -> Result<Regex, HTTPError> {
     let regex = match Regex::new(string) {
         Ok(regex) => regex,
@@ -139,7 +137,7 @@ async fn handle_create_oauth_authorization_request(
     }
 
     // Verify the scope.
-    let full_string_regex = create_regex(r"^(?: ?(?P<action_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(?P<maximum_permission_level>None|User|Editor|Admin))+$", &http_transaction, &state.database_pool).await?;
+    let full_string_regex = create_regex(r"^(?: ?(?P<action_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(?P<maximum_permission_level>None|User|Editor|Admin))+$").await?;
     let scope = initial_oauth_authorization_properties_json.scope.clone();
 
     if !full_string_regex.is_match(&scope) {
@@ -152,7 +150,7 @@ async fn handle_create_oauth_authorization_request(
     }
 
     // Make sure each action ID and permission level is valid.
-    let capture_string_regex = create_regex(r"(?: ?(?P<action_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(?P<maximum_permission_level>None|User|Editor|Admin))", &http_transaction, &state.database_pool).await?;
+    let capture_string_regex = create_regex(r"(?: ?(?P<action_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(?P<maximum_permission_level>None|User|Editor|Admin))").await?;
     for captures in capture_string_regex.captures_iter(&scope) {
         let action_id = match captures.name("action_id") {
             Some(action_id) => match Uuid::parse_str(action_id.as_str()) {
@@ -204,16 +202,15 @@ async fn handle_create_oauth_authorization_request(
             }
         };
 
-        get_action_by_id(&action_id, &http_transaction, &state.database_pool).await?;
+        get_action_by_id(&action_id, &state.database_pool).await?;
     }
 
     // Make sure the user can create access policies for the target action.
     let user_id =
-        get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
-    let target_user = get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&user_id, "user").await?;
+    let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
     let create_oauth_authorizations_action = get_action_by_name(
         "oauthAuthorizations.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -222,7 +219,6 @@ async fn handle_create_oauth_authorization_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_oauth_authorizations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -238,25 +234,22 @@ async fn handle_create_oauth_authorization_request(
         &ResourceType::User,
         Some(&target_user.id),
         &create_oauth_authorizations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
     let target_app = get_app_by_id(
         &initial_oauth_authorization_properties_json.app_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let authorize_app_action =
-        get_action_by_name("apps.authorize", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("apps.authorize", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &authorize_app_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -268,7 +261,6 @@ async fn handle_create_oauth_authorization_request(
         &ResourceType::User,
         Some(&target_user.id),
         &authorize_app_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -314,7 +306,7 @@ async fn handle_create_oauth_authorization_request(
 
     trace!("Generating OAuth authorization code...");
     let jwt_private_key =
-        get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await?;
+        get_json_web_token_private_key().await?;
     let authorization_code =
         match created_oauth_authorization.generate_authorization_code(&jwt_private_key) {
             Ok(authorization_code) => authorization_code,
@@ -330,7 +322,7 @@ async fn handle_create_oauth_authorization_request(
         };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: authorize_app_action.id,

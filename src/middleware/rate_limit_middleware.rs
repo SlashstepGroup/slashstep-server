@@ -14,7 +14,7 @@ use crate::{
     AppState, HTTPError,
     resources::{
         access_policy::AccessPolicyPrincipalType, app::App, app_authorization::AppAuthorization,
-        http_transaction::HTTPTransaction, user::User,
+        user::User,
     },
     utilities::route_handler_utilities::{
         get_configuration_by_name, get_principal_type_and_id_from_principal,
@@ -40,7 +40,6 @@ impl std::fmt::Display for Interval {
 #[axum_macros::debug_middleware]
 pub async fn verify_absolute_maximum_rate_limits(
     State(state): State<AppState>,
-    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
     Extension(authenticated_user): Extension<Option<Arc<User>>>,
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(_authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
@@ -107,7 +106,6 @@ pub async fn verify_absolute_maximum_rate_limits(
 
         let interval_rate_limit_configuration = get_configuration_by_name(
             &interval_rate_limit_configuration_name,
-            &http_transaction,
             &state.database_pool,
         )
         .await?;

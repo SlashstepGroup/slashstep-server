@@ -65,24 +65,21 @@ async fn handle_list_fields_request(
     let project_id = get_uuid_from_string(
         &project_id,
         "project",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let list_resources_action =
-        get_action_by_name("fields.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("fields.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
     let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+        get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -94,7 +91,6 @@ async fn handle_list_fields_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -159,7 +155,7 @@ async fn handle_list_fields_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -222,18 +218,15 @@ async fn handle_create_field_request(
     let project_id = get_uuid_from_string(
         &project_id,
         "project",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let field_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     validate_field_length(
         &field_properties_json.name,
         "fields.maximumNameLength",
         "name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -241,7 +234,6 @@ async fn handle_create_field_request(
         &field_properties_json.name,
         "fields.allowedNameRegex",
         "field",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -249,7 +241,6 @@ async fn handle_create_field_request(
         &field_properties_json.display_name,
         "fields.maximumDisplayNameLength",
         "display_name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -258,21 +249,19 @@ async fn handle_create_field_request(
             field_description,
             "fields.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
     let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+        get_project_by_id(&project_id, &state.database_pool).await?;
     let create_fields_action =
-        get_action_by_name("fields.create", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("fields.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_fields_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -288,7 +277,6 @@ async fn handle_create_field_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &create_fields_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -326,7 +314,7 @@ async fn handle_create_field_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_fields_action.id,

@@ -59,19 +59,15 @@ async fn handle_get_delegation_policy_request(
     let delegation_policy_id = get_uuid_from_string(
         &delegation_policy_id,
         "delegation policy",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_delegation_policy = get_delegation_policy_by_id(
         &delegation_policy_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let get_delegation_policies_action = get_action_by_name(
         "delegationPolicies.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -80,7 +76,6 @@ async fn handle_get_delegation_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_delegation_policies_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -96,14 +91,13 @@ async fn handle_get_delegation_policy_request(
         &ResourceType::DelegationPolicy,
         Some(&target_delegation_policy.id),
         &get_delegation_policies_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_delegation_policies_action.id,
@@ -155,19 +149,15 @@ async fn handle_delete_delegation_policy_request(
     let delegation_policy_id = get_uuid_from_string(
         &delegation_policy_id,
         "delegation policy",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_delegation_policy = get_delegation_policy_by_id(
         &delegation_policy_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let delete_delegation_policies_action = get_action_by_name(
         "delegationPolicies.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -176,7 +166,6 @@ async fn handle_delete_delegation_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_delegation_policies_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -192,7 +181,6 @@ async fn handle_delete_delegation_policy_request(
         &ResourceType::DelegationPolicy,
         Some(&target_delegation_policy.id),
         &delete_delegation_policies_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -208,7 +196,7 @@ async fn handle_delete_delegation_policy_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_delegation_policies_action.id,
@@ -256,24 +244,20 @@ async fn handle_patch_delegation_policy_request(
     body: Result<Json<EditableDelegationPolicyProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<DelegationPolicy>>, HTTPError> {
     let updated_delegation_policy_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     let delegation_policy_id = get_uuid_from_string(
         &delegation_policy_id,
         "delegation policy",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let original_target_delegation_policy = get_delegation_policy_by_id(
         &delegation_policy_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let update_access_policy_action = get_action_by_name(
         "delegationPolicies.update",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -282,7 +266,6 @@ async fn handle_patch_delegation_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -298,7 +281,6 @@ async fn handle_patch_delegation_policy_request(
         &ResourceType::DelegationPolicy,
         Some(&original_target_delegation_policy.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )

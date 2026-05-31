@@ -93,7 +93,6 @@ async fn handle_update_user_password_request(
     async fn verify_principal_can_change_password(
         update_user_password_request_body: &UpdateUserPasswordRequestBody,
         authenticated_app_authorization_id: Option<&Uuid>,
-        http_transaction: &HTTPTransaction,
         database_pool: &deadpool_postgres::Pool,
         principal_type: &AccessPolicyPrincipalType,
         principal_id: &Uuid,
@@ -101,8 +100,6 @@ async fn handle_update_user_password_request(
         target_user: &User,
     ) -> Result<(), HTTPError> {
         pub async fn decode_password_reset_token_jwt_claims(
-            http_transaction_id: &Uuid,
-            database_pool: &deadpool_postgres::Pool,
             json_web_token_public_key: &str,
             token: &str,
         ) -> Result<TokenData<PasswordResetAuthorizationClaims>, HTTPError> {
@@ -110,8 +107,6 @@ async fn handle_update_user_password_request(
 
             let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
             let decoding_key = get_decoding_key(
-                http_transaction_id,
-                database_pool,
                 json_web_token_public_key,
             )
             .await?;
@@ -148,14 +143,12 @@ async fn handle_update_user_password_request(
         if update_user_password_request_body.should_bypass_password_validation {
             let bypass_password_validation_action = get_action_by_name(
                 "users.bypassPasswordValidation",
-                http_transaction,
                 database_pool,
             )
             .await?;
             verify_delegate_permissions(
                 authenticated_app_authorization_id,
                 &bypass_password_validation_action.id,
-                &http_transaction.id,
                 &PermissionLevel::User,
                 database_pool,
             )
@@ -167,7 +160,6 @@ async fn handle_update_user_password_request(
                 &ResourceType::User,
                 Some(&target_user.id),
                 &bypass_password_validation_action,
-                http_transaction,
                 &PermissionLevel::User,
                 database_pool,
             )
@@ -176,26 +168,20 @@ async fn handle_update_user_password_request(
             &update_user_password_request_body.password_reset_token
         {
             let jwt_public_key =
-                get_json_web_token_public_key(&http_transaction.id, database_pool).await?;
+                get_json_web_token_public_key().await?;
             let password_reset_token_claims = decode_password_reset_token_jwt_claims(
-                &http_transaction.id,
-                database_pool,
                 &jwt_public_key,
                 password_reset_token,
             )
             .await?;
             let password_reset_token_id = get_uuid_from_string(
                 &password_reset_token_claims.claims.jti,
-                "password reset token",
-                http_transaction,
-                database_pool,
+                "password reset token"
             )
             .await?;
             let password_reset_user_id = get_uuid_from_string(
                 &password_reset_token_claims.claims.sub,
-                "password reset token subject",
-                http_transaction,
-                database_pool,
+                "password reset token subject"
             )
             .await?;
             if password_reset_user_id != target_user.id {
@@ -207,7 +193,6 @@ async fn handle_update_user_password_request(
             }
             let password_reset_authorization = get_password_reset_authorization_by_id(
                 &password_reset_token_id,
-                http_transaction,
                 database_pool,
             )
             .await;
@@ -257,12 +242,10 @@ async fn handle_update_user_password_request(
 
     async fn verify_password_meets_requirements(
         password: &str,
-        http_transaction: &HTTPTransaction,
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), HTTPError> {
         let minimum_password_length_configuration = get_configuration_by_name(
             "users.minimumPasswordLength",
-            http_transaction,
             database_pool,
         )
         .await?;
@@ -296,7 +279,6 @@ async fn handle_update_user_password_request(
 
         let maximum_password_length_configuration = get_configuration_by_name(
             "users.maximumPasswordLength",
-            http_transaction,
             database_pool,
         )
         .await?;
@@ -336,14 +318,13 @@ async fn handle_update_user_password_request(
         authenticated_app.as_ref(),
     )?;
     let user_id =
-        get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&user_id, "user").await?;
     let update_user_password_request_body =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
-    let target_user = get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
+    let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
     verify_password_meets_requirements(
         &update_user_password_request_body.new_password,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -353,7 +334,6 @@ async fn handle_update_user_password_request(
     verify_principal_can_change_password(
         &update_user_password_request_body,
         authenticated_app_authorization_id,
-        &http_transaction,
         &state.database_pool,
         &principal_type,
         &principal_id,
@@ -364,14 +344,12 @@ async fn handle_update_user_password_request(
 
     let update_user_password_action = get_action_by_name(
         "users.updatePassword",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     verify_delegate_permissions(
         authenticated_app_authorization_id,
         &update_user_password_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -383,7 +361,6 @@ async fn handle_update_user_password_request(
         &ResourceType::User,
         Some(&target_user.id),
         &update_user_password_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -424,7 +401,7 @@ async fn handle_update_user_password_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: update_user_password_action.id,

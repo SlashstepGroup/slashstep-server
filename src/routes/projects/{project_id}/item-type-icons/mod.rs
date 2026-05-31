@@ -69,13 +69,10 @@ async fn handle_list_item_type_icons_request(
     let project_id = get_uuid_from_string(
         &project_id,
         "project",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let list_resources_action = get_action_by_name(
         "itemTypeIcons.list",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -84,13 +81,12 @@ async fn handle_list_item_type_icons_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
     let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+        get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -102,7 +98,6 @@ async fn handle_list_item_type_icons_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -169,7 +164,7 @@ async fn handle_list_item_type_icons_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -288,11 +283,7 @@ async fn handle_create_item_type_icon_request(
     body: Result<BaseMultipart<CreateItemTypeIconRequestData, HTTPError>, HTTPError>,
 ) -> Result<(StatusCode, Json<ItemTypeIcon>), HTTPError> {
     /// Validates the provided content type is an allowed content type for item type icon icons.
-    async fn validate_content_type(
-        content_type: &str,
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
-    ) -> Result<(), HTTPError> {
+    async fn validate_content_type(content_type: &str) -> Result<(), HTTPError> {
         trace!("Validating content type {}...", content_type);
 
         let allowed_content_types = ["image/png", "image/jpeg", "image/gif", "image/svg+xml"];
@@ -311,9 +302,7 @@ async fn handle_create_item_type_icon_request(
 
     async fn verify_content_type_matches_contents(
         content_type: &str,
-        contents: &Bytes,
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
+        contents: &Bytes
     ) -> Result<(), HTTPError> {
         trace!(
             "Verifying content type {} matches file contents...",
@@ -339,9 +328,7 @@ async fn handle_create_item_type_icon_request(
 
     async fn sanitize_contents(
         content_type: &str,
-        contents: &Bytes,
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
+        contents: &Bytes
     ) -> Result<Vec<u8>, HTTPError> {
         trace!("Sanitizing contents for content type {}...", content_type);
 
@@ -428,11 +415,7 @@ async fn handle_create_item_type_icon_request(
         Err(http_error)
     }
 
-    async fn get_file_extension_from_content_type(
-        content_type: &str,
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
-    ) -> Result<String, HTTPError> {
+    async fn get_file_extension_from_content_type(content_type: &str) -> Result<String, HTTPError> {
         let file_extension = match content_type {
             "image/png" => "png",
 
@@ -455,10 +438,7 @@ async fn handle_create_item_type_icon_request(
         Ok(file_extension.to_string())
     }
 
-    async fn get_item_type_icon_storage_directory_path(
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
-    ) -> Result<String, HTTPError> {
+    async fn get_item_type_icon_storage_directory_path(database_pool: &Pool) -> Result<String, HTTPError> {
         trace!("Getting configuration to know where to store item type icons...");
         let item_type_icon_storage_directory_path_configuration =
             match Configuration::get_by_name("itemTypeIcons.storageDirectoryPath", database_pool)
@@ -495,9 +475,7 @@ async fn handle_create_item_type_icon_request(
 
     async fn save_icon_file(
         file_path: &str,
-        contents: &[u8],
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
+        contents: &[u8]
     ) -> Result<(), HTTPError> {
         trace!("Saving item type icon file to {}...", file_path);
 
@@ -537,8 +515,6 @@ async fn handle_create_item_type_icon_request(
     let project_id = get_uuid_from_string(
         &project_id,
         "project",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let content_type = match &body.icon_data.metadata.content_type {
@@ -553,36 +529,30 @@ async fn handle_create_item_type_icon_request(
         }
     };
 
-    validate_content_type(content_type, &http_transaction, &state.database_pool).await?;
+    validate_content_type(content_type).await?;
     verify_content_type_matches_contents(
         content_type,
-        &body.icon_data.contents,
-        &http_transaction,
-        &state.database_pool,
+        &body.icon_data.contents
     )
     .await?;
     let cleaned_contents = sanitize_contents(
         content_type,
-        &body.icon_data.contents,
-        &http_transaction,
-        &state.database_pool,
+        &body.icon_data.contents
     )
     .await?;
     validate_field_length(
         &body.display_name,
         "itemTypeIcons.maximumDisplayNameLength",
         "display_name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
 
     // Make sure the user can create item type icons for the target action.
     let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+        get_project_by_id(&project_id, &state.database_pool).await?;
     let create_item_type_icons_action = get_action_by_name(
         "itemTypeIcons.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -591,7 +561,6 @@ async fn handle_create_item_type_icon_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_item_type_icons_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -607,7 +576,6 @@ async fn handle_create_item_type_icon_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &create_item_type_icons_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -617,19 +585,17 @@ async fn handle_create_item_type_icon_request(
     // TODO: Support storing item type icons in cloud storage instead of on the local filesystem.
     let item_type_icon_id = Uuid::now_v7();
     let file_extension =
-        get_file_extension_from_content_type(content_type, &http_transaction, &state.database_pool)
+        get_file_extension_from_content_type(content_type)
             .await?;
     let item_type_icon_storage_directory_path =
-        get_item_type_icon_storage_directory_path(&http_transaction, &state.database_pool).await?;
+        get_item_type_icon_storage_directory_path(&state.database_pool).await?;
     let item_type_icon_file_path = format!(
         "{}/{}.{}",
         item_type_icon_storage_directory_path, item_type_icon_id, file_extension
     );
     save_icon_file(
         &item_type_icon_file_path,
-        &cleaned_contents,
-        &http_transaction,
-        &state.database_pool,
+        &cleaned_contents
     )
     .await?;
 
@@ -660,7 +626,7 @@ async fn handle_create_item_type_icon_request(
 
     // Log the creation of the item type icon.
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_item_type_icons_action.id,

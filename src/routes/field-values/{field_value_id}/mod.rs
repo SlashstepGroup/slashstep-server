@@ -59,20 +59,17 @@ async fn handle_get_field_value_request(
     let field_value_id = get_uuid_from_string(
         &field_value_id,
         "field value",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_field_value =
-        get_field_value_by_id(&field_value_id, &http_transaction, &state.database_pool).await?;
+        get_field_value_by_id(&field_value_id, &state.database_pool).await?;
     let get_field_values_action =
-        get_action_by_name("fieldValues.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("fieldValues.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_field_values_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -88,14 +85,13 @@ async fn handle_get_field_value_request(
         &ResourceType::FieldValue,
         Some(&target_field_value.id),
         &get_field_values_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_field_values_action.id,
@@ -147,15 +143,12 @@ async fn handle_delete_field_value_request(
     let field_value_id = get_uuid_from_string(
         &field_value_id,
         "field value",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_field_value =
-        get_field_value_by_id(&field_value_id, &http_transaction, &state.database_pool).await?;
+        get_field_value_by_id(&field_value_id, &state.database_pool).await?;
     let delete_field_values_action = get_action_by_name(
         "fieldValues.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -164,7 +157,6 @@ async fn handle_delete_field_value_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_field_values_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -180,7 +172,6 @@ async fn handle_delete_field_value_request(
         &ResourceType::FieldValue,
         Some(&target_field_value.id),
         &delete_field_values_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -196,7 +187,7 @@ async fn handle_delete_field_value_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_field_values_action.id,
@@ -244,14 +235,13 @@ async fn handle_patch_field_value_request(
     body: Result<Json<EditableFieldValueProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<FieldValue>>, HTTPError> {
     let updated_field_value_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(Some(field_value_text_value)) = &updated_field_value_properties.text_value {
         validate_field_length(
             field_value_text_value,
             "fieldValues.maximumTextValueLength",
             "text_value",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -262,7 +252,6 @@ async fn handle_patch_field_value_request(
             "fieldValues.minimumNumberValue",
             "fieldValues.maximumNumberValue",
             "number_value",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -270,15 +259,12 @@ async fn handle_patch_field_value_request(
     let field_value_id = get_uuid_from_string(
         &field_value_id,
         "field value",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let original_target_field_value =
-        get_field_value_by_id(&field_value_id, &http_transaction, &state.database_pool).await?;
+        get_field_value_by_id(&field_value_id, &state.database_pool).await?;
     let update_access_policy_action = get_action_by_name(
         "fieldValues.update",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -287,7 +273,6 @@ async fn handle_patch_field_value_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -303,7 +288,6 @@ async fn handle_patch_field_value_request(
         &ResourceType::FieldValue,
         Some(&original_target_field_value.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )

@@ -70,7 +70,7 @@ pub async fn handle_create_membership_request(
     body: Result<Json<InitialMembershipPropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Membership>), HTTPError> {
     let partial_membership_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     let is_user_only_adding_self = if let Some(authenticated_user) = &authenticated_user {
         partial_membership_properties.principal_user_id.as_ref() == Some(&authenticated_user.id)
@@ -82,7 +82,7 @@ pub async fn handle_create_membership_request(
 
     // Make sure the principal has access to list resources.
     let group_id =
-        get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&group_id, "group").await?;
     if partial_membership_properties.principal_group_id == Some(group_id) {
         let http_error = HTTPError::UnprocessableEntity(Some(
             "A membership cannot have the same group as both its parent group and principal group."
@@ -93,22 +93,20 @@ pub async fn handle_create_membership_request(
     }
     let create_memberships_action = get_action_by_name(
         "memberships.create",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let join_groups_action =
-        get_action_by_name("groups.join", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("groups.join", &state.database_pool).await?;
     let accept_membership_invitations_action = get_action_by_name(
         "membershipInvitations.accept",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let app_authorization_id = authenticated_app_authorization
         .as_ref()
         .map(|app_authorization| &app_authorization.id);
-    let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
+    let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -117,22 +115,18 @@ pub async fn handle_create_membership_request(
     if let Some(membership_invitation_id) = query_parameters.membership_invitation_id {
         let membership_invitation_id = get_uuid_from_string(
             &membership_invitation_id,
-            "membership invitation",
-            &http_transaction,
-            &state.database_pool,
+            "membership invitation"
         )
         .await?;
         verify_delegate_permissions(
             app_authorization_id,
             &accept_membership_invitations_action.id,
-            &http_transaction.id,
             &PermissionLevel::User,
             &state.database_pool,
         )
         .await?;
         let membership_invitation = get_membership_invitation_by_id(
             &membership_invitation_id,
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -143,7 +137,6 @@ pub async fn handle_create_membership_request(
             &ResourceType::MembershipInvitation,
             Some(&membership_invitation.id),
             &accept_membership_invitations_action,
-            &http_transaction,
             &PermissionLevel::User,
             &state.database_pool,
         )
@@ -159,7 +152,7 @@ pub async fn handle_create_membership_request(
         }
 
         let expiration_timestamp =
-            get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool)
+            get_action_log_entry_expiration_timestamp(&state.database_pool)
                 .await?;
         ActionLogEntry::create(
             &InitialActionLogEntryProperties {
@@ -195,7 +188,6 @@ pub async fn handle_create_membership_request(
             && can_delegate_perform_action(
                 app_authorization_id,
                 &join_groups_action.id,
-                &http_transaction.id,
                 &PermissionLevel::User,
                 &state.database_pool,
             )
@@ -204,7 +196,6 @@ pub async fn handle_create_membership_request(
             verify_delegate_permissions(
                 app_authorization_id,
                 &create_memberships_action.id,
-                &http_transaction.id,
                 &PermissionLevel::User,
                 &state.database_pool,
             )
@@ -218,7 +209,6 @@ pub async fn handle_create_membership_request(
                 &ResourceType::Group,
                 Some(&target_group.id),
                 &join_groups_action,
-                &http_transaction,
                 &PermissionLevel::User,
                 &state.database_pool,
             )
@@ -231,7 +221,6 @@ pub async fn handle_create_membership_request(
                 &ResourceType::Group,
                 Some(&target_group.id),
                 &create_memberships_action,
-                &http_transaction,
                 &PermissionLevel::User,
                 &state.database_pool,
             )
@@ -266,7 +255,7 @@ pub async fn handle_create_membership_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: if can_principal_add_self {
@@ -317,20 +306,19 @@ pub async fn handle_list_memberships_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Membership>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let group_id =
-        get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&group_id, "group").await?;
     let list_resources_action =
-        get_action_by_name("memberships.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("memberships.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
+    let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -342,7 +330,6 @@ pub async fn handle_list_memberships_request(
         &ResourceType::Group,
         Some(&target_group.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -409,7 +396,7 @@ pub async fn handle_list_memberships_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,

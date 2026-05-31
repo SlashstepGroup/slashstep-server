@@ -58,19 +58,15 @@ async fn handle_get_app_authorization_request(
     let app_authorization_id = get_uuid_from_string(
         &app_authorization_id,
         "app authorization",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_app_authorization = get_app_authorization_by_id(
         &app_authorization_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let get_app_authorizations_action = get_action_by_name(
         "appAuthorizations.get",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -79,7 +75,6 @@ async fn handle_get_app_authorization_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_app_authorizations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -95,14 +90,13 @@ async fn handle_get_app_authorization_request(
         &ResourceType::AppAuthorization,
         Some(&target_app_authorization.id),
         &get_app_authorizations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_app_authorizations_action.id,
@@ -154,19 +148,15 @@ async fn handle_delete_app_authorization_request(
     let app_authorization_id = get_uuid_from_string(
         &app_authorization_id,
         "app authorization",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_app_authorization = get_app_authorization_by_id(
         &app_authorization_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let delete_app_authorizations_action = get_action_by_name(
         "appAuthorizations.delete",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -175,7 +165,6 @@ async fn handle_delete_app_authorization_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_app_authorizations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -191,7 +180,6 @@ async fn handle_delete_app_authorization_request(
         &ResourceType::AppAuthorization,
         Some(&target_app_authorization.id),
         &delete_app_authorizations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -207,7 +195,7 @@ async fn handle_delete_app_authorization_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_app_authorizations_action.id,

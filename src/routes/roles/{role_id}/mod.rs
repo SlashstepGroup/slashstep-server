@@ -58,16 +58,15 @@ async fn handle_get_role_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Role>>, HTTPError> {
     let role_id =
-        get_uuid_from_string(&role_id, "role", &http_transaction, &state.database_pool).await?;
-    let target_role = get_role_by_id(&role_id, &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&role_id, "role").await?;
+    let target_role = get_role_by_id(&role_id, &state.database_pool).await?;
     let get_roles_action =
-        get_action_by_name("roles.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("roles.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_roles_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -83,14 +82,13 @@ async fn handle_get_role_request(
         &ResourceType::Role,
         Some(&target_role.id),
         &get_roles_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_roles_action.id,
@@ -137,16 +135,15 @@ async fn handle_delete_role_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
     let role_id =
-        get_uuid_from_string(&role_id, "role", &http_transaction, &state.database_pool).await?;
-    let target_role = get_role_by_id(&role_id, &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&role_id, "role").await?;
+    let target_role = get_role_by_id(&role_id, &state.database_pool).await?;
     let delete_roles_action =
-        get_action_by_name("roles.delete", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("roles.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_roles_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -162,7 +159,6 @@ async fn handle_delete_role_request(
         &ResourceType::Role,
         Some(&target_role.id),
         &delete_roles_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -182,7 +178,7 @@ async fn handle_delete_role_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_roles_action.id,
@@ -227,16 +223,15 @@ async fn handle_patch_role_request(
     body: Result<Json<EditableRolePropertiesRequestBody>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Role>>, HTTPError> {
     let role_id =
-        get_uuid_from_string(&role_id, "role", &http_transaction, &state.database_pool).await?;
+        get_uuid_from_string(&role_id, "role").await?;
     let updated_role_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(updated_role_display_name) = &updated_role_properties.display_name {
         validate_field_length(
             updated_role_display_name,
             "roles.maximumDisplayNameLength",
             "display_name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -246,21 +241,19 @@ async fn handle_patch_role_request(
             updated_role_description,
             "roles.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
     let original_target_role =
-        get_role_by_id(&role_id, &http_transaction, &state.database_pool).await?;
+        get_role_by_id(&role_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("roles.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("roles.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -276,7 +269,6 @@ async fn handle_patch_role_request(
         &ResourceType::Role,
         Some(&original_target_role.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )

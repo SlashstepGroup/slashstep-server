@@ -65,13 +65,12 @@ async fn handle_list_roles_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Role>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let list_resources_action =
-        get_action_by_name("roles.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("roles.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -87,7 +86,6 @@ async fn handle_list_roles_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -144,7 +142,7 @@ async fn handle_list_roles_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -209,13 +207,12 @@ async fn handle_create_role_request(
     body: Result<Json<CreateRoleRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Role>), HTTPError> {
     let create_role_request_body =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     validate_resource_name(
         &create_role_request_body.name,
         "roles.allowedNameRegex",
         "role",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -223,7 +220,6 @@ async fn handle_create_role_request(
         &create_role_request_body.name,
         "roles.maximumNameLength",
         "name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -231,7 +227,6 @@ async fn handle_create_role_request(
         &create_role_request_body.display_name,
         "roles.maximumDisplayNameLength",
         "display name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -241,7 +236,6 @@ async fn handle_create_role_request(
             description,
             "roles.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -249,13 +243,12 @@ async fn handle_create_role_request(
 
     // Make sure the authenticated_user can create apps for the target action log entry.
     let create_roles_action =
-        get_action_by_name("roles.create", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("roles.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_roles_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -271,7 +264,6 @@ async fn handle_create_role_request(
         &ResourceType::Server,
         None,
         &create_roles_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -307,7 +299,7 @@ async fn handle_create_role_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_roles_action.id,

@@ -58,20 +58,17 @@ async fn handle_get_session_request(
     let session_id = get_uuid_from_string(
         &session_id,
         "session",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_session =
-        get_session_by_id(&session_id, &http_transaction, &state.database_pool).await?;
+        get_session_by_id(&session_id, &state.database_pool).await?;
     let get_sessions_action =
-        get_action_by_name("sessions.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("sessions.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_sessions_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -87,14 +84,13 @@ async fn handle_get_session_request(
         &ResourceType::Session,
         Some(&target_session.id),
         &get_sessions_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_sessions_action.id,
@@ -143,20 +139,17 @@ async fn handle_delete_session_request(
     let session_id = get_uuid_from_string(
         &session_id,
         "session",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_session =
-        get_session_by_id(&session_id, &http_transaction, &state.database_pool).await?;
+        get_session_by_id(&session_id, &state.database_pool).await?;
     let delete_sessions_action =
-        get_action_by_name("sessions.delete", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("sessions.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_sessions_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -172,7 +165,6 @@ async fn handle_delete_session_request(
         &ResourceType::Session,
         Some(&target_session.id),
         &delete_sessions_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -186,7 +178,7 @@ async fn handle_delete_session_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_sessions_action.id,

@@ -59,20 +59,17 @@ async fn handle_get_view_field_request(
     let view_field_id = get_uuid_from_string(
         &view_field_id,
         "view field",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_view_field =
-        get_view_field_by_id(&view_field_id, &http_transaction, &state.database_pool).await?;
+        get_view_field_by_id(&view_field_id, &state.database_pool).await?;
     let get_view_fields_action =
-        get_action_by_name("viewFields.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("viewFields.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_view_fields_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -88,14 +85,13 @@ async fn handle_get_view_field_request(
         &ResourceType::ViewField,
         Some(&target_view_field.id),
         &get_view_fields_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_view_fields_action.id,
@@ -144,20 +140,17 @@ async fn handle_delete_view_field_request(
     let view_field_id = get_uuid_from_string(
         &view_field_id,
         "view field",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let target_view_field =
-        get_view_field_by_id(&view_field_id, &http_transaction, &state.database_pool).await?;
+        get_view_field_by_id(&view_field_id, &state.database_pool).await?;
     let delete_view_fields_action =
-        get_action_by_name("viewFields.delete", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("viewFields.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_view_fields_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -173,7 +166,6 @@ async fn handle_delete_view_field_request(
         &ResourceType::ViewField,
         Some(&target_view_field.id),
         &delete_view_fields_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -189,7 +181,7 @@ async fn handle_delete_view_field_request(
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_view_fields_action.id,
@@ -236,12 +228,10 @@ async fn handle_patch_view_field_request(
     let view_field_id = get_uuid_from_string(
         &view_field_id,
         "view field",
-        &http_transaction,
-        &state.database_pool,
     )
     .await?;
     let updated_view_field_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
+        get_request_body_without_json_rejection(body)
             .await?;
     if let Some(Some(next_view_field_id)) = updated_view_field_properties.next_view_field_id
         && next_view_field_id == view_field_id
@@ -254,15 +244,14 @@ async fn handle_patch_view_field_request(
     }
 
     let original_target_view_field =
-        get_view_field_by_id(&view_field_id, &http_transaction, &state.database_pool).await?;
+        get_view_field_by_id(&view_field_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("viewFields.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("viewFields.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -278,7 +267,6 @@ async fn handle_patch_view_field_request(
         &ResourceType::ViewField,
         Some(&original_target_view_field.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
