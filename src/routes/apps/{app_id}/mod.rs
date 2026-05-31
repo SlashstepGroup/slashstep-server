@@ -58,11 +58,9 @@ async fn handle_get_app_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<App>>, HTTPError> {
-    let app_id =
-        get_uuid_from_string(&app_id, "app").await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
     let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
-    let get_apps_action =
-        get_action_by_name("apps.get", &state.database_pool).await?;
+    let get_apps_action = get_action_by_name("apps.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -135,11 +133,9 @@ async fn handle_delete_app_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let app_id =
-        get_uuid_from_string(&app_id, "app").await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
     let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
-    let delete_apps_action =
-        get_action_by_name("apps.delete", &state.database_pool).await?;
+    let delete_apps_action = get_action_by_name("apps.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -217,11 +213,8 @@ async fn handle_patch_app_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableAppProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<App>>, HTTPError> {
-    let app_id =
-        get_uuid_from_string(&app_id, "app").await?;
-    let updated_app_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let updated_app_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(updated_app_name) = &updated_app_properties.name {
         validate_field_length(
             updated_app_name,
@@ -241,8 +234,7 @@ async fn handle_patch_app_request(
         .await?;
     };
 
-    let original_target_app =
-        get_app_by_id(&app_id, &state.database_pool).await?;
+    let original_target_app = get_app_by_id(&app_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("apps.update", &state.database_pool).await?;
     verify_delegate_permissions(

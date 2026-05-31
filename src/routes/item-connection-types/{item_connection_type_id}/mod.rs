@@ -57,21 +57,12 @@ async fn handle_get_item_connection_type_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<ItemConnectionType>>, HTTPError> {
-    let item_connection_type_id = get_uuid_from_string(
-        &item_connection_type_id,
-        "item connection type",
-    )
-    .await?;
-    let target_item_connection_type = get_item_connection_type_by_id(
-        &item_connection_type_id,
-        &state.database_pool,
-    )
-    .await?;
-    let get_item_connection_types_action = get_action_by_name(
-        "itemConnectionTypes.get",
-        &state.database_pool,
-    )
-    .await?;
+    let item_connection_type_id =
+        get_uuid_from_string(&item_connection_type_id, "item connection type").await?;
+    let target_item_connection_type =
+        get_item_connection_type_by_id(&item_connection_type_id, &state.database_pool).await?;
+    let get_item_connection_types_action =
+        get_action_by_name("itemConnectionTypes.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -147,21 +138,12 @@ async fn handle_delete_item_connection_type_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let item_connection_type_id = get_uuid_from_string(
-        &item_connection_type_id,
-        "item connection type",
-    )
-    .await?;
-    let target_item_connection_type = get_item_connection_type_by_id(
-        &item_connection_type_id,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_item_connection_types_action = get_action_by_name(
-        "itemConnectionTypes.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let item_connection_type_id =
+        get_uuid_from_string(&item_connection_type_id, "item connection type").await?;
+    let target_item_connection_type =
+        get_item_connection_type_by_id(&item_connection_type_id, &state.database_pool).await?;
+    let delete_item_connection_types_action =
+        get_action_by_name("itemConnectionTypes.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -247,14 +229,10 @@ async fn handle_patch_item_connection_type_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableItemConnectionTypeProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<ItemConnectionType>>, HTTPError> {
-    let item_connection_type_id = get_uuid_from_string(
-        &item_connection_type_id,
-        "item connection type",
-    )
-    .await?;
+    let item_connection_type_id =
+        get_uuid_from_string(&item_connection_type_id, "item connection type").await?;
     let updated_item_connection_type_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+        get_request_body_without_json_rejection(body).await?;
     if let Some(updated_item_connection_type_display_name) =
         &updated_item_connection_type_properties.display_name
     {
@@ -288,16 +266,10 @@ async fn handle_patch_item_connection_type_request(
         )
         .await?;
     }
-    let original_target_item_connection_type = get_item_connection_type_by_id(
-        &item_connection_type_id,
-        &state.database_pool,
-    )
-    .await?;
-    let update_access_policy_action = get_action_by_name(
-        "itemConnectionTypes.update",
-        &state.database_pool,
-    )
-    .await?;
+    let original_target_item_connection_type =
+        get_item_connection_type_by_id(&item_connection_type_id, &state.database_pool).await?;
+    let update_access_policy_action =
+        get_action_by_name("itemConnectionTypes.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

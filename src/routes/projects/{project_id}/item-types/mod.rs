@@ -61,13 +61,8 @@ async fn handle_list_item_types_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<ItemType>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let list_resources_action =
-        get_action_by_name("itemTypes.list", &state.database_pool).await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let list_resources_action = get_action_by_name("itemTypes.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -77,8 +72,7 @@ async fn handle_list_item_types_request(
         &state.database_pool,
     )
     .await?;
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -215,9 +209,7 @@ async fn handle_create_item_type_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialItemTypePropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<ItemType>), HTTPError> {
-    let item_type_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let item_type_properties_json = get_request_body_without_json_rejection(body).await?;
     validate_resource_name(
         &item_type_properties_json.name,
         "itemTypes.allowedNameRegex",
@@ -243,13 +235,8 @@ async fn handle_create_item_type_request(
     }
 
     // Make sure the user can create item types for the target action.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let create_item_types_action =
         get_action_by_name("itemTypes.create", &state.database_pool).await?;
     verify_delegate_permissions(

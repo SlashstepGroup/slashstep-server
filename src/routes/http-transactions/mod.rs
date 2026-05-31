@@ -57,11 +57,8 @@ async fn handle_list_http_transactions_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<HTTPTransaction>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action = get_action_by_name(
-        "httpTransactions.list",
-        &state.database_pool,
-    )
-    .await?;
+    let list_resources_action =
+        get_action_by_name("httpTransactions.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

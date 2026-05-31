@@ -61,13 +61,9 @@ async fn handle_list_item_connections_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<ItemConnection>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let item_id =
-        get_uuid_from_string(&item_id, "item").await?;
-    let list_resources_action = get_action_by_name(
-        "itemConnections.list",
-        &state.database_pool,
-    )
-    .await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let list_resources_action =
+        get_action_by_name("itemConnections.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -219,22 +215,16 @@ async fn handle_create_item_connection_request(
     body: Result<Json<InitialItemConnectionPropertiesWithPredefinedOutwardItem>, JsonRejection>,
 ) -> Result<(StatusCode, Json<ItemConnection>), HTTPError> {
     // Make sure the user can create item connections for the target action.
-    let item_id =
-        get_uuid_from_string(&item_id, "item").await?;
-    let item_connection_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let item_connection_properties_json = get_request_body_without_json_rejection(body).await?;
     let outward_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let inward_item = get_item_by_id(
         &item_connection_properties_json.inward_item_id,
         &state.database_pool,
     )
     .await?;
-    let create_item_connections_action = get_action_by_name(
-        "itemConnections.create",
-        &state.database_pool,
-    )
-    .await?;
+    let create_item_connections_action =
+        get_action_by_name("itemConnections.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

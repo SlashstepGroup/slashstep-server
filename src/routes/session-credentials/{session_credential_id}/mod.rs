@@ -56,18 +56,10 @@ async fn handle_get_session_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Session>>, HTTPError> {
-    let session_id = get_uuid_from_string(
-        &session_id,
-        "session",
-    )
-    .await?;
-    let target_session =
-        get_session_by_id(&session_id, &state.database_pool).await?;
-    let get_sessions_action = get_action_by_name(
-        "sessionCredentials.get",
-        &state.database_pool,
-    )
-    .await?;
+    let session_id = get_uuid_from_string(&session_id, "session").await?;
+    let target_session = get_session_by_id(&session_id, &state.database_pool).await?;
+    let get_sessions_action =
+        get_action_by_name("sessionCredentials.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -140,18 +132,10 @@ async fn handle_delete_session_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let session_id = get_uuid_from_string(
-        &session_id,
-        "session",
-    )
-    .await?;
-    let target_session =
-        get_session_by_id(&session_id, &state.database_pool).await?;
-    let delete_sessions_action = get_action_by_name(
-        "sessionCredentials.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let session_id = get_uuid_from_string(&session_id, "session").await?;
+    let target_session = get_session_by_id(&session_id, &state.database_pool).await?;
+    let delete_sessions_action =
+        get_action_by_name("sessionCredentials.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

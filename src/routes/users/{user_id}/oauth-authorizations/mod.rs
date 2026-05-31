@@ -48,9 +48,7 @@ use tower_http::trace::TraceLayer;
 use tracing::{info, trace};
 use uuid::Uuid;
 
-pub async fn create_regex(
-    string: &str
-) -> Result<Regex, HTTPError> {
+pub async fn create_regex(string: &str) -> Result<Regex, HTTPError> {
     let regex = match Regex::new(string) {
         Ok(regex) => regex,
 
@@ -206,14 +204,10 @@ async fn handle_create_oauth_authorization_request(
     }
 
     // Make sure the user can create access policies for the target action.
-    let user_id =
-        get_uuid_from_string(&user_id, "user").await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
     let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
-    let create_oauth_authorizations_action = get_action_by_name(
-        "oauthAuthorizations.create",
-        &state.database_pool,
-    )
-    .await?;
+    let create_oauth_authorizations_action =
+        get_action_by_name("oauthAuthorizations.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -243,8 +237,7 @@ async fn handle_create_oauth_authorization_request(
         &state.database_pool,
     )
     .await?;
-    let authorize_app_action =
-        get_action_by_name("apps.authorize", &state.database_pool).await?;
+    let authorize_app_action = get_action_by_name("apps.authorize", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -305,8 +298,7 @@ async fn handle_create_oauth_authorization_request(
     };
 
     trace!("Generating OAuth authorization code...");
-    let jwt_private_key =
-        get_json_web_token_private_key().await?;
+    let jwt_private_key = get_json_web_token_private_key().await?;
     let authorization_code =
         match created_oauth_authorization.generate_authorization_code(&jwt_private_key) {
             Ok(authorization_code) => authorization_code,

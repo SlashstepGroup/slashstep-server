@@ -55,21 +55,12 @@ async fn handle_get_action_log_entry_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<ActionLogEntry>>, HTTPError> {
-    let action_log_entry_id = get_uuid_from_string(
-        &action_log_entry_id,
-        "action log entry",
-    )
-    .await?;
-    let action_log_entry = get_action_log_entry_by_id(
-        &action_log_entry_id,
-        &state.database_pool,
-    )
-    .await?;
-    let get_action_log_entries_action = get_action_by_name(
-        "actionLogEntries.get",
-        &state.database_pool,
-    )
-    .await?;
+    let action_log_entry_id =
+        get_uuid_from_string(&action_log_entry_id, "action log entry").await?;
+    let action_log_entry =
+        get_action_log_entry_by_id(&action_log_entry_id, &state.database_pool).await?;
+    let get_action_log_entries_action =
+        get_action_by_name("actionLogEntries.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -145,21 +136,12 @@ async fn handle_delete_action_log_entry_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let action_log_entry_id = get_uuid_from_string(
-        &action_log_entry_id,
-        "action log entry",
-    )
-    .await?;
-    let target_action_log_entry = get_action_log_entry_by_id(
-        &action_log_entry_id,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_resources_action = get_action_by_name(
-        "actionLogEntries.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let action_log_entry_id =
+        get_uuid_from_string(&action_log_entry_id, "action log entry").await?;
+    let target_action_log_entry =
+        get_action_log_entry_by_id(&action_log_entry_id, &state.database_pool).await?;
+    let delete_resources_action =
+        get_action_by_name("actionLogEntries.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

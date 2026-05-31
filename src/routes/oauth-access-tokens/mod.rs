@@ -157,7 +157,7 @@ impl From<OAuthTokenErrorResponse> for HTTPError {
 }
 
 pub async fn convert_client_id_string_to_uuid(
-    client_id: &str
+    client_id: &str,
 ) -> Result<Uuid, OAuthTokenErrorResponse> {
     trace!("Converting client ID \"{}\" to UUID...", client_id);
 
@@ -188,11 +188,7 @@ pub async fn decode_authorization_code_jwt_claims(
     trace!("Decoding and verifying authorization code...");
 
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
-    let decoding_key = match get_decoding_key(
-        json_web_token_public_key,
-    )
-    .await
-    {
+    let decoding_key = match get_decoding_key(json_web_token_public_key).await {
         Ok(decoding_key) => decoding_key,
 
         Err(error) => {
@@ -243,11 +239,7 @@ pub async fn decode_app_authorization_credential_jwt_claims(
     trace!("Decoding and verifying refresh token...");
 
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
-    let decoding_key = match get_decoding_key(
-        json_web_token_public_key,
-    )
-    .await
-    {
+    let decoding_key = match get_decoding_key(json_web_token_public_key).await {
         Ok(decoding_key) => decoding_key,
 
         Err(error) => {
@@ -367,7 +359,7 @@ pub async fn get_oauth_authorization_by_id(
 }
 
 pub async fn convert_oauth_authorization_id_string_to_uuid(
-    oauth_authorization_id: &str
+    oauth_authorization_id: &str,
 ) -> Result<Uuid, OAuthTokenErrorResponse> {
     trace!(
         "Converting OAuth authorization ID \"{}\" to UUID...",
@@ -542,8 +534,7 @@ pub async fn create_app_authorization(
     };
 
     let create_app_authorizations_action =
-        match get_action_by_name("appAuthorizations.create", database_pool).await
-        {
+        match get_action_by_name("appAuthorizations.create", database_pool).await {
             Ok(create_app_authorizations_action) => create_app_authorizations_action,
 
             Err(error) => {
@@ -557,22 +548,22 @@ pub async fn create_app_authorization(
             }
         };
 
-    let expiration_timestamp =
-        match get_action_log_entry_expiration_timestamp(database_pool).await {
-            Ok(expiration_timestamp) => expiration_timestamp,
+    let expiration_timestamp = match get_action_log_entry_expiration_timestamp(database_pool).await
+    {
+        Ok(expiration_timestamp) => expiration_timestamp,
 
-            Err(error) => {
-                let oauth_error_response = OAuthTokenErrorResponse::new(
-                    &OAuthTokenError::InternalServerError,
-                    &error.to_string(),
-                    None,
-                    None,
-                );
-                let http_error: HTTPError = oauth_error_response.clone().into();
-                http_error.log();
-                return Err(oauth_error_response);
-            }
-        };
+        Err(error) => {
+            let oauth_error_response = OAuthTokenErrorResponse::new(
+                &OAuthTokenError::InternalServerError,
+                &error.to_string(),
+                None,
+                None,
+            );
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
+            return Err(oauth_error_response);
+        }
+    };
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_app_authorizations_action.id,
@@ -893,8 +884,7 @@ pub async fn delete_app_authorization(
     }
 
     let delete_app_authorizations_action =
-        match get_action_by_name("appAuthorizations.delete", database_pool).await
-        {
+        match get_action_by_name("appAuthorizations.delete", database_pool).await {
             Ok(delete_app_authorizations_action) => delete_app_authorizations_action,
 
             Err(error) => {
@@ -908,22 +898,22 @@ pub async fn delete_app_authorization(
             }
         };
 
-    let expiration_timestamp =
-        match get_action_log_entry_expiration_timestamp(database_pool).await {
-            Ok(expiration_timestamp) => expiration_timestamp,
+    let expiration_timestamp = match get_action_log_entry_expiration_timestamp(database_pool).await
+    {
+        Ok(expiration_timestamp) => expiration_timestamp,
 
-            Err(error) => {
-                let oauth_error_response = OAuthTokenErrorResponse::new(
-                    &OAuthTokenError::InternalServerError,
-                    &error.to_string(),
-                    None,
-                    None,
-                );
-                let http_error: HTTPError = oauth_error_response.clone().into();
-                http_error.log();
-                return Err(oauth_error_response);
-            }
-        };
+        Err(error) => {
+            let oauth_error_response = OAuthTokenErrorResponse::new(
+                &OAuthTokenError::InternalServerError,
+                &error.to_string(),
+                None,
+                None,
+            );
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
+            return Err(oauth_error_response);
+        }
+    };
 
     ActionLogEntry::create(&InitialActionLogEntryProperties {
     action_id: delete_app_authorizations_action.id,
@@ -948,34 +938,30 @@ async fn handle_create_oauth_access_token_request(
     Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
     Query(query_parameters): Query<CreateOAuthAccessTokenQueryParameters>,
 ) -> Result<(StatusCode, Json<CreateAccessTokenResponseBody>), OAuthTokenErrorResponse> {
-    let client_id = convert_client_id_string_to_uuid(
-        &query_parameters.client_id
-    )
-    .await?;
+    let client_id = convert_client_id_string_to_uuid(&query_parameters.client_id).await?;
     let app = get_app_by_client_id(&client_id, &state.database_pool).await?;
 
     if app.client_type == AppClientType::Confidential {
         verify_client_secret(
             query_parameters.client_secret.as_deref(),
-            app.get_client_secret_hash().as_deref()
+            app.get_client_secret_hash().as_deref(),
         )
         .await?;
     }
 
-    let json_web_token_public_key =
-        match get_json_web_token_public_key().await {
-            Ok(json_web_token_public_key) => json_web_token_public_key,
+    let json_web_token_public_key = match get_json_web_token_public_key().await {
+        Ok(json_web_token_public_key) => json_web_token_public_key,
 
-            Err(error) => {
-                let oauth_error_response = OAuthTokenErrorResponse::new(
-                    &OAuthTokenError::InternalServerError,
-                    &error.to_string(),
-                    None,
-                    None,
-                );
-                return Err(oauth_error_response);
-            }
-        };
+        Err(error) => {
+            let oauth_error_response = OAuthTokenErrorResponse::new(
+                &OAuthTokenError::InternalServerError,
+                &error.to_string(),
+                None,
+                None,
+            );
+            return Err(oauth_error_response);
+        }
+    };
 
     let app_authorization: AppAuthorization;
     let oauth_state: Option<String>;
@@ -995,20 +981,13 @@ async fn handle_create_oauth_access_token_request(
                 return Err(oauth_error_response);
             }
         };
-        let decoded_claims = decode_authorization_code_jwt_claims(
-            &json_web_token_public_key,
-            &authorization_code,
-        )
-        .await?;
-        let oauth_authorization_id = convert_oauth_authorization_id_string_to_uuid(
-            &decoded_claims.claims.jti
-        )
-        .await?;
-        let oauth_authorization = get_oauth_authorization_by_id(
-            &oauth_authorization_id,
-            &state.database_pool,
-        )
-        .await?;
+        let decoded_claims =
+            decode_authorization_code_jwt_claims(&json_web_token_public_key, &authorization_code)
+                .await?;
+        let oauth_authorization_id =
+            convert_oauth_authorization_id_string_to_uuid(&decoded_claims.claims.jti).await?;
+        let oauth_authorization =
+            get_oauth_authorization_by_id(&oauth_authorization_id, &state.database_pool).await?;
         oauth_state = oauth_authorization.state.clone();
 
         // More information: https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.3
@@ -1070,11 +1049,7 @@ async fn handle_create_oauth_access_token_request(
             return Err(oauth_error_response);
         }
 
-        update_oauth_authorization_usage_date(
-            &oauth_authorization,
-            &state.database_pool,
-        )
-        .await?;
+        update_oauth_authorization_usage_date(&oauth_authorization, &state.database_pool).await?;
 
         if let Some(code_challenge) = &oauth_authorization.code_challenge {
             verify_code_verifier(
@@ -1190,49 +1165,46 @@ async fn handle_create_oauth_access_token_request(
             http_error.log();
             return Err(oauth_error_response);
         }
-        let delete_app_authorization_credentials_action = match get_action_by_name(
-            "appAuthorizationCredentials.delete",
-            &state.database_pool,
-        )
-        .await
-        {
-            Ok(delete_app_authorization_credentials_action) => {
-                delete_app_authorization_credentials_action
-            }
+        let delete_app_authorization_credentials_action =
+            match get_action_by_name("appAuthorizationCredentials.delete", &state.database_pool)
+                .await
+            {
+                Ok(delete_app_authorization_credentials_action) => {
+                    delete_app_authorization_credentials_action
+                }
 
-            Err(error) => {
-                let oauth_error_response = OAuthTokenErrorResponse::new(
-                    &OAuthTokenError::InternalServerError,
-                    &format!(
-                        "Failed to get action \"appAuthorizationCredentials.delete\": {:?}",
-                        error
-                    ),
-                    None,
-                    None,
-                );
-                let http_error: HTTPError = oauth_error_response.clone().into();
-                http_error.log();
-                return Err(oauth_error_response);
-            }
-        };
+                Err(error) => {
+                    let oauth_error_response = OAuthTokenErrorResponse::new(
+                        &OAuthTokenError::InternalServerError,
+                        &format!(
+                            "Failed to get action \"appAuthorizationCredentials.delete\": {:?}",
+                            error
+                        ),
+                        None,
+                        None,
+                    );
+                    let http_error: HTTPError = oauth_error_response.clone().into();
+                    http_error.log();
+                    return Err(oauth_error_response);
+                }
+            };
 
-        let expiration_timestamp = match get_action_log_entry_expiration_timestamp(&state.database_pool)
-        .await
-        {
-            Ok(expiration_timestamp) => expiration_timestamp,
+        let expiration_timestamp =
+            match get_action_log_entry_expiration_timestamp(&state.database_pool).await {
+                Ok(expiration_timestamp) => expiration_timestamp,
 
-            Err(error) => {
-                let oauth_error_response = OAuthTokenErrorResponse::new(
-                    &OAuthTokenError::InternalServerError,
-                    &error.to_string(),
-                    None,
-                    None,
-                );
-                let http_error: HTTPError = oauth_error_response.clone().into();
-                http_error.log();
-                return Err(oauth_error_response);
-            }
-        };
+                Err(error) => {
+                    let oauth_error_response = OAuthTokenErrorResponse::new(
+                        &OAuthTokenError::InternalServerError,
+                        &error.to_string(),
+                        None,
+                        None,
+                    );
+                    let http_error: HTTPError = oauth_error_response.clone().into();
+                    http_error.log();
+                    return Err(oauth_error_response);
+                }
+            };
 
         ActionLogEntry::create(
             &InitialActionLogEntryProperties {
@@ -1287,27 +1259,23 @@ async fn handle_create_oauth_access_token_request(
         return Err(oauth_error_response);
     }
 
-    let app_authorization_credential = create_app_authorization_credential(
-        &app_authorization,
-        &state.database_pool,
-    )
-    .await?;
-    let json_web_token_private_key =
-        match get_json_web_token_private_key().await {
-            Ok(json_web_token_private_key) => json_web_token_private_key,
+    let app_authorization_credential =
+        create_app_authorization_credential(&app_authorization, &state.database_pool).await?;
+    let json_web_token_private_key = match get_json_web_token_private_key().await {
+        Ok(json_web_token_private_key) => json_web_token_private_key,
 
-            Err(error) => {
-                let oauth_error_response = OAuthTokenErrorResponse::new(
-                    &OAuthTokenError::InternalServerError,
-                    &error.to_string(),
-                    None,
-                    None,
-                );
-                let http_error: HTTPError = oauth_error_response.clone().into();
-                http_error.log();
-                return Err(oauth_error_response);
-            }
-        };
+        Err(error) => {
+            let oauth_error_response = OAuthTokenErrorResponse::new(
+                &OAuthTokenError::InternalServerError,
+                &error.to_string(),
+                None,
+                None,
+            );
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
+            return Err(oauth_error_response);
+        }
+    };
     let access_token =
         match app_authorization_credential.generate_access_token(&json_web_token_private_key) {
             Ok(access_token) => access_token,
@@ -1379,9 +1347,7 @@ async fn handle_create_oauth_access_token_request(
     };
 
     let expiration_timestamp =
-        match get_action_log_entry_expiration_timestamp(&state.database_pool)
-            .await
-        {
+        match get_action_log_entry_expiration_timestamp(&state.database_pool).await {
             Ok(expiration_timestamp) => expiration_timestamp,
 
             Err(error) => {

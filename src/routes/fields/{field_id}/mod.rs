@@ -60,11 +60,9 @@ async fn handle_get_field_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Field>>, HTTPError> {
-    let field_id =
-        get_uuid_from_string(&field_id, "field").await?;
+    let field_id = get_uuid_from_string(&field_id, "field").await?;
     let target_field = get_field_by_id(&field_id, &state.database_pool).await?;
-    let get_fields_action =
-        get_action_by_name("fields.get", &state.database_pool).await?;
+    let get_fields_action = get_action_by_name("fields.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -137,11 +135,9 @@ async fn handle_delete_field_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let field_id =
-        get_uuid_from_string(&field_id, "field").await?;
+    let field_id = get_uuid_from_string(&field_id, "field").await?;
     let target_field = get_field_by_id(&field_id, &state.database_pool).await?;
-    let delete_fields_action =
-        get_action_by_name("fields.delete", &state.database_pool).await?;
+    let delete_fields_action = get_action_by_name("fields.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -219,9 +215,7 @@ async fn handle_patch_field_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableFieldProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Field>>, HTTPError> {
-    let updated_field_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let updated_field_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(field_name) = &updated_field_properties.name {
         validate_field_length(
             field_name,
@@ -263,10 +257,8 @@ async fn handle_patch_field_request(
         )
         .await?;
     };
-    let field_id =
-        get_uuid_from_string(&field_id, "field").await?;
-    let original_target_field =
-        get_field_by_id(&field_id, &state.database_pool).await?;
+    let field_id = get_uuid_from_string(&field_id, "field").await?;
+    let original_target_field = get_field_by_id(&field_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("fields.update", &state.database_pool).await?;
     verify_delegate_permissions(

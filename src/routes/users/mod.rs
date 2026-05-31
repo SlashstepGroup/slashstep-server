@@ -80,8 +80,7 @@ async fn handle_list_users_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<User>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action =
-        get_action_by_name("users.list", &state.database_pool).await?;
+    let list_resources_action = get_action_by_name("users.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -215,9 +214,7 @@ async fn handle_create_user_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<CreateUserRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateResourceResponseBody<User>>), HTTPError> {
-    let create_user_request_body =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let create_user_request_body = get_request_body_without_json_rejection(body).await?;
     validate_resource_name(
         &create_user_request_body.username,
         "users.allowedNameRegex",
@@ -251,8 +248,7 @@ async fn handle_create_user_request(
     }
 
     // Make sure the authenticated_user can create apps for the target action log entry.
-    let create_users_action =
-        get_action_by_name("users.create", &state.database_pool).await?;
+    let create_users_action = get_action_by_name("users.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -453,8 +449,7 @@ async fn handle_create_user_request(
     ];
 
     for action_name in allowed_actions {
-        let action =
-            get_action_by_name(action_name, &state.database_pool).await?;
+        let action = get_action_by_name(action_name, &state.database_pool).await?;
 
         trace!(
             "Creating access policy for action {} in user account owners role...",

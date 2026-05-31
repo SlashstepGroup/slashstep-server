@@ -60,10 +60,8 @@ pub async fn handle_list_roles_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Role>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
-    let list_resources_action =
-        get_action_by_name("roles.list", &state.database_pool).await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
+    let list_resources_action = get_action_by_name("roles.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -206,14 +204,10 @@ async fn handle_create_role_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialRolePropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Role>), HTTPError> {
-    let partial_role_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
+    let partial_role_properties = get_request_body_without_json_rejection(body).await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
     let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
-    let create_roles_action =
-        get_action_by_name("roles.create", &state.database_pool).await?;
+    let create_roles_action = get_action_by_name("roles.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

@@ -72,8 +72,7 @@ async fn handle_list_groups_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Group>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action =
-        get_action_by_name("groups.list", &state.database_pool).await?;
+    let list_resources_action = get_action_by_name("groups.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -287,8 +286,7 @@ async fn create_default_child_resources(
     ];
 
     for group_admin_action_name in group_admin_action_names {
-        let group_admin_action =
-            get_action_by_name(group_admin_action_name, database_pool).await?;
+        let group_admin_action = get_action_by_name(group_admin_action_name, database_pool).await?;
         match AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 action_id: group_admin_action.id,
@@ -459,9 +457,7 @@ async fn handle_create_group_request(
     body: Result<Json<CreateGroupRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Group>), HTTPError> {
     // TODO: Add configurations to verify inputs.
-    let initial_group_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let initial_group_properties = get_request_body_without_json_rejection(body).await?;
     validate_resource_name(
         &initial_group_properties.name,
         "groups.allowedNameRegex",
@@ -494,8 +490,7 @@ async fn handle_create_group_request(
     }
 
     // Make sure the authenticated_user can create apps for the target action log entry.
-    let create_groups_action =
-        get_action_by_name("groups.create", &state.database_pool).await?;
+    let create_groups_action = get_action_by_name("groups.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -576,13 +571,9 @@ async fn handle_create_group_request(
     .ok();
     info!("Successfully created group {}.", group.id);
 
-    if let Err(error) = create_default_child_resources(
-        &group,
-        &state.database_pool,
-        &principal_type,
-        &principal_id,
-    )
-    .await
+    if let Err(error) =
+        create_default_child_resources(&group, &state.database_pool, &principal_type, &principal_id)
+            .await
     {
         trace!("Deleting group due to error creating default child resources...");
         if let Err(delete_error) = group.delete(&state.database_pool).await {

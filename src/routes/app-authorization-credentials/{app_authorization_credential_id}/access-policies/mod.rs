@@ -71,11 +71,8 @@ async fn handle_list_access_policies_request(
     .await?;
 
     // Make sure the principal has access to list resources.
-    let list_resources_action = get_action_by_name(
-        "accessPolicies.list",
-        &state.database_pool,
-    )
-    .await?;
+    let list_resources_action =
+        get_action_by_name("accessPolicies.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -226,9 +223,7 @@ async fn handle_create_access_policy_request(
         "app authorization credential",
     )
     .await?;
-    let access_policy_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let access_policy_properties_json = get_request_body_without_json_rejection(body).await?;
 
     // Make sure the authenticated_user can create access policies for the target app authorization credential.
     let target_app_authorization_credential = get_app_authorization_credential_by_id(
@@ -236,11 +231,8 @@ async fn handle_create_access_policy_request(
         &state.database_pool,
     )
     .await?;
-    let create_access_policies_action = get_action_by_name(
-        "accessPolicies.create",
-        &state.database_pool,
-    )
-    .await?;
+    let create_access_policies_action =
+        get_action_by_name("accessPolicies.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

@@ -71,13 +71,8 @@ async fn handle_list_apps_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<App>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let workspace_id = get_uuid_from_string(
-        &workspace_id,
-        "workspace",
-    )
-    .await?;
-    let list_resources_action =
-        get_action_by_name("apps.list", &state.database_pool).await?;
+    let workspace_id = get_uuid_from_string(&workspace_id, "workspace").await?;
+    let list_resources_action = get_action_by_name("apps.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -87,8 +82,7 @@ async fn handle_list_apps_request(
         &state.database_pool,
     )
     .await?;
-    let target_workspace =
-        get_workspace_by_id(&workspace_id, &state.database_pool).await?;
+    let target_workspace = get_workspace_by_id(&workspace_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -221,9 +215,7 @@ async fn handle_create_app_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<CreateAppRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<AppWithClientSecret>), HTTPError> {
-    let app_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let app_properties_json = get_request_body_without_json_rejection(body).await?;
     validate_resource_name(
         &app_properties_json.name,
         "apps.allowedNameRegex",
@@ -253,17 +245,11 @@ async fn handle_create_app_request(
     )
     .await?;
 
-    let workspace_id = get_uuid_from_string(
-        &workspace_id,
-        "workspace",
-    )
-    .await?;
-    let workspace =
-        get_workspace_by_id(&workspace_id, &state.database_pool).await?;
+    let workspace_id = get_uuid_from_string(&workspace_id, "workspace").await?;
+    let workspace = get_workspace_by_id(&workspace_id, &state.database_pool).await?;
 
     // Make sure the authenticated_user can create apps for the target action log entry.
-    let create_apps_action =
-        get_action_by_name("apps.create", &state.database_pool).await?;
+    let create_apps_action = get_action_by_name("apps.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -433,8 +419,7 @@ async fn handle_create_app_request(
         "app"
     };
     for action_name in allowed_actions {
-        let action =
-            get_action_by_name(action_name, &state.database_pool).await?;
+        let action = get_action_by_name(action_name, &state.database_pool).await?;
 
         trace!(
             "Creating access policy for action {} in workspace admins role...",

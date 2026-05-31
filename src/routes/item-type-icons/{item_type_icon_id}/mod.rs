@@ -56,14 +56,9 @@ async fn handle_get_item_type_icon_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<ItemTypeIcon>>, HTTPError> {
-    let item_type_icon_id = get_uuid_from_string(
-        &item_type_icon_id,
-        "item type icon",
-    )
-    .await?;
+    let item_type_icon_id = get_uuid_from_string(&item_type_icon_id, "item type icon").await?;
     let target_item_type_icon =
-        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool)
-            .await?;
+        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool).await?;
     let get_item_type_icons_action =
         get_action_by_name("itemTypeIcons.get", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -141,19 +136,11 @@ async fn handle_delete_item_type_icon_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let item_type_icon_id = get_uuid_from_string(
-        &item_type_icon_id,
-        "item type icon",
-    )
-    .await?;
+    let item_type_icon_id = get_uuid_from_string(&item_type_icon_id, "item type icon").await?;
     let target_item_type_icon =
-        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool)
-            .await?;
-    let delete_item_type_icons_action = get_action_by_name(
-        "itemTypeIcons.delete",
-        &state.database_pool,
-    )
-    .await?;
+        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool).await?;
+    let delete_item_type_icons_action =
+        get_action_by_name("itemTypeIcons.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -236,14 +223,8 @@ async fn handle_patch_item_type_icon_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableItemTypeIconProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<ItemTypeIcon>>, HTTPError> {
-    let item_type_icon_id = get_uuid_from_string(
-        &item_type_icon_id,
-        "item type icon",
-    )
-    .await?;
-    let updated_item_type_icon_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let item_type_icon_id = get_uuid_from_string(&item_type_icon_id, "item type icon").await?;
+    let updated_item_type_icon_properties = get_request_body_without_json_rejection(body).await?;
 
     if let Some(display_name) = &updated_item_type_icon_properties.display_name {
         validate_field_length(
@@ -256,13 +237,9 @@ async fn handle_patch_item_type_icon_request(
     }
 
     let original_target_item_type_icon =
-        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool)
-            .await?;
-    let update_access_policy_action = get_action_by_name(
-        "itemTypeIcons.update",
-        &state.database_pool,
-    )
-    .await?;
+        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool).await?;
+    let update_access_policy_action =
+        get_action_by_name("itemTypeIcons.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

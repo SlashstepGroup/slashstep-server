@@ -57,11 +57,9 @@ async fn handle_get_view_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<View>>, HTTPError> {
-    let view_id =
-        get_uuid_from_string(&view_id, "view").await?;
+    let view_id = get_uuid_from_string(&view_id, "view").await?;
     let target_view = get_view_by_id(&view_id, &state.database_pool).await?;
-    let get_views_action =
-        get_action_by_name("views.get", &state.database_pool).await?;
+    let get_views_action = get_action_by_name("views.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -134,11 +132,9 @@ async fn handle_delete_view_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let view_id =
-        get_uuid_from_string(&view_id, "view").await?;
+    let view_id = get_uuid_from_string(&view_id, "view").await?;
     let target_view = get_view_by_id(&view_id, &state.database_pool).await?;
-    let delete_views_action =
-        get_action_by_name("views.delete", &state.database_pool).await?;
+    let delete_views_action = get_action_by_name("views.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -216,9 +212,7 @@ async fn handle_patch_view_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableViewProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<View>>, HTTPError> {
-    let updated_view_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let updated_view_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(view_description)) = &updated_view_properties.description {
         validate_field_length(
             view_description,
@@ -253,10 +247,8 @@ async fn handle_patch_view_request(
         )
         .await?;
     }
-    let view_id =
-        get_uuid_from_string(&view_id, "view").await?;
-    let original_target_view =
-        get_view_by_id(&view_id, &state.database_pool).await?;
+    let view_id = get_uuid_from_string(&view_id, "view").await?;
+    let original_target_view = get_view_by_id(&view_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("views.update", &state.database_pool).await?;
     verify_delegate_permissions(

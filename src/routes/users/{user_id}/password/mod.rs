@@ -106,10 +106,7 @@ async fn handle_update_user_password_request(
             trace!("Decoding and verifying password reset token JWT claims...");
 
             let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
-            let decoding_key = get_decoding_key(
-                json_web_token_public_key,
-            )
-            .await?;
+            let decoding_key = get_decoding_key(json_web_token_public_key).await?;
             let decoded_claims = match jsonwebtoken::decode::<PasswordResetAuthorizationClaims>(
                 token,
                 &decoding_key,
@@ -141,11 +138,8 @@ async fn handle_update_user_password_request(
         }
 
         if update_user_password_request_body.should_bypass_password_validation {
-            let bypass_password_validation_action = get_action_by_name(
-                "users.bypassPasswordValidation",
-                database_pool,
-            )
-            .await?;
+            let bypass_password_validation_action =
+                get_action_by_name("users.bypassPasswordValidation", database_pool).await?;
             verify_delegate_permissions(
                 authenticated_app_authorization_id,
                 &bypass_password_validation_action.id,
@@ -167,21 +161,18 @@ async fn handle_update_user_password_request(
         } else if let Some(password_reset_token) =
             &update_user_password_request_body.password_reset_token
         {
-            let jwt_public_key =
-                get_json_web_token_public_key().await?;
-            let password_reset_token_claims = decode_password_reset_token_jwt_claims(
-                &jwt_public_key,
-                password_reset_token,
-            )
-            .await?;
+            let jwt_public_key = get_json_web_token_public_key().await?;
+            let password_reset_token_claims =
+                decode_password_reset_token_jwt_claims(&jwt_public_key, password_reset_token)
+                    .await?;
             let password_reset_token_id = get_uuid_from_string(
                 &password_reset_token_claims.claims.jti,
-                "password reset token"
+                "password reset token",
             )
             .await?;
             let password_reset_user_id = get_uuid_from_string(
                 &password_reset_token_claims.claims.sub,
-                "password reset token subject"
+                "password reset token subject",
             )
             .await?;
             if password_reset_user_id != target_user.id {
@@ -191,11 +182,9 @@ async fn handle_update_user_password_request(
                 http_error.log();
                 return Err(http_error);
             }
-            let password_reset_authorization = get_password_reset_authorization_by_id(
-                &password_reset_token_id,
-                database_pool,
-            )
-            .await;
+            let password_reset_authorization =
+                get_password_reset_authorization_by_id(&password_reset_token_id, database_pool)
+                    .await;
             if let Ok(password_reset_authorization) = password_reset_authorization {
                 if let Err(error) = password_reset_authorization.delete(database_pool).await {
                     let http_error = HTTPError::InternalServerError(Some(format!(
@@ -244,11 +233,8 @@ async fn handle_update_user_password_request(
         password: &str,
         database_pool: &deadpool_postgres::Pool,
     ) -> Result<(), HTTPError> {
-        let minimum_password_length_configuration = get_configuration_by_name(
-            "users.minimumPasswordLength",
-            database_pool,
-        )
-        .await?;
+        let minimum_password_length_configuration =
+            get_configuration_by_name("users.minimumPasswordLength", database_pool).await?;
         let minimum_password_length = match minimum_password_length_configuration
             .number_value
             .unwrap_or(
@@ -277,11 +263,8 @@ async fn handle_update_user_password_request(
             return Err(http_error);
         }
 
-        let maximum_password_length_configuration = get_configuration_by_name(
-            "users.maximumPasswordLength",
-            database_pool,
-        )
-        .await?;
+        let maximum_password_length_configuration =
+            get_configuration_by_name("users.maximumPasswordLength", database_pool).await?;
         let maximum_password_length = match maximum_password_length_configuration
             .number_value
             .unwrap_or(
@@ -317,11 +300,8 @@ async fn handle_update_user_password_request(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
     )?;
-    let user_id =
-        get_uuid_from_string(&user_id, "user").await?;
-    let update_user_password_request_body =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
+    let update_user_password_request_body = get_request_body_without_json_rejection(body).await?;
     let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
     verify_password_meets_requirements(
         &update_user_password_request_body.new_password,
@@ -342,11 +322,8 @@ async fn handle_update_user_password_request(
     )
     .await?;
 
-    let update_user_password_action = get_action_by_name(
-        "users.updatePassword",
-        &state.database_pool,
-    )
-    .await?;
+    let update_user_password_action =
+        get_action_by_name("users.updatePassword", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization_id,
         &update_user_password_action.id,

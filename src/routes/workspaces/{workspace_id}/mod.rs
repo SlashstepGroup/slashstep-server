@@ -62,15 +62,9 @@ async fn handle_get_workspace_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Workspace>>, HTTPError> {
-    let workspace_id = get_uuid_from_string(
-        &workspace_id,
-        "workspace",
-    )
-    .await?;
-    let target_workspace =
-        get_workspace_by_id(&workspace_id, &state.database_pool).await?;
-    let get_workspaces_action =
-        get_action_by_name("workspaces.get", &state.database_pool).await?;
+    let workspace_id = get_uuid_from_string(&workspace_id, "workspace").await?;
+    let target_workspace = get_workspace_by_id(&workspace_id, &state.database_pool).await?;
+    let get_workspaces_action = get_action_by_name("workspaces.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -143,13 +137,8 @@ async fn handle_delete_workspace_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let workspace_id = get_uuid_from_string(
-        &workspace_id,
-        "workspace",
-    )
-    .await?;
-    let target_workspace =
-        get_workspace_by_id(&workspace_id, &state.database_pool).await?;
+    let workspace_id = get_uuid_from_string(&workspace_id, "workspace").await?;
+    let target_workspace = get_workspace_by_id(&workspace_id, &state.database_pool).await?;
     let delete_workspaces_action =
         get_action_by_name("workspaces.delete", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -231,14 +220,8 @@ async fn handle_patch_workspace_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableWorkspacePropertiesRequestBody>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Workspace>>, HTTPError> {
-    let workspace_id = get_uuid_from_string(
-        &workspace_id,
-        "workspace",
-    )
-    .await?;
-    let updated_workspace_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let workspace_id = get_uuid_from_string(&workspace_id, "workspace").await?;
+    let updated_workspace_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(name) = &updated_workspace_properties.name {
         validate_field_length(
             name,

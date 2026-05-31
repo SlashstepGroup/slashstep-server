@@ -69,9 +69,7 @@ pub async fn handle_create_membership_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialMembershipPropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Membership>), HTTPError> {
-    let partial_membership_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let partial_membership_properties = get_request_body_without_json_rejection(body).await?;
     let is_user_only_adding_self = if let Some(authenticated_user) = &authenticated_user {
         partial_membership_properties.principal_user_id.as_ref() == Some(&authenticated_user.id)
     } else if let Some(authenticated_app) = &authenticated_app {
@@ -81,8 +79,7 @@ pub async fn handle_create_membership_request(
     };
 
     // Make sure the principal has access to list resources.
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
     if partial_membership_properties.principal_group_id == Some(group_id) {
         let http_error = HTTPError::UnprocessableEntity(Some(
             "A membership cannot have the same group as both its parent group and principal group."
@@ -91,18 +88,11 @@ pub async fn handle_create_membership_request(
         http_error.log();
         return Err(http_error);
     }
-    let create_memberships_action = get_action_by_name(
-        "memberships.create",
-        &state.database_pool,
-    )
-    .await?;
-    let join_groups_action =
-        get_action_by_name("groups.join", &state.database_pool).await?;
-    let accept_membership_invitations_action = get_action_by_name(
-        "membershipInvitations.accept",
-        &state.database_pool,
-    )
-    .await?;
+    let create_memberships_action =
+        get_action_by_name("memberships.create", &state.database_pool).await?;
+    let join_groups_action = get_action_by_name("groups.join", &state.database_pool).await?;
+    let accept_membership_invitations_action =
+        get_action_by_name("membershipInvitations.accept", &state.database_pool).await?;
     let app_authorization_id = authenticated_app_authorization
         .as_ref()
         .map(|app_authorization| &app_authorization.id);
@@ -113,11 +103,8 @@ pub async fn handle_create_membership_request(
     )?;
     let can_principal_add_self;
     if let Some(membership_invitation_id) = query_parameters.membership_invitation_id {
-        let membership_invitation_id = get_uuid_from_string(
-            &membership_invitation_id,
-            "membership invitation"
-        )
-        .await?;
+        let membership_invitation_id =
+            get_uuid_from_string(&membership_invitation_id, "membership invitation").await?;
         verify_delegate_permissions(
             app_authorization_id,
             &accept_membership_invitations_action.id,
@@ -125,11 +112,9 @@ pub async fn handle_create_membership_request(
             &state.database_pool,
         )
         .await?;
-        let membership_invitation = get_membership_invitation_by_id(
-            &membership_invitation_id,
-            &state.database_pool,
-        )
-        .await?;
+        let membership_invitation =
+            get_membership_invitation_by_id(&membership_invitation_id, &state.database_pool)
+                .await?;
         verify_principal_permissions(
             &principal_type,
             &principal_id,
@@ -152,8 +137,7 @@ pub async fn handle_create_membership_request(
         }
 
         let expiration_timestamp =
-            get_action_log_entry_expiration_timestamp(&state.database_pool)
-                .await?;
+            get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
         ActionLogEntry::create(
             &InitialActionLogEntryProperties {
                 action_id: accept_membership_invitations_action.id,
@@ -305,8 +289,7 @@ pub async fn handle_list_memberships_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Membership>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
     let list_resources_action =
         get_action_by_name("memberships.list", &state.database_pool).await?;
     verify_delegate_permissions(

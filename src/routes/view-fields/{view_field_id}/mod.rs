@@ -56,15 +56,9 @@ async fn handle_get_view_field_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<ViewField>>, HTTPError> {
-    let view_field_id = get_uuid_from_string(
-        &view_field_id,
-        "view field",
-    )
-    .await?;
-    let target_view_field =
-        get_view_field_by_id(&view_field_id, &state.database_pool).await?;
-    let get_view_fields_action =
-        get_action_by_name("viewFields.get", &state.database_pool).await?;
+    let view_field_id = get_uuid_from_string(&view_field_id, "view field").await?;
+    let target_view_field = get_view_field_by_id(&view_field_id, &state.database_pool).await?;
+    let get_view_fields_action = get_action_by_name("viewFields.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -137,13 +131,8 @@ async fn handle_delete_view_field_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let view_field_id = get_uuid_from_string(
-        &view_field_id,
-        "view field",
-    )
-    .await?;
-    let target_view_field =
-        get_view_field_by_id(&view_field_id, &state.database_pool).await?;
+    let view_field_id = get_uuid_from_string(&view_field_id, "view field").await?;
+    let target_view_field = get_view_field_by_id(&view_field_id, &state.database_pool).await?;
     let delete_view_fields_action =
         get_action_by_name("viewFields.delete", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -225,14 +214,8 @@ async fn handle_patch_view_field_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableViewFieldProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<ViewField>>, HTTPError> {
-    let view_field_id = get_uuid_from_string(
-        &view_field_id,
-        "view field",
-    )
-    .await?;
-    let updated_view_field_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let view_field_id = get_uuid_from_string(&view_field_id, "view field").await?;
+    let updated_view_field_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(next_view_field_id)) = updated_view_field_properties.next_view_field_id
         && next_view_field_id == view_field_id
     {

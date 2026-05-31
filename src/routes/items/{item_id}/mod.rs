@@ -60,11 +60,9 @@ async fn handle_get_item_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Item>>, HTTPError> {
-    let item_id =
-        get_uuid_from_string(&item_id, "item").await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
     let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
-    let get_items_action =
-        get_action_by_name("items.get", &state.database_pool).await?;
+    let get_items_action = get_action_by_name("items.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -137,11 +135,9 @@ async fn handle_delete_item_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let item_id =
-        get_uuid_from_string(&item_id, "item").await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
     let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
-    let delete_items_action =
-        get_action_by_name("items.delete", &state.database_pool).await?;
+    let delete_items_action = get_action_by_name("items.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -219,11 +215,8 @@ async fn handle_patch_item_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableItemProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Item>>, HTTPError> {
-    let item_id =
-        get_uuid_from_string(&item_id, "item").await?;
-    let updated_item_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let updated_item_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(summary) = &updated_item_properties.summary {
         validate_field_length(
             summary,
@@ -233,8 +226,7 @@ async fn handle_patch_item_request(
         )
         .await?;
     }
-    let original_target_item =
-        get_item_by_id(&item_id, &state.database_pool).await?;
+    let original_target_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("items.update", &state.database_pool).await?;
     verify_delegate_permissions(

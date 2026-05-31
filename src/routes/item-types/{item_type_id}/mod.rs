@@ -56,15 +56,9 @@ async fn handle_get_item_type_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<ItemType>>, HTTPError> {
-    let item_type_id = get_uuid_from_string(
-        &item_type_id,
-        "item type",
-    )
-    .await?;
-    let target_item_type =
-        get_item_type_by_id(&item_type_id, &state.database_pool).await?;
-    let get_item_types_action =
-        get_action_by_name("itemTypes.get", &state.database_pool).await?;
+    let item_type_id = get_uuid_from_string(&item_type_id, "item type").await?;
+    let target_item_type = get_item_type_by_id(&item_type_id, &state.database_pool).await?;
+    let get_item_types_action = get_action_by_name("itemTypes.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -137,13 +131,8 @@ async fn handle_delete_item_type_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let item_type_id = get_uuid_from_string(
-        &item_type_id,
-        "item type",
-    )
-    .await?;
-    let target_item_type =
-        get_item_type_by_id(&item_type_id, &state.database_pool).await?;
+    let item_type_id = get_uuid_from_string(&item_type_id, "item type").await?;
+    let target_item_type = get_item_type_by_id(&item_type_id, &state.database_pool).await?;
     let delete_item_types_action =
         get_action_by_name("itemTypes.delete", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -225,14 +214,8 @@ async fn handle_patch_item_type_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableItemTypeProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<ItemType>>, HTTPError> {
-    let item_type_id = get_uuid_from_string(
-        &item_type_id,
-        "item type",
-    )
-    .await?;
-    let updated_item_type_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let item_type_id = get_uuid_from_string(&item_type_id, "item type").await?;
+    let updated_item_type_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(name) = &updated_item_type_properties.name {
         validate_field_length(
             name,

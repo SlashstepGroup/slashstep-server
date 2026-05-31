@@ -60,11 +60,9 @@ async fn handle_get_group_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Group>>, HTTPError> {
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
     let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
-    let get_groups_action =
-        get_action_by_name("groups.get", &state.database_pool).await?;
+    let get_groups_action = get_action_by_name("groups.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -137,11 +135,9 @@ async fn handle_delete_group_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
     let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
-    let delete_groups_action =
-        get_action_by_name("groups.delete", &state.database_pool).await?;
+    let delete_groups_action = get_action_by_name("groups.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -219,11 +215,8 @@ async fn handle_patch_group_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableGroupProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Group>>, HTTPError> {
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
-    let updated_group_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
+    let updated_group_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(updated_group_name) = &updated_group_properties.name {
         validate_resource_name(
             updated_group_name,
@@ -258,8 +251,7 @@ async fn handle_patch_group_request(
         )
         .await?;
     }
-    let original_target_group =
-        get_group_by_id(&group_id, &state.database_pool).await?;
+    let original_target_group = get_group_by_id(&group_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("groups.update", &state.database_pool).await?;
     verify_delegate_permissions(

@@ -56,19 +56,11 @@ async fn handle_get_app_credential_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<AppCredential>>, HTTPError> {
-    let app_credential_id = get_uuid_from_string(
-        &app_credential_id,
-        "app credential",
-    )
-    .await?;
+    let app_credential_id = get_uuid_from_string(&app_credential_id, "app credential").await?;
     let target_app_credential =
-        get_app_credential_by_id(&app_credential_id, &state.database_pool)
-            .await?;
-    let get_app_credentials_action = get_action_by_name(
-        "appCredentials.get",
-        &state.database_pool,
-    )
-    .await?;
+        get_app_credential_by_id(&app_credential_id, &state.database_pool).await?;
+    let get_app_credentials_action =
+        get_action_by_name("appCredentials.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -144,19 +136,11 @@ async fn handle_delete_app_credential_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let app_credential_id = get_uuid_from_string(
-        &app_credential_id,
-        "app credential",
-    )
-    .await?;
+    let app_credential_id = get_uuid_from_string(&app_credential_id, "app credential").await?;
     let target_app_credential =
-        get_app_credential_by_id(&app_credential_id, &state.database_pool)
-            .await?;
-    let delete_app_credentials_action = get_action_by_name(
-        "appCredentials.delete",
-        &state.database_pool,
-    )
-    .await?;
+        get_app_credential_by_id(&app_credential_id, &state.database_pool).await?;
+    let delete_app_credentials_action =
+        get_action_by_name("appCredentials.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

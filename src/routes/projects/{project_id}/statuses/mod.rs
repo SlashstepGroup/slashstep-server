@@ -62,13 +62,8 @@ async fn handle_list_statuses_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Status>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let list_resources_action =
-        get_action_by_name("statuses.list", &state.database_pool).await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let list_resources_action = get_action_by_name("statuses.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -78,8 +73,7 @@ async fn handle_list_statuses_request(
         &state.database_pool,
     )
     .await?;
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -217,14 +211,8 @@ async fn handle_create_status_request(
     body: Result<Json<InitialStatusPropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Status>), HTTPError> {
     // Make sure the user can create statuses for the target action.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let status_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let status_properties_json = get_request_body_without_json_rejection(body).await?;
     validate_field_length(
         &status_properties_json.name,
         "statuses.maximumNameLength",
@@ -255,8 +243,7 @@ async fn handle_create_status_request(
         )
         .await?;
     }
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let create_statuses_action =
         get_action_by_name("statuses.create", &state.database_pool).await?;
     verify_delegate_permissions(

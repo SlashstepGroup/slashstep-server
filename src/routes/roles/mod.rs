@@ -64,8 +64,7 @@ async fn handle_list_roles_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Role>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action =
-        get_action_by_name("roles.list", &state.database_pool).await?;
+    let list_resources_action = get_action_by_name("roles.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -206,9 +205,7 @@ async fn handle_create_role_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<CreateRoleRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Role>), HTTPError> {
-    let create_role_request_body =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let create_role_request_body = get_request_body_without_json_rejection(body).await?;
     validate_resource_name(
         &create_role_request_body.name,
         "roles.allowedNameRegex",
@@ -242,8 +239,7 @@ async fn handle_create_role_request(
     }
 
     // Make sure the authenticated_user can create apps for the target action log entry.
-    let create_roles_action =
-        get_action_by_name("roles.create", &state.database_pool).await?;
+    let create_roles_action = get_action_by_name("roles.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

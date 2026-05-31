@@ -63,11 +63,8 @@ async fn handle_list_app_authorizations_request(
     HTTPError,
 > {
     // Make sure the principal has access to list resources.
-    let list_resources_action = get_action_by_name(
-        "appAuthorizations.list",
-        &state.database_pool,
-    )
-    .await?;
+    let list_resources_action =
+        get_action_by_name("appAuthorizations.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

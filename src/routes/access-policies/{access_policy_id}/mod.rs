@@ -54,24 +54,15 @@ async fn handle_get_access_policy_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<AccessPolicy>>, HTTPError> {
     // Make sure the access policy exists.
-    let access_policy_id = get_uuid_from_string(
-        &access_policy_id,
-        "access policy",
-    )
-    .await?;
-    let access_policy =
-        get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
+    let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy").await?;
+    let access_policy = get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
 
     // Make sure the delegate and principal have access to the resource.
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
     )?;
-    let action = get_action_by_name(
-        "accessPolicies.get",
-        &state.database_pool,
-    )
-    .await?;
+    let action = get_action_by_name("accessPolicies.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -143,23 +134,13 @@ async fn handle_patch_access_policy_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableAccessPolicyProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<AccessPolicy>>, HTTPError> {
-    let access_policy_id = get_uuid_from_string(
-        &access_policy_id,
-        "access policy",
-    )
-    .await?;
-    let updated_access_policy_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy").await?;
+    let updated_access_policy_properties = get_request_body_without_json_rejection(body).await?;
 
     // Make sure the delegate and principal have access to the resource.
-    let access_policy =
-        get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
-    let update_access_policy_action = get_action_by_name(
-        "accessPolicies.update",
-        &state.database_pool,
-    )
-    .await?;
+    let access_policy = get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
+    let update_access_policy_action =
+        get_action_by_name("accessPolicies.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -184,11 +165,8 @@ async fn handle_patch_access_policy_request(
         &state.database_pool,
     )
     .await?;
-    let access_policy_action = get_action_by_id(
-        &access_policy.action_id,
-        &state.database_pool,
-    )
-    .await?;
+    let access_policy_action =
+        get_action_by_id(&access_policy.action_id, &state.database_pool).await?;
     let minimum_permission_level = match updated_access_policy_properties.permission_level {
         Some(permission_level) => {
             if permission_level > PermissionLevel::Editor {
@@ -221,8 +199,7 @@ async fn handle_patch_access_policy_request(
     )
     .await?;
     if let Some(principal_role_id) = access_policy.principal_role_id {
-        let principal_role =
-            get_role_by_id(&principal_role_id, &state.database_pool).await?;
+        let principal_role = get_role_by_id(&principal_role_id, &state.database_pool).await?;
         if principal_role.predefined_role_type.is_some() {
             let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly updated by Slashstep Server. Use custom roles if you need more control.".to_string()));
             http_error.log();
@@ -295,18 +272,11 @@ async fn handle_delete_access_policy_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let access_policy_id = get_uuid_from_string(
-        &access_policy_id,
-        "access policy",
-    )
-    .await?;
+    let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy").await?;
     let target_access_policy =
         get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
-    let delete_resources_action = get_action_by_name(
-        "accessPolicies.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let delete_resources_action =
+        get_action_by_name("accessPolicies.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -332,8 +302,7 @@ async fn handle_delete_access_policy_request(
     )
     .await?;
     if let Some(principal_role_id) = target_access_policy.principal_role_id {
-        let principal_role =
-            get_role_by_id(&principal_role_id, &state.database_pool).await?;
+        let principal_role = get_role_by_id(&principal_role_id, &state.database_pool).await?;
         if principal_role.predefined_role_type.is_some() {
             let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly deleted by Slashstep Server. Use custom roles if you need more control.".to_string()));
             http_error.log();

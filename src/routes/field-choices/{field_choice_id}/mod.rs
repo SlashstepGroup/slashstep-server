@@ -57,11 +57,7 @@ async fn handle_get_field_choice_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<FieldChoice>>, HTTPError> {
-    let field_choice_id = get_uuid_from_string(
-        &field_choice_id,
-        "field choice",
-    )
-    .await?;
+    let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice").await?;
     let target_field_choice =
         get_field_choice_by_id(&field_choice_id, &state.database_pool).await?;
     let get_field_choices_action =
@@ -141,18 +137,11 @@ async fn handle_delete_field_choice_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let field_choice_id = get_uuid_from_string(
-        &field_choice_id,
-        "field choice",
-    )
-    .await?;
+    let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice").await?;
     let target_field_choice =
         get_field_choice_by_id(&field_choice_id, &state.database_pool).await?;
-    let delete_field_choices_action = get_action_by_name(
-        "fieldChoices.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let delete_field_choices_action =
+        get_action_by_name("fieldChoices.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -235,9 +224,7 @@ async fn handle_patch_field_choice_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableFieldChoiceProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<FieldChoice>>, HTTPError> {
-    let updated_field_choice_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let updated_field_choice_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(field_choice_text_value)) = &updated_field_choice_properties.text_value {
         validate_field_length(
             field_choice_text_value,
@@ -257,18 +244,11 @@ async fn handle_patch_field_choice_request(
         )
         .await?;
     }
-    let field_choice_id = get_uuid_from_string(
-        &field_choice_id,
-        "field choice",
-    )
-    .await?;
+    let field_choice_id = get_uuid_from_string(&field_choice_id, "field choice").await?;
     let original_target_field_choice =
         get_field_choice_by_id(&field_choice_id, &state.database_pool).await?;
-    let update_access_policy_action = get_action_by_name(
-        "fieldChoices.update",
-        &state.database_pool,
-    )
-    .await?;
+    let update_access_policy_action =
+        get_action_by_name("fieldChoices.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

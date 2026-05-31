@@ -56,10 +56,8 @@ async fn handle_list_actions_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Action>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let app_id =
-        get_uuid_from_string(&app_id, "app").await?;
-    let list_resources_action =
-        get_action_by_name("actions.list", &state.database_pool).await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let list_resources_action = get_action_by_name("actions.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -201,16 +199,12 @@ async fn handle_create_action_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialActionPropertiesForPredefinedScope>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Action>), HTTPError> {
-    let app_id =
-        get_uuid_from_string(&app_id, "app").await?;
-    let action_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let action_properties_json = get_request_body_without_json_rejection(body).await?;
 
     // Make sure the user can create access policies for the target action.
     let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
-    let create_actions_action =
-        get_action_by_name("actions.create", &state.database_pool).await?;
+    let create_actions_action = get_action_by_name("actions.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

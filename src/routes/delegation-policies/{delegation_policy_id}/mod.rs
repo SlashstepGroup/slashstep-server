@@ -56,21 +56,12 @@ async fn handle_get_delegation_policy_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<DelegationPolicy>>, HTTPError> {
-    let delegation_policy_id = get_uuid_from_string(
-        &delegation_policy_id,
-        "delegation policy",
-    )
-    .await?;
-    let target_delegation_policy = get_delegation_policy_by_id(
-        &delegation_policy_id,
-        &state.database_pool,
-    )
-    .await?;
-    let get_delegation_policies_action = get_action_by_name(
-        "delegationPolicies.get",
-        &state.database_pool,
-    )
-    .await?;
+    let delegation_policy_id =
+        get_uuid_from_string(&delegation_policy_id, "delegation policy").await?;
+    let target_delegation_policy =
+        get_delegation_policy_by_id(&delegation_policy_id, &state.database_pool).await?;
+    let get_delegation_policies_action =
+        get_action_by_name("delegationPolicies.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -146,21 +137,12 @@ async fn handle_delete_delegation_policy_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let delegation_policy_id = get_uuid_from_string(
-        &delegation_policy_id,
-        "delegation policy",
-    )
-    .await?;
-    let target_delegation_policy = get_delegation_policy_by_id(
-        &delegation_policy_id,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_delegation_policies_action = get_action_by_name(
-        "delegationPolicies.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let delegation_policy_id =
+        get_uuid_from_string(&delegation_policy_id, "delegation policy").await?;
+    let target_delegation_policy =
+        get_delegation_policy_by_id(&delegation_policy_id, &state.database_pool).await?;
+    let delete_delegation_policies_action =
+        get_action_by_name("delegationPolicies.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -244,23 +226,13 @@ async fn handle_patch_delegation_policy_request(
     body: Result<Json<EditableDelegationPolicyProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<DelegationPolicy>>, HTTPError> {
     let updated_delegation_policy_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
-    let delegation_policy_id = get_uuid_from_string(
-        &delegation_policy_id,
-        "delegation policy",
-    )
-    .await?;
-    let original_target_delegation_policy = get_delegation_policy_by_id(
-        &delegation_policy_id,
-        &state.database_pool,
-    )
-    .await?;
-    let update_access_policy_action = get_action_by_name(
-        "delegationPolicies.update",
-        &state.database_pool,
-    )
-    .await?;
+        get_request_body_without_json_rejection(body).await?;
+    let delegation_policy_id =
+        get_uuid_from_string(&delegation_policy_id, "delegation policy").await?;
+    let original_target_delegation_policy =
+        get_delegation_policy_by_id(&delegation_policy_id, &state.database_pool).await?;
+    let update_access_policy_action =
+        get_action_by_name("delegationPolicies.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

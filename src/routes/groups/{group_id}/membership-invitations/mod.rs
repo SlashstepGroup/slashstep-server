@@ -68,13 +68,9 @@ async fn handle_list_membership_invitations_request(
     HTTPError,
 > {
     // Make sure the principal has access to list resources.
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
-    let list_resources_action = get_action_by_name(
-        "membershipInvitations.list",
-        &state.database_pool,
-    )
-    .await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
+    let list_resources_action =
+        get_action_by_name("membershipInvitations.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -227,18 +223,13 @@ async fn handle_create_membership_invitation_request(
     >,
 ) -> Result<(StatusCode, Json<MembershipInvitation>), HTTPError> {
     let membership_invitation_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+        get_request_body_without_json_rejection(body).await?;
 
     // Make sure the user can create membership invitations for the target action.
-    let group_id =
-        get_uuid_from_string(&group_id, "group").await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
     let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
-    let create_membership_invitations_action = get_action_by_name(
-        "membershipInvitations.create",
-        &state.database_pool,
-    )
-    .await?;
+    let create_membership_invitations_action =
+        get_action_by_name("membershipInvitations.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

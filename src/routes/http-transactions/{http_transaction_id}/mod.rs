@@ -55,21 +55,12 @@ async fn handle_get_http_transaction_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<HTTPTransaction>>, HTTPError> {
-    let http_transaction_id = get_uuid_from_string(
-        &http_transaction_id,
-        "HTTP transaction",
-    )
-    .await?;
-    let target_http_transaction = get_http_transaction_by_id(
-        &http_transaction_id,
-        &state.database_pool,
-    )
-    .await?;
-    let get_http_transactions_action = get_action_by_name(
-        "httpTransactions.get",
-        &state.database_pool,
-    )
-    .await?;
+    let http_transaction_id =
+        get_uuid_from_string(&http_transaction_id, "HTTP transaction").await?;
+    let target_http_transaction =
+        get_http_transaction_by_id(&http_transaction_id, &state.database_pool).await?;
+    let get_http_transactions_action =
+        get_action_by_name("httpTransactions.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -145,21 +136,12 @@ async fn handle_delete_http_transaction_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let http_transaction_id = get_uuid_from_string(
-        &http_transaction_id,
-        "HTTP transaction",
-    )
-    .await?;
-    let target_http_transaction = get_http_transaction_by_id(
-        &http_transaction_id,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_http_transactions_action = get_action_by_name(
-        "httpTransactions.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let http_transaction_id =
+        get_uuid_from_string(&http_transaction_id, "HTTP transaction").await?;
+    let target_http_transaction =
+        get_http_transaction_by_id(&http_transaction_id, &state.database_pool).await?;
+    let delete_http_transactions_action =
+        get_action_by_name("httpTransactions.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

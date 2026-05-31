@@ -56,15 +56,9 @@ async fn handle_get_milestone_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Milestone>>, HTTPError> {
-    let milestone_id = get_uuid_from_string(
-        &milestone_id,
-        "milestone",
-    )
-    .await?;
-    let target_milestone =
-        get_milestone_by_id(&milestone_id, &state.database_pool).await?;
-    let get_milestones_action =
-        get_action_by_name("milestones.get", &state.database_pool).await?;
+    let milestone_id = get_uuid_from_string(&milestone_id, "milestone").await?;
+    let target_milestone = get_milestone_by_id(&milestone_id, &state.database_pool).await?;
+    let get_milestones_action = get_action_by_name("milestones.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -137,13 +131,8 @@ async fn handle_delete_milestone_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let milestone_id = get_uuid_from_string(
-        &milestone_id,
-        "milestone",
-    )
-    .await?;
-    let target_milestone =
-        get_milestone_by_id(&milestone_id, &state.database_pool).await?;
+    let milestone_id = get_uuid_from_string(&milestone_id, "milestone").await?;
+    let target_milestone = get_milestone_by_id(&milestone_id, &state.database_pool).await?;
     let delete_milestones_action =
         get_action_by_name("milestones.delete", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -225,9 +214,7 @@ async fn handle_patch_milestone_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableMilestoneProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Milestone>>, HTTPError> {
-    let updated_milestone_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let updated_milestone_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(milestone_description)) = &updated_milestone_properties.description {
         validate_field_length(
             milestone_description,
@@ -262,11 +249,7 @@ async fn handle_patch_milestone_request(
         )
         .await?;
     }
-    let milestone_id = get_uuid_from_string(
-        &milestone_id,
-        "milestone",
-    )
-    .await?;
+    let milestone_id = get_uuid_from_string(&milestone_id, "milestone").await?;
     let original_target_milestone =
         get_milestone_by_id(&milestone_id, &state.database_pool).await?;
     let update_access_policy_action =

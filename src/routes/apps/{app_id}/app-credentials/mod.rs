@@ -79,13 +79,9 @@ pub async fn handle_list_app_credentials_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<AppCredential>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let app_id =
-        get_uuid_from_string(&app_id, "app").await?;
-    let list_resources_action = get_action_by_name(
-        "appCredentials.list",
-        &state.database_pool,
-    )
-    .await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let list_resources_action =
+        get_action_by_name("appCredentials.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -232,19 +228,13 @@ async fn handle_create_app_credential_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialAppCredentialPropertiesForPredefinedScope>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateAppCredentialResponseBody>), HTTPError> {
-    let app_id =
-        get_uuid_from_string(&app_id, "app").await?;
-    let app_credential_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let app_credential_properties_json = get_request_body_without_json_rejection(body).await?;
 
     // Make sure the authenticated_user can create access policies for the target action.
     let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
-    let create_app_credentials_action = get_action_by_name(
-        "appCredentials.create",
-        &state.database_pool,
-    )
-    .await?;
+    let create_app_credentials_action =
+        get_action_by_name("appCredentials.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

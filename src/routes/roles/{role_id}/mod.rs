@@ -57,11 +57,9 @@ async fn handle_get_role_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Role>>, HTTPError> {
-    let role_id =
-        get_uuid_from_string(&role_id, "role").await?;
+    let role_id = get_uuid_from_string(&role_id, "role").await?;
     let target_role = get_role_by_id(&role_id, &state.database_pool).await?;
-    let get_roles_action =
-        get_action_by_name("roles.get", &state.database_pool).await?;
+    let get_roles_action = get_action_by_name("roles.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -134,11 +132,9 @@ async fn handle_delete_role_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let role_id =
-        get_uuid_from_string(&role_id, "role").await?;
+    let role_id = get_uuid_from_string(&role_id, "role").await?;
     let target_role = get_role_by_id(&role_id, &state.database_pool).await?;
-    let delete_roles_action =
-        get_action_by_name("roles.delete", &state.database_pool).await?;
+    let delete_roles_action = get_action_by_name("roles.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -222,11 +218,8 @@ async fn handle_patch_role_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableRolePropertiesRequestBody>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Role>>, HTTPError> {
-    let role_id =
-        get_uuid_from_string(&role_id, "role").await?;
-    let updated_role_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let role_id = get_uuid_from_string(&role_id, "role").await?;
+    let updated_role_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(updated_role_display_name) = &updated_role_properties.display_name {
         validate_field_length(
             updated_role_display_name,
@@ -245,8 +238,7 @@ async fn handle_patch_role_request(
         )
         .await?;
     }
-    let original_target_role =
-        get_role_by_id(&role_id, &state.database_pool).await?;
+    let original_target_role = get_role_by_id(&role_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("roles.update", &state.database_pool).await?;
     verify_delegate_permissions(

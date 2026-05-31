@@ -56,13 +56,8 @@ async fn handle_get_field_value_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<FieldValue>>, HTTPError> {
-    let field_value_id = get_uuid_from_string(
-        &field_value_id,
-        "field value",
-    )
-    .await?;
-    let target_field_value =
-        get_field_value_by_id(&field_value_id, &state.database_pool).await?;
+    let field_value_id = get_uuid_from_string(&field_value_id, "field value").await?;
+    let target_field_value = get_field_value_by_id(&field_value_id, &state.database_pool).await?;
     let get_field_values_action =
         get_action_by_name("fieldValues.get", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -140,18 +135,10 @@ async fn handle_delete_field_value_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let field_value_id = get_uuid_from_string(
-        &field_value_id,
-        "field value",
-    )
-    .await?;
-    let target_field_value =
-        get_field_value_by_id(&field_value_id, &state.database_pool).await?;
-    let delete_field_values_action = get_action_by_name(
-        "fieldValues.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let field_value_id = get_uuid_from_string(&field_value_id, "field value").await?;
+    let target_field_value = get_field_value_by_id(&field_value_id, &state.database_pool).await?;
+    let delete_field_values_action =
+        get_action_by_name("fieldValues.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -234,9 +221,7 @@ async fn handle_patch_field_value_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableFieldValueProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<FieldValue>>, HTTPError> {
-    let updated_field_value_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let updated_field_value_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(field_value_text_value)) = &updated_field_value_properties.text_value {
         validate_field_length(
             field_value_text_value,
@@ -256,18 +241,11 @@ async fn handle_patch_field_value_request(
         )
         .await?;
     }
-    let field_value_id = get_uuid_from_string(
-        &field_value_id,
-        "field value",
-    )
-    .await?;
+    let field_value_id = get_uuid_from_string(&field_value_id, "field value").await?;
     let original_target_field_value =
         get_field_value_by_id(&field_value_id, &state.database_pool).await?;
-    let update_access_policy_action = get_action_by_name(
-        "fieldValues.update",
-        &state.database_pool,
-    )
-    .await?;
+    let update_access_policy_action =
+        get_action_by_name("fieldValues.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

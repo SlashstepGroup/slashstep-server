@@ -296,7 +296,10 @@ pub async fn can_principal_perform_action(
     minimum_permission_level: &PermissionLevel,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<bool, HTTPError> {
-    trace!("Checking whether principal can use \"{}\" action...", action.name);
+    trace!(
+        "Checking whether principal can use \"{}\" action...",
+        action.name
+    );
     let database_client = match database_pool.get().await {
         Ok(database_client) => database_client,
 
@@ -451,13 +454,11 @@ pub async fn get_app_by_id(
     app_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<App, HTTPError> {
-    let app = get_resource_by_id::<App, _>(
-        "app",
-        app_id,
-        database_pool,
-        |app_id, database_pool| Box::new(App::get_by_id(app_id, database_pool)),
-    )
-    .await?;
+    let app =
+        get_resource_by_id::<App, _>("app", app_id, database_pool, |app_id, database_pool| {
+            Box::new(App::get_by_id(app_id, database_pool))
+        })
+        .await?;
     Ok(app)
 }
 
@@ -583,7 +584,7 @@ pub async fn get_configuration_by_id(
 
 pub async fn get_uuid_from_string(
     string: &str,
-    resource_type_name_singular: &str
+    resource_type_name_singular: &str,
 ) -> Result<Uuid, HTTPError> {
     let uuid = match Uuid::parse_str(string) {
         Ok(uuid) => uuid,
@@ -651,13 +652,11 @@ pub async fn get_item_by_id(
     item_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Item, HTTPError> {
-    let item = get_resource_by_id::<Item, _>(
-        "item",
-        item_id,
-        database_pool,
-        |item_id, database_pool| Box::new(Item::get_by_id(item_id, database_pool)),
-    )
-    .await?;
+    let item =
+        get_resource_by_id::<Item, _>("item", item_id, database_pool, |item_id, database_pool| {
+            Box::new(Item::get_by_id(item_id, database_pool))
+        })
+        .await?;
     Ok(item)
 }
 
@@ -859,13 +858,11 @@ pub async fn get_role_by_id(
     role_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Role, HTTPError> {
-    let role = get_resource_by_id::<Role, _>(
-        "role",
-        role_id,
-        database_pool,
-        |role_id, database_pool| Box::new(Role::get_by_id(role_id, database_pool)),
-    )
-    .await?;
+    let role =
+        get_resource_by_id::<Role, _>("role", role_id, database_pool, |role_id, database_pool| {
+            Box::new(Role::get_by_id(role_id, database_pool))
+        })
+        .await?;
     Ok(role)
 }
 
@@ -939,13 +936,11 @@ pub async fn get_view_by_id(
     view_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<View, HTTPError> {
-    let view = get_resource_by_id::<View, _>(
-        "view",
-        view_id,
-        database_pool,
-        |view_id, database_pool| Box::new(View::get_by_id(view_id, database_pool)),
-    )
-    .await?;
+    let view =
+        get_resource_by_id::<View, _>("view", view_id, database_pool, |view_id, database_pool| {
+            Box::new(View::get_by_id(view_id, database_pool))
+        })
+        .await?;
     Ok(view)
 }
 
@@ -1097,7 +1092,7 @@ pub fn get_principal_type_and_id_from_principal(
 }
 
 pub async fn get_request_body_without_json_rejection<T>(
-    request_body: Result<Json<T>, JsonRejection>
+    request_body: Result<Json<T>, JsonRejection>,
 ) -> Result<Json<T>, HTTPError> {
     trace!("Verifying request body...");
     let request_body = match request_body {
@@ -1189,7 +1184,10 @@ pub async fn validate_field_length(
         },
 
         None => {
-            warn!("Missing value and default value for configuration {}. This is a security risk. Consider setting a restrictive maximum name length in the configuration.", configuration_name);
+            warn!(
+                "Missing value and default value for configuration {}. This is a security risk. Consider setting a restrictive maximum name length in the configuration.",
+                configuration_name
+            );
             return Ok(());
         }
     };
@@ -1222,12 +1220,18 @@ pub async fn validate_resource_name(
         Some(allowed_name_regex_string) => allowed_name_regex_string,
 
         None => {
-            warn!("Missing value and default value for configuration {}. This is a security risk. Consider setting a regex pattern in the configuration for better validation.", configuration_name);
+            warn!(
+                "Missing value and default value for configuration {}. This is a security risk. Consider setting a regex pattern in the configuration for better validation.",
+                configuration_name
+            );
             return Ok(());
         }
     };
 
-    trace!("Creating regex for validating {} names...", resource_type_name_singular.to_lowercase());
+    trace!(
+        "Creating regex for validating {} names...",
+        resource_type_name_singular.to_lowercase()
+    );
     let regex = match regex::Regex::new(&allowed_name_regex_string) {
         Ok(regex) => regex,
 
@@ -1242,7 +1246,10 @@ pub async fn validate_resource_name(
         }
     };
 
-    trace!("Validating {} name against regex...", resource_type_name_singular.to_lowercase());
+    trace!(
+        "Validating {} name against regex...",
+        resource_type_name_singular.to_lowercase()
+    );
     if !regex.is_match(name) {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
             "{} names must match the allowed pattern: {}",
@@ -1270,12 +1277,18 @@ pub async fn validate_resource_display_name(
         Some(allowed_display_name_regex_string) => allowed_display_name_regex_string,
 
         None => {
-            warn!("Missing value and default value for configuration {}. Consider setting a regex pattern in the configuration for better security.", configuration_name);
+            warn!(
+                "Missing value and default value for configuration {}. Consider setting a regex pattern in the configuration for better security.",
+                configuration_name
+            );
             return Ok(());
         }
     };
 
-    trace!("Creating regex for validating {} display names...", resource_type_name_singular.to_lowercase());
+    trace!(
+        "Creating regex for validating {} display names...",
+        resource_type_name_singular.to_lowercase()
+    );
     let regex = match regex::Regex::new(&allowed_display_name_regex_string) {
         Ok(regex) => regex,
 
@@ -1314,8 +1327,7 @@ pub async fn validate_decimal_is_within_range(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), HTTPError> {
     let minimum_configuration =
-        get_configuration_by_name(minimum_configuration_name, database_pool)
-            .await?;
+        get_configuration_by_name(minimum_configuration_name, database_pool).await?;
     let minimum = match minimum_configuration
         .number_value
         .or(minimum_configuration.default_number_value)
@@ -1323,7 +1335,10 @@ pub async fn validate_decimal_is_within_range(
         Some(minimum) => Some(minimum),
 
         None => {
-            warn!("Missing value and default value for configuration {}. This is a security risk. Consider setting a minimum value in the configuration for better validation.", minimum_configuration_name);
+            warn!(
+                "Missing value and default value for configuration {}. This is a security risk. Consider setting a minimum value in the configuration for better validation.",
+                minimum_configuration_name
+            );
             None
         }
     };
@@ -1339,8 +1354,7 @@ pub async fn validate_decimal_is_within_range(
     }
 
     let maximum_configuration =
-        get_configuration_by_name(maximum_configuration_name, database_pool)
-            .await?;
+        get_configuration_by_name(maximum_configuration_name, database_pool).await?;
     let maximum = match maximum_configuration
         .number_value
         .or(maximum_configuration.default_number_value)
@@ -1348,7 +1362,10 @@ pub async fn validate_decimal_is_within_range(
         Some(maximum) => Some(maximum),
 
         None => {
-            warn!("Missing value and default value for configuration {}. This is a security risk. Consider setting a maximum value in the configuration for better validation.", maximum_configuration_name);
+            warn!(
+                "Missing value and default value for configuration {}. This is a security risk. Consider setting a maximum value in the configuration for better validation.",
+                maximum_configuration_name
+            );
             None
         }
     };

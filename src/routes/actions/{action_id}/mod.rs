@@ -58,15 +58,9 @@ async fn handle_get_action_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Action>>, HTTPError> {
-    let action_id = get_uuid_from_string(
-        &action_id,
-        "action",
-    )
-    .await?;
-    let target_action =
-        get_action_by_id(&action_id, &state.database_pool).await?;
-    let get_actions_action =
-        get_action_by_name("actions.get", &state.database_pool).await?;
+    let action_id = get_uuid_from_string(&action_id, "action").await?;
+    let target_action = get_action_by_id(&action_id, &state.database_pool).await?;
+    let get_actions_action = get_action_by_name("actions.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -140,14 +134,8 @@ async fn handle_patch_action_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableActionProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Action>>, HTTPError> {
-    let action_id = get_uuid_from_string(
-        &action_id,
-        "action",
-    )
-    .await?;
-    let updated_action_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let action_id = get_uuid_from_string(&action_id, "action").await?;
+    let updated_action_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(updated_action_name) = &updated_action_properties.name {
         validate_field_length(
             updated_action_name,
@@ -180,8 +168,7 @@ async fn handle_patch_action_request(
         )
         .await?;
     };
-    let original_target_action =
-        get_action_by_id(&action_id, &state.database_pool).await?;
+    let original_target_action = get_action_by_id(&action_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("actions.update", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -273,13 +260,8 @@ async fn handle_delete_action_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let action_id = get_uuid_from_string(
-        &action_id,
-        "action",
-    )
-    .await?;
-    let target_action =
-        get_action_by_id(&action_id, &state.database_pool).await?;
+    let action_id = get_uuid_from_string(&action_id, "action").await?;
+    let target_action = get_action_by_id(&action_id, &state.database_pool).await?;
     let delete_resources_action =
         get_action_by_name("actions.delete", &state.database_pool).await?;
     verify_delegate_permissions(

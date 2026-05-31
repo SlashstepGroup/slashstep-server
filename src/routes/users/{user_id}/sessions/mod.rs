@@ -57,10 +57,8 @@ pub async fn handle_list_sessions_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Session>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let user_id =
-        get_uuid_from_string(&user_id, "user").await?;
-    let list_resources_action =
-        get_action_by_name("sessions.list", &state.database_pool).await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
+    let list_resources_action = get_action_by_name("sessions.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

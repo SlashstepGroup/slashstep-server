@@ -45,7 +45,7 @@ async fn get_jwt_public_key() -> Result<String, HTTPError> {
 }
 
 pub async fn get_decoding_key(
-    jwt_public_key: &str
+    jwt_public_key: &str,
 ) -> Result<jsonwebtoken::DecodingKey, HTTPError> {
     let decoding_key = match jsonwebtoken::DecodingKey::from_ed_pem(jwt_public_key.as_bytes()) {
         Ok(decoding_key) => decoding_key,
@@ -323,14 +323,8 @@ pub async fn authenticate_user(
 
     let jwt_public_key = get_jwt_public_key().await?;
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
-    let decoding_key =
-        get_decoding_key(&jwt_public_key).await?;
-    let decoded_claims = get_decoded_claims(
-        &session_token,
-        &decoding_key,
-        &validation,
-    )
-    .await?;
+    let decoding_key = get_decoding_key(&jwt_public_key).await?;
+    let decoded_claims = get_decoded_claims(&session_token, &decoding_key, &validation).await?;
 
     // Set the user and session in the request extensions.
     let session_credential_id = match Uuid::parse_str(&decoded_claims.claims.jti) {
@@ -361,14 +355,10 @@ pub async fn authenticate_user(
         }
     };
     trace!("Getting session credential...");
-    let session_credential = get_session_credential_by_id(
-        &state.database_pool,
-        &session_credential_id,
-    )
-    .await?;
+    let session_credential =
+        get_session_credential_by_id(&state.database_pool, &session_credential_id).await?;
     trace!("Getting session from session credential...");
-    let session =
-        get_session_by_id(&state.database_pool, &session_id).await?;
+    let session = get_session_by_id(&state.database_pool, &session_id).await?;
     trace!("Checking if session is still active...");
     if session.expiration_date < chrono::Utc::now() {
         let http_error =
@@ -439,14 +429,9 @@ pub async fn authenticate_app(
 
     let jwt_public_key = get_jwt_public_key().await?;
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
-    let decoding_key =
-        get_decoding_key(&jwt_public_key).await?;
-    let decoded_claims = get_decoded_claims(
-        &authorization_token,
-        &decoding_key,
-        &validation,
-    )
-    .await?;
+    let decoding_key = get_decoding_key(&jwt_public_key).await?;
+    let decoded_claims =
+        get_decoded_claims(&authorization_token, &decoding_key, &validation).await?;
 
     // Set the user and session in the request extensions.
     let app_credential_id = match Uuid::parse_str(&decoded_claims.claims.jti) {
@@ -461,31 +446,24 @@ pub async fn authenticate_app(
         }
     };
 
-    let app_credential =
-        match get_app_credential_by_id(&app_credential_id, &state.database_pool)
-            .await
-        {
-            Ok(app_credential) => app_credential,
-
-            Err(error) => match error {
-                HTTPError::BadRequest(_) | HTTPError::NotFoundError(_) => {
-                    let http_error = HTTPError::Unauthorized(Some(
-                        "Please provide a valid app token.".to_string(),
-                    ));
-                    http_error.log();
-                    return Err(http_error);
-                }
-
-                _ => return Err(error),
-            },
-        };
-
-    let app = match get_app_by_id(
-        &app_credential.app_id,
-        &state.database_pool,
-    )
-    .await
+    let app_credential = match get_app_credential_by_id(&app_credential_id, &state.database_pool)
+        .await
     {
+        Ok(app_credential) => app_credential,
+
+        Err(error) => match error {
+            HTTPError::BadRequest(_) | HTTPError::NotFoundError(_) => {
+                let http_error =
+                    HTTPError::Unauthorized(Some("Please provide a valid app token.".to_string()));
+                http_error.log();
+                return Err(http_error);
+            }
+
+            _ => return Err(error),
+        },
+    };
+
+    let app = match get_app_by_id(&app_credential.app_id, &state.database_pool).await {
         Ok(app) => app,
 
         Err(error) => match error {

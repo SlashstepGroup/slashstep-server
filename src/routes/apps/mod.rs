@@ -116,11 +116,8 @@ pub async fn validate_app_display_name(
     name: &str,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), HTTPError> {
-    let allowed_display_name_regex_configuration = get_configuration_by_name(
-        "apps.allowedDisplayNameRegex",
-        database_pool,
-    )
-    .await?;
+    let allowed_display_name_regex_configuration =
+        get_configuration_by_name("apps.allowedDisplayNameRegex", database_pool).await?;
     let allowed_display_name_regex_string = match allowed_display_name_regex_configuration
         .text_value
         .or(allowed_display_name_regex_configuration.default_text_value)
@@ -175,8 +172,7 @@ async fn handle_list_apps_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<App>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action =
-        get_action_by_name("apps.list", &state.database_pool).await?;
+    let list_resources_action = get_action_by_name("apps.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -310,14 +306,8 @@ async fn handle_create_app_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialAppPropertiesWithoutClientSecretHash>, JsonRejection>,
 ) -> Result<(StatusCode, Json<AppWithClientSecret>), HTTPError> {
-    let app_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
-    validate_app_name(
-        &app_properties_json.name,
-        &state.database_pool,
-    )
-    .await?;
+    let app_properties_json = get_request_body_without_json_rejection(body).await?;
+    validate_app_name(&app_properties_json.name, &state.database_pool).await?;
     validate_field_length(
         &app_properties_json.name,
         "apps.maximumNameLength",
@@ -325,11 +315,7 @@ async fn handle_create_app_request(
         &state.database_pool,
     )
     .await?;
-    validate_app_display_name(
-        &app_properties_json.display_name,
-        &state.database_pool,
-    )
-    .await?;
+    validate_app_display_name(&app_properties_json.display_name, &state.database_pool).await?;
     validate_field_length(
         &app_properties_json.display_name,
         "apps.maximumDisplayNameLength",
@@ -339,8 +325,7 @@ async fn handle_create_app_request(
     .await?;
 
     // Make sure the authenticated_user can create apps for the target action log entry.
-    let create_apps_action =
-        get_action_by_name("apps.create", &state.database_pool).await?;
+    let create_apps_action = get_action_by_name("apps.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

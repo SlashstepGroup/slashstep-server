@@ -75,11 +75,8 @@ pub async fn create_http_transaction(
 
     Span::current().record("http_transaction_id", http_transaction.id.to_string());
 
-    let should_http_transactions_expire_configuration = get_configuration_by_name(
-        "httpTransactions.shouldExpire",
-        &state.database_pool,
-    )
-    .await?;
+    let should_http_transactions_expire_configuration =
+        get_configuration_by_name("httpTransactions.shouldExpire", &state.database_pool).await?;
     let should_http_transactions_expire = should_http_transactions_expire_configuration
         .boolean_value
         .or(should_http_transactions_expire_configuration.default_boolean_value)

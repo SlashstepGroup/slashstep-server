@@ -146,20 +146,14 @@ async fn handle_create_session_credential_request(
                     }
                 };
                 let user_id_string = decoded_claims.sub;
-                let user_id = get_uuid_from_string(
-                    &user_id_string,
-                    "user"
-                )
-                .await?;
+                let user_id = get_uuid_from_string(&user_id_string, "user").await?;
                 Ok(get_user_by_id(&user_id, &database_pool).await?)
             }
         }
     }
 
     // Make sure the requestor can create sessions on the target user.
-    let authentication_credentials =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let authentication_credentials = get_request_body_without_json_rejection(body).await?;
 
     let target_user = get_user_from_authentication_credentials(
         &authentication_credentials,
@@ -167,11 +161,8 @@ async fn handle_create_session_credential_request(
         &cookie_jar,
     )
     .await?;
-    let create_session_credentials_action = get_action_by_name(
-        "sessionCredentials.create",
-        &state.database_pool,
-    )
-    .await?;
+    let create_session_credentials_action =
+        get_action_by_name("sessionCredentials.create", &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -252,11 +243,8 @@ async fn handle_create_session_credential_request(
                 }
             };
             let session_credential_id_string = decoded_claims.jti;
-            let session_credential_id = get_uuid_from_string(
-                &session_credential_id_string,
-                "session credential"
-            )
-            .await?;
+            let session_credential_id =
+                get_uuid_from_string(&session_credential_id_string, "session credential").await?;
             let session_credential =
                 match SessionCredential::get_by_id(&session_credential_id, &state.database_pool)
                     .await
@@ -467,8 +455,7 @@ async fn handle_create_session_credential_request(
     };
 
     // Add the session token to the client's cookies.
-    let jwt_private_key =
-        get_json_web_token_private_key().await?;
+    let jwt_private_key = get_json_web_token_private_key().await?;
 
     let access_token = if let Ok(token) = created_session_credential
         .generate_access_token(&jwt_private_key)
@@ -564,11 +551,8 @@ async fn handle_list_session_credentials_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Session>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action = get_action_by_name(
-        "sessionCredentials.list",
-        &state.database_pool,
-    )
-    .await?;
+    let list_resources_action =
+        get_action_by_name("sessionCredentials.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

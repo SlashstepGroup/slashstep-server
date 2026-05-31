@@ -57,21 +57,12 @@ async fn handle_get_membership_invitation_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<MembershipInvitation>>, HTTPError> {
-    let membership_invitation_id = get_uuid_from_string(
-        &membership_invitation_id,
-        "membership invitation",
-    )
-    .await?;
-    let target_membership_invitation = get_membership_invitation_by_id(
-        &membership_invitation_id,
-        &state.database_pool,
-    )
-    .await?;
-    let get_membership_invitations_action = get_action_by_name(
-        "membershipInvitations.get",
-        &state.database_pool,
-    )
-    .await?;
+    let membership_invitation_id =
+        get_uuid_from_string(&membership_invitation_id, "membership invitation").await?;
+    let target_membership_invitation =
+        get_membership_invitation_by_id(&membership_invitation_id, &state.database_pool).await?;
+    let get_membership_invitations_action =
+        get_action_by_name("membershipInvitations.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -147,21 +138,12 @@ async fn handle_delete_membership_invitation_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let membership_invitation_id = get_uuid_from_string(
-        &membership_invitation_id,
-        "membership invitation",
-    )
-    .await?;
-    let target_membership_invitation = get_membership_invitation_by_id(
-        &membership_invitation_id,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_membership_invitations_action = get_action_by_name(
-        "membershipInvitations.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let membership_invitation_id =
+        get_uuid_from_string(&membership_invitation_id, "membership invitation").await?;
+    let target_membership_invitation =
+        get_membership_invitation_by_id(&membership_invitation_id, &state.database_pool).await?;
+    let delete_membership_invitations_action =
+        get_action_by_name("membershipInvitations.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

@@ -95,8 +95,7 @@ pub async fn handle_list_field_choices_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<FieldChoice>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let field_id =
-        get_uuid_from_string(&field_id, "field").await?;
+    let field_id = get_uuid_from_string(&field_id, "field").await?;
     let list_resources_action =
         get_action_by_name("fieldChoices.list", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -245,11 +244,8 @@ async fn handle_create_field_choice_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialFieldChoicePropertiesWithPredefinedFieldID>, JsonRejection>,
 ) -> Result<(StatusCode, Json<FieldChoice>), HTTPError> {
-    let field_id =
-        get_uuid_from_string(&field_id, "field").await?;
-    let field_choice_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let field_id = get_uuid_from_string(&field_id, "field").await?;
+    let field_choice_properties_json = get_request_body_without_json_rejection(body).await?;
     if let Some(field_choice_text_value) = &field_choice_properties_json.text_value {
         validate_field_length(
             field_choice_text_value,
@@ -270,11 +266,8 @@ async fn handle_create_field_choice_request(
         .await?;
     }
     let target_field = get_field_by_id(&field_id, &state.database_pool).await?;
-    let create_field_choices_action = get_action_by_name(
-        "fieldChoices.create",
-        &state.database_pool,
-    )
-    .await?;
+    let create_field_choices_action =
+        get_action_by_name("fieldChoices.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

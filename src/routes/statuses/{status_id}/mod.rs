@@ -57,15 +57,9 @@ async fn handle_get_status_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Status>>, HTTPError> {
-    let status_id = get_uuid_from_string(
-        &status_id,
-        "status",
-    )
-    .await?;
-    let target_status =
-        get_status_by_id(&status_id, &state.database_pool).await?;
-    let get_statuses_action =
-        get_action_by_name("statuses.get", &state.database_pool).await?;
+    let status_id = get_uuid_from_string(&status_id, "status").await?;
+    let target_status = get_status_by_id(&status_id, &state.database_pool).await?;
+    let get_statuses_action = get_action_by_name("statuses.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -138,13 +132,8 @@ async fn handle_delete_status_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let status_id = get_uuid_from_string(
-        &status_id,
-        "status",
-    )
-    .await?;
-    let target_status =
-        get_status_by_id(&status_id, &state.database_pool).await?;
+    let status_id = get_uuid_from_string(&status_id, "status").await?;
+    let target_status = get_status_by_id(&status_id, &state.database_pool).await?;
     let delete_statuses_action =
         get_action_by_name("statuses.delete", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -224,14 +213,8 @@ async fn handle_patch_status_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableStatusProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Status>>, HTTPError> {
-    let status_id = get_uuid_from_string(
-        &status_id,
-        "status",
-    )
-    .await?;
-    let updated_status_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let status_id = get_uuid_from_string(&status_id, "status").await?;
+    let updated_status_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(name) = &updated_status_properties.name {
         validate_field_length(
             name,
@@ -269,8 +252,7 @@ async fn handle_patch_status_request(
         .await?;
     }
 
-    let original_target_status =
-        get_status_by_id(&status_id, &state.database_pool).await?;
+    let original_target_status = get_status_by_id(&status_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("statuses.update", &state.database_pool).await?;
     verify_delegate_permissions(

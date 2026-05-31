@@ -58,21 +58,12 @@ async fn handle_list_access_policies_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<AccessPolicy>>), HTTPError> {
-    let app_credential_id = get_uuid_from_string(
-        &app_credential_id,
-        "app credential",
-    )
-    .await?;
-    let app_credential =
-        get_app_credential_by_id(&app_credential_id, &state.database_pool)
-            .await?;
+    let app_credential_id = get_uuid_from_string(&app_credential_id, "app credential").await?;
+    let app_credential = get_app_credential_by_id(&app_credential_id, &state.database_pool).await?;
 
     // Make sure the principal has access to list resources.
-    let list_resources_action = get_action_by_name(
-        "accessPolicies.list",
-        &state.database_pool,
-    )
-    .await?;
+    let list_resources_action =
+        get_action_by_name("accessPolicies.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -218,24 +209,14 @@ async fn handle_create_access_policy_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialAccessPolicyPropertiesForPredefinedScope>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateResourceResponseBody<AccessPolicy>>), HTTPError> {
-    let app_credential_id = get_uuid_from_string(
-        &app_credential_id,
-        "app credential",
-    )
-    .await?;
-    let access_policy_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let app_credential_id = get_uuid_from_string(&app_credential_id, "app credential").await?;
+    let access_policy_properties_json = get_request_body_without_json_rejection(body).await?;
 
     // Make sure the authenticated_user can create access policies for the target app credential.
     let target_app_credential =
-        get_app_credential_by_id(&app_credential_id, &state.database_pool)
-            .await?;
-    let create_access_policies_action = get_action_by_name(
-        "accessPolicies.create",
-        &state.database_pool,
-    )
-    .await?;
+        get_app_credential_by_id(&app_credential_id, &state.database_pool).await?;
+    let create_access_policies_action =
+        get_action_by_name("accessPolicies.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

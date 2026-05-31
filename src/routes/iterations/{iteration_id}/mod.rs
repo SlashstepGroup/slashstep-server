@@ -56,15 +56,9 @@ async fn handle_get_iteration_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Iteration>>, HTTPError> {
-    let iteration_id = get_uuid_from_string(
-        &iteration_id,
-        "iteration",
-    )
-    .await?;
-    let target_iteration =
-        get_iteration_by_id(&iteration_id, &state.database_pool).await?;
-    let get_iterations_action =
-        get_action_by_name("iterations.get", &state.database_pool).await?;
+    let iteration_id = get_uuid_from_string(&iteration_id, "iteration").await?;
+    let target_iteration = get_iteration_by_id(&iteration_id, &state.database_pool).await?;
+    let get_iterations_action = get_action_by_name("iterations.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -137,13 +131,8 @@ async fn handle_delete_iteration_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let iteration_id = get_uuid_from_string(
-        &iteration_id,
-        "iteration",
-    )
-    .await?;
-    let target_iteration =
-        get_iteration_by_id(&iteration_id, &state.database_pool).await?;
+    let iteration_id = get_uuid_from_string(&iteration_id, "iteration").await?;
+    let target_iteration = get_iteration_by_id(&iteration_id, &state.database_pool).await?;
     let delete_iterations_action =
         get_action_by_name("iterations.delete", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -225,14 +214,8 @@ async fn handle_patch_iteration_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableIterationProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Iteration>>, HTTPError> {
-    let iteration_id = get_uuid_from_string(
-        &iteration_id,
-        "iteration",
-    )
-    .await?;
-    let updated_iteration_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let iteration_id = get_uuid_from_string(&iteration_id, "iteration").await?;
+    let updated_iteration_properties = get_request_body_without_json_rejection(body).await?;
 
     if let Some(display_name) = &updated_iteration_properties.display_name {
         validate_field_length(

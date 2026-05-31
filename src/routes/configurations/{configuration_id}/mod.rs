@@ -55,18 +55,11 @@ async fn handle_get_configuration_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Configuration>>, HTTPError> {
-    let configuration_id = get_uuid_from_string(
-        &configuration_id,
-        "configuration",
-    )
-    .await?;
+    let configuration_id = get_uuid_from_string(&configuration_id, "configuration").await?;
     let target_configuration =
         get_configuration_by_id(&configuration_id, &state.database_pool).await?;
-    let get_configurations_action = get_action_by_name(
-        "configurations.get",
-        &state.database_pool,
-    )
-    .await?;
+    let get_configurations_action =
+        get_action_by_name("configurations.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -142,18 +135,11 @@ async fn handle_delete_configuration_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let configuration_id = get_uuid_from_string(
-        &configuration_id,
-        "configuration",
-    )
-    .await?;
+    let configuration_id = get_uuid_from_string(&configuration_id, "configuration").await?;
     let target_configuration =
         get_configuration_by_id(&configuration_id, &state.database_pool).await?;
-    let delete_configurations_action = get_action_by_name(
-        "configurations.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let delete_configurations_action =
+        get_action_by_name("configurations.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -268,18 +254,11 @@ async fn handle_patch_configuration_request(
         }
     };
 
-    let configuration_id = get_uuid_from_string(
-        &configuration_id,
-        "configuration",
-    )
-    .await?;
+    let configuration_id = get_uuid_from_string(&configuration_id, "configuration").await?;
     let original_target_configuration =
         get_configuration_by_id(&configuration_id, &state.database_pool).await?;
-    let update_access_policy_action = get_action_by_name(
-        "configurations.update",
-        &state.database_pool,
-    )
-    .await?;
+    let update_access_policy_action =
+        get_action_by_name("configurations.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

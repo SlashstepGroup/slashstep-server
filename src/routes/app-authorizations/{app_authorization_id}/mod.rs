@@ -55,21 +55,12 @@ async fn handle_get_app_authorization_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<AppAuthorization>>, HTTPError> {
-    let app_authorization_id = get_uuid_from_string(
-        &app_authorization_id,
-        "app authorization",
-    )
-    .await?;
-    let target_app_authorization = get_app_authorization_by_id(
-        &app_authorization_id,
-        &state.database_pool,
-    )
-    .await?;
-    let get_app_authorizations_action = get_action_by_name(
-        "appAuthorizations.get",
-        &state.database_pool,
-    )
-    .await?;
+    let app_authorization_id =
+        get_uuid_from_string(&app_authorization_id, "app authorization").await?;
+    let target_app_authorization =
+        get_app_authorization_by_id(&app_authorization_id, &state.database_pool).await?;
+    let get_app_authorizations_action =
+        get_action_by_name("appAuthorizations.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -145,21 +136,12 @@ async fn handle_delete_app_authorization_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let app_authorization_id = get_uuid_from_string(
-        &app_authorization_id,
-        "app authorization",
-    )
-    .await?;
-    let target_app_authorization = get_app_authorization_by_id(
-        &app_authorization_id,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_app_authorizations_action = get_action_by_name(
-        "appAuthorizations.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let app_authorization_id =
+        get_uuid_from_string(&app_authorization_id, "app authorization").await?;
+    let target_app_authorization =
+        get_app_authorization_by_id(&app_authorization_id, &state.database_pool).await?;
+    let delete_app_authorizations_action =
+        get_action_by_name("appAuthorizations.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

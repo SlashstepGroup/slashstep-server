@@ -66,16 +66,9 @@ async fn handle_list_item_type_icons_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<ItemTypeIcon>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let list_resources_action = get_action_by_name(
-        "itemTypeIcons.list",
-        &state.database_pool,
-    )
-    .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let list_resources_action =
+        get_action_by_name("itemTypeIcons.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -85,8 +78,7 @@ async fn handle_list_item_type_icons_request(
         &state.database_pool,
     )
     .await?;
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -302,7 +294,7 @@ async fn handle_create_item_type_icon_request(
 
     async fn verify_content_type_matches_contents(
         content_type: &str,
-        contents: &Bytes
+        contents: &Bytes,
     ) -> Result<(), HTTPError> {
         trace!(
             "Verifying content type {} matches file contents...",
@@ -326,10 +318,7 @@ async fn handle_create_item_type_icon_request(
         Ok(())
     }
 
-    async fn sanitize_contents(
-        content_type: &str,
-        contents: &Bytes
-    ) -> Result<Vec<u8>, HTTPError> {
+    async fn sanitize_contents(content_type: &str, contents: &Bytes) -> Result<Vec<u8>, HTTPError> {
         trace!("Sanitizing contents for content type {}...", content_type);
 
         if content_type == "image/svg+xml" {
@@ -438,7 +427,9 @@ async fn handle_create_item_type_icon_request(
         Ok(file_extension.to_string())
     }
 
-    async fn get_item_type_icon_storage_directory_path(database_pool: &Pool) -> Result<String, HTTPError> {
+    async fn get_item_type_icon_storage_directory_path(
+        database_pool: &Pool,
+    ) -> Result<String, HTTPError> {
         trace!("Getting configuration to know where to store item type icons...");
         let item_type_icon_storage_directory_path_configuration =
             match Configuration::get_by_name("itemTypeIcons.storageDirectoryPath", database_pool)
@@ -473,10 +464,7 @@ async fn handle_create_item_type_icon_request(
         Ok(item_type_icon_storage_directory_path)
     }
 
-    async fn save_icon_file(
-        file_path: &str,
-        contents: &[u8]
-    ) -> Result<(), HTTPError> {
+    async fn save_icon_file(file_path: &str, contents: &[u8]) -> Result<(), HTTPError> {
         trace!("Saving item type icon file to {}...", file_path);
 
         let mut directory_path_list = file_path.split("/").collect::<Vec<&str>>();
@@ -512,11 +500,7 @@ async fn handle_create_item_type_icon_request(
         }
     };
 
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
     let content_type = match &body.icon_data.metadata.content_type {
         Some(content_type) => content_type,
 
@@ -530,16 +514,8 @@ async fn handle_create_item_type_icon_request(
     };
 
     validate_content_type(content_type).await?;
-    verify_content_type_matches_contents(
-        content_type,
-        &body.icon_data.contents
-    )
-    .await?;
-    let cleaned_contents = sanitize_contents(
-        content_type,
-        &body.icon_data.contents
-    )
-    .await?;
+    verify_content_type_matches_contents(content_type, &body.icon_data.contents).await?;
+    let cleaned_contents = sanitize_contents(content_type, &body.icon_data.contents).await?;
     validate_field_length(
         &body.display_name,
         "itemTypeIcons.maximumDisplayNameLength",
@@ -549,13 +525,9 @@ async fn handle_create_item_type_icon_request(
     .await?;
 
     // Make sure the user can create item type icons for the target action.
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
-    let create_item_type_icons_action = get_action_by_name(
-        "itemTypeIcons.create",
-        &state.database_pool,
-    )
-    .await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
+    let create_item_type_icons_action =
+        get_action_by_name("itemTypeIcons.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -584,20 +556,14 @@ async fn handle_create_item_type_icon_request(
     // Save the icon file to disk.
     // TODO: Support storing item type icons in cloud storage instead of on the local filesystem.
     let item_type_icon_id = Uuid::now_v7();
-    let file_extension =
-        get_file_extension_from_content_type(content_type)
-            .await?;
+    let file_extension = get_file_extension_from_content_type(content_type).await?;
     let item_type_icon_storage_directory_path =
         get_item_type_icon_storage_directory_path(&state.database_pool).await?;
     let item_type_icon_file_path = format!(
         "{}/{}.{}",
         item_type_icon_storage_directory_path, item_type_icon_id, file_extension
     );
-    save_icon_file(
-        &item_type_icon_file_path,
-        &cleaned_contents
-    )
-    .await?;
+    save_icon_file(&item_type_icon_file_path, &cleaned_contents).await?;
 
     // Create the item type icon.
     trace!("Creating item type icon for project {}...", project_id);

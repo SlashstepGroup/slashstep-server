@@ -67,11 +67,8 @@ async fn handle_get_app_authorization_credential_request(
         &state.database_pool,
     )
     .await?;
-    let get_app_authorizations_action = get_action_by_name(
-        "appAuthorizationCredentials.get",
-        &state.database_pool,
-    )
-    .await?;
+    let get_app_authorizations_action =
+        get_action_by_name("appAuthorizationCredentials.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -157,11 +154,8 @@ async fn handle_delete_app_authorization_credential_request(
         &state.database_pool,
     )
     .await?;
-    let delete_app_authorization_credentials_action = get_action_by_name(
-        "appAuthorizationCredentials.delete",
-        &state.database_pool,
-    )
-    .await?;
+    let delete_app_authorization_credentials_action =
+        get_action_by_name("appAuthorizationCredentials.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()

@@ -62,8 +62,7 @@ async fn handle_list_field_values_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<FieldValue>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let item_id =
-        get_uuid_from_string(&item_id, "item").await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
     let list_resources_action =
         get_action_by_name("fieldValues.list", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -213,11 +212,8 @@ async fn handle_create_field_value_request(
     body: Result<Json<InitialFieldValuePropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<FieldValue>), HTTPError> {
     // Make sure the user can create field values for the target action.
-    let item_id =
-        get_uuid_from_string(&item_id, "item").await?;
-    let field_value_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let field_value_properties_json = get_request_body_without_json_rejection(body).await?;
     if let Some(field_value_text_value) = &field_value_properties_json.text_value {
         validate_field_length(
             field_value_text_value,
@@ -238,11 +234,8 @@ async fn handle_create_field_value_request(
         .await?;
     }
     let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
-    let create_field_values_action = get_action_by_name(
-        "fieldValues.create",
-        &state.database_pool,
-    )
-    .await?;
+    let create_field_values_action =
+        get_action_by_name("fieldValues.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -269,11 +262,8 @@ async fn handle_create_field_value_request(
     .await?;
 
     // Verify the field is a part of the same project.
-    let field = get_field_by_id(
-        &field_value_properties_json.field_id,
-        &state.database_pool,
-    )
-    .await?;
+    let field =
+        get_field_by_id(&field_value_properties_json.field_id, &state.database_pool).await?;
     if field.parent_project_id != target_item.parent_project_id {
         let http_error = HTTPError::UnprocessableEntity(Some(
             "The specified field is not a part of the same project as the item.".to_string(),

@@ -70,15 +70,9 @@ async fn handle_get_project_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Project>>, HTTPError> {
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
-    let get_projects_action =
-        get_action_by_name("projects.get", &state.database_pool).await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
+    let get_projects_action = get_action_by_name("projects.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -151,13 +145,8 @@ async fn handle_delete_project_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let delete_projects_action =
         get_action_by_name("projects.delete", &state.database_pool).await?;
     verify_delegate_permissions(
@@ -237,14 +226,8 @@ async fn handle_patch_project_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableProjectProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Project>>, HTTPError> {
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let updated_project_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let updated_project_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(name) = &updated_project_properties.name {
         validate_field_length(
             name,
@@ -299,8 +282,7 @@ async fn handle_patch_project_request(
         .await?;
     }
 
-    let original_target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let original_target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("projects.update", &state.database_pool).await?;
     verify_delegate_permissions(

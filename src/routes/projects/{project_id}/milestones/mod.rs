@@ -62,13 +62,8 @@ async fn handle_list_milestones_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Milestone>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let list_resources_action =
-        get_action_by_name("milestones.list", &state.database_pool).await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let list_resources_action = get_action_by_name("milestones.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -78,8 +73,7 @@ async fn handle_list_milestones_request(
         &state.database_pool,
     )
     .await?;
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -217,14 +211,8 @@ async fn handle_create_milestone_request(
     body: Result<Json<InitialMilestonePropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Milestone>), HTTPError> {
     // Make sure the user can create milestones for the target action.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-    )
-    .await?;
-    let milestone_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let milestone_properties_json = get_request_body_without_json_rejection(body).await?;
     validate_field_length(
         &milestone_properties_json.name,
         "milestones.maximumNameLength",
@@ -255,8 +243,7 @@ async fn handle_create_milestone_request(
         )
         .await?;
     }
-    let target_project =
-        get_project_by_id(&project_id, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let create_milestones_action =
         get_action_by_name("milestones.create", &state.database_pool).await?;
     verify_delegate_permissions(

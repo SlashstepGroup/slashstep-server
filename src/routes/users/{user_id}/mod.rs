@@ -61,11 +61,9 @@ async fn handle_get_user_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<User>>, HTTPError> {
-    let user_id =
-        get_uuid_from_string(&user_id, "user").await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
     let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
-    let get_users_action =
-        get_action_by_name("users.get", &state.database_pool).await?;
+    let get_users_action = get_action_by_name("users.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -138,11 +136,9 @@ async fn handle_delete_user_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let user_id =
-        get_uuid_from_string(&user_id, "user").await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
     let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
-    let delete_users_action =
-        get_action_by_name("users.delete", &state.database_pool).await?;
+    let delete_users_action = get_action_by_name("users.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -220,11 +216,8 @@ async fn handle_patch_user_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableUserPropertiesRequestBody>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<User>>, HTTPError> {
-    let user_id =
-        get_uuid_from_string(&user_id, "user").await?;
-    let updated_user_properties =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
+    let updated_user_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(username)) = &updated_user_properties.username {
         validate_field_length(
             username,
@@ -252,8 +245,7 @@ async fn handle_patch_user_request(
         .await?;
     }
 
-    let original_target_user =
-        get_user_by_id(&user_id, &state.database_pool).await?;
+    let original_target_user = get_user_by_id(&user_id, &state.database_pool).await?;
     let update_access_policy_action =
         get_action_by_name("users.update", &state.database_pool).await?;
     verify_delegate_permissions(

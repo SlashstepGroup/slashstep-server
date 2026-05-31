@@ -61,13 +61,8 @@ async fn handle_list_roles_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Role>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let workspace_id = get_uuid_from_string(
-        &workspace_id,
-        "workspace",
-    )
-    .await?;
-    let list_resources_action =
-        get_action_by_name("roles.list", &state.database_pool).await?;
+    let workspace_id = get_uuid_from_string(&workspace_id, "workspace").await?;
+    let list_resources_action = get_action_by_name("roles.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
@@ -77,8 +72,7 @@ async fn handle_list_roles_request(
         &state.database_pool,
     )
     .await?;
-    let target_workspace =
-        get_workspace_by_id(&workspace_id, &state.database_pool).await?;
+    let target_workspace = get_workspace_by_id(&workspace_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -212,14 +206,8 @@ async fn handle_create_role_request(
     body: Result<Json<InitialRolePropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Role>), HTTPError> {
     // Make sure the user can create roles for the target action.
-    let workspace_id = get_uuid_from_string(
-        &workspace_id,
-        "workspace",
-    )
-    .await?;
-    let role_properties_json =
-        get_request_body_without_json_rejection(body)
-            .await?;
+    let workspace_id = get_uuid_from_string(&workspace_id, "workspace").await?;
+    let role_properties_json = get_request_body_without_json_rejection(body).await?;
     validate_field_length(
         &role_properties_json.name,
         "roles.maximumNameLength",
@@ -250,10 +238,8 @@ async fn handle_create_role_request(
         )
         .await?;
     }
-    let target_workspace =
-        get_workspace_by_id(&workspace_id, &state.database_pool).await?;
-    let create_roles_action =
-        get_action_by_name("roles.create", &state.database_pool).await?;
+    let target_workspace = get_workspace_by_id(&workspace_id, &state.database_pool).await?;
+    let create_roles_action = get_action_by_name("roles.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
