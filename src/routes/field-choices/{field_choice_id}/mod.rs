@@ -43,7 +43,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /field-choices/{field_choice_id}
 ///
@@ -121,7 +121,10 @@ async fn handle_get_field_choice_request(
     )
     .await
     .ok();
-    info!("Successfully returned field choice {}.", target_field_choice.id);
+    info!(
+        "Successfully returned field choice {}.",
+        target_field_choice.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_field_choice.clone(),
@@ -221,7 +224,10 @@ async fn handle_delete_field_choice_request(
     .await
     .ok();
 
-    info!("Successfully deleted field choice {}.", target_field_choice.id);
+    info!(
+        "Successfully deleted field choice {}.",
+        target_field_choice.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -304,7 +310,10 @@ async fn handle_patch_field_choice_request(
     )
     .await?;
 
-    trace!("Updating field choice {}...", original_target_field_choice.id);
+    trace!(
+        "Updating field choice {}...",
+        original_target_field_choice.id
+    );
     let updated_target_field_choice = match original_target_field_choice
         .update(&updated_field_choice_properties, &state.database_pool)
         .await
@@ -344,7 +353,10 @@ async fn handle_patch_field_choice_request(
     )
     .await
     .ok();
-    info!("Successfully updated field choice {}.", updated_target_field_choice.id);
+    info!(
+        "Successfully updated field choice {}.",
+        updated_target_field_choice.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_field_choice,

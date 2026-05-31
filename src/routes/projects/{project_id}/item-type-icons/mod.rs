@@ -48,7 +48,7 @@ use std::{io::Cursor, sync::Arc};
 use svg_hush::data_url_filter;
 use tokio::fs::create_dir_all;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 use usvg::Tree;
 use uuid::Uuid;
 
@@ -197,7 +197,15 @@ async fn handle_list_item_type_icons_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "item type icon" } else { "item type icons" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "item type icon"
+        } else {
+            "item type icons"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ItemTypeIcon> {
         data: queried_resources,
@@ -307,7 +315,10 @@ async fn handle_create_item_type_icon_request(
         http_transaction: &HTTPTransaction,
         database_pool: &Pool,
     ) -> Result<(), HTTPError> {
-        trace!("Verifying content type {} matches file contents...", content_type);
+        trace!(
+            "Verifying content type {} matches file contents...",
+            content_type
+        );
 
         let kind = infer::get(contents);
         let actual_mime_type = kind.map(|kind| kind.mime_type()).unwrap_or("unknown");

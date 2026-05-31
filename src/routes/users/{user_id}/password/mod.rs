@@ -36,7 +36,7 @@ use rust_decimal::{Decimal, prelude::ToPrimitive};
 use serde::Deserialize;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]

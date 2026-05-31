@@ -45,7 +45,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /workspaces/{workspace_id}/roles
 ///
@@ -184,7 +184,15 @@ async fn handle_list_roles_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "role" } else { "roles" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "role"
+        } else {
+            "roles"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Role> {
         data: queried_resources,

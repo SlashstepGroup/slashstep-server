@@ -46,7 +46,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /projects/{project_id}/statuses
 ///
@@ -189,7 +189,15 @@ async fn handle_list_statuses_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "status" } else { "statuses" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "status"
+        } else {
+            "statuses"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Status> {
         data: queried_resources,

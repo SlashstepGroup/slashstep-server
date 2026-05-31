@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -326,7 +326,10 @@ async fn handle_patch_iteration_request(
     )
     .await
     .ok();
-    info!("Successfully updated iteration {}.", updated_target_iteration.id);
+    info!(
+        "Successfully updated iteration {}.",
+        updated_target_iteration.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_iteration,

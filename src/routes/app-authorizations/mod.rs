@@ -15,7 +15,7 @@ pub mod app_authorization_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -178,7 +178,15 @@ async fn handle_list_app_authorizations_request(
     .ok();
 
     let queried_app_authorization_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_app_authorization_list_length, if queried_app_authorization_list_length == 1 { "app authorization" } else { "app authorizations" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_app_authorization_list_length,
+        if queried_app_authorization_list_length == 1 {
+            "app authorization"
+        } else {
+            "app authorizations"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<AppAuthorization> {
         data: queried_resources,

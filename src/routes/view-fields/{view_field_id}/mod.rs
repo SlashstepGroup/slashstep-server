@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -324,7 +324,10 @@ async fn handle_patch_view_field_request(
     )
     .await
     .ok();
-    info!("Successfully updated view field {}.", updated_target_view_field.id);
+    info!(
+        "Successfully updated view field {}.",
+        updated_target_view_field.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_view_field,

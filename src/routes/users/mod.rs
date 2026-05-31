@@ -15,7 +15,7 @@ pub mod user_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -187,7 +187,15 @@ async fn handle_list_users_request(
     .ok();
 
     let queried_user_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_user_list_length, if queried_user_list_length == 1 { "user" } else { "users" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_user_list_length,
+        if queried_user_list_length == 1 {
+            "user"
+        } else {
+            "users"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<User> {
         data: queried_resources,
@@ -456,7 +464,10 @@ async fn handle_create_user_request(
         let action =
             get_action_by_name(action_name, &http_transaction, &state.database_pool).await?;
 
-        trace!("Creating access policy for action {} in user account owners role...", action_name);
+        trace!(
+            "Creating access policy for action {} in user account owners role...",
+            action_name
+        );
         if let Err(error) = AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 principal_type: AccessPolicyPrincipalType::Role,

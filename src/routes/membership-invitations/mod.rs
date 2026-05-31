@@ -42,7 +42,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /membership-invitations
 ///
@@ -180,7 +180,15 @@ async fn handle_list_membership_invitations_request(
     .ok();
 
     let queried_membership_invitation_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_membership_invitation_list_length, if queried_membership_invitation_list_length == 1 { "membership invitation" } else { "membership invitations" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_membership_invitation_list_length,
+        if queried_membership_invitation_list_length == 1 {
+            "membership invitation"
+        } else {
+            "membership invitations"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<MembershipInvitation> {
         data: queried_resources,

@@ -15,7 +15,7 @@ pub mod item_type_icon_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -173,7 +173,15 @@ async fn handle_list_item_type_icons_request(
     .ok();
 
     let queried_item_type_icon_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_item_type_icon_list_length, if queried_item_type_icon_list_length == 1 { "item type icon" } else { "item type icons" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_item_type_icon_list_length,
+        if queried_item_type_icon_list_length == 1 {
+            "item type icon"
+        } else {
+            "item type icons"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ItemTypeIcon> {
         data: queried_resources,

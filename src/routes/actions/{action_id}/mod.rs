@@ -41,7 +41,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;

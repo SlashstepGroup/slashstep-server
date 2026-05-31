@@ -46,7 +46,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /groups/{group_id}/membership-invitations
 ///
@@ -195,7 +195,15 @@ async fn handle_list_membership_invitations_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "membership invitation" } else { "membership invitations" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "membership invitation"
+        } else {
+            "membership invitations"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<MembershipInvitation> {
         data: queried_resources,
@@ -330,7 +338,10 @@ async fn handle_create_membership_invitation_request(
     )
     .await
     .ok();
-    info!("Successfully created membership invitation {}.", membership_invitation.id);
+    info!(
+        "Successfully created membership invitation {}.",
+        membership_invitation.id
+    );
 
     Ok((StatusCode::CREATED, Json(membership_invitation)))
 }

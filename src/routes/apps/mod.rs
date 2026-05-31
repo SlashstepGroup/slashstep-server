@@ -51,7 +51,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info, warn};
+use tracing::{info, trace, warn};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -79,7 +79,9 @@ pub async fn validate_app_name(
         Some(allowed_name_regex_string) => allowed_name_regex_string,
 
         None => {
-            warn!("Missing value and default value for configuration apps.allowedNameRegex. Using default regex pattern that allows any non-empty string as an app name. Consider setting a restrictive regex pattern in the configuration for better security.");
+            warn!(
+                "Missing value and default value for configuration apps.allowedNameRegex. Using default regex pattern that allows any non-empty string as an app name. Consider setting a restrictive regex pattern in the configuration for better security."
+            );
             return Ok(());
         }
     };
@@ -129,7 +131,9 @@ pub async fn validate_app_display_name(
         Some(allowed_display_name_regex_string) => allowed_display_name_regex_string,
 
         None => {
-            warn!("Missing value and default value for configuration apps.allowedDisplayNameRegex. Using default regex pattern that allows any string as an app display name. Consider setting a restrictive regex pattern in the configuration for better security.");
+            warn!(
+                "Missing value and default value for configuration apps.allowedDisplayNameRegex. Using default regex pattern that allows any string as an app display name. Consider setting a restrictive regex pattern in the configuration for better security."
+            );
             return Ok(());
         }
     };
@@ -281,7 +285,15 @@ async fn handle_list_apps_request(
     .ok();
 
     let queried_app_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_app_list_length, if queried_app_list_length == 1 { "app" } else { "apps" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_app_list_length,
+        if queried_app_list_length == 1 {
+            "app"
+        } else {
+            "apps"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<App> {
         data: queried_resources,

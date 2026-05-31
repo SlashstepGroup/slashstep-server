@@ -15,7 +15,7 @@ pub mod iteration_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -169,7 +169,15 @@ async fn handle_list_iterations_request(
     .ok();
 
     let queried_iteration_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_iteration_list_length, if queried_iteration_list_length == 1 { "iteration" } else { "iterations" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_iteration_list_length,
+        if queried_iteration_list_length == 1 {
+            "iteration"
+        } else {
+            "iterations"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Iteration> {
         data: queried_resources,

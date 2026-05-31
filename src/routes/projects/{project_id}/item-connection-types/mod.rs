@@ -46,7 +46,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /projects/{project_id}/item-connection-types
 ///
@@ -201,7 +201,15 @@ async fn handle_list_item_connection_types_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "item connection type" } else { "item connection types" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "item connection type"
+        } else {
+            "item connection types"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ItemConnectionType> {
         data: queried_resources,
@@ -296,7 +304,10 @@ async fn handle_create_item_connection_type_request(
     .await?;
 
     // Create the item connection type.
-    trace!("Creating item connection type for project {}...", project_id);
+    trace!(
+        "Creating item connection type for project {}...",
+        project_id
+    );
     let item_connection_type = match ItemConnectionType::create(
         &InitialItemConnectionTypeProperties {
             display_name: item_connection_type_properties_json.display_name.clone(),
@@ -352,7 +363,10 @@ async fn handle_create_item_connection_type_request(
     )
     .await
     .ok();
-    info!("Successfully created item connection type {}.", item_connection_type.id);
+    info!(
+        "Successfully created item connection type {}.",
+        item_connection_type.id
+    );
 
     Ok((StatusCode::CREATED, Json(item_connection_type)))
 }

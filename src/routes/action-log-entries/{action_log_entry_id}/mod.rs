@@ -38,7 +38,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{info};
+use tracing::info;
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -127,7 +127,10 @@ async fn handle_get_action_log_entry_request(
     )
     .await
     .ok();
-    info!("Successfully returned action log entry {}.", action_log_entry_id);
+    info!(
+        "Successfully returned action log entry {}.",
+        action_log_entry_id
+    );
 
     let response_body = GetResourceResponseBody {
         data: action_log_entry.clone(),
@@ -230,7 +233,10 @@ async fn handle_delete_action_log_entry_request(
     )
     .await
     .ok();
-    info!("Successfully deleted action log entry {}.", target_action_log_entry.id);
+    info!(
+        "Successfully deleted action log entry {}.",
+        target_action_log_entry.id
+    );
 
     Ok(StatusCode::NO_CONTENT)
 }

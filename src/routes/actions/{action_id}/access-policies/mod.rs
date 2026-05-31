@@ -43,7 +43,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /actions/{action_id}/access-policies
 ///
@@ -190,7 +190,15 @@ async fn handle_list_access_policies_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "access policy" } else { "access policies" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "access policy"
+        } else {
+            "access policies"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<AccessPolicy> {
         data: queried_resources,

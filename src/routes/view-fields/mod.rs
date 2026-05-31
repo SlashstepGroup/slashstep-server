@@ -15,7 +15,7 @@ pub mod view_field_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -169,7 +169,15 @@ async fn handle_list_view_fields_request(
     .ok();
 
     let queried_view_field_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_view_field_list_length, if queried_view_field_list_length == 1 { "view field" } else { "view fields" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_view_field_list_length,
+        if queried_view_field_list_length == 1 {
+            "view field"
+        } else {
+            "view fields"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ViewField> {
         data: queried_resources,

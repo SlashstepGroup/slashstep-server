@@ -46,7 +46,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /fields/{field_id}
 ///

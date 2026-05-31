@@ -15,9 +15,7 @@ use crate::{
         http_transaction::HTTPTransaction,
         user::User,
     },
-    routes::{
-        CreateResourceResponseBody, ListResourcesResponseBody, ResourceListQueryParameters
-    },
+    routes::{CreateResourceResponseBody, ListResourcesResponseBody, ResourceListQueryParameters},
     utilities::route_handler_utilities::{
         get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp,
         get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,

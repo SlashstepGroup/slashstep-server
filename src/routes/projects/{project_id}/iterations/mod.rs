@@ -45,7 +45,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /projects/{project_id}/iterations
 ///
@@ -188,7 +188,15 @@ async fn handle_list_iterations_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "iteration" } else { "iterations" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "iteration"
+        } else {
+            "iterations"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Iteration> {
         data: queried_resources,

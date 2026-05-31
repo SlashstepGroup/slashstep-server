@@ -45,7 +45,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /items/{item_id}/item-connections
 ///
@@ -187,7 +187,15 @@ async fn handle_list_item_connections_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "item connection" } else { "item connections" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "item connection"
+        } else {
+            "item connections"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ItemConnection> {
         data: queried_resources,
@@ -329,7 +337,10 @@ async fn handle_create_item_connection_request(
     )
     .await
     .ok();
-    info!("Successfully created item connection {}.", item_connection.id);
+    info!(
+        "Successfully created item connection {}.",
+        item_connection.id
+    );
 
     Ok((StatusCode::CREATED, Json(item_connection)))
 }

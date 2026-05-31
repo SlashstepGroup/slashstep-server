@@ -44,7 +44,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CreateProjectRequestBody {
@@ -197,7 +197,15 @@ async fn handle_list_projects_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "project" } else { "projects" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "project"
+        } else {
+            "projects"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Project> {
         data: queried_resources,

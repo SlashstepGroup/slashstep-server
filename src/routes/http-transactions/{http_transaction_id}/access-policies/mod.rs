@@ -43,7 +43,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /http-transactions/{http_transaction_id}/access-policies
 ///
@@ -195,7 +195,15 @@ async fn handle_list_access_policies_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "access policy" } else { "access policies" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "access policy"
+        } else {
+            "access policies"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<AccessPolicy> {
         data: queried_resources,
@@ -296,7 +304,10 @@ async fn handle_create_access_policy_request(
     .await?;
 
     // Create the access policy.
-    trace!("Creating access policy for HTTP transaction {}...", http_transaction_id);
+    trace!(
+        "Creating access policy for HTTP transaction {}...",
+        http_transaction_id
+    );
     let access_policy = match AccessPolicy::create(
         &InitialAccessPolicyProperties {
             action_id: access_policy_properties_json.action_id,

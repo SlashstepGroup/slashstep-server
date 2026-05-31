@@ -39,7 +39,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /access-policies/{access_policy_id}
 ///
@@ -395,7 +395,10 @@ async fn handle_delete_access_policy_request(
     )
     .await
     .ok();
-    info!("Successfully deleted access policy {}.", target_access_policy.id);
+    info!(
+        "Successfully deleted access policy {}.",
+        target_access_policy.id
+    );
 
     Ok(StatusCode::NO_CONTENT)
 }

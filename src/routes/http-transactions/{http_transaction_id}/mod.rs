@@ -41,7 +41,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{info};
+use tracing::info;
 
 /// GET /http-transactions/{http_transaction_id}
 ///
@@ -127,7 +127,10 @@ async fn handle_get_http_transaction_request(
     )
     .await
     .ok();
-    info!("Successfully returned HTTP transaction {}.", target_http_transaction.id);
+    info!(
+        "Successfully returned HTTP transaction {}.",
+        target_http_transaction.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_http_transaction.clone(),
@@ -231,7 +234,10 @@ async fn handle_delete_http_transaction_request(
     .await
     .ok();
 
-    info!("Successfully deleted HTTP transaction {}.", target_http_transaction.id);
+    info!(
+        "Successfully deleted HTTP transaction {}.",
+        target_http_transaction.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 

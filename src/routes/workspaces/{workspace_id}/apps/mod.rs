@@ -55,7 +55,7 @@ use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /workspaces/{workspace_id}/apps
 ///
@@ -194,7 +194,15 @@ async fn handle_list_apps_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "app" } else { "apps" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "app"
+        } else {
+            "apps"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<App> {
         data: queried_resources,
@@ -440,7 +448,10 @@ async fn handle_create_app_request(
         let action =
             get_action_by_name(action_name, &http_transaction, &state.database_pool).await?;
 
-        trace!("Creating access policy for action {} in workspace admins role...", action_name);
+        trace!(
+            "Creating access policy for action {} in workspace admins role...",
+            action_name
+        );
         if let Err(error) = AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 principal_type: AccessPolicyPrincipalType::Role,

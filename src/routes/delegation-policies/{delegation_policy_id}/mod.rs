@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -128,7 +128,10 @@ async fn handle_get_delegation_policy_request(
     )
     .await
     .ok();
-    info!("Successfully returned delegation policy {}.", target_delegation_policy.id);
+    info!(
+        "Successfully returned delegation policy {}.",
+        target_delegation_policy.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_delegation_policy.clone(),
@@ -232,7 +235,10 @@ async fn handle_delete_delegation_policy_request(
     .await
     .ok();
 
-    info!("Successfully deleted delegation policy {}.", target_delegation_policy.id);
+    info!(
+        "Successfully deleted delegation policy {}.",
+        target_delegation_policy.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -298,7 +304,10 @@ async fn handle_patch_delegation_policy_request(
     )
     .await?;
 
-    trace!("Updating delegation policy {}...", original_target_delegation_policy.id);
+    trace!(
+        "Updating delegation policy {}...",
+        original_target_delegation_policy.id
+    );
     let updated_target_delegation_policy = match original_target_delegation_policy
         .update(&updated_delegation_policy_properties, &state.database_pool)
         .await
@@ -338,7 +347,10 @@ async fn handle_patch_delegation_policy_request(
     )
     .await
     .ok();
-    info!("Successfully updated delegation policy {}.", updated_target_delegation_policy.id);
+    info!(
+        "Successfully updated delegation policy {}.",
+        updated_target_delegation_policy.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_delegation_policy,

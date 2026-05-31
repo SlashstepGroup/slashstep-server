@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -120,7 +120,10 @@ async fn handle_get_field_value_request(
     )
     .await
     .ok();
-    info!("Successfully returned field value {}.", target_field_value.id);
+    info!(
+        "Successfully returned field value {}.",
+        target_field_value.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_field_value.clone(),
@@ -220,7 +223,10 @@ async fn handle_delete_field_value_request(
     .await
     .ok();
 
-    info!("Successfully deleted field value {}.", target_field_value.id);
+    info!(
+        "Successfully deleted field value {}.",
+        target_field_value.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -343,7 +349,10 @@ async fn handle_patch_field_value_request(
     )
     .await
     .ok();
-    info!("Successfully updated field value {}.", updated_target_field_value.id);
+    info!(
+        "Successfully updated field value {}.",
+        updated_target_field_value.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_field_value,

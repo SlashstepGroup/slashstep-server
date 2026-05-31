@@ -49,9 +49,9 @@ use ed25519_dalek::{
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use tower_http::trace::TraceLayer;
 use std::{net::IpAddr, sync::Arc};
-use tracing::{trace, info};
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -204,7 +204,15 @@ pub async fn handle_list_app_credentials_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "app credential" } else { "app credentials" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "app credential"
+        } else {
+            "app credentials"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<AppCredential> {
         data: queried_resources,
@@ -360,7 +368,10 @@ async fn handle_create_app_credential_request(
     )
     .await
     .ok();
-    info!("Successfully created authenticated_app credential {}.", created_app_credential.id);
+    info!(
+        "Successfully created authenticated_app credential {}.",
+        created_app_credential.id
+    );
 
     Ok((
         StatusCode::CREATED,

@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -121,7 +121,10 @@ async fn handle_get_item_type_icon_request(
     )
     .await
     .ok();
-    info!("Successfully returned item type icon {}.", target_item_type_icon.id);
+    info!(
+        "Successfully returned item type icon {}.",
+        target_item_type_icon.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_item_type_icon.clone(),
@@ -222,7 +225,10 @@ async fn handle_delete_item_type_icon_request(
     .await
     .ok();
 
-    info!("Successfully deleted item type icon {}.", target_item_type_icon.id);
+    info!(
+        "Successfully deleted item type icon {}.",
+        target_item_type_icon.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -297,7 +303,10 @@ async fn handle_patch_item_type_icon_request(
     )
     .await?;
 
-    trace!("Updating item type icon {}...", original_target_item_type_icon.id);
+    trace!(
+        "Updating item type icon {}...",
+        original_target_item_type_icon.id
+    );
     let updated_target_item_type_icon = match original_target_item_type_icon
         .update(&updated_item_type_icon_properties, &state.database_pool)
         .await
@@ -337,7 +346,10 @@ async fn handle_patch_item_type_icon_request(
     )
     .await
     .ok();
-    info!("Successfully updated item type icon {}.", updated_target_item_type_icon.id);
+    info!(
+        "Successfully updated item type icon {}.",
+        updated_target_item_type_icon.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_item_type_icon,

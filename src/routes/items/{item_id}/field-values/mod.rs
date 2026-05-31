@@ -46,7 +46,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /items/{item_id}/field-values
 ///
@@ -183,7 +183,15 @@ async fn handle_list_field_values_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "field value" } else { "field values" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "field value"
+        } else {
+            "field values"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<FieldValue> {
         data: queried_resources,

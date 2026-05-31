@@ -45,7 +45,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 /// GET /projects/{project_id}/item-types
 ///
@@ -188,7 +188,15 @@ async fn handle_list_item_types_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "item type" } else { "item types" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "item type"
+        } else {
+            "item types"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ItemType> {
         data: queried_resources,

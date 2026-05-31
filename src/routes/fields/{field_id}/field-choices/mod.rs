@@ -48,7 +48,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -216,7 +216,15 @@ pub async fn handle_list_field_choices_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "field choice" } else { "field choices" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "field choice"
+        } else {
+            "field choices"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<FieldChoice> {
         data: queried_resources,
@@ -357,7 +365,10 @@ async fn handle_create_field_choice_request(
     )
     .await
     .ok();
-    info!("Successfully created field choice {}.", created_field_choice.id);
+    info!(
+        "Successfully created field choice {}.",
+        created_field_choice.id
+    );
 
     Ok((StatusCode::CREATED, Json(created_field_choice)))
 }

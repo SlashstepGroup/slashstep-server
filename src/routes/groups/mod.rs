@@ -181,7 +181,15 @@ async fn handle_list_groups_request(
     .ok();
 
     let queried_group_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_group_list_length, if queried_group_list_length == 1 { "group" } else { "groups" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_group_list_length,
+        if queried_group_list_length == 1 {
+            "group"
+        } else {
+            "groups"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Group> {
         data: queried_resources,
@@ -606,7 +614,10 @@ async fn handle_create_group_request(
         return Err(error);
     };
 
-    info!("Successfully created group {} with default child resources.", group.id);
+    info!(
+        "Successfully created group {} with default child resources.",
+        group.id
+    );
 
     Ok((StatusCode::CREATED, Json(group)))
 }

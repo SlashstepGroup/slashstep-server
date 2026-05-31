@@ -41,7 +41,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{info};
+use tracing::info;
 
 /// GET /app-authorizations/{app_authorization_id}
 ///
@@ -127,7 +127,10 @@ async fn handle_get_app_authorization_request(
     )
     .await
     .ok();
-    info!("Successfully returned app authorization {}.", target_app_authorization.id);
+    info!(
+        "Successfully returned app authorization {}.",
+        target_app_authorization.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_app_authorization.clone(),
@@ -231,7 +234,10 @@ async fn handle_delete_app_authorization_request(
     .await
     .ok();
 
-    info!("Successfully deleted app authorization {}.", target_app_authorization.id);
+    info!(
+        "Successfully deleted app authorization {}.",
+        target_app_authorization.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 

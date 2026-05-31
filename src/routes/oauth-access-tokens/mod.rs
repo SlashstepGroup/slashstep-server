@@ -53,7 +53,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -383,7 +383,10 @@ pub async fn convert_oauth_authorization_id_string_to_uuid(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Uuid, OAuthTokenErrorResponse> {
-    trace!("Converting OAuth authorization ID \"{}\" to UUID...", oauth_authorization_id);
+    trace!(
+        "Converting OAuth authorization ID \"{}\" to UUID...",
+        oauth_authorization_id
+    );
 
     let oauth_authorization_id = match Uuid::parse_str(oauth_authorization_id) {
         Ok(oauth_authorization_id) => oauth_authorization_id,
@@ -493,7 +496,10 @@ pub async fn update_oauth_authorization_usage_date(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), OAuthTokenErrorResponse> {
-    trace!("Updating OAuth authorization {} with a usage date...", oauth_authorization.id);
+    trace!(
+        "Updating OAuth authorization {} with a usage date...",
+        oauth_authorization.id
+    );
 
     if let Err(error) = oauth_authorization
         .update(
@@ -813,7 +819,10 @@ pub async fn create_app_authorization_credential(
             }
         };
 
-    trace!("Creating app authorization credential for app authorization {}...", app_authorization.id);
+    trace!(
+        "Creating app authorization credential for app authorization {}...",
+        app_authorization.id
+    );
     let app_authorization_credential = match AppAuthorizationCredential::create(
         &InitialAppAuthorizationCredentialProperties {
             app_id: app_authorization.app_id,
@@ -851,7 +860,10 @@ pub async fn find_app_authorization_by_oauth_authorization_id(
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Option<AppAuthorization>, OAuthTokenErrorResponse> {
-    trace!("Getting app authorization for OAuth authorization {}...", oauth_authorization_id);
+    trace!(
+        "Getting app authorization for OAuth authorization {}...",
+        oauth_authorization_id
+    );
 
     let app_authorization = match AppAuthorization::get_by_oauth_authorization_id(
         oauth_authorization_id,
@@ -1444,7 +1456,10 @@ async fn handle_create_oauth_access_token_request(
     .await
     .ok();
 
-    info!("Successfully created app authorization credential {}.", app_authorization_credential.id);
+    info!(
+        "Successfully created app authorization credential {}.",
+        app_authorization_credential.id
+    );
 
     Ok((StatusCode::CREATED, Json(access_token_response_body)))
 }

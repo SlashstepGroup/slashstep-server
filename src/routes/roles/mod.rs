@@ -15,7 +15,7 @@ pub mod role_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -171,7 +171,15 @@ async fn handle_list_roles_request(
     .ok();
 
     let queried_role_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_role_list_length, if queried_role_list_length == 1 { "role" } else { "roles" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_role_list_length,
+        if queried_role_list_length == 1 {
+            "role"
+        } else {
+            "roles"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Role> {
         data: queried_resources,

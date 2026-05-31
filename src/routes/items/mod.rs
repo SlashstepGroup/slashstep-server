@@ -15,7 +15,7 @@ pub mod item_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -165,7 +165,15 @@ async fn handle_list_items_request(
     .ok();
 
     let queried_item_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_item_list_length, if queried_item_list_length == 1 { "item" } else { "items" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_item_list_length,
+        if queried_item_list_length == 1 {
+            "item"
+        } else {
+            "items"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Item> {
         data: queried_resources,

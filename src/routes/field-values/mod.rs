@@ -15,7 +15,7 @@ pub mod field_value_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -169,7 +169,15 @@ async fn handle_list_field_values_request(
     .ok();
 
     let queried_field_value_list_length = queried_resources.len();
-    info!("Successfully returned {} {}.", queried_field_value_list_length, if queried_field_value_list_length == 1 { "field value" } else { "field values" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_field_value_list_length,
+        if queried_field_value_list_length == 1 {
+            "field value"
+        } else {
+            "field values"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<FieldValue> {
         data: queried_resources,
