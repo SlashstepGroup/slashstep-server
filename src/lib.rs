@@ -9,7 +9,11 @@ pub mod utilities;
 pub const DEFAULT_APP_PORT: i16 = 8080;
 pub const DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT: u32 = 5;
 
-use tracing::{error, warn};
+use serde::Serialize;
+use opensearch::OpenSearch;
+use tracing::{Subscriber, error, warn};
+use uuid::Uuid;
+use tokio::sync::mpsc;
 
 use crate::resources::{
     ResourceError,
@@ -60,7 +64,6 @@ use axum::{
 use axum_extra::response::ErasedJson;
 use colored::Colorize;
 use reqwest::StatusCode;
-use serde::Serialize;
 use std::fmt;
 use thiserror::Error;
 use tracing::{debug, trace};
@@ -93,6 +96,9 @@ pub enum SlashstepServerError {
 
     #[error(transparent)]
     LocalIPAddressError(#[from] local_ip_address::Error),
+
+    #[error(transparent)]
+    OpenSearchError(#[from] opensearch::Error),
 }
 
 pub async fn initialize_required_tables(
@@ -353,6 +359,80 @@ impl IntoResponse for HTTPError {
 pub struct AppState {
     pub database_pool: deadpool_postgres::Pool,
     pub redis_pool: deadpool_redis::Pool,
+    pub opensearch_client: OpenSearch
+}
+
+pub async fn create_opensearch_client() -> Result<OpenSearch, SlashstepServerError> {
+    let opensearch_url = get_environment_variable("OPENSEARCH_URL")?;
+    let opensearch_transport = opensearch::http::transport::Transport::single_node(&opensearch_url)?;
+    let opensearch_client = OpenSearch::new(opensearch_transport); 
+    Ok(opensearch_client)
+}
+
+#[derive(Debug)]
+pub struct OpenSearchLayer {
+    pub sender: mpsc::Sender<StructuredLogEntry>
+}
+
+#[derive(Debug, Serialize)]
+pub struct StructuredLogEntry {
+    /// The message of the server log entry.
+    pub message: String,
+
+    /// The HTTP transaction ID of the server log entry, if applicable.
+    pub http_transaction_id: Option<Uuid>,
+
+    /// The level of the server log entry.
+    pub level: String,
+}
+
+#[derive(Debug, Default)]
+pub struct OpenSearchLogVisitor {
+    pub message: String,
+    pub http_transaction_id: Option<Uuid>
+}
+
+impl<S: Subscriber> tracing_subscriber::layer::Layer<S> for OpenSearchLayer {
+    fn on_event(&self, event: &tracing::Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
+        
+        let mut visitor = OpenSearchLogVisitor::default();
+        event.record(&mut visitor);
+
+        let log_entry = StructuredLogEntry {
+            message: visitor.message,
+            http_transaction_id: visitor.http_transaction_id,
+            level: event.metadata().level().to_string()
+        };
+
+        let _ = self.sender.try_send(log_entry);
+        
+    }
+}
+
+impl tracing::field::Visit for OpenSearchLogVisitor {
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        if field.name() == "http_transaction_id" {
+            self.http_transaction_id = Uuid::parse_str(value).and_then(|value| Ok(Some(value))).unwrap_or(None);
+        }
+    }
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        if field.name() == "message" {
+            self.message = format!("{:?}", value);
+        }
+    }
+}
+
+pub async fn run_opensearch_log_worker(mut receiver: mpsc::Receiver<StructuredLogEntry>, opensearch_client: OpenSearch) {
+    while let Some(log_entry) = receiver.recv().await {
+        let result = opensearch_client.index(opensearch::IndexParts::Index("server_log_entries"))
+            .body(serde_json::json!(log_entry))
+            .send()
+            .await;
+
+        if let Err(error) = result {
+            error!("Failed to send log entry to OpenSearch: {}", error);
+        }
+    }
 }
 
 pub async fn get_json_web_token_public_key() -> Result<String, ResourceError> {

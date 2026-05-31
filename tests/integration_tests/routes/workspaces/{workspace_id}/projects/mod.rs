@@ -69,6 +69,7 @@ async fn verify_successful_project_creation() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -164,6 +165,7 @@ async fn verify_project_name_is_at_most_at_maximum_length() -> Result<(), TestSl
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -234,6 +236,7 @@ async fn verify_project_display_name_is_at_most_at_maximum_length()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -304,6 +307,7 @@ async fn verify_project_description_is_at_most_at_maximum_length()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -371,6 +375,7 @@ async fn verify_project_name_matches_regex() -> Result<(), TestSlashstepServerEr
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -429,6 +434,7 @@ async fn verify_returned_project_list_without_query() -> Result<(), TestSlashste
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -515,6 +521,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -603,6 +610,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -660,6 +668,7 @@ async fn verify_maximum_project_list_limit() -> Result<(), TestSlashstepServerEr
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -717,6 +726,7 @@ async fn verify_query_when_listing_projects() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -782,6 +792,7 @@ async fn verify_authentication_when_listing_projects() -> Result<(), TestSlashst
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())
@@ -823,6 +834,7 @@ async fn verify_permission_when_listing_projects() -> Result<(), TestSlashstepSe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::workspaces::workspace_id::projects::get_router(state.clone())

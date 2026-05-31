@@ -1,6 +1,6 @@
 use std::{
     net::{IpAddr, Ipv6Addr},
-    str::FromStr,
+    str::FromStr, sync::Once,
 };
 
 use chrono::{Duration, Utc};
@@ -11,6 +11,7 @@ use ed25519_dalek::{
     pkcs8::{EncodePublicKey, spki::der::pem::LineEnding},
 };
 use local_ip_address::local_ip;
+use opensearch::OpenSearch;
 use postgres::NoTls;
 use postgresql_embedded::PostgreSQL;
 use rand::{
@@ -19,12 +20,10 @@ use rand::{
 };
 use redis_test::server::RedisServer;
 use slashstep_server::{
-    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file, initialize_required_tables,
-    predefinitions::{
+    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, create_opensearch_client, import_env_file, initialize_required_tables, predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
+    }, resources::{
         ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
@@ -79,18 +78,22 @@ use slashstep_server::{
         view_field::{InitialViewFieldProperties, ViewField},
         webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType},
         workspace::{InitialWorkspaceProperties, Workspace},
-    },
+    }, run_opensearch_log_worker
 };
+use tokio::sync::mpsc;
 use tracing::{level_filters::LevelFilter, trace};
-use tracing_subscriber::EnvFilter;
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
+
+static INIT: Once = Once::new();
 
 pub struct IntegrationTestEnvironment {
     pub database_pool: deadpool_postgres::Pool,
     pub redis_pool: deadpool_redis::Pool,
     pub redis_server: RedisServer,
+    pub opensearch_client: OpenSearch,
     // This is required to prevent the compiler from complaining about unused fields.
     // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
     #[allow(dead_code)]
@@ -99,12 +102,16 @@ pub struct IntegrationTestEnvironment {
 
 impl IntegrationTestEnvironment {
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
-        let environment_filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
-        tracing_subscriber::fmt()
-            .with_max_level(LevelFilter::TRACE)
-            .with_env_filter(environment_filter)
-            .init();
+        INIT.call_once(|| {
+
+            let environment_filter = EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
+            tracing_subscriber::fmt()
+                .with_max_level(LevelFilter::TRACE)
+                .with_env_filter(environment_filter)
+                .init();
+
+        });
         import_env_file();
 
         let postgres_version = std::env::var("POSTGRESQL_VERSION").unwrap_or("18.3.0".to_string());
@@ -150,11 +157,28 @@ impl IntegrationTestEnvironment {
         let redis_url = format!("redis://{redis_host}:{redis_port}");
         let redis_config = deadpool_redis::Config::from_url(redis_url);
         let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
+
+        let json_layer = tracing_subscriber::fmt::layer().json();
+        let (opensearch_sender, receiver) = mpsc::channel(100);
+        let opensearch_layer = OpenSearchLayer {
+            sender: opensearch_sender
+        };
+        tracing_subscriber::registry()
+            // .with(tracing_subscriber::fmt::layer())
+            .with(tracing_subscriber::EnvFilter::from_default_env())
+            .with(json_layer)
+            .with(opensearch_layer)
+            .init();
+
+        let opensearch_client = create_opensearch_client().await?;
+        tokio::spawn(run_opensearch_log_worker(receiver, opensearch_client.clone()));
+
         let environment = IntegrationTestEnvironment {
             database_pool,
             embedded_postgresql,
             redis_pool,
             redis_server,
+            opensearch_client
         };
 
         return Ok(environment);

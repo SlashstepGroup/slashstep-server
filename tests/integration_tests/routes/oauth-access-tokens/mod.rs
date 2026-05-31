@@ -60,6 +60,7 @@ async fn verify_successful_creation_for_public_client_with_authorization_code()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -106,6 +107,7 @@ async fn verify_successful_creation_for_public_client_with_authorization_code_an
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -170,6 +172,7 @@ async fn verify_successful_creation_for_confidential_client_with_authorization_c
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -238,6 +241,7 @@ async fn verify_successful_creation_for_confidential_client_with_authorization_c
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -279,6 +283,7 @@ async fn verify_client_id_is_uuid() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -318,6 +323,7 @@ async fn verify_authorization_code_is_valid() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -361,6 +367,7 @@ async fn verify_authorization_code_is_single_use() -> Result<(), TestSlashstepSe
         let state = AppState {
             database_pool: test_environment.database_pool.clone(),
             redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
         };
         let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
             .with_state(state)
@@ -408,6 +415,7 @@ async fn verify_client_id_links_to_app() -> Result<(), TestSlashstepServerError>
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -472,6 +480,7 @@ async fn verify_client_secret_is_provided_for_confidential_client()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -518,6 +527,7 @@ async fn verify_code_verifier_is_provided_when_code_challenge_is_present()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -565,6 +575,7 @@ async fn verify_code_verifier_is_correct_when_code_challenge_is_present()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -614,6 +625,7 @@ async fn verify_successful_creation_for_public_client_with_refresh_token()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -684,6 +696,7 @@ async fn verify_successful_creation_for_confidential_client_with_refresh_token()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -741,6 +754,7 @@ async fn verify_active_refresh_token_for_public_client() -> Result<(), TestSlash
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -822,6 +836,7 @@ async fn verify_active_refresh_token_for_confidential_client()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)
@@ -878,6 +893,7 @@ async fn verify_valid_refresh_token_for_public_client() -> Result<(), TestSlashs
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
         .with_state(state)

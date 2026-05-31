@@ -51,8 +51,9 @@ serde_with = "3.20.0"
 time = "0.3.47"
 deadpool-redis = "0.23.0"
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 tower-http = { version = "0.6.11", features = ["trace"] }
+opensearch = "2.4.0"
 
 [dev-dependencies]
 axum-test = "20.0.0"

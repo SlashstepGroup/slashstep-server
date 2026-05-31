@@ -90,6 +90,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::sessions::get_router(state.clone())
         .with_state(state)
@@ -124,6 +125,7 @@ async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSla
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::sessions::get_router(state.clone())
         .with_state(state)
@@ -195,6 +197,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::sessions::get_router(state.clone())
         .with_state(state)
@@ -248,6 +251,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::sessions::get_router(state.clone())
         .with_state(state)
@@ -331,6 +335,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::sessions::get_router(state.clone())
@@ -423,6 +428,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::sessions::get_router(state.clone())
         .with_state(state)
@@ -479,6 +485,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::sessions::get_router(state.clone())
         .with_state(state)
@@ -532,6 +539,7 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::sessions::get_router(state.clone())
@@ -596,6 +604,7 @@ async fn verify_authentication() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::sessions::get_router(state.clone())
         .with_state(state)
@@ -631,6 +640,7 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::sessions::get_router(state.clone())
         .with_state(state)

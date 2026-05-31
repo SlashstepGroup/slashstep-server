@@ -93,6 +93,7 @@ async fn verify_successful_item_connection_creation() -> Result<(), TestSlashste
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
@@ -167,6 +168,7 @@ async fn verify_returned_item_connection_list_without_query() -> Result<(), Test
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
@@ -274,6 +276,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
@@ -388,6 +391,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
@@ -453,6 +457,7 @@ async fn verify_maximum_item_connection_list_limit() -> Result<(), TestSlashstep
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
@@ -518,6 +523,7 @@ async fn verify_query_when_listing_item_connections() -> Result<(), TestSlashste
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
@@ -587,6 +593,7 @@ async fn verify_authentication_when_listing_item_connections()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())
@@ -628,6 +635,7 @@ async fn verify_permission_when_listing_item_connections() -> Result<(), TestSla
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::items::item_id::item_connections::get_router(state.clone())

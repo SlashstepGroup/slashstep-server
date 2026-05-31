@@ -78,6 +78,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::users::user_id::oauth_authorizations::get_router(state.clone())

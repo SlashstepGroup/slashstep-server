@@ -41,6 +41,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -164,6 +165,7 @@ async fn verify_uuid_when_getting_access_policy_by_id() -> Result<(), TestSlashs
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -187,6 +189,7 @@ async fn verify_authentication_when_getting_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -215,6 +218,7 @@ async fn verify_permission_when_getting_access_policy_by_id() -> Result<(), Test
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -255,6 +259,7 @@ async fn verify_not_found_when_getting_access_policy_by_id() -> Result<(), TestS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -292,6 +297,7 @@ async fn verify_successful_deletion_when_deleting_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -351,6 +357,7 @@ async fn verify_uuid_when_deleting_access_policy_by_id() -> Result<(), TestSlash
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -373,6 +380,7 @@ async fn verify_authentication_when_deleting_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -400,6 +408,7 @@ async fn verify_permission_when_deleting_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -439,6 +448,7 @@ async fn verify_access_policy_exists_when_deleting_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -476,6 +486,7 @@ async fn verify_successful_patch_access_policy_by_id() -> Result<(), TestSlashst
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -602,6 +613,7 @@ async fn verify_content_type_when_patching_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -624,6 +636,7 @@ async fn verify_request_body_exists_when_patching_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -649,6 +662,7 @@ async fn verify_request_body_json_when_patching_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -678,6 +692,7 @@ async fn verify_uuid_when_patching_access_policy_by_id() -> Result<(), TestSlash
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -707,6 +722,7 @@ async fn verify_authentication_when_patching_access_policy_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -750,6 +766,7 @@ async fn verify_permission_when_patching_access_policy() -> Result<(), TestSlash
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -805,6 +822,7 @@ async fn verify_access_policy_exists_when_patching_access_policy()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =

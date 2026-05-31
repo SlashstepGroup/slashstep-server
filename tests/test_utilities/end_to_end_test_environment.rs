@@ -7,13 +7,10 @@ use postgresql_embedded::PostgreSQL;
 use redis_test::server::RedisServer;
 use reqwest::StatusCode;
 use slashstep_server::{
-    AppState, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file,
-    initialize_required_tables,
-    predefinitions::{
+    AppState, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, create_opensearch_client, import_env_file, initialize_required_tables, predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
-    },
-    resources::{
+    }, resources::{
         access_policy::AccessPolicy,
         membership::{
             InitialMembershipProperties, Membership, MembershipParentResourceType,
@@ -22,12 +19,13 @@ use slashstep_server::{
         role::{PredefinedRoleType, Role, RoleParentResourceType},
         session_credential::SessionCredential,
         user::{InitialUserProperties, User},
-    },
-    routes::{
+    }, routes::{
         CreateResourceResponseBody, GetResourceResponseBody,
         access_policies::CreateServerAccessPolicyRequestBody,
-    },
+    }, run_opensearch_log_worker
 };
+use tokio::sync::mpsc;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
@@ -112,9 +110,25 @@ impl EndToEndTestEnvironment {
         let redis_config = deadpool_redis::Config::from_url(redis_url);
         let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
+        let json_layer = tracing_subscriber::fmt::layer().json();
+        let (opensearch_sender, receiver) = mpsc::channel(100);
+        let opensearch_layer = OpenSearchLayer {
+            sender: opensearch_sender
+        };
+        tracing_subscriber::registry()
+            // .with(tracing_subscriber::fmt::layer())
+            .with(tracing_subscriber::EnvFilter::from_default_env())
+            .with(json_layer)
+            .with(opensearch_layer)
+            .init();
+
+        let opensearch_client = create_opensearch_client().await?;
+        tokio::spawn(run_opensearch_log_worker(receiver, opensearch_client.clone()));
+
         let state = AppState {
             database_pool: database_pool.clone(),
             redis_pool: redis_pool.clone(),
+            opensearch_client: opensearch_client.clone(),
         };
 
         let router = slashstep_server::routes::get_router(state.clone())

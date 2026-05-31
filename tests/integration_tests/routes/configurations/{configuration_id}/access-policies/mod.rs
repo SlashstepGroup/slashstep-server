@@ -104,6 +104,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(
@@ -204,6 +205,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(
@@ -326,6 +328,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(
@@ -442,6 +445,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(
@@ -510,6 +514,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(
@@ -579,6 +584,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(
@@ -665,6 +671,7 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(
@@ -711,6 +718,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(
@@ -742,6 +750,7 @@ async fn verify_parent_resource_not_found_when_listing_resources()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::configurations::configuration_id::access_policies::get_router(

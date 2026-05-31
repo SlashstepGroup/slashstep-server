@@ -39,6 +39,7 @@ services:
       SLASHSTEP_ADMIN_USERNAME: Admin
       SLASHSTEP_ADMIN_PASSWORD_FILE_PATH: /run/secrets/slashstep-admin-password
       REDIS_URL: redis://valkey-server:6379
+      OPENSEARCH_URL: http://opensearch-node-1:9200
     secrets:
       - postgresql-password
       - jwt-public-key
@@ -70,6 +71,20 @@ services:
     volumes:
       - valkey-data:/data
 
+  opensearch-node-1:
+    image: opensearchproject/opensearch:3.6.0
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    env_file:
+      - .env
+    environment:
+      # TODO: Look into multiple nodes later on.
+      - discovery.type=single-node
+
 volumes:
   postgresql-data:
   valkey-data:
+  opensearch-data:

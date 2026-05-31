@@ -81,6 +81,7 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -175,6 +176,7 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -282,6 +284,7 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -350,6 +353,7 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -415,6 +419,7 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router =
@@ -484,6 +489,7 @@ async fn verify_authentication_when_listing_resources() -> Result<(), TestSlashs
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -525,6 +531,7 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -556,6 +563,7 @@ async fn verify_parent_resource_not_found_when_listing_resources()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -611,6 +619,7 @@ async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -680,6 +689,7 @@ async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSla
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -716,6 +726,7 @@ async fn verify_authentication_when_creating_resource() -> Result<(), TestSlashs
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -763,6 +774,7 @@ async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())
@@ -796,6 +808,7 @@ async fn verify_not_found_when_creating_resource() -> Result<(), TestSlashstepSe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::fields::field_id::field_choices::get_router(state.clone())

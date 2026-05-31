@@ -4,17 +4,17 @@ use axum_server::tls_rustls::RustlsConfig;
 use colored::Colorize;
 use deadpool_postgres::{Pool, tokio_postgres};
 use local_ip_address::local_ip;
+use opensearch::OpenSearch;
 use postgres::NoTls;
 use slashstep_server::{
-    AppState, DEFAULT_APP_PORT, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError,
-    get_environment_variable, import_env_file, initialize_required_tables,
-    predefinitions::{
+    AppState, DEFAULT_APP_PORT, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, SlashstepServerError, create_opensearch_client, get_environment_variable, import_env_file, initialize_required_tables, predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
-    },
-    routes, setup_admin_user_if_necessary,
+    }, routes, run_opensearch_log_worker, setup_admin_user_if_necessary
 };
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::mpsc};
+use tracing::{Subscriber, level_filters::LevelFilter};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServerError> {
     let host = get_environment_variable("POSTGRESQL_HOST")?;
@@ -132,12 +132,33 @@ fn get_app_port_string() -> String {
 #[tokio::main]
 async fn main() -> Result<(), SlashstepServerError> {
     println!("Slashstep Server {}", env!("CARGO_PKG_VERSION"));
-    tracing_subscriber::fmt::init();
+    let environment_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(format!("off,{}=trace", env!("CARGO_CRATE_NAME"))));
+    tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::TRACE)
+        .with_env_filter(environment_filter)
+        .init();
+    
+    let json_layer = tracing_subscriber::fmt::layer().json();
+    let (opensearch_sender, receiver) = mpsc::channel(100);
+    let opensearch_layer = OpenSearchLayer {
+        sender: opensearch_sender
+    };
+    tracing_subscriber::registry()
+        // .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(json_layer)
+        .with(opensearch_layer)
+        .init();
+
+    let opensearch_client = create_opensearch_client().await?;
+    tokio::spawn(run_opensearch_log_worker(receiver, opensearch_client.clone()));
 
     import_env_file();
     let state = AppState {
         database_pool: create_database_pool().await?,
         redis_pool: create_redis_pool().await?,
+        opensearch_client: opensearch_client
     };
 
     initialize_required_tables(&state.database_pool).await?;
