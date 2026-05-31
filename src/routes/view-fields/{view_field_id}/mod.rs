@@ -40,7 +40,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -121,13 +121,7 @@ async fn handle_get_view_field_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned view field {}.", target_view_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned view field {}.", target_view_field.id);
 
     let response_body = GetResourceResponseBody {
         data: target_view_field.clone(),
@@ -223,13 +217,7 @@ async fn handle_delete_view_field_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted view field {}.", target_view_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted view field {}.", target_view_field.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -297,13 +285,7 @@ async fn handle_patch_view_field_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating view field {}...", original_target_view_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating view field {}...", original_target_view_field.id);
     let updated_target_view_field = match original_target_view_field
         .update(&updated_view_field_properties, &state.database_pool)
         .await
@@ -343,16 +325,7 @@ async fn handle_patch_view_field_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated view field {}.",
-            updated_target_view_field.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated view field {}.", updated_target_view_field.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_view_field,

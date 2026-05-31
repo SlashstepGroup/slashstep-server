@@ -44,7 +44,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /membership-invitations/{membership_invitation_id}
 ///
@@ -130,16 +130,7 @@ async fn handle_get_membership_invitation_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned membership invitation {}.",
-            target_membership_invitation.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned membership invitation {}.", target_membership_invitation.id);
 
     let response_body = GetResourceResponseBody {
         data: target_membership_invitation.clone(),
@@ -246,16 +237,7 @@ async fn handle_delete_membership_invitation_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted membership invitation {}.",
-            target_membership_invitation.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted membership invitation {}.", target_membership_invitation.id);
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -43,7 +43,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./{action_id}/mod.rs"]
 pub mod action_id;
@@ -170,21 +170,7 @@ async fn handle_list_actions_request(
     .ok();
 
     let queried_action_log_entry_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_action_log_entry_list_length,
-            if queried_action_log_entry_list_length == 1 {
-                "action log entry"
-            } else {
-                "action log entries"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_action_log_entry_list_length, if queried_action_log_entry_list_length == 1 { "action log entry" } else { "action log entries" });
 
     let response_body = ListResourcesResponseBody::<Action> {
         data: queried_resources,

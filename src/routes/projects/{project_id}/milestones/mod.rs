@@ -47,7 +47,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /projects/{project_id}/milestones
 ///
@@ -190,21 +190,7 @@ async fn handle_list_milestones_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "milestone"
-            } else {
-                "milestones"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "milestone" } else { "milestones" });
 
     let response_body = ListResourcesResponseBody::<Milestone> {
         data: queried_resources,
@@ -304,13 +290,7 @@ async fn handle_create_milestone_request(
     .await?;
 
     // Create the milestone.
-    ServerLogEntry::trace(
-        &format!("Creating milestone for project {}...", project_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating milestone for project {}...", project_id);
     let milestone = match Milestone::create(
         &InitialMilestoneProperties {
             name: milestone_properties_json.name.clone(),
@@ -364,13 +344,7 @@ async fn handle_create_milestone_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created milestone {}.", milestone.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created milestone {}.", milestone.id);
 
     Ok((StatusCode::CREATED, Json(milestone)))
 }

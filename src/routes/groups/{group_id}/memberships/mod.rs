@@ -48,7 +48,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateMembershipQueryParameters {
@@ -298,13 +298,7 @@ pub async fn handle_create_membership_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully created membership {}.", created_membership.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created membership {}.", created_membership.id);
 
     Ok((StatusCode::CREATED, Json(created_membership)))
 }
@@ -444,21 +438,7 @@ pub async fn handle_list_memberships_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "membership"
-            } else {
-                "memberships"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "membership" } else { "memberships" });
 
     let response_body = ListResourcesResponseBody::<Membership> {
         data: queried_resources,

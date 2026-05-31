@@ -47,7 +47,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /fields/{field_id}
 ///
@@ -119,13 +119,7 @@ async fn handle_get_field_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned field {}.", target_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned field {}.", target_field.id);
 
     let response_body = GetResourceResponseBody {
         data: target_field.clone(),
@@ -213,13 +207,7 @@ async fn handle_delete_field_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted field {}.", target_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted field {}.", target_field.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -318,13 +306,7 @@ async fn handle_patch_field_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating field {}...", original_target_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating field {}...", original_target_field.id);
     let updated_target_field = match original_target_field
         .update(&updated_field_properties, &state.database_pool)
         .await
@@ -364,13 +346,7 @@ async fn handle_patch_field_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated field {}.", updated_target_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated field {}.", updated_target_field.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_field,

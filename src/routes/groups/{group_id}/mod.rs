@@ -40,7 +40,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -119,13 +119,7 @@ async fn handle_get_group_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned group {}.", target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned group {}.", target_group.id);
 
     let response_body = GetResourceResponseBody {
         data: target_group.clone(),
@@ -213,13 +207,7 @@ async fn handle_delete_group_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted group {}.", target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted group {}.", target_group.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -310,13 +298,7 @@ async fn handle_patch_group_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating group {}...", original_target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating group {}...", original_target_group.id);
     let updated_target_group = match original_target_group
         .update(&updated_group_properties, &state.database_pool)
         .await
@@ -356,13 +338,7 @@ async fn handle_patch_group_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated group {}.", updated_target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated group {}.", updated_target_group.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_group,

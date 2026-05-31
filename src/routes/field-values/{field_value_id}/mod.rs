@@ -40,7 +40,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -121,16 +121,7 @@ async fn handle_get_field_value_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned field value {}.",
-            target_field_value.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned field value {}.", target_field_value.id);
 
     let response_body = GetResourceResponseBody {
         data: target_field_value.clone(),
@@ -230,16 +221,7 @@ async fn handle_delete_field_value_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted field value {}.",
-            target_field_value.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted field value {}.", target_field_value.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -322,13 +304,7 @@ async fn handle_patch_field_value_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating field value {}...", original_target_field_value.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating field value {}...", original_target_field_value.id);
     let updated_target_field_value = match original_target_field_value
         .update(&updated_field_value_properties, &state.database_pool)
         .await
@@ -368,16 +344,7 @@ async fn handle_patch_field_value_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated field value {}.",
-            updated_target_field_value.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated field value {}.", updated_target_field_value.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_field_value,

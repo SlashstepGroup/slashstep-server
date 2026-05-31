@@ -44,7 +44,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /app-authorization-credentials/{app_authorization_credential_id}
 ///
@@ -130,16 +130,7 @@ async fn handle_get_app_authorization_credential_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned app authorization credential {}.",
-            target_app_authorization_credential.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned app authorization credential {}.", target_app_authorization_credential.id);
 
     let response_body = GetResourceResponseBody {
         data: target_app_authorization_credential.clone(),
@@ -246,16 +237,7 @@ async fn handle_delete_app_authorization_credential_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted app authorization credential {}.",
-            target_app_authorization_credential.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted app authorization credential {}.", target_app_authorization_credential.id);
     Ok(StatusCode::NO_CONTENT)
 }
 

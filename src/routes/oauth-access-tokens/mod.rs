@@ -54,7 +54,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -162,13 +162,7 @@ pub async fn convert_client_id_string_to_uuid(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Uuid, OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        format!("Converting client ID \"{}\" to UUID...", client_id).as_str(),
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Converting client ID \"{}\" to UUID...", client_id);
 
     let client_id = match Uuid::parse_str(client_id) {
         Ok(client_id) => client_id,
@@ -241,14 +235,7 @@ pub async fn decode_authorization_code_jwt_claims(
                     ),
                 };
                 let http_error: HTTPError = oauth_error_response.clone().into();
-
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(http_transaction_id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -325,13 +312,7 @@ pub async fn get_app_by_client_id(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<App, OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        format!("Getting app for client ID \"{}\"...", client_id).as_str(),
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting app for client ID \"{}\"...", client_id);
 
     let app = match App::get_by_id(client_id, database_pool).await {
         Ok(app) => app,
@@ -371,13 +352,7 @@ pub async fn get_oauth_authorization_by_id(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<OAuthAuthorization, OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        format!("Getting OAuth authorization {}...", oauth_authorization_id).as_str(),
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting OAuth authorization {}...", oauth_authorization_id);
 
     let oauth_authorization = match OAuthAuthorization::get_by_id(
         oauth_authorization_id,
@@ -409,17 +384,7 @@ pub async fn convert_oauth_authorization_id_string_to_uuid(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Uuid, OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        format!(
-            "Converting OAuth authorization ID \"{}\" to UUID...",
-            oauth_authorization_id
-        )
-        .as_str(),
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Converting OAuth authorization ID \"{}\" to UUID...", oauth_authorization_id);
 
     let oauth_authorization_id = match Uuid::parse_str(oauth_authorization_id) {
         Ok(oauth_authorization_id) => oauth_authorization_id,
@@ -529,16 +494,7 @@ pub async fn update_oauth_authorization_usage_date(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        &format!(
-            "Updating OAuth authorization {} with a usage date...",
-            oauth_authorization.id
-        ),
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating OAuth authorization {} with a usage date...", oauth_authorization.id);
 
     if let Err(error) = oauth_authorization
         .update(
@@ -711,13 +667,7 @@ pub async fn delete_oauth_authorization(
     oauth_authorization: &OAuthAuthorization,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        &format!("Deleting OAuth authorization {}...", oauth_authorization.id),
-        Some(&oauth_authorization.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Deleting OAuth authorization {}...", oauth_authorization.id);
 
     if let Err(error) = oauth_authorization.delete(database_pool).await {
         let oauth_error_response = OAuthTokenErrorResponse::new(
@@ -864,16 +814,7 @@ pub async fn create_app_authorization_credential(
             }
         };
 
-    ServerLogEntry::trace(
-        &format!(
-            "Creating app authorization credential for app authorization {}...",
-            app_authorization.id
-        ),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating app authorization credential for app authorization {}...", app_authorization.id);
     let app_authorization_credential = match AppAuthorizationCredential::create(
         &InitialAppAuthorizationCredentialProperties {
             app_id: app_authorization.app_id,
@@ -911,16 +852,7 @@ pub async fn find_app_authorization_by_oauth_authorization_id(
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Option<AppAuthorization>, OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        &format!(
-            "Getting app authorization for OAuth authorization {}...",
-            oauth_authorization_id
-        ),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting app authorization for OAuth authorization {}...", oauth_authorization_id);
 
     let app_authorization = match AppAuthorization::get_by_oauth_authorization_id(
         oauth_authorization_id,
@@ -1513,16 +1445,7 @@ async fn handle_create_oauth_access_token_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created app authorization credential {}.",
-            app_authorization_credential.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created app authorization credential {}.", app_authorization_credential.id);
 
     Ok((StatusCode::CREATED, Json(access_token_response_body)))
 }

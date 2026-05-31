@@ -40,7 +40,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /access-policies/{access_policy_id}
 ///
@@ -127,13 +127,7 @@ async fn handle_get_access_policy_request(
     .ok();
 
     // Return the access policy.
-    ServerLogEntry::success(
-        &format!("Successfully returned access policy {}.", access_policy_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned access policy {}.", access_policy_id);
 
     let response_body = GetResourceResponseBody {
         data: access_policy.clone(),
@@ -250,13 +244,7 @@ async fn handle_patch_access_policy_request(
         }
     }
 
-    ServerLogEntry::trace(
-        &format!("Updating access policy {}...", access_policy_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating access policy {}...", access_policy_id);
     let access_policy = match access_policy
         .update(&updated_access_policy_properties, &state.database_pool)
         .await
@@ -300,13 +288,7 @@ async fn handle_patch_access_policy_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully updated access policy {}.", access_policy_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated access policy {}.", access_policy_id);
 
     let response_body = PatchResourceResponseBody {
         data: access_policy,
@@ -414,16 +396,7 @@ async fn handle_delete_access_policy_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted access policy {}.",
-            target_access_policy.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted access policy {}.", target_access_policy.id);
 
     Ok(StatusCode::NO_CONTENT)
 }

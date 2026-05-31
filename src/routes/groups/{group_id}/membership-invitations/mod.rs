@@ -47,7 +47,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /groups/{group_id}/membership-invitations
 ///
@@ -196,21 +196,7 @@ async fn handle_list_membership_invitations_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "membership invitation"
-            } else {
-                "membership invitations"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "membership invitation" } else { "membership invitations" });
 
     let response_body = ListResourcesResponseBody::<MembershipInvitation> {
         data: queried_resources,
@@ -278,13 +264,7 @@ async fn handle_create_membership_invitation_request(
     .await?;
 
     // Create the membership invitation.
-    ServerLogEntry::trace(
-        &format!("Creating membership invitation for group {}...", group_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating membership invitation for group {}...", group_id);
     let membership_invitation = match MembershipInvitation::create(
         &InitialMembershipInvitationProperties {
             parent_resource_type: MembershipParentResourceType::Group,
@@ -351,16 +331,7 @@ async fn handle_create_membership_invitation_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created membership invitation {}.",
-            membership_invitation.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created membership invitation {}.", membership_invitation.id);
 
     Ok((StatusCode::CREATED, Json(membership_invitation)))
 }

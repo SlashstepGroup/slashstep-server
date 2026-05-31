@@ -40,7 +40,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -121,13 +121,7 @@ async fn handle_get_iteration_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned iteration {}.", target_iteration.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned iteration {}.", target_iteration.id);
 
     let response_body = GetResourceResponseBody {
         data: target_iteration.clone(),
@@ -223,13 +217,7 @@ async fn handle_delete_iteration_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted iteration {}.", target_iteration.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted iteration {}.", target_iteration.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -299,13 +287,7 @@ async fn handle_patch_iteration_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating iteration {}...", original_target_iteration.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating iteration {}...", original_target_iteration.id);
     let updated_target_iteration = match original_target_iteration
         .update(&updated_iteration_properties, &state.database_pool)
         .await
@@ -345,16 +327,7 @@ async fn handle_patch_iteration_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated iteration {}.",
-            updated_target_iteration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated iteration {}.", updated_target_iteration.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_iteration,

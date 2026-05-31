@@ -15,7 +15,7 @@ pub mod workspace_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 use crate::{
     AppState, HTTPError,
@@ -180,21 +180,7 @@ async fn handle_list_workspaces_request(
     .ok();
 
     let queried_workspace_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_workspace_list_length,
-            if queried_workspace_list_length == 1 {
-                "workspace"
-            } else {
-                "workspaces"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_workspace_list_length, if queried_workspace_list_length == 1 { "workspace" } else { "workspaces" });
 
     let response_body = ListResourcesResponseBody::<Workspace> {
         data: queried_resources,
@@ -494,17 +480,7 @@ async fn handle_create_workspace_request(
     for action_name in allowed_actions {
         let action =
             get_action_by_name(action_name, &http_transaction, &state.database_pool).await?;
-
-        ServerLogEntry::trace(
-            &format!(
-                "Creating access policy for action {} in workspace admins role...",
-                action_name
-            ),
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("Creating access policy for action {} in workspace admins role...", action_name);
         if let Err(error) = AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 principal_type: AccessPolicyPrincipalType::Role,
@@ -542,16 +518,7 @@ async fn handle_create_workspace_request(
         }
     }
 
-    ServerLogEntry::trace(
-        &format!(
-            "Creating membership for {} {} in their workspace admins role...",
-            principal_type_str, principal_id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating membership for {} {} in their workspace admins role...", principal_type_str, principal_id);
 
     if let Err(error) = Membership::create(
         &InitialMembershipProperties {
@@ -587,13 +554,7 @@ async fn handle_create_workspace_request(
         return Err(http_error);
     }
 
-    ServerLogEntry::success(
-        &format!("Successfully created workspace {}.", workspace.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created workspace {}.", workspace.id);
 
     Ok((StatusCode::CREATED, Json(workspace)))
 }

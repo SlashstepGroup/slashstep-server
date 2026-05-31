@@ -46,7 +46,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /items/{item_id}/item-connections
 ///
@@ -188,21 +188,7 @@ async fn handle_list_item_connections_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "item connection"
-            } else {
-                "item connections"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "item connection" } else { "item connections" });
 
     let response_body = ListResourcesResponseBody::<ItemConnection> {
         data: queried_resources,
@@ -295,13 +281,7 @@ async fn handle_create_item_connection_request(
     }
 
     // Create the item connection.
-    ServerLogEntry::trace(
-        &format!("Creating item connection for item {}...", item_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating item connection for item {}...", item_id);
     let item_connection = match ItemConnection::create(
         &InitialItemConnectionProperties {
             item_connection_type_id: item_connection_properties_json.item_connection_type_id,
@@ -350,16 +330,7 @@ async fn handle_create_item_connection_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created item connection {}.",
-            item_connection.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created item connection {}.", item_connection.id);
 
     Ok((StatusCode::CREATED, Json(item_connection)))
 }

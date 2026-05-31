@@ -37,7 +37,7 @@ use rust_decimal::{Decimal, prelude::ToPrimitive};
 use serde::Deserialize;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -107,13 +107,7 @@ async fn handle_update_user_password_request(
             json_web_token_public_key: &str,
             token: &str,
         ) -> Result<TokenData<PasswordResetAuthorizationClaims>, HTTPError> {
-            ServerLogEntry::trace(
-                "Decoding and verifying password reset token...",
-                Some(http_transaction_id),
-                database_pool,
-            )
-            .await
-            .ok();
+            trace!("Decoding and verifying password reset token JWT claims...");
 
             let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
             let decoding_key = get_decoding_key(
@@ -144,13 +138,7 @@ async fn handle_update_user_password_request(
                         ))),
                     };
 
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(http_transaction_id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -499,13 +487,7 @@ async fn handle_update_user_password_request(
         }
     }
 
-    ServerLogEntry::success(
-        &format!("Successfully updated user {}'s password.", target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated user {}'s password.", target_user.id);
     Ok((StatusCode::OK, Json(updated_user)))
 }
 

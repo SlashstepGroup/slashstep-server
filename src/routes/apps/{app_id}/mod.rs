@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -117,13 +117,7 @@ async fn handle_get_app_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned authenticated_app {}.", target_app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned authenticated_app {}.", target_app.id);
 
     let response_body = GetResourceResponseBody {
         data: target_app.clone(),
@@ -211,13 +205,7 @@ async fn handle_delete_app_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted app {}.", target_app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted app {}.", target_app.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -291,13 +279,7 @@ async fn handle_patch_app_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating authenticated_app {}...", original_target_app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating authenticated_app {}...", original_target_app.id);
     let updated_target_app = match original_target_app
         .update(&updated_app_properties, &state.database_pool)
         .await
@@ -340,13 +322,7 @@ async fn handle_patch_app_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated app {}.", updated_target_app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated app {}.", updated_target_app.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_app,

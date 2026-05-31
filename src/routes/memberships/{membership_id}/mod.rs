@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -120,13 +120,7 @@ async fn handle_get_membership_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned membership {}.", target_membership.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned membership {}.", target_membership.id);
 
     let response_body = GetResourceResponseBody {
         data: target_membership.clone(),
@@ -226,13 +220,7 @@ async fn handle_delete_membership_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted membership {}.", target_membership.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted membership {}.", target_membership.id);
     Ok(StatusCode::NO_CONTENT)
 }
 

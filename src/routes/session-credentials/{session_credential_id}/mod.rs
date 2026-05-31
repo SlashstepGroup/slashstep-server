@@ -40,7 +40,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -125,13 +125,7 @@ async fn handle_get_session_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned session {}.", target_session.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned session {}.", target_session.id);
 
     let response_body = GetResourceResponseBody {
         data: target_session.clone(),
@@ -229,13 +223,7 @@ async fn handle_delete_session_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted session {}.", target_session.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted session {}.", target_session.id);
     Ok(StatusCode::NO_CONTENT)
 }
 

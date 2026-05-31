@@ -182,21 +182,7 @@ async fn handle_list_groups_request(
     .ok();
 
     let queried_group_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_group_list_length,
-            if queried_group_list_length == 1 {
-                "group"
-            } else {
-                "groups"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_group_list_length, if queried_group_list_length == 1 { "group" } else { "groups" });
 
     let response_body = ListResourcesResponseBody::<Group> {
         data: queried_resources,
@@ -211,13 +197,7 @@ async fn create_role(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Role, HTTPError> {
-    ServerLogEntry::trace(
-        &format!("Creating role \"{}\"...", initial_role_properties.name),
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating role \"{}\"...", initial_role_properties.name);
 
     match Role::create(initial_role_properties, database_pool).await {
         Ok(role) => Ok(role),
@@ -627,16 +607,7 @@ async fn handle_create_group_request(
         return Err(error);
     };
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created group {} with default child resources.",
-            group.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created group {} with default child resources.", group.id);
 
     Ok((StatusCode::CREATED, Json(group)))
 }

@@ -46,7 +46,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /action-log-entries/{action_log_entry_id}/access-policies
 ///
@@ -198,21 +198,7 @@ async fn handle_list_access_policies_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "access policy"
-            } else {
-                "access policies"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "access policy" } else { "access policies" });
 
     let response_body = ListResourcesResponseBody::<AccessPolicy> {
         data: queried_resources,
@@ -319,16 +305,7 @@ async fn handle_create_access_policy_request(
     .await?;
 
     // Create the access policy.
-    ServerLogEntry::trace(
-        &format!(
-            "Creating access policy for action log entry {}...",
-            action_log_entry_id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating access policy for action log entry {}...", action_log_entry_id);
     let access_policy = match AccessPolicy::create(
         &InitialAccessPolicyProperties {
             action_id: access_policy_properties_json.action_id,
@@ -385,13 +362,7 @@ async fn handle_create_access_policy_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created access policy {}.", access_policy.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created access policy {}.", access_policy.id);
 
     let response_body = CreateResourceResponseBody {
         data: access_policy,

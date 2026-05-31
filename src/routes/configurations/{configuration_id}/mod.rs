@@ -39,7 +39,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -124,16 +124,7 @@ async fn handle_get_configuration_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned configuration {}.",
-            target_configuration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned configuration {}.", target_configuration.id);
 
     let response_body = GetResourceResponseBody {
         data: target_configuration.clone(),
@@ -233,16 +224,7 @@ async fn handle_delete_configuration_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted configuration {}.",
-            target_configuration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted configuration {}.", target_configuration.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -333,16 +315,7 @@ async fn handle_patch_configuration_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!(
-            "Updating authenticated_configuration {}...",
-            original_target_configuration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating authenticated_configuration {}...", original_target_configuration.id);
     let updated_target_configuration = match original_target_configuration
         .update(&updated_configuration_properties, &state.database_pool)
         .await
@@ -385,16 +358,7 @@ async fn handle_patch_configuration_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated configuration {}.",
-            updated_target_configuration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated configuration {}.", updated_target_configuration.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_configuration,

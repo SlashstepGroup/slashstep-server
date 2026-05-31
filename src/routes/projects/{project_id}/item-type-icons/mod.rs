@@ -49,7 +49,7 @@ use std::{io::Cursor, sync::Arc};
 use svg_hush::data_url_filter;
 use tokio::fs::create_dir_all;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 use usvg::Tree;
 use uuid::Uuid;
 
@@ -198,21 +198,7 @@ async fn handle_list_item_type_icons_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "item type icon"
-            } else {
-                "item type icons"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "item type icon" } else { "item type icons" });
 
     let response_body = ListResourcesResponseBody::<ItemTypeIcon> {
         data: queried_resources,
@@ -300,13 +286,7 @@ async fn handle_create_item_type_icon_request(
         http_transaction: &HTTPTransaction,
         database_pool: &Pool,
     ) -> Result<(), HTTPError> {
-        ServerLogEntry::trace(
-            &format!("Validating content type {}...", content_type),
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+        trace!("Validating content type {}...", content_type);
 
         let allowed_content_types = ["image/png", "image/jpeg", "image/gif", "image/svg+xml"];
 
@@ -328,16 +308,7 @@ async fn handle_create_item_type_icon_request(
         http_transaction: &HTTPTransaction,
         database_pool: &Pool,
     ) -> Result<(), HTTPError> {
-        ServerLogEntry::trace(
-            &format!(
-                "Verifying content type {} matches file contents...",
-                content_type
-            ),
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+        trace!("Verifying content type {} matches file contents...", content_type);
 
         let kind = infer::get(contents);
         let actual_mime_type = kind.map(|kind| kind.mime_type()).unwrap_or("unknown");
@@ -362,13 +333,7 @@ async fn handle_create_item_type_icon_request(
         http_transaction: &HTTPTransaction,
         database_pool: &Pool,
     ) -> Result<Vec<u8>, HTTPError> {
-        ServerLogEntry::trace(
-            &format!("Sanitizing contents for content type {}...", content_type),
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+        trace!("Sanitizing contents for content type {}...", content_type);
 
         if content_type == "image/svg+xml" {
             let svg_string = match String::from_utf8(contents.to_vec()) {
@@ -484,13 +449,7 @@ async fn handle_create_item_type_icon_request(
         http_transaction: &HTTPTransaction,
         database_pool: &Pool,
     ) -> Result<String, HTTPError> {
-        ServerLogEntry::trace(
-            "Getting configuration to know where to store item type icons...",
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+        trace!("Getting configuration to know where to store item type icons...");
         let item_type_icon_storage_directory_path_configuration =
             match Configuration::get_by_name("itemTypeIcons.storageDirectoryPath", database_pool)
                 .await
@@ -530,13 +489,7 @@ async fn handle_create_item_type_icon_request(
         http_transaction: &HTTPTransaction,
         database_pool: &Pool,
     ) -> Result<(), HTTPError> {
-        ServerLogEntry::trace(
-            &format!("Saving item type icon file to {}...", file_path),
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+        trace!("Saving item type icon file to {}...", file_path);
 
         let mut directory_path_list = file_path.split("/").collect::<Vec<&str>>();
         directory_path_list.pop();
@@ -671,13 +624,7 @@ async fn handle_create_item_type_icon_request(
     .await?;
 
     // Create the item type icon.
-    ServerLogEntry::trace(
-        &format!("Creating item type icon for project {}...", project_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating item type icon for project {}...", project_id);
     let item_type_icon = match ItemTypeIcon::create(
         &InitialItemTypeIconProperties {
             id: Some(item_type_icon_id),
@@ -729,13 +676,7 @@ async fn handle_create_item_type_icon_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully created item type icon {}.", item_type_icon.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created item type icon {}.", item_type_icon.id);
 
     Ok((StatusCode::CREATED, Json(item_type_icon)))
 }

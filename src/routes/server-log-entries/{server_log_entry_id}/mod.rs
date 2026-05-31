@@ -12,7 +12,7 @@
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
-use tracing::{trace};
+use tracing::{trace, info};
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use crate::{
   AppState,
@@ -62,7 +62,7 @@ async fn handle_get_server_log_entry_request(
     target_server_log_entry_id: Some(target_server_log_entry.id),
     ..Default::default()
   }, &state.database_pool).await.ok();
-  ServerLogEntry::success(&format!("Successfully returned server log entry {}.", target_server_log_entry.id), Some(&http_transaction.id), &state.database_pool).await.ok();
+  info!("Successfully returned server log entry {}.", target_server_log_entry.id);
 
   let response_body = GetResourceResponseBody {
     data: target_server_log_entry.clone(),
@@ -154,7 +154,7 @@ async fn handle_get_server_log_entry_request(
 //   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
 //   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
 //   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
-  verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
+  // verify_principal_permissions(&principal_type, &principal_id, is_authenticated_user_anonymous(authenticated_user.as_ref()), &ResourceType::ActionLogEntry, Some(&action_log_entry.id), &update_access_policy_action, &http_transaction, &PermissionLevel::User, &state.database_pool).await?;
 
 //   ServerLogEntry::trace(&format!("Updating authenticated_app {}...", original_target_field.id), Some(&http_transaction.id), &state.database_pool).await.ok();
 //   let updated_target_action = match original_target_field.update(&updated_app_properties, &state.database_pool).await {

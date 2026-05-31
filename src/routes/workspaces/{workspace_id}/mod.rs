@@ -43,7 +43,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -127,13 +127,7 @@ async fn handle_get_workspace_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned workspace {}.", target_workspace.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned workspace {}.", target_workspace.id);
 
     let response_body = GetResourceResponseBody {
         data: target_workspace.clone(),
@@ -229,13 +223,7 @@ async fn handle_delete_workspace_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted workspace {}.", target_workspace.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted workspace {}.", target_workspace.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -334,13 +322,7 @@ async fn handle_patch_workspace_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating workspace {}...", original_target_workspace.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating workspace {}...", original_target_workspace.id);
     let updated_target_workspace = match original_target_workspace
         .update(
             &EditableWorkspaceProperties {
@@ -387,16 +369,7 @@ async fn handle_patch_workspace_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated workspace {}.",
-            updated_target_workspace.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated workspace {}.", updated_target_workspace.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_workspace,

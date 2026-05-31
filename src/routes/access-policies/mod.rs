@@ -350,13 +350,7 @@ async fn handle_create_access_policy_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created access policy {}.", access_policy.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created access policy {}.", access_policy.id);
 
     let response_body = CreateResourceResponseBody {
         data: access_policy.clone(),

@@ -47,7 +47,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /items/{item_id}/field-values
 ///
@@ -184,21 +184,7 @@ async fn handle_list_field_values_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "field value"
-            } else {
-                "field values"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "field value" } else { "field values" });
 
     let response_body = ListResourcesResponseBody::<FieldValue> {
         data: queried_resources,
@@ -298,13 +284,7 @@ async fn handle_create_field_value_request(
     }
 
     // Create the field value.
-    ServerLogEntry::trace(
-        &format!("Creating field value for item {}...", item_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating field value for item {}...", item_id);
     let field_value = match FieldValue::create(
         &InitialFieldValueProperties {
             field_id: field_value_properties_json.field_id,
@@ -365,13 +345,7 @@ async fn handle_create_field_value_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created field value {}.", field_value.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created field value {}.", field_value.id);
 
     Ok((StatusCode::CREATED, Json(field_value)))
 }

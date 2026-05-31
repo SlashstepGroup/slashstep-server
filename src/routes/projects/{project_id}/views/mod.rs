@@ -47,7 +47,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /projects/{project_id}/views
 ///
@@ -186,21 +186,7 @@ async fn handle_list_views_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "view"
-            } else {
-                "views"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "view" } else { "views" });
 
     let response_body = ListResourcesResponseBody::<View> {
         data: queried_resources,
@@ -300,13 +286,7 @@ async fn handle_create_view_request(
     .await?;
 
     // Create the view.
-    ServerLogEntry::trace(
-        &format!("Creating view for project {}...", project_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating view for project {}...", project_id);
     let view = match View::create(
         &InitialViewProperties {
             name: view_properties_json.name.clone(),
@@ -358,13 +338,7 @@ async fn handle_create_view_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created view {}.", view.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created view {}.", view.id);
 
     Ok((StatusCode::CREATED, Json(view)))
 }

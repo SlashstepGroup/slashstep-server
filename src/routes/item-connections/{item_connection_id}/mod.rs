@@ -40,7 +40,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -126,16 +126,7 @@ async fn handle_get_item_connection_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned item connection {}.",
-            target_item_connection.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned item connection {}.", target_item_connection.id);
 
     let response_body = GetResourceResponseBody {
         data: target_item_connection.clone(),
@@ -236,16 +227,7 @@ async fn handle_delete_item_connection_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted item connection {}.",
-            target_item_connection.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted item connection {}.", target_item_connection.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -309,16 +291,7 @@ async fn handle_patch_item_connection_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!(
-            "Updating item connection {}...",
-            original_target_item_connection.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating item connection {}...", original_target_item_connection.id);
     let updated_target_item_connection = match original_target_item_connection
         .update(&updated_item_connection_properties, &state.database_pool)
         .await
@@ -358,16 +331,7 @@ async fn handle_patch_item_connection_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated item connection {}.",
-            updated_target_item_connection.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated item connection {}.", updated_target_item_connection.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_item_connection,

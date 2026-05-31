@@ -45,7 +45,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CreateProjectRequestBody {
@@ -198,21 +198,7 @@ async fn handle_list_projects_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "project"
-            } else {
-                "projects"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "project" } else { "projects" });
 
     let response_body = ListResourcesResponseBody::<Project> {
         data: queried_resources,
@@ -312,13 +298,7 @@ async fn handle_create_project_request(
     .await?;
 
     // Create the project.
-    ServerLogEntry::trace(
-        &format!("Creating project for workspace {}...", workspace_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating project for workspace {}...", workspace_id);
     let project = match Project::create(
         &InitialProjectProperties {
             name: project_properties_json.name.clone(),
@@ -371,13 +351,7 @@ async fn handle_create_project_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created project {}.", project.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created project {}.", project.id);
 
     Ok((StatusCode::CREATED, Json(project)))
 }

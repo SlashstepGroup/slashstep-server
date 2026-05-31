@@ -46,7 +46,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /projects/{project_id}/iterations
 ///
@@ -189,21 +189,7 @@ async fn handle_list_iterations_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "iteration"
-            } else {
-                "iterations"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "iteration" } else { "iterations" });
 
     let response_body = ListResourcesResponseBody::<Iteration> {
         data: queried_resources,
@@ -278,13 +264,7 @@ async fn handle_create_iteration_request(
     .await?;
 
     // Create the iteration.
-    ServerLogEntry::trace(
-        &format!("Creating iteration for project {}...", project_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating iteration for project {}...", project_id);
     let iteration = match Iteration::create(
         &InitialIterationProperties {
             display_name: iteration_properties_json.display_name.clone(),
@@ -336,13 +316,7 @@ async fn handle_create_iteration_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created iteration {}.", iteration.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created iteration {}.", iteration.id);
 
     Ok((StatusCode::CREATED, Json(iteration)))
 }

@@ -46,7 +46,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 use uuid::Uuid;
 
 pub async fn create_regex(
@@ -276,16 +276,7 @@ async fn handle_create_oauth_authorization_request(
     .await?;
 
     // Create the action.
-    ServerLogEntry::trace(
-        &format!(
-            "Creating OAuth authorization for user {}...",
-            target_user.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating OAuth authorization for user {}...", target_user.id);
     let created_oauth_authorization = match OAuthAuthorization::create(
         &InitialOAuthAuthorizationProperties {
             app_id: target_app.id,
@@ -387,16 +378,7 @@ async fn handle_create_oauth_authorization_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created OAuth authorization {}.",
-            created_oauth_authorization.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created OAuth authorization {}.", created_oauth_authorization.id);
 
     let response_body = CreateOAuthAuthorizationResponseBody {
         oauth_authorization: created_oauth_authorization,

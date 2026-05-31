@@ -15,7 +15,7 @@ pub mod session_credential_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 use crate::{
     AppState, HTTPError,
@@ -123,13 +123,7 @@ async fn handle_create_session_credential_request(
                     let http_error = HTTPError::BadRequest(Some(
                         "The username field is required when using login credentials.".to_string(),
                     ));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 };
 
@@ -145,13 +139,7 @@ async fn handle_create_session_credential_request(
                         "The refresh_token field is required when using a refresh token."
                             .to_string(),
                     ));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 };
 
@@ -380,13 +368,7 @@ async fn handle_create_session_credential_request(
     .await?;
 
     // Create the authenticated session.
-    ServerLogEntry::trace(
-        &format!("Creating session for user {}...", target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating session for user {}...", target_user.id);
 
     let maximum_session_lifetime_milliseconds = match get_configuration_by_name(
         "sessions.maximumLifetimeMilliseconds",
@@ -592,13 +574,7 @@ async fn handle_create_session_credential_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created session {}.", created_session.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created session {}.", created_session.id);
 
     let response_body = CreateResourceResponseBody {
         data: created_session_credential.clone(),
@@ -735,21 +711,7 @@ async fn handle_list_session_credentials_request(
     .ok();
 
     let queried_session_credential_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_session_credential_list_length,
-            if queried_session_credential_list_length == 1 {
-                "session"
-            } else {
-                "sessions"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_session_credential_list_length, if queried_session_credential_list_length == 1 { "session" } else { "sessions" });
 
     let response_body = ListResourcesResponseBody::<Session> {
         data: queried_resources,

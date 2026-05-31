@@ -41,7 +41,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -130,16 +130,7 @@ async fn handle_get_item_connection_type_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned item connection type {}.",
-            target_item_connection_type.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned item connection type {}.", target_item_connection_type.id);
 
     let response_body = GetResourceResponseBody {
         data: target_item_connection_type.clone(),
@@ -246,16 +237,7 @@ async fn handle_delete_item_connection_type_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted item connection type {}.",
-            target_item_connection_type.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted item connection type {}.", target_item_connection_type.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -357,16 +339,7 @@ async fn handle_patch_item_connection_type_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!(
-            "Updating item connection type {}...",
-            original_target_item_connection_type.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating item connection type {}...", original_target_item_connection_type.id);
     let updated_target_item_connection_type = match original_target_item_connection_type
         .update(
             &updated_item_connection_type_properties,
@@ -409,16 +382,7 @@ async fn handle_patch_item_connection_type_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated item connection type {}.",
-            updated_target_item_connection_type.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated item connection type {}.", updated_target_item_connection_type.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_item_connection_type,

@@ -40,7 +40,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -116,13 +116,7 @@ async fn handle_get_role_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned role {}.", target_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned role {}.", target_role.id);
 
     let response_body = GetResourceResponseBody {
         data: target_role.clone(),
@@ -216,13 +210,7 @@ async fn handle_delete_role_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted role {}.", target_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted role {}.", target_role.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -301,13 +289,7 @@ async fn handle_patch_role_request(
         return Err(http_error);
     }
 
-    ServerLogEntry::trace(
-        &format!("Updating role {}...", original_target_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating role {}...", original_target_role.id);
     let updated_target_role = match original_target_role
         .update(
             &EditableRoleProperties {
@@ -354,13 +336,7 @@ async fn handle_patch_role_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated role {}.", updated_target_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated role {}.", updated_target_role.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_role,

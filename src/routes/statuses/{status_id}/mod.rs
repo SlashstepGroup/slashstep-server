@@ -41,7 +41,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -122,13 +122,7 @@ async fn handle_get_status_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned status {}.", target_status.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned status {}.", target_status.id);
 
     let response_body = GetResourceResponseBody {
         data: target_status.clone(),
@@ -222,13 +216,7 @@ async fn handle_delete_status_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted status {}.", target_status.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted status {}.", target_status.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -327,13 +315,7 @@ async fn handle_patch_status_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating status {}...", original_target_status.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating status {}...", original_target_status.id);
     let updated_target_status = match original_target_status
         .update(&updated_status_properties, &state.database_pool)
         .await
@@ -373,13 +355,7 @@ async fn handle_patch_status_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated status {}.", updated_target_status.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated status {}.", updated_target_status.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_status,

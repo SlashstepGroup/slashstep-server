@@ -42,7 +42,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -123,13 +123,7 @@ async fn handle_get_action_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned action {}.", target_action.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned action {}.", target_action.id);
 
     let response_body = GetResourceResponseBody {
         data: target_action.clone(),
@@ -228,13 +222,7 @@ async fn handle_patch_action_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating action {}...", action_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating action {}...", action_id);
     let updated_target_action = match original_target_action
         .update(&updated_action_properties, &state.database_pool)
         .await
@@ -277,13 +265,7 @@ async fn handle_patch_action_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated action {}.", action_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated action {}.", action_id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_action,
@@ -377,13 +359,7 @@ async fn handle_delete_action_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted action {}.", target_action.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted action {}.", target_action.id);
     Ok(StatusCode::NO_CONTENT)
 }
 

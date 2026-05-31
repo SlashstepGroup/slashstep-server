@@ -56,7 +56,7 @@ use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /workspaces/{workspace_id}/apps
 ///
@@ -195,21 +195,7 @@ async fn handle_list_apps_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "app"
-            } else {
-                "apps"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "app" } else { "apps" });
 
     let response_body = ListResourcesResponseBody::<App> {
         data: queried_resources,
@@ -455,16 +441,7 @@ async fn handle_create_app_request(
         let action =
             get_action_by_name(action_name, &http_transaction, &state.database_pool).await?;
 
-        ServerLogEntry::trace(
-            &format!(
-                "Creating access policy for action {} in workspace admins role...",
-                action_name
-            ),
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("Creating access policy for action {} in workspace admins role...", action_name);
         if let Err(error) = AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 principal_type: AccessPolicyPrincipalType::Role,
@@ -502,13 +479,7 @@ async fn handle_create_app_request(
         }
     }
 
-    ServerLogEntry::success(
-        &format!("Successfully created app {}.", app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created app {}.", app.id);
 
     Ok((
         StatusCode::CREATED,

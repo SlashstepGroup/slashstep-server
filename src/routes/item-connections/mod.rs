@@ -15,7 +15,7 @@ pub mod item_connection_id;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 use crate::{
     AppState, HTTPError,
@@ -174,21 +174,7 @@ async fn handle_list_item_connections_request(
     .ok();
 
     let queried_item_connection_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_item_connection_list_length,
-            if queried_item_connection_list_length == 1 {
-                "item connection"
-            } else {
-                "item connections"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_item_connection_list_length, if queried_item_connection_list_length == 1 { "item connection" } else { "item connections" });
 
     let response_body = ListResourcesResponseBody::<ItemConnection> {
         data: queried_resources,

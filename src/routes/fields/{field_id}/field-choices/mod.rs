@@ -49,7 +49,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -217,21 +217,7 @@ pub async fn handle_list_field_choices_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "field choice"
-            } else {
-                "field choices"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "field choice" } else { "field choices" });
 
     let response_body = ListResourcesResponseBody::<FieldChoice> {
         data: queried_resources,
@@ -315,13 +301,7 @@ async fn handle_create_field_choice_request(
     .await?;
 
     // Create the authenticated field choice.
-    ServerLogEntry::trace(
-        &format!("Creating field choice for field {}...", target_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating field choice for field {}...", target_field.id);
 
     let created_field_choice = match FieldChoice::create(
         &InitialFieldChoiceProperties {
@@ -378,16 +358,7 @@ async fn handle_create_field_choice_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created field choice {}.",
-            created_field_choice.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created field choice {}.", created_field_choice.id);
 
     Ok((StatusCode::CREATED, Json(created_field_choice)))
 }

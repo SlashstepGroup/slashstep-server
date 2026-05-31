@@ -45,7 +45,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /groups/{group_id}/roles
 ///
@@ -178,21 +178,7 @@ pub async fn handle_list_roles_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "role"
-            } else {
-                "roles"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "role" } else { "roles" });
 
     let response_body = ListResourcesResponseBody::<Role> {
         data: queried_resources,
@@ -251,13 +237,7 @@ async fn handle_create_role_request(
     .await?;
 
     // Create the role.
-    ServerLogEntry::trace(
-        &format!("Creating role on group {}...", target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating role on group {}...", target_group.id);
 
     let created_role = match Role::create(
         &InitialRoleProperties {
@@ -312,13 +292,7 @@ async fn handle_create_role_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created role {}.", created_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created role {}.", created_role.id);
 
     Ok((StatusCode::CREATED, Json(created_role)))
 }

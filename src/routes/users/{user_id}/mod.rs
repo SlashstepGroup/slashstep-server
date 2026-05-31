@@ -41,7 +41,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -120,13 +120,7 @@ async fn handle_get_user_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned user {}.", target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned user {}.", target_user.id);
 
     let response_body = GetResourceResponseBody {
         data: target_user.clone(),
@@ -214,13 +208,7 @@ async fn handle_delete_user_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted user {}.", target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted user {}.", target_user.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -303,13 +291,7 @@ async fn handle_patch_user_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating user {}...", original_target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating user {}...", original_target_user.id);
     let updated_target_user = match original_target_user
         .update(
             &EditableUserProperties {
@@ -378,13 +360,7 @@ async fn handle_patch_user_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated user {}.", updated_target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated user {}.", updated_target_user.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_user,

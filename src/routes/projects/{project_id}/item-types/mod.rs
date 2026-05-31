@@ -46,7 +46,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 /// GET /projects/{project_id}/item-types
 ///
@@ -189,21 +189,7 @@ async fn handle_list_item_types_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "item type"
-            } else {
-                "item types"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "item type" } else { "item types" });
 
     let response_body = ListResourcesResponseBody::<ItemType> {
         data: queried_resources,
@@ -296,13 +282,7 @@ async fn handle_create_item_type_request(
     .await?;
 
     // Create the item type.
-    ServerLogEntry::trace(
-        &format!("Creating item type for project {}...", project_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating item type for project {}...", project_id);
     let item_type = match ItemType::create(
         &InitialItemTypeProperties {
             name: item_type_properties_json.name.clone(),
@@ -353,13 +333,7 @@ async fn handle_create_item_type_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created item type {}.", item_type.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created item type {}.", item_type.id);
 
     Ok((StatusCode::CREATED, Json(item_type)))
 }

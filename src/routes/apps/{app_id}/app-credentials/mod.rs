@@ -52,7 +52,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use tower_http::trace::TraceLayer;
 use std::{net::IpAddr, sync::Arc};
-use tracing::trace;
+use tracing::{trace, info};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -205,21 +205,7 @@ pub async fn handle_list_app_credentials_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "app credential"
-            } else {
-                "app credentials"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "app credential" } else { "app credentials" });
 
     let response_body = ListResourcesResponseBody::<AppCredential> {
         data: queried_resources,
@@ -314,13 +300,7 @@ async fn handle_create_app_credential_request(
     };
 
     // Create the authenticated app credential.
-    ServerLogEntry::trace(
-        &format!("Creating app credential for app {}...", target_app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating app credential for app {}...", target_app.id);
 
     let created_app_credential = match AppCredential::create(
         &InitialAppCredentialProperties {
@@ -381,16 +361,7 @@ async fn handle_create_app_credential_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created authenticated_app credential {}.",
-            created_app_credential.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created authenticated_app credential {}.", created_app_credential.id);
 
     Ok((
         StatusCode::CREATED,

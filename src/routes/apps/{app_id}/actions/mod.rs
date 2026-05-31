@@ -44,7 +44,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::trace;
+use tracing::{trace, info};
 
 #[axum::debug_handler]
 async fn handle_list_actions_request(
@@ -176,21 +176,7 @@ async fn handle_list_actions_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "action"
-            } else {
-                "actions"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_resource_list_length, if queried_resource_list_length == 1 { "action" } else { "actions" });
 
     let response_body = ListResourcesResponseBody::<Action> {
         data: queried_resources,
@@ -248,13 +234,7 @@ async fn handle_create_action_request(
     .await?;
 
     // Create the action.
-    ServerLogEntry::trace(
-        &format!("Creating action for authenticated_app {}...", target_app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating action for authenticated_app {}...", target_app.id);
     let created_action = match Action::create(
         &InitialActionProperties {
             name: action_properties_json.name.clone(),
@@ -302,13 +282,7 @@ async fn handle_create_action_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created action {}.", created_action.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created action {}.", created_action.id);
 
     Ok((StatusCode::CREATED, Json(created_action)))
 }
