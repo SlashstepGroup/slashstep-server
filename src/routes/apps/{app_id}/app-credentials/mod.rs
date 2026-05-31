@@ -30,10 +30,11 @@ use crate::{
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
     utilities::route_handler_utilities::{
-        get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id,
-        get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,
-        get_uuid_from_string, is_authenticated_user_anonymous, match_db_error,
-        match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions,
+        create_trace_layer_span, get_action_by_name, get_action_log_entry_expiration_timestamp,
+        get_app_by_id, get_principal_type_and_id_from_principal,
+        get_request_body_without_json_rejection, get_uuid_from_string,
+        is_authenticated_user_anonymous, match_db_error, match_slashstepql_error,
+        verify_delegate_permissions, verify_principal_permissions,
     },
 };
 use axum::{
@@ -49,9 +50,10 @@ use ed25519_dalek::{
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use tower_http::trace::TraceLayer;
 use std::{net::IpAddr, sync::Arc};
+use tracing::trace;
 use uuid::Uuid;
-use tracing::{trace};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateAppCredentialResponseBody {

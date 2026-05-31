@@ -46,11 +46,14 @@ use pg_escape::quote_literal;
 use postgres::error::SqlState;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use std::{pin::Pin, sync::Arc};
-use tracing::{info_span, trace, error};
+use tracing::{error, info_span, trace};
 use uuid::Uuid;
 
 pub fn create_trace_layer_span(_request: &axum::http::Request<axum::body::Body>) -> tracing::Span {
-    info_span!("http_transaction", http_transaction_id = tracing::field::Empty)
+    info_span!(
+        "http_transaction",
+        http_transaction_id = tracing::field::Empty
+    )
 }
 
 pub async fn get_action_log_entry_expiration_timestamp(

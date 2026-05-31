@@ -12,7 +12,9 @@
 #[path = "./{group_id}/mod.rs"]
 pub mod group_id;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
 use tracing::{info, trace};
 
 use crate::{
@@ -601,7 +603,6 @@ async fn handle_create_group_request(
     .await
     .ok();
     info!("Successfully created group {}.", group.id);
-
 
     if let Err(error) = create_default_child_resources(
         &group,

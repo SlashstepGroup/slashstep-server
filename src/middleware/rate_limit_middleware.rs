@@ -21,7 +21,7 @@ use crate::{
     },
 };
 
-use tracing::{info};
+use tracing::info;
 
 enum Interval {
     PerSecond,

@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -38,7 +39,8 @@ use axum::{
 };
 use reqwest::StatusCode;
 use std::sync::Arc;
-use tracing::{trace};
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;

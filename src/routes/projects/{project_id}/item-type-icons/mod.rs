@@ -30,7 +30,7 @@ use crate::{
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
     utilities::route_handler_utilities::{
-        get_action_by_name, get_action_log_entry_expiration_timestamp,
+        create_trace_layer_span, get_action_by_name, get_action_log_entry_expiration_timestamp,
         get_principal_type_and_id_from_principal, get_project_by_id, get_uuid_from_string,
         is_authenticated_user_anonymous, match_db_error, match_slashstepql_error,
         validate_field_length, verify_delegate_permissions, verify_principal_permissions,
@@ -48,9 +48,10 @@ use reqwest::StatusCode;
 use std::{io::Cursor, sync::Arc};
 use svg_hush::data_url_filter;
 use tokio::fs::create_dir_all;
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 use usvg::Tree;
 use uuid::Uuid;
-use tracing::{trace};
 
 /// GET /projects/{project_id}/item-type-icons
 ///

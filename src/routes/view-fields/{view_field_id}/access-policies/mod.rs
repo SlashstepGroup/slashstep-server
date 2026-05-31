@@ -41,8 +41,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
-use tracing::{trace};
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 
 /// GET /view-fields/{view_field_id}/access-policies
 ///

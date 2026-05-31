@@ -1,3 +1,4 @@
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{
@@ -35,7 +36,8 @@ use reqwest::StatusCode;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use serde::Deserialize;
 use std::sync::Arc;
-use tracing::{trace};
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]

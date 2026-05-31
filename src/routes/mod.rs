@@ -55,9 +55,11 @@ use crate::{
     AppState, HTTPError,
     middleware::http_transaction_middleware,
     resources::app::{AppClientType, AppParentResourceType},
+    utilities::route_handler_utilities::create_trace_layer_span,
 };
 use axum::{Router, response::IntoResponse};
 use serde::{Deserialize, Serialize};
+use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]

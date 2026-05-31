@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -42,7 +43,8 @@ use axum::{
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
-use tracing::{trace};
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 
 /// GET /actions/{action_id}/access-policies
 ///

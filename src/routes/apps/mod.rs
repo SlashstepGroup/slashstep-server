@@ -12,6 +12,7 @@
 #[path = "./{app_id}/mod.rs"]
 pub mod app_id;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -50,7 +51,8 @@ use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::{trace};
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Default)]

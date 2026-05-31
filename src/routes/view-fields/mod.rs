@@ -12,8 +12,10 @@
 #[path = "./{view_field_id}/mod.rs"]
 pub mod view_field_id;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
-use tracing::{trace};
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 
 use crate::{
     AppState, HTTPError,

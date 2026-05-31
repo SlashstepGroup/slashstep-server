@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -44,7 +45,8 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::{trace};
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 use uuid::Uuid;
 
 pub async fn create_regex(

@@ -1072,7 +1072,11 @@ pub async fn initialize_predefined_actions(
         actions.push(action);
     }
 
-    debug!("Successfully initialized {} predefined actions. {} actions were skipped because they already existed.", actions.len(), skipped_action_count);
+    debug!(
+        "Successfully initialized {} predefined actions. {} actions were skipped because they already existed.",
+        actions.len(),
+        skipped_action_count
+    );
 
     Ok(())
 }
@@ -1194,7 +1198,11 @@ pub async fn initialize_predefined_groups(
         }
     }
 
-    debug!("Successfully initialized {} predefined groups. {} groups were skipped because they already existed.", groups.len(), skipped_group_count);
+    debug!(
+        "Successfully initialized {} predefined groups. {} groups were skipped because they already existed.",
+        groups.len(),
+        skipped_group_count
+    );
 
     Ok(())
 }
@@ -1452,7 +1460,11 @@ pub async fn initialize_predefined_roles(
         }
     }
 
-    debug!("Successfully initialized {} predefined roles. {} roles were skipped because they already existed.", roles.len(), skipped_role_count);
+    debug!(
+        "Successfully initialized {} predefined roles. {} roles were skipped because they already existed.",
+        roles.len(),
+        skipped_role_count
+    );
 
     Ok(())
 }
@@ -2069,7 +2081,11 @@ pub async fn initialize_predefined_configurations(
         configurations.push(configuration);
     }
 
-    debug!("Successfully initialized {} predefined configurations. {} configurations were skipped because they already existed.", configurations.len(), skipped_configuration_count);
+    debug!(
+        "Successfully initialized {} predefined configurations. {} configurations were skipped because they already existed.",
+        configurations.len(),
+        skipped_configuration_count
+    );
 
     Ok(())
 }

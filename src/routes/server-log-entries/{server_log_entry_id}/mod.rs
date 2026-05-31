@@ -10,6 +10,8 @@
  */
 
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use tracing::{trace};
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use crate::{

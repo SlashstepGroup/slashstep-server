@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware::get_decoding_key, http_transaction_middleware},
@@ -52,7 +53,8 @@ use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
-use tracing::{trace};
+use tower_http::trace::TraceLayer;
+use tracing::trace;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

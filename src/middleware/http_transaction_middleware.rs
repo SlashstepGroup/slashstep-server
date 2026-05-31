@@ -4,7 +4,7 @@ use crate::{
         ResourceError,
         http_transaction::{
             EditableHTTPTransactionProperties, HTTPTransaction, InitialHTTPTransactionProperties,
-        }
+        },
     },
     utilities::route_handler_utilities::get_configuration_by_name,
 };
@@ -16,8 +16,8 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use rust_decimal::prelude::ToPrimitive;
-use tracing::{Span, debug, error};
 use std::{net::SocketAddr, sync::Arc};
+use tracing::{Span, debug, error};
 
 pub async fn create_http_transaction(
     ConnectInfo(address): ConnectInfo<SocketAddr>,
@@ -54,13 +54,15 @@ pub async fn create_http_transaction(
             let http_error = match &error {
                 ResourceError::PostgresError(postgres_error) => {
                     match postgres_error.as_db_error() {
-                        Some(db_error) => {
-                            HTTPError::InternalServerError(Some(format!("Failed to create HTTP transaction: {:?}", db_error)))
-                        }
+                        Some(db_error) => HTTPError::InternalServerError(Some(format!(
+                            "Failed to create HTTP transaction: {:?}",
+                            db_error
+                        ))),
 
-                        None => {
-                            HTTPError::InternalServerError(Some(format!("Failed to create HTTP transaction: {:?}", postgres_error)))
-                        }
+                        None => HTTPError::InternalServerError(Some(format!(
+                            "Failed to create HTTP transaction: {:?}",
+                            postgres_error
+                        ))),
                     }
                 }
 

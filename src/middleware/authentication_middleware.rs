@@ -26,8 +26,8 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use reqwest::header;
-use tracing::{trace, debug, info, warn, error};
 use std::sync::Arc;
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
 async fn get_jwt_public_key(
@@ -272,7 +272,10 @@ pub async fn authenticate_user(
                 return Err(http_error);
             }
         };
-        trace!("Checking if user {} is in the anonymous users group...", anonymous_user.id);
+        trace!(
+            "Checking if user {} is in the anonymous users group...",
+            anonymous_user.id
+        );
         let memberships = match Membership::list(
             &format!(
                 "parent_group_id = '{}' and principal_type = 'User' and principal_user_id = '{}'",

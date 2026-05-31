@@ -21,10 +21,10 @@ use crate::{
         http_transactions::http_transaction_id,
     },
     utilities::route_handler_utilities::{
-        create_trace_layer_span, get_action_by_id, get_action_by_name,
-        get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal,
-        get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error,
-        match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions,
+        get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp,
+        get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,
+        is_authenticated_user_anonymous, match_db_error, match_slashstepql_error,
+        verify_delegate_permissions, verify_principal_permissions,
     },
 };
 use axum::{
@@ -33,7 +33,6 @@ use axum::{
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use tower_http::trace::TraceLayer;
 use tracing::{info, info_span, trace, warn};
 /*
  *
@@ -45,7 +44,9 @@ use tracing::{info, info_span, trace, warn};
  * © 2025 – 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
 #[path = "./{access_policy_id}/mod.rs"]
