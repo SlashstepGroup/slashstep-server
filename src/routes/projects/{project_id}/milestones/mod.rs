@@ -26,7 +26,6 @@ use crate::{
             DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialMilestoneProperties,
             InitialMilestonePropertiesWithPredefinedParent, Milestone, MilestoneParentResourceType,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

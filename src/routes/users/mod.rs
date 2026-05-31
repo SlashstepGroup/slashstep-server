@@ -37,7 +37,6 @@ use crate::{
             MembershipPrincipalType,
         },
         role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType},
-        server_log_entry::ServerLogEntry,
         user::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialUserProperties, User},
     },
     routes::{CreateResourceResponseBody, ListResourcesResponseBody, ResourceListQueryParameters},

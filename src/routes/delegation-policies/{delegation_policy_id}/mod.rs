@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         delegation_policy::{DelegationPolicy, EditableDelegationPolicyProperties},
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},

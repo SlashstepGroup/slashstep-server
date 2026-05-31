@@ -36,7 +36,6 @@ use crate::{
             MembershipPrincipalType,
         },
         role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType},
-        server_log_entry::ServerLogEntry,
         user::User,
         workspace::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialWorkspaceProperties, Workspace},
     },

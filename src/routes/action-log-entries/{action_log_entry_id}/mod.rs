@@ -22,7 +22,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::GetResourceResponseBody,
@@ -39,7 +38,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;

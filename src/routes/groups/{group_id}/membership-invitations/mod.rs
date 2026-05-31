@@ -28,7 +28,6 @@ use crate::{
             InitialMembershipInvitationPropertiesWithPredefinedParentAndInviter,
             MembershipInvitation,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

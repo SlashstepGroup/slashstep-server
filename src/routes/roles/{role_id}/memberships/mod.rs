@@ -26,7 +26,6 @@ use crate::{
             InitialMembershipProperties, InitialMembershipPropertiesWithPredefinedParent,
             Membership, MembershipParentResourceType,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

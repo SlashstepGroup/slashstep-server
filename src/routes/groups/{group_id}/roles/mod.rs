@@ -26,7 +26,6 @@ use crate::{
             InitialRoleProperties, InitialRolePropertiesWithPredefinedParent, Role,
             RoleParentResourceType,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

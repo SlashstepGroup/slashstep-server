@@ -32,7 +32,6 @@ use crate::{
         oauth_authorization::{
             EditableOAuthAuthorizationProperties, OAuthAuthorization, OAuthAuthorizationClaims,
         },
-        server_log_entry::ServerLogEntry,
     },
     utilities::route_handler_utilities::{
         get_action_by_name, get_action_log_entry_expiration_timestamp,

@@ -29,7 +29,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
         view_field::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, ViewField},
     },

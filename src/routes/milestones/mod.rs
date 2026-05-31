@@ -30,7 +30,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         milestone::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Milestone},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

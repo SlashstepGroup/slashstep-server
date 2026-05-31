@@ -25,7 +25,6 @@ use crate::{
         item_type_icon::{
             InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

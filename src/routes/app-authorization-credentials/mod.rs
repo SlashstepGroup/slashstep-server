@@ -32,7 +32,6 @@ use crate::{
             AppAuthorizationCredential, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT,
         },
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

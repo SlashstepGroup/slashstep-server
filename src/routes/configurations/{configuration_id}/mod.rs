@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         configuration::{Configuration, EditableConfigurationProperties},
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},

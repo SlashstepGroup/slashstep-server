@@ -26,7 +26,6 @@ use crate::{
             InitialOAuthAuthorizationProperties,
             InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     utilities::route_handler_utilities::{

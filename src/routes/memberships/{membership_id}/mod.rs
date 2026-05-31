@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         membership::Membership,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::GetResourceResponseBody,
@@ -39,7 +38,7 @@ use reqwest::StatusCode;
 use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;

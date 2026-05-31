@@ -14,7 +14,7 @@ use crate::{
     AppState, HTTPError,
     resources::{
         access_policy::AccessPolicyPrincipalType, app::App, app_authorization::AppAuthorization,
-        http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User,
+        http_transaction::HTTPTransaction, user::User,
     },
     utilities::route_handler_utilities::{
         get_configuration_by_name, get_principal_type_and_id_from_principal,

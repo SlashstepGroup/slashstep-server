@@ -15,7 +15,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         password_reset_authorization::PasswordResetAuthorizationClaims,
-        server_log_entry::ServerLogEntry,
         session::Session,
         user::{EditableUserProperties, User},
     },

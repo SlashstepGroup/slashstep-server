@@ -22,7 +22,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         status::{
             DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialStatusProperties,
             InitialStatusPropertiesWithPredefinedParent, Status,

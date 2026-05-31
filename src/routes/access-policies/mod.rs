@@ -13,12 +13,10 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{
-        CreateResourceResponseBody, ListResourcesResponseBody, ResourceListQueryParameters,
-        http_transactions::http_transaction_id,
+        CreateResourceResponseBody, ListResourcesResponseBody, ResourceListQueryParameters
     },
     utilities::route_handler_utilities::{
         get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp,
@@ -33,7 +31,7 @@ use axum::{
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use tracing::{info, info_span, trace, warn};
+use tracing::{info, trace};
 /*
  *
  * Any functionality for /access-policies should be handled here.

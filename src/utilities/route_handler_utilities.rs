@@ -39,7 +39,7 @@ use crate::{
     },
     utilities::slashstepql::SlashstepQLError,
 };
-use axum::{Json, extract::rejection::JsonRejection, http::request};
+use axum::{Json, extract::rejection::JsonRejection};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
 use pg_escape::quote_literal;

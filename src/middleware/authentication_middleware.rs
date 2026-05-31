@@ -30,10 +30,7 @@ use std::sync::Arc;
 use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
-async fn get_jwt_public_key(
-    http_transaction_id: &Uuid,
-    database_pool: &deadpool_postgres::Pool,
-) -> Result<String, HTTPError> {
+async fn get_jwt_public_key() -> Result<String, HTTPError> {
     let jwt_public_key = match get_json_web_token_public_key().await {
         Ok(jwt_public_key) => jwt_public_key,
 
@@ -331,7 +328,7 @@ pub async fn authenticate_user(
     // Make sure the user token is valid.
     trace!("Decoding session token...");
 
-    let jwt_public_key = get_jwt_public_key(&http_transaction.id, &state.database_pool).await?;
+    let jwt_public_key = get_jwt_public_key().await?;
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
     let decoding_key =
         get_decoding_key(&http_transaction.id, &state.database_pool, &jwt_public_key).await?;
@@ -451,7 +448,7 @@ pub async fn authenticate_app(
     // Make sure the user token is valid.
     trace!("Decoding app token...");
 
-    let jwt_public_key = get_jwt_public_key(&http_transaction.id, &state.database_pool).await?;
+    let jwt_public_key = get_jwt_public_key().await?;
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
     let decoding_key =
         get_decoding_key(&http_transaction.id, &state.database_pool, &jwt_public_key).await?;

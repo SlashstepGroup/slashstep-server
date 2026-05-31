@@ -26,7 +26,6 @@ use crate::{
             InitialFieldValueProperties, InitialFieldValuePropertiesWithPredefinedParent,
         },
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

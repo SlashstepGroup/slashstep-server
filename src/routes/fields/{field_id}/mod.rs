@@ -28,7 +28,6 @@ use crate::{
         app_authorization::AppAuthorization,
         field::{EditableFieldProperties, Field},
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},

@@ -27,7 +27,6 @@ use crate::{
             InitialItemConnectionTypePropertiesWithPredefinedParent, ItemConnectionType,
             ItemConnectionTypeParentResourceType,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

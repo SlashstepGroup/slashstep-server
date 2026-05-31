@@ -40,7 +40,6 @@ use crate::{
             MembershipPrincipalType,
         },
         role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

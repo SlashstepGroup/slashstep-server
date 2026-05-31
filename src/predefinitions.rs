@@ -10,7 +10,6 @@ use crate::resources::{
     group::{Group, GroupParentResourceType, InitialGroupProperties, PredefinedGroupType},
     role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType},
 };
-use colored::Colorize;
 use rust_decimal::Decimal;
 use tracing::{debug, trace, warn};
 

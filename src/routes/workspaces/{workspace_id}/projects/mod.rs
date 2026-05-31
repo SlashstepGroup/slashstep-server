@@ -23,7 +23,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         project::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialProjectProperties, Project},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

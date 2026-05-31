@@ -28,7 +28,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{

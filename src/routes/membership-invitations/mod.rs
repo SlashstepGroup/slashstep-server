@@ -26,7 +26,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         membership_invitation::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, MembershipInvitation},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},

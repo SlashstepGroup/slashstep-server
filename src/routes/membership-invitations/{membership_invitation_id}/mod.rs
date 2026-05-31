@@ -26,7 +26,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         membership_invitation::MembershipInvitation,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::GetResourceResponseBody,
@@ -44,7 +43,7 @@ use axum::{
 use reqwest::StatusCode;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use tracing::{trace, info};
+use tracing::{info};
 
 /// GET /membership-invitations/{membership_invitation_id}
 ///

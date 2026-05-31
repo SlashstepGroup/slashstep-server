@@ -29,7 +29,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialSessionProperties, Session},
         session_credential::{InitialSessionCredentialProperties, SessionCredential},
         user::User,
