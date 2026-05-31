@@ -596,7 +596,10 @@ async fn verify_successful_creation_for_public_client_with_refresh_token()
         .create_random_app_authorization(None)
         .await?;
     let dummy_app_authorization_credential = test_environment
-        .create_random_app_authorization_credential(Some(&dummy_app_authorization.id))
+        .create_random_app_authorization_credential(
+            Some(&dummy_app_authorization.app_id),
+            Some(&dummy_app_authorization.id),
+        )
         .await?;
     let refresh_token = dummy_app_authorization_credential
         .generate_refresh_token(json_web_token_private_key.as_ref())?;
@@ -662,7 +665,10 @@ async fn verify_successful_creation_for_confidential_client_with_refresh_token()
     .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
     let dummy_app_authorization_credential = test_environment
-        .create_random_app_authorization_credential(Some(&dummy_app_authorization.id))
+        .create_random_app_authorization_credential(
+            Some(&dummy_app_authorization.app_id),
+            Some(&dummy_app_authorization.id),
+        )
         .await?;
     let refresh_token = dummy_app_authorization_credential
         .generate_refresh_token(json_web_token_private_key.as_ref())?;
@@ -707,14 +713,19 @@ async fn verify_active_refresh_token_for_public_client() -> Result<(), TestSlash
         .create_random_app_authorization(None)
         .await?;
     let dummy_app_authorization_credential = test_environment
-        .create_random_app_authorization_credential(Some(&dummy_app_authorization.id))
+        .create_random_app_authorization_credential(
+            Some(&dummy_app_authorization.app_id),
+            Some(&dummy_app_authorization.id),
+        )
         .await?;
     let header = Header::new(jsonwebtoken::Algorithm::EdDSA);
     let claims = AppAuthorizationCredentialClaims {
+        app_authorization_id: dummy_app_authorization.id.to_string(),
         jti: dummy_app_authorization_credential.id.to_string(),
         // jsonwebtoken automatically adds a leeway of 60 seconds to account for clock skew.
         // https://docs.rs/jsonwebtoken/latest/jsonwebtoken/struct.Validation.html#structfield.leeway
         exp: (Utc::now() - Duration::seconds(61)).timestamp() as usize,
+        sub: dummy_app_authorization.app_id.to_string(),
         r#type: "Refresh".to_string(),
     };
     let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(json_web_token_private_key.as_ref())?;
@@ -782,14 +793,19 @@ async fn verify_active_refresh_token_for_confidential_client()
     )
     .await?;
     let dummy_app_authorization_credential = test_environment
-        .create_random_app_authorization_credential(Some(&dummy_app_authorization.id))
+        .create_random_app_authorization_credential(
+            Some(&dummy_app_authorization.app_id),
+            Some(&dummy_app_authorization.id),
+        )
         .await?;
     let header = Header::new(jsonwebtoken::Algorithm::EdDSA);
     let claims = AppAuthorizationCredentialClaims {
+        app_authorization_id: dummy_app_authorization.id.to_string(),
         jti: dummy_app_authorization_credential.id.to_string(),
         // jsonwebtoken automatically adds a leeway of 60 seconds to account for clock skew.
         // https://docs.rs/jsonwebtoken/latest/jsonwebtoken/struct.Validation.html#structfield.leeway
         exp: (Utc::now() - Duration::seconds(61)).timestamp() as usize,
+        sub: dummy_app_authorization.app_id.to_string(),
         r#type: "Refresh".to_string(),
     };
     let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(json_web_token_private_key.as_ref())?;
@@ -836,12 +852,17 @@ async fn verify_valid_refresh_token_for_public_client() -> Result<(), TestSlashs
         .create_random_app_authorization(None)
         .await?;
     let dummy_app_authorization_credential = test_environment
-        .create_random_app_authorization_credential(Some(&dummy_app_authorization.id))
+        .create_random_app_authorization_credential(
+            Some(&dummy_app_authorization.app_id),
+            Some(&dummy_app_authorization.id),
+        )
         .await?;
     let header = Header::new(jsonwebtoken::Algorithm::EdDSA);
     let claims = AppAuthorizationCredentialClaims {
+        app_authorization_id: dummy_app_authorization.id.to_string(),
         jti: dummy_app_authorization_credential.id.to_string(),
         exp: (Utc::now() + Duration::hours(8)).timestamp() as usize,
+        sub: dummy_app_authorization.app_id.to_string(),
         r#type: "Not Refresh".to_string(),
     };
     let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(json_web_token_private_key.as_ref())?;

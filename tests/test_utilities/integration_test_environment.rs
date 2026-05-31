@@ -72,6 +72,7 @@ use slashstep_server::{
         role::{InitialRoleProperties, Role, RoleParentResourceType},
         server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel},
         session::{InitialSessionProperties, Session},
+        session_credential::{InitialSessionCredentialProperties, SessionCredential},
         status::{InitialStatusProperties, Status, StatusType},
         user::{InitialUserProperties, User},
         view::{InitialViewProperties, View, ViewParentResourceType},
@@ -260,14 +261,21 @@ impl IntegrationTestEnvironment {
 
     pub async fn create_random_app_authorization_credential(
         &self,
+        app_id: Option<&Uuid>,
         app_authorization_id: Option<&Uuid>,
     ) -> Result<AppAuthorizationCredential, TestSlashstepServerError> {
         // Create a random app.
-        let app_authorization_id = app_authorization_id
+        let app_id = app_id
             .copied()
-            .unwrap_or(self.create_random_app_authorization(None).await?.id);
+            .unwrap_or(self.create_random_app(None, None).await?.id);
+        let app_authorization_id = app_authorization_id.copied().unwrap_or(
+            self.create_random_app_authorization(Some(&app_id))
+                .await?
+                .id,
+        );
         let app_authorization_properties = InitialAppAuthorizationCredentialProperties {
-            app_authorization_id,
+            app_id: app_id,
+            app_authorization_id: app_authorization_id,
             access_token_expiration_date: Utc::now() + Duration::days(1),
             refresh_token_expiration_date: Utc::now() + Duration::days(30),
             refreshed_app_authorization_credential_id: None,
@@ -746,13 +754,38 @@ impl IntegrationTestEnvironment {
 
         let session_properties = InitialSessionProperties {
             user_id: user_id,
-            expiration_date: (Utc::now() + Duration::days(30)),
+            expiration_date: (Utc::now() + Duration::days(90)),
             creation_ip_address: local_ip,
         };
 
         let session = Session::create(&session_properties, &self.database_pool).await?;
 
         return Ok(session);
+    }
+
+    pub async fn create_random_session_credential(
+        &self,
+        session_id: Option<&Uuid>,
+        user_id: Option<&Uuid>,
+    ) -> Result<SessionCredential, TestSlashstepServerError> {
+        let session_id = session_id
+            .copied()
+            .unwrap_or(self.create_random_session(user_id).await?.id);
+        let session_credential_properties = InitialSessionCredentialProperties {
+            user_id: user_id
+                .copied()
+                .unwrap_or(self.create_random_user(None).await?.id),
+            session_id,
+            access_token_expiration_date: Utc::now() + Duration::days(30),
+            refresh_token_expiration_date: Utc::now() + Duration::days(60),
+            creation_ip_address: local_ip()?,
+            refreshed_session_credential_id: None,
+        };
+
+        let session_credential =
+            SessionCredential::create(&session_credential_properties, &self.database_pool).await?;
+
+        return Ok(session_credential);
     }
 
     pub async fn create_random_status(

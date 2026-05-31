@@ -44,12 +44,12 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_delegation_policies_action =
         Action::get_by_name("workspaces.get", &test_environment.database_pool).await?;
@@ -135,12 +135,12 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_delegation_policies_action =
         Action::get_by_name("workspaces.get", &test_environment.database_pool).await?;
@@ -229,12 +229,12 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_delegation_policies_action =
         Action::get_by_name("workspaces.get", &test_environment.database_pool).await?;
@@ -299,12 +299,12 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_delegation_policies_action =
         Action::get_by_name("workspaces.get", &test_environment.database_pool).await?;
@@ -360,12 +360,12 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_delegation_policies_action =
         Action::get_by_name("workspaces.get", &test_environment.database_pool).await?;
@@ -479,12 +479,12 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -514,12 +514,12 @@ async fn verify_successful_workspace_creation() -> Result<(), TestSlashstepServe
 
     // Give the user access to the "workspaces.create" action.
     let user = test_environment.create_random_user(None).await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let initial_workspace_properties = CreateWorkspaceRequestBody {
         name: Uuid::now_v7().to_string().replace("-", ""),
@@ -576,12 +576,12 @@ async fn verify_workspace_name_is_at_most_at_maximum_length() -> Result<(), Test
     let test_environment = IntegrationTestEnvironment::new().await?;
 
     let user = test_environment.create_random_user(None).await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let initial_workspace_properties = CreateWorkspaceRequestBody {
         name: Uuid::now_v7().to_string().replace("-", ""),
@@ -642,12 +642,12 @@ async fn verify_workspace_display_name_is_at_most_at_maximum_length()
     let test_environment = IntegrationTestEnvironment::new().await?;
 
     let user = test_environment.create_random_user(None).await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let initial_workspace_properties = CreateWorkspaceRequestBody {
         name: Uuid::now_v7().to_string().replace("-", ""),
@@ -708,12 +708,12 @@ async fn verify_workspace_description_is_at_most_at_maximum_length()
     let test_environment = IntegrationTestEnvironment::new().await?;
 
     let user = test_environment.create_random_user(None).await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let initial_workspace_properties = CreateWorkspaceRequestBody {
         name: Uuid::now_v7().to_string().replace("-", ""),
@@ -773,12 +773,12 @@ async fn verify_workspace_name_matches_regex() -> Result<(), TestSlashstepServer
     let test_environment = IntegrationTestEnvironment::new().await?;
 
     let user = test_environment.create_random_user(None).await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let initial_workspace_properties = CreateWorkspaceRequestBody {
         name: Uuid::now_v7().to_string().replace("-", ""),

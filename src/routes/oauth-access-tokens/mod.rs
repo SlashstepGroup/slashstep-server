@@ -810,7 +810,7 @@ pub async fn delete_oauth_authorization(
 }
 
 pub async fn create_app_authorization_credential(
-    app_authorization_id: &Uuid,
+    app_authorization: &AppAuthorization,
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<AppAuthorizationCredential, OAuthTokenErrorResponse> {
@@ -974,7 +974,7 @@ pub async fn create_app_authorization_credential(
     ServerLogEntry::trace(
         &format!(
             "Creating app authorization credential for app authorization {}...",
-            app_authorization_id
+            app_authorization.id
         ),
         Some(&http_transaction.id),
         database_pool,
@@ -983,7 +983,8 @@ pub async fn create_app_authorization_credential(
     .ok();
     let app_authorization_credential = match AppAuthorizationCredential::create(
         &InitialAppAuthorizationCredentialProperties {
-            app_authorization_id: *app_authorization_id,
+            app_id: app_authorization.app_id,
+            app_authorization_id: app_authorization.id,
             access_token_expiration_date: Utc::now()
                 + Duration::milliseconds(access_token_maximum_lifetime_milliseconds),
             refresh_token_expiration_date: Utc::now()
@@ -1581,7 +1582,7 @@ async fn handle_create_oauth_access_token_request(
     }
 
     let app_authorization_credential = create_app_authorization_credential(
-        &app_authorization.id,
+        &app_authorization,
         &http_transaction,
         &state.database_pool,
     )

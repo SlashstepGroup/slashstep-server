@@ -56,12 +56,12 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_item_type_icons_action =
         Action::get_by_name("itemTypeIcons.get", &test_environment.database_pool).await?;
@@ -161,12 +161,12 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let item_type_icon = test_environment.create_random_item_type_icon(None).await?;
 
@@ -201,12 +201,12 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -239,12 +239,12 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Grant access to the "itemTypeIcons.delete" action to the user.
@@ -347,12 +347,12 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Create a dummy app.
@@ -388,12 +388,12 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -426,12 +426,12 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_fields_action =
         Action::get_by_name("itemTypeIcons.update", &test_environment.database_pool).await?;
@@ -626,12 +626,12 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -698,12 +698,12 @@ async fn verify_item_type_icon_display_name_is_at_most_at_maximum_length()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_item_type_icons_action =
         Action::get_by_name("itemTypeIcons.update", &test_environment.database_pool).await?;

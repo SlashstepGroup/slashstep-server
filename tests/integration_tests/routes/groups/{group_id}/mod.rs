@@ -58,12 +58,12 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_groups_action =
         Action::get_by_name("groups.get", &test_environment.database_pool).await?;
@@ -146,12 +146,12 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let group = test_environment.create_random_group().await?;
 
@@ -185,12 +185,12 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -222,12 +222,12 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Grant access to the "groups.delete" action to the user.
@@ -321,12 +321,12 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Create a dummy group.
@@ -361,12 +361,12 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -398,12 +398,12 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_groups_action =
         Action::get_by_name("groups.update", &test_environment.database_pool).await?;
@@ -585,12 +585,12 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -650,12 +650,12 @@ async fn verify_group_name_is_at_most_at_maximum_length() -> Result<(), TestSlas
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let create_groups_action =
         Action::get_by_name("groups.create", &test_environment.database_pool).await?;
@@ -713,12 +713,12 @@ async fn verify_group_display_name_is_at_most_at_maximum_length()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_groups_action =
         Action::get_by_name("groups.update", &test_environment.database_pool).await?;
@@ -778,12 +778,12 @@ async fn verify_group_description_is_at_most_at_maximum_length()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_groups_action =
         Action::get_by_name("groups.update", &test_environment.database_pool).await?;
@@ -842,12 +842,12 @@ async fn verify_group_name_matches_regex() -> Result<(), TestSlashstepServerErro
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let create_groups_action =
         Action::get_by_name("groups.create", &test_environment.database_pool).await?;

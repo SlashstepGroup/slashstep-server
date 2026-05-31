@@ -41,12 +41,12 @@ async fn verify_returned_resource_list_without_query() -> Result<(), TestSlashst
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_configurations_action =
         Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
@@ -132,12 +132,12 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_configurations_action =
         Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
@@ -223,12 +223,12 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_configurations_action =
         Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
@@ -294,12 +294,12 @@ async fn verify_maximum_resource_list_limit() -> Result<(), TestSlashstepServerE
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_configurations_action =
         Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
@@ -355,12 +355,12 @@ async fn verify_query_when_listing_resources() -> Result<(), TestSlashstepServer
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_configurations_action =
         Action::get_by_name("configurations.get", &test_environment.database_pool).await?;
@@ -475,12 +475,12 @@ async fn verify_permission_when_listing_resources() -> Result<(), TestSlashstepS
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.

@@ -27,6 +27,7 @@ pub const DEFAULT_APP_AUTHORIZATION_CREDENTIAL_LIST_LIMIT: i64 = 1000;
 pub const DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT: i64 = 1000;
 pub const ALLOWED_QUERY_KEYS: &[&str] = &[
     "id",
+    "app_id",
     "app_authorization_id",
     "access_token_expiration_date",
     "refresh_token_expiration_date",
@@ -34,6 +35,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
 ];
 pub const UUID_QUERY_KEYS: &[&str] = &[
     "id",
+    "app_id",
     "app_authorization_id",
     "refreshed_app_authorization_credential_id",
 ];
@@ -45,6 +47,9 @@ pub const GET_RESOURCE_ACTION_NAME: &str = "appAuthorizationCredentials.get";
 pub struct AppAuthorizationCredential {
     /// The ID of the app authorization credential.
     pub id: Uuid,
+
+    /// The app ID of the app authorization credential.
+    pub app_id: Uuid,
 
     /// The ID of the app authorization.
     pub app_authorization_id: Uuid,
@@ -61,6 +66,9 @@ pub struct AppAuthorizationCredential {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct InitialAppAuthorizationCredentialProperties {
+    /// The app ID of the app authorization credential.
+    pub app_id: Uuid,
+
     /// The ID of the app authorization.
     pub app_authorization_id: Uuid,
 
@@ -76,6 +84,8 @@ pub struct InitialAppAuthorizationCredentialProperties {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppAuthorizationCredentialClaims {
+    pub app_authorization_id: String,
+    pub sub: String,
     pub jti: String,
     pub exp: usize,
     pub r#type: String,
@@ -85,6 +95,7 @@ impl AppAuthorizationCredential {
     fn convert_from_row(row: &postgres::Row) -> Self {
         AppAuthorizationCredential {
             id: row.get("id"),
+            app_id: row.get("app_id"),
             app_authorization_id: row.get("app_authorization_id"),
             access_token_expiration_date: row.get("access_token_expiration_date"),
             refresh_token_expiration_date: row.get("refresh_token_expiration_date"),
@@ -150,6 +161,7 @@ impl AppAuthorizationCredential {
             "../queries/app_authorization_credentials/insert_app_authorization_credential_row.sql"
         );
         let parameters: &[&(dyn ToSql + Sync)] = &[
+            &initial_properties.app_id,
             &initial_properties.app_authorization_id,
             &DateTime::from_timestamp_millis(
                 initial_properties
@@ -190,8 +202,10 @@ impl AppAuthorizationCredential {
     pub fn generate_access_token(&self, private_key: &str) -> Result<String, ResourceError> {
         let header = Header::new(jsonwebtoken::Algorithm::EdDSA);
         let claims = AppAuthorizationCredentialClaims {
-            jti: self.id.to_string(),
+            app_authorization_id: self.app_authorization_id.to_string(),
             exp: self.access_token_expiration_date.timestamp() as usize,
+            jti: self.id.to_string(),
+            sub: self.app_id.to_string(),
             r#type: "Access".to_string(),
         };
         let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
@@ -203,6 +217,8 @@ impl AppAuthorizationCredential {
     pub fn generate_refresh_token(&self, private_key: &str) -> Result<String, ResourceError> {
         let header = Header::new(jsonwebtoken::Algorithm::EdDSA);
         let claims = AppAuthorizationCredentialClaims {
+            app_authorization_id: self.app_authorization_id.to_string(),
+            sub: self.app_id.to_string(),
             jti: self.id.to_string(),
             exp: self.refresh_token_expiration_date.timestamp() as usize,
             r#type: "Refresh".to_string(),

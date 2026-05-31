@@ -56,12 +56,12 @@ async fn verify_returned_action_by_id() -> Result<(), TestSlashstepServerError> 
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_actions_action =
         Action::get_by_name("actions.get", &test_environment.database_pool).await?;
@@ -149,12 +149,12 @@ async fn verify_permission_when_getting_action_by_id() -> Result<(), TestSlashst
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let action = test_environment.create_random_action(None).await?;
 
@@ -188,12 +188,12 @@ async fn verify_not_found_when_getting_action_by_id() -> Result<(), TestSlashste
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -226,12 +226,12 @@ async fn verify_successful_deletion_when_deleting_action_by_id()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Grant access to the "actions.delete" action to the user.
@@ -336,12 +336,12 @@ async fn verify_permission_when_deleting_action_by_id() -> Result<(), TestSlashs
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Create a dummy action.
@@ -376,12 +376,12 @@ async fn verify_action_exists_when_deleting_action_by_id() -> Result<(), TestSla
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -413,12 +413,12 @@ async fn verify_successful_patch_action_by_id() -> Result<(), TestSlashstepServe
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_actions_action =
         Action::get_by_name("actions.update", &test_environment.database_pool).await?;
@@ -610,12 +610,12 @@ async fn verify_permission_when_patching_action() -> Result<(), TestSlashstepSer
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -679,12 +679,12 @@ async fn verify_name_is_at_most_at_maximum_length() -> Result<(), TestSlashstepS
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_actions_action =
         Action::get_by_name("actions.update", &test_environment.database_pool).await?;
@@ -740,12 +740,12 @@ async fn verify_display_name_is_at_most_at_maximum_length() -> Result<(), TestSl
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_actions_action =
         Action::get_by_name("actions.update", &test_environment.database_pool).await?;
@@ -801,12 +801,12 @@ async fn verify_action_name_matches_regex() -> Result<(), TestSlashstepServerErr
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let create_actions_action =
         Action::get_by_name("actions.create", &test_environment.database_pool).await?;
@@ -862,12 +862,12 @@ async fn verify_action_display_name_matches_regex() -> Result<(), TestSlashstepS
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let create_actions_action =
         Action::get_by_name("actions.create", &test_environment.database_pool).await?;

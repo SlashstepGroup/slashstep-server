@@ -21,195 +21,17 @@ use reqwest::StatusCode;
 use slashstep_server::{
     AppState, get_json_web_token_private_key,
     resources::{
-        ResourceType,
-        access_policy::{
-            AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
-        },
+        access_policy::{AccessPolicyPrincipalType, PermissionLevel},
         action::Action,
-        group::{Group, GroupParentResourceType, PredefinedGroupType},
         session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, DEFAULT_RESOURCE_LIST_LIMIT, Session},
     },
-    routes::{CreateResourceResponseBody, ListResourcesResponseBody, sessions::LoginCredentials},
+    routes::ListResourcesResponseBody,
 };
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use uuid::Uuid;
 
 #[path = "./{session_id}/mod.rs"]
 mod session_id;
-
-/// Verifies that the router can return a 201 status code and the created resource.
-#[tokio::test]
-async fn verify_successful_creation() -> Result<(), TestSlashstepServerError> {
-    let test_environment = IntegrationTestEnvironment::new().await?;
-
-    // Give the user access to the "apps.create" action.
-    let create_sessions_action =
-        Action::get_by_name("sessions.create", &test_environment.database_pool).await?;
-    let anonymous_users_group = Group::get_protected_group_by_type(
-        &GroupParentResourceType::Server,
-        None,
-        &PredefinedGroupType::AnonymousUsers,
-        &test_environment.database_pool,
-    )
-    .await?;
-    AccessPolicy::create(
-        &InitialAccessPolicyProperties {
-            principal_type: AccessPolicyPrincipalType::Group,
-            principal_group_id: Some(anonymous_users_group.id),
-            action_id: create_sessions_action.id,
-            permission_level: PermissionLevel::User,
-            scoped_resource_type: ResourceType::Server,
-            is_inheritance_enabled: true,
-            ..Default::default()
-        },
-        &test_environment.database_pool,
-    )
-    .await?;
-
-    // Create a dummy resource.
-    let plain_text_password = Uuid::now_v7().to_string();
-    let dummy_user = test_environment
-        .create_random_user(Some(&plain_text_password))
-        .await?;
-    let login_credentials = LoginCredentials {
-        username: dummy_user
-            .username
-            .expect("User should have a username.")
-            .clone(),
-        password: plain_text_password,
-    };
-    test_environment
-        .create_server_access_policy(
-            &dummy_user.id,
-            &create_sessions_action.id,
-            &PermissionLevel::User,
-        )
-        .await?;
-
-    // Set up the server and send the request.
-    let state = AppState {
-        database_pool: test_environment.database_pool.clone(),
-        redis_pool: test_environment.redis_pool.clone(),
-    };
-    let router = slashstep_server::routes::sessions::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
-    let test_server = TestServer::new(router);
-    let response = test_server
-        .post("/sessions")
-        .json(&serde_json::json!(login_credentials))
-        .await;
-
-    // Verify the response.
-    assert_eq!(response.status_code(), StatusCode::CREATED);
-
-    let create_session_response_body: CreateResourceResponseBody<Session> = response.json();
-    let session = create_session_response_body.data;
-    assert_eq!(dummy_user.id, session.user_id);
-    assert_eq!(
-        IpAddr::from(Ipv4Addr::new(127, 0, 0, 1)),
-        session.creation_ip_address
-    );
-    // TODO: Add assertions for expiration date
-
-    return Ok(());
-}
-
-/// Verifies that the server returns a 400 status code when the request body is not valid JSON.
-#[tokio::test]
-async fn verify_request_body_json_when_creating_resource() -> Result<(), TestSlashstepServerError> {
-    let test_environment = IntegrationTestEnvironment::new().await?;
-
-    // Set up the server and send the request.
-    let state = AppState {
-        database_pool: test_environment.database_pool.clone(),
-        redis_pool: test_environment.redis_pool.clone(),
-    };
-    let router = slashstep_server::routes::sessions::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
-    let test_server = TestServer::new(router);
-    let response = test_server
-        .post("/sessions")
-        .add_header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-          "username": true,
-          "password": 123
-        }))
-        .await;
-
-    // Verify the response.
-    assert_eq!(response.status_code(), StatusCode::BAD_REQUEST);
-    return Ok(());
-}
-
-/// Verifies that the server returns a 403 status code when the user lacks permissions and is authenticated.
-#[tokio::test]
-async fn verify_permission_when_creating_resource() -> Result<(), TestSlashstepServerError> {
-    let test_environment = IntegrationTestEnvironment::new().await?;
-
-    let create_sessions_action =
-        Action::get_by_name("sessions.create", &test_environment.database_pool).await?;
-    let anonymous_users_group = Group::get_protected_group_by_type(
-        &GroupParentResourceType::Server,
-        None,
-        &PredefinedGroupType::AnonymousUsers,
-        &test_environment.database_pool,
-    )
-    .await?;
-    AccessPolicy::create(
-        &InitialAccessPolicyProperties {
-            principal_type: AccessPolicyPrincipalType::Group,
-            principal_group_id: Some(anonymous_users_group.id),
-            action_id: create_sessions_action.id,
-            permission_level: PermissionLevel::User,
-            scoped_resource_type: ResourceType::Server,
-            is_inheritance_enabled: true,
-            ..Default::default()
-        },
-        &test_environment.database_pool,
-    )
-    .await?;
-
-    // Create the user.
-    let plain_text_password = Uuid::now_v7().to_string();
-    let dummy_user = test_environment
-        .create_random_user(Some(&plain_text_password))
-        .await?;
-    test_environment
-        .create_server_access_policy(
-            &dummy_user.id,
-            &create_sessions_action.id,
-            &PermissionLevel::None,
-        )
-        .await?;
-    let login_credentials = LoginCredentials {
-        username: dummy_user
-            .username
-            .expect("User should have a username.")
-            .clone(),
-        password: plain_text_password,
-    };
-
-    // Set up the server and send the request.
-    let state = AppState {
-        database_pool: test_environment.database_pool.clone(),
-        redis_pool: test_environment.redis_pool.clone(),
-    };
-    let router = slashstep_server::routes::sessions::get_router(state.clone())
-        .with_state(state)
-        .into_make_service_with_connect_info::<SocketAddr>();
-    let test_server = TestServer::new(router);
-    let response = test_server
-        .post(&format!("/sessions"))
-        .add_header("Content-Type", "application/json")
-        .json(&serde_json::json!(login_credentials))
-        .await;
-
-    // Verify the response.
-    assert_eq!(response.status_code(), StatusCode::FORBIDDEN);
-    return Ok(());
-}
 
 /// Verifies that the router can return a 200 status code and the requested list.
 #[tokio::test]
@@ -221,12 +43,12 @@ async fn verify_returned_list_without_query() -> Result<(), TestSlashstepServerE
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_sessions_action =
         Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
@@ -304,12 +126,12 @@ async fn verify_returned_list_with_query() -> Result<(), TestSlashstepServerErro
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_sessions_action =
         Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
@@ -391,12 +213,12 @@ async fn verify_default_list_limit() -> Result<(), TestSlashstepServerError> {
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_sessions_action =
         Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
@@ -455,12 +277,12 @@ async fn verify_maximum_list_limit() -> Result<(), TestSlashstepServerError> {
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_sessions_action =
         Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
@@ -508,12 +330,12 @@ async fn verify_query_validity() -> Result<(), TestSlashstepServerError> {
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_sessions_action =
         Action::get_by_name("sessions.get", &test_environment.database_pool).await?;
@@ -619,12 +441,12 @@ async fn verify_permission() -> Result<(), TestSlashstepServerError> {
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.

@@ -43,6 +43,7 @@ use crate::resources::{
     role::{PredefinedRoleType, Role, RoleParentResourceType},
     server_log_entry::ServerLogEntry,
     session::Session,
+    session_credential::SessionCredential,
     status::Status,
     user::{InitialUserProperties, User},
     view::View,
@@ -110,6 +111,7 @@ pub async fn initialize_required_tables(
     User::initialize_resource_table(database_pool).await?;
     PasswordResetAuthorization::initialize_resource_table(database_pool).await?;
     Session::initialize_resource_table(database_pool).await?;
+    SessionCredential::initialize_resource_table(database_pool).await?;
     Group::initialize_resource_table(database_pool).await?;
     App::initialize_resource_table(database_pool).await?;
     Project::initialize_resource_table(database_pool).await?;

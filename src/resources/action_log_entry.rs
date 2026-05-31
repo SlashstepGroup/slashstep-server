@@ -62,6 +62,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
     "target_role_membership_id",
     "target_server_log_entry_id",
     "target_session_id",
+    "target_session_credential_id",
     "target_status_id",
     "target_user_id",
     "target_view_id",
@@ -106,6 +107,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
     "target_role_membership_id",
     "target_server_log_entry_id",
     "target_session_id",
+    "target_session_credential_id",
     "target_status_id",
     "target_user_id",
     "target_view_id",
@@ -236,6 +238,9 @@ pub struct ActionLogEntry {
 
     /// The target session ID of the action, if applicable.
     pub target_session_id: Option<Uuid>,
+
+    /// The target session credential ID of the action, if applicable.
+    pub target_session_credential_id: Option<Uuid>,
 
     /// The target status ID of the action, if applicable.
     pub target_status_id: Option<Uuid>,
@@ -369,6 +374,9 @@ pub struct InitialActionLogEntryProperties {
     /// The target session ID of the action, if applicable.
     pub target_session_id: Option<Uuid>,
 
+    /// The target session credential ID of the action, if applicable.
+    pub target_session_credential_id: Option<Uuid>,
+
     /// The target status ID of the action, if applicable.
     pub target_status_id: Option<Uuid>,
 
@@ -462,6 +470,7 @@ impl ActionLogEntry {
             target_role_id: row.get("target_role_id"),
             target_server_log_entry_id: row.get("target_server_log_entry_id"),
             target_session_id: row.get("target_session_id"),
+            target_session_credential_id: row.get("target_session_credential_id"),
             target_status_id: row.get("target_status_id"),
             target_user_id: row.get("target_user_id"),
             target_view_id: row.get("target_view_id"),
@@ -566,6 +575,7 @@ impl ActionLogEntry {
             &initial_properties.target_role_id,
             &initial_properties.target_server_log_entry_id,
             &initial_properties.target_session_id,
+            &initial_properties.target_session_credential_id,
             &initial_properties.target_status_id,
             &initial_properties.target_user_id,
             &initial_properties.target_view_id,

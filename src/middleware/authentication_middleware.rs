@@ -11,7 +11,8 @@ use crate::{
             MembershipPrincipalType,
         },
         server_log_entry::ServerLogEntry,
-        session::{Session, SessionTokenClaims},
+        session::Session,
+        session_credential::{SessionCredential, SessionCredentialTokenClaims},
         user::{InitialUserProperties, User},
     },
     utilities::route_handler_utilities::{get_app_by_id, get_app_credential_by_id},
@@ -76,8 +77,8 @@ async fn get_decoded_claims(
     session_token: &str,
     decoding_key: &jsonwebtoken::DecodingKey,
     validation: &jsonwebtoken::Validation,
-) -> Result<jsonwebtoken::TokenData<SessionTokenClaims>, HTTPError> {
-    let decoded_claims = match jsonwebtoken::decode::<SessionTokenClaims>(
+) -> Result<jsonwebtoken::TokenData<SessionCredentialTokenClaims>, HTTPError> {
+    let decoded_claims = match jsonwebtoken::decode::<SessionCredentialTokenClaims>(
         &session_token,
         decoding_key,
         validation,
@@ -154,10 +155,42 @@ async fn get_session_by_id(
         Ok(session) => session,
         Err(error) => {
             let http_error = match error {
-                ResourceError::NotFoundError(_) => HTTPError::Unauthorized(Some(format!(
-                    "Session with ID {} not found.",
-                    session_id
-                ))),
+                ResourceError::NotFoundError(_) => {
+                    HTTPError::Unauthorized(Some(format!("Please provide a valid session token.")))
+                }
+                ResourceError::PostgresError(error) => match error.as_db_error() {
+                    Some(db_error) => {
+                        HTTPError::InternalServerError(Some(format!("{:?}", db_error)))
+                    }
+
+                    None => HTTPError::InternalServerError(Some(format!("{:?}", error))),
+                },
+                _ => HTTPError::InternalServerError(Some(error.to_string())),
+            };
+
+            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
+                .await
+                .ok();
+
+            return Err(http_error);
+        }
+    };
+
+    Ok(session)
+}
+
+async fn get_session_credential_by_id(
+    http_transaction_id: &Uuid,
+    database_pool: &deadpool_postgres::Pool,
+    session_id: &Uuid,
+) -> Result<SessionCredential, HTTPError> {
+    let session = match SessionCredential::get_by_id(session_id, database_pool).await {
+        Ok(session) => session,
+        Err(error) => {
+            let http_error = match error {
+                ResourceError::NotFoundError(_) => {
+                    HTTPError::Unauthorized(Some(format!("Please provide a valid session token.")))
+                }
                 ResourceError::PostgresError(error) => match error.as_db_error() {
                     Some(db_error) => {
                         HTTPError::InternalServerError(Some(format!("{:?}", db_error)))
@@ -402,12 +435,26 @@ pub async fn authenticate_user(
     .await?;
 
     // Set the user and session in the request extensions.
-    let session_id = match Uuid::parse_str(&decoded_claims.claims.jti) {
-        Ok(user_id) => user_id,
+    let session_credential_id = match Uuid::parse_str(&decoded_claims.claims.jti) {
+        Ok(session_credential_id) => session_credential_id,
         Err(_) => {
-            let http_error = HTTPError::BadRequest(Some(
-                "You must provide a valid UUID for the user ID.".to_string(),
-            ));
+            let http_error =
+                HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    };
+    let session_id = match Uuid::parse_str(&decoded_claims.claims.session_id) {
+        Ok(session_id) => session_id,
+        Err(_) => {
+            let http_error =
+                HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
@@ -421,9 +468,8 @@ pub async fn authenticate_user(
     let user_id = match Uuid::parse_str(&decoded_claims.claims.sub) {
         Ok(user_id) => user_id,
         Err(_) => {
-            let http_error = HTTPError::BadRequest(Some(
-                "You must provide a valid UUID for the user ID.".to_string(),
-            ));
+            let http_error =
+                HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
             ServerLogEntry::from_http_error(
                 &http_error,
                 Some(&http_transaction.id),
@@ -435,7 +481,20 @@ pub async fn authenticate_user(
         }
     };
     ServerLogEntry::trace(
-        "Getting session...",
+        "Getting session credential...",
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    let session_credential = get_session_credential_by_id(
+        &http_transaction.id,
+        &state.database_pool,
+        &session_credential_id,
+    )
+    .await?;
+    ServerLogEntry::trace(
+        "Getting session from session credential...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -444,7 +503,26 @@ pub async fn authenticate_user(
     let session =
         get_session_by_id(&http_transaction.id, &state.database_pool, &session_id).await?;
     ServerLogEntry::trace(
-        "Getting user from session...",
+        "Checking if session is still active...",
+        Some(&http_transaction.id),
+        &state.database_pool,
+    )
+    .await
+    .ok();
+    if session.expiration_date < chrono::Utc::now() {
+        let http_error =
+            HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
+        ServerLogEntry::from_http_error(
+            &http_error,
+            Some(&http_transaction.id),
+            &state.database_pool,
+        )
+        .await
+        .ok();
+        return Err(http_error);
+    }
+    ServerLogEntry::trace(
+        "Getting user from session credential...",
         Some(&http_transaction.id),
         &state.database_pool,
     )
@@ -458,6 +536,9 @@ pub async fn authenticate_user(
     )
     .await
     .ok();
+    request
+        .extensions_mut()
+        .insert(Some(Arc::new(session_credential.clone())));
     request
         .extensions_mut()
         .insert(Some(Arc::new(user.clone())));

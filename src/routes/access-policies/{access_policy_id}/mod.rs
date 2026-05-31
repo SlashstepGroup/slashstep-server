@@ -26,10 +26,7 @@ use crate::{
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
     utilities::route_handler_utilities::{
-        get_access_policy_by_id, get_action_by_id, get_action_by_name,
-        get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal,
-        get_request_body_without_json_rejection, get_uuid_from_string,
-        is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions,
+        get_access_policy_by_id, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_role_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions
     },
 };
 use axum::{
@@ -237,6 +234,25 @@ async fn handle_patch_access_policy_request(
         &state.database_pool,
     )
     .await?;
+    if let Some(principal_role_id) = access_policy.principal_role_id {
+        let principal_role = get_role_by_id(
+            &principal_role_id,
+            &http_transaction,
+            &state.database_pool,
+        )
+        .await?;
+        if principal_role.predefined_role_type.is_some() {
+            let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly updated by Slashstep Server. Use custom roles if you need more control.".to_string()));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    }
 
     ServerLogEntry::trace(
         &format!("Updating access policy {}...", access_policy_id),
@@ -362,6 +378,25 @@ async fn handle_delete_access_policy_request(
         &state.database_pool,
     )
     .await?;
+    if let Some(principal_role_id) = target_access_policy.principal_role_id {
+        let principal_role = get_role_by_id(
+            &principal_role_id,
+            &http_transaction,
+            &state.database_pool,
+        )
+        .await?;
+        if principal_role.predefined_role_type.is_some() {
+            let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly deleted by Slashstep Server. Use custom roles if you need more control.".to_string()));
+            ServerLogEntry::from_http_error(
+                &http_error,
+                Some(&http_transaction.id),
+                &state.database_pool,
+            )
+            .await
+            .ok();
+            return Err(http_error);
+        }
+    }
 
     if let Err(error) = target_access_policy.delete(&state.database_pool).await {
         let http_error = HTTPError::InternalServerError(Some(format!(

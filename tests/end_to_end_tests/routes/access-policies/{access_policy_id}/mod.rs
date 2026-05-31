@@ -38,7 +38,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
         .create_admin_user(Some(&admin_password))
         .await?;
     test_environment
-        .create_session(
+        .create_session_credential_with_login_credentials(
             &admin_user
                 .username
                 .expect("Expected user to have a username."),
@@ -63,7 +63,7 @@ async fn verify_returned_access_policy_by_id() -> Result<(), TestSlashstepServer
 
     test_environment.test_server.clear_cookies();
     test_environment
-        .create_session(
+        .create_session_credential_with_login_credentials(
             &user.username.expect("Expected user to have a username."),
             &user_password,
         )

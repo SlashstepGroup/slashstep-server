@@ -1153,6 +1153,27 @@ CREATE OR REPLACE FUNCTION get_principal_permission_level(
                 selected_resource_type := 'User';
                 selected_resource_id := selected_resource_parent_id;
 
+            ELSIF selected_resource_type = 'SessionCredential' THEN
+
+                -- SessionCredential -> Session
+                SELECT
+                    session_id
+                INTO
+                    selected_resource_parent_id
+                FROM
+                    session_credentials
+                WHERE
+                    session_credentials.id = selected_resource_id;
+
+                IF selected_resource_parent_id IS NULL THEN
+
+                    RAISE EXCEPTION 'Couldn''t find a parent session for session credential %.', selected_resource_id;
+
+                END IF;
+
+                selected_resource_type := 'Session';
+                selected_resource_id := selected_resource_parent_id;
+
             ELSIF selected_resource_type = 'Status' THEN
 
                 -- Status -> Project

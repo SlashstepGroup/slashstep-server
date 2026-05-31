@@ -47,6 +47,7 @@ DO $$
       target_role_id UUID,
       target_server_log_entry_id UUID,
       target_session_id UUID,
+      target_session_credential_id UUID,
       target_status_id UUID,
       target_user_id UUID,
       target_view_id UUID,

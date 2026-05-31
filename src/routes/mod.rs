@@ -41,6 +41,8 @@ pub mod projects;
 pub mod roles;
 // #[path = "./server-log-entries/mod.rs"]
 // pub mod server_log_entries;
+#[path = "./session-credentials/mod.rs"]
+pub mod session_credentials;
 pub mod sessions;
 pub mod statuses;
 pub mod users;
@@ -143,6 +145,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .merge(roles::get_router(state.clone()))
         // .merge(server_log_entries::get_router(state.clone()))
         .merge(sessions::get_router(state.clone()))
+        .merge(session_credentials::get_router(state.clone()))
         .merge(statuses::get_router(state.clone()))
         .merge(users::get_router(state.clone()))
         .merge(views::get_router(state.clone()))

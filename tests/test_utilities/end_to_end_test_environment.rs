@@ -20,7 +20,7 @@ use slashstep_server::{
             MembershipPrincipalType,
         },
         role::{PredefinedRoleType, Role, RoleParentResourceType},
-        session::Session,
+        session_credential::SessionCredential,
         user::{InitialUserProperties, User},
     },
     routes::{
@@ -207,27 +207,28 @@ impl EndToEndTestEnvironment {
         return Ok(user);
     }
 
-    pub async fn create_session(
+    pub async fn create_session_credential_with_login_credentials(
         &self,
         username: &String,
         plain_text_password: &String,
-    ) -> Result<Session, TestSlashstepServerError> {
+    ) -> Result<SessionCredential, TestSlashstepServerError> {
         let create_session_response = self
             .test_server
-            .post("/sessions")
+            .post("/session-credentials")
             .json(&serde_json::json!({
-              "username": username,
-              "password": plain_text_password
+                "authentication_method": "LoginCredentials",
+                "username": username,
+                "password": plain_text_password
             }))
             .await;
 
         assert_eq!(create_session_response.status_code(), StatusCode::CREATED);
 
-        let create_session_response_body: CreateResourceResponseBody<Session> =
+        let create_session_response_body: CreateResourceResponseBody<SessionCredential> =
             create_session_response.json();
-        let session = create_session_response_body.data;
+        let session_credential = create_session_response_body.data;
 
-        return Ok(session);
+        return Ok(session_credential);
     }
 
     pub async fn get_access_policy_by_id(

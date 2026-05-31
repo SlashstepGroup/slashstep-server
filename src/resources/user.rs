@@ -357,12 +357,8 @@ impl User {
         self.ip_address
     }
 
-    pub fn get_hashed_password(&self) -> &str {
-        let hashed_password = self
-            .hashed_password
-            .as_ref()
-            .expect("User does not have a hashed password.");
-        hashed_password
+    pub fn get_hashed_password(&self) -> Option<String> {
+        self.hashed_password.clone()
     }
 
     pub fn hash_password(plain_text_password: &str) -> Result<String, ResourceError> {
@@ -519,7 +515,9 @@ impl User {
     }
 
     pub fn verify_password(&self, plain_text_password: &str) -> Result<(), ResourceError> {
-        let hashed_password = self.get_hashed_password();
+        let Some(hashed_password) = &self.hashed_password else {
+            return Err(ResourceError::AnonymousUserError(self.id.to_string()));
+        };
         let parsed_hashed_password = match argon2::PasswordHash::new(hashed_password) {
             Ok(parsed_hashed_password) => parsed_hashed_password,
             Err(error) => return Err(ResourceError::Argon2PasswordHashError(error)),

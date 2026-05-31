@@ -18,7 +18,6 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use jsonwebtoken::Header;
 use postgres_types::ToSql;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -46,14 +45,6 @@ pub struct Session {
 
     /// The IP address used to create the session.
     pub creation_ip_address: IpAddr,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SessionTokenClaims {
-    pub sub: String,
-    pub jti: String,
-    pub exp: usize,
-    pub r#type: String,
 }
 
 pub struct InitialSessionProperties {
@@ -161,6 +152,10 @@ impl Session {
         Ok(())
     }
 
+    pub fn is_expired(&self) -> bool {
+        self.expiration_date < Utc::now()
+    }
+
     /// Creates a new session.
     pub async fn create(
         initial_properties: &InitialSessionProperties,
@@ -200,44 +195,6 @@ impl Session {
         database_client.execute(query, &[&self.id]).await?;
 
         Ok(())
-    }
-
-    pub async fn generate_access_token(
-        &self,
-        private_key: &str,
-        expiration_date: DateTime<Utc>,
-    ) -> Result<String, ResourceError> {
-        let claims = SessionTokenClaims {
-            sub: self.user_id.to_string(),
-            jti: self.id.to_string(),
-            exp: expiration_date.timestamp() as usize,
-            r#type: "Access".to_string(),
-        };
-        let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
-        let token = jsonwebtoken::encode(
-            &Header::new(jsonwebtoken::Algorithm::EdDSA),
-            &claims,
-            &encoding_key,
-        )?;
-
-        Ok(token)
-    }
-
-    pub async fn generate_refresh_token(&self, private_key: &str) -> Result<String, ResourceError> {
-        let claims = SessionTokenClaims {
-            sub: self.user_id.to_string(),
-            jti: self.id.to_string(),
-            exp: self.expiration_date.timestamp() as usize,
-            r#type: "Refresh".to_string(),
-        };
-        let encoding_key = jsonwebtoken::EncodingKey::from_ed_pem(private_key.as_ref())?;
-        let token = jsonwebtoken::encode(
-            &Header::new(jsonwebtoken::Algorithm::EdDSA),
-            &claims,
-            &encoding_key,
-        )?;
-
-        Ok(token)
     }
 
     /// Returns a list of roles based on a query.

@@ -30,6 +30,7 @@ use crate::{
         role::Role,
         server_log_entry::ServerLogEntry,
         session::Session,
+        session_credential::SessionCredential,
         status::Status,
         user::User,
         view::View,
@@ -1045,6 +1046,27 @@ pub async fn get_session_by_id(
         http_transaction,
         database_pool,
         |session_id, database_pool| Box::new(Session::get_by_id(session_id, database_pool)),
+    )
+    .await?;
+    Ok(session)
+}
+
+pub async fn get_session_credential_by_id(
+    session_credential_id: &Uuid,
+    http_transaction: &HTTPTransaction,
+    database_pool: &deadpool_postgres::Pool,
+) -> Result<SessionCredential, HTTPError> {
+    let session = get_resource_by_id::<SessionCredential, _>(
+        "session credential",
+        session_credential_id,
+        http_transaction,
+        database_pool,
+        |session_credential_id, database_pool| {
+            Box::new(SessionCredential::get_by_id(
+                session_credential_id,
+                database_pool,
+            ))
+        },
     )
     .await?;
     Ok(session)
