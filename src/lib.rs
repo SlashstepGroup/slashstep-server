@@ -9,6 +9,8 @@ pub mod utilities;
 pub const DEFAULT_APP_PORT: i16 = 8080;
 pub const DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT: u32 = 5;
 
+use tracing::{error, warn};
+
 use crate::resources::{
     ResourceError,
     access_policy::AccessPolicy,
@@ -59,6 +61,7 @@ use axum_extra::response::ErasedJson;
 use colored::Colorize;
 use reqwest::StatusCode;
 use serde::Serialize;
+use tracing::{debug, trace};
 use std::fmt;
 use thiserror::Error;
 
@@ -95,7 +98,7 @@ pub enum SlashstepServerError {
 pub async fn initialize_required_tables(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), SlashstepServerError> {
-    println!("Initializing required tables...");
+    trace!("Initializing required tables...");
 
     let create_general_types_query = include_str!("./queries/create_general_types.sql");
     database_pool
@@ -146,7 +149,7 @@ pub async fn initialize_required_tables(
     let query = include_str!("./queries/items/initialize_searchable_items_view.sql");
     database_client.execute(query, &[]).await?;
 
-    println!("{}", "Successfully initialized all tables.".blue());
+    debug!("Successfully initialized all tables.");
 
     Ok(())
 }
@@ -166,6 +169,21 @@ pub enum HTTPError {
     UnprocessableEntity(Option<String>),
     PayloadTooLarge(Option<String>),
     TooManyRequests(Option<String>),
+}
+
+impl HTTPError {
+    fn log(&self) {
+
+        match self {
+            HTTPError::InternalServerError(_) => {
+                error!("{}", self.to_string());
+            },
+            _ => {
+                warn!("{}", self.to_string());
+            }
+        }
+
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -376,10 +394,7 @@ pub fn get_environment_variable(variable_name: &str) -> Result<String, Slashstep
 
 pub fn import_env_file() {
     if dotenvy::dotenv().is_ok() {
-        println!(
-            "{}",
-            "Successfully imported environment variables from .env file.".blue()
-        );
+        debug!("Successfully imported environment variables from .env file.");
     }
 }
 

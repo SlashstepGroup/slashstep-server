@@ -131,7 +131,8 @@ fn get_app_port_string() -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), SlashstepServerError> {
-    println!("Slashstep Server v{}", env!("CARGO_PKG_VERSION"));
+    println!("Slashstep Server {}", env!("CARGO_PKG_VERSION"));
+    tracing_subscriber::fmt::init();
 
     import_env_file();
     let state = AppState {

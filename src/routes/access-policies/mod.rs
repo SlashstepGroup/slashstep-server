@@ -28,6 +28,7 @@ use axum::{
     Extension, Json, Router,
     extract::{Query, State, rejection::JsonRejection},
 };
+use tracing::{info, trace, warn};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 /*
@@ -129,24 +130,12 @@ async fn handle_list_access_policies_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting access policies...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting access policies...");
     let resource_count = match AccessPolicy::count(
         &query,
         &state.database_pool,
@@ -201,21 +190,7 @@ async fn handle_list_access_policies_request(
     .ok();
 
     let queried_access_policy_list_length = queried_access_policies.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_access_policy_list_length,
-            if queried_access_policy_list_length == 1 {
-                "access policy"
-            } else {
-                "access policies"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned {} {}.", queried_access_policy_list_length, if queried_access_policy_list_length == 1 { "access policy" } else { "access policies" });
 
     let response_body = ListResourcesResponseBody::<AccessPolicy> {
         data: queried_access_policies,

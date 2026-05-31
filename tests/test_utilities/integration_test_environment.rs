@@ -97,6 +97,7 @@ pub struct IntegrationTestEnvironment {
 
 impl IntegrationTestEnvironment {
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
+        tracing_subscriber::fmt::init();
         import_env_file();
 
         let postgres_version = std::env::var("POSTGRESQL_VERSION").unwrap_or("18.3.0".to_string());
