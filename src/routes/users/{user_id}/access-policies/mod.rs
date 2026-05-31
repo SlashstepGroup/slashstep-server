@@ -41,6 +41,7 @@ use reqwest::StatusCode;
  *
  */
 use std::sync::Arc;
+use tracing::{trace};
 
 /// GET /users/{user_id}/access-policies
 ///
@@ -127,24 +128,12 @@ async fn handle_list_access_policies_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting access policies...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting access policies...");
     let resource_count = match AccessPolicy::count(
         &query,
         &state.database_pool,
@@ -160,13 +149,7 @@ async fn handle_list_access_policies_request(
                 "Failed to count access policies: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -337,13 +320,7 @@ async fn handle_create_access_policy_request(
                 "Failed to create access policy: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -407,4 +384,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

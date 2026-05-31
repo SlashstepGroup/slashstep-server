@@ -37,6 +37,7 @@ use reqwest::StatusCode;
  *
  */
 use std::sync::Arc;
+use tracing::{trace};
 
 #[path = "./{action_log_entry_id}/mod.rs"]
 pub mod action_log_entry_id;
@@ -87,13 +88,7 @@ async fn handle_list_action_log_entries_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing action log entries...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing action log entries...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match ActionLogEntry::list(
         &query,
@@ -121,24 +116,12 @@ async fn handle_list_action_log_entries_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting action log entries...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting action log entries...");
     let resource_count = match ActionLogEntry::count(
         &query,
         &state.database_pool,
@@ -154,13 +137,7 @@ async fn handle_list_action_log_entries_request(
                 "Failed to count action log entries: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -239,5 +216,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(action_log_entry_id::get_router(state.clone()))
 }

@@ -81,6 +81,8 @@ use slashstep_server::{
         workspace::{InitialWorkspaceProperties, Workspace},
     },
 };
+use tracing::{level_filters::LevelFilter, trace};
+use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
@@ -97,11 +99,16 @@ pub struct IntegrationTestEnvironment {
 
 impl IntegrationTestEnvironment {
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
-        tracing_subscriber::fmt::init();
+        let environment_filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
+        tracing_subscriber::fmt()
+            .with_max_level(LevelFilter::TRACE)
+            .with_env_filter(environment_filter)
+            .init();
         import_env_file();
 
         let postgres_version = std::env::var("POSTGRESQL_VERSION").unwrap_or("18.3.0".to_string());
-        println!("Setting up PostgreSQL test server...");
+        trace!("Setting up PostgreSQL test server...");
         let embedded_postgresql_settings = postgresql_embedded::Settings {
             version: postgresql_embedded::VersionReq::from_str(&format!("={}", postgres_version))?,
             ..Default::default()
@@ -109,10 +116,8 @@ impl IntegrationTestEnvironment {
         let mut embedded_postgresql = PostgreSQL::new(embedded_postgresql_settings);
         embedded_postgresql.setup().await?;
 
-        println!("Starting PostgreSQL test server...");
+        trace!("Starting PostgreSQL test server...");
         embedded_postgresql.start().await?;
-
-        println!("Signing into PostgreSQL test server...");
         let mut postgres_config = tokio_postgres::Config::new();
         postgres_config.host(embedded_postgresql.settings().host.clone());
         postgres_config.port(embedded_postgresql.settings().port.clone());
@@ -137,7 +142,7 @@ impl IntegrationTestEnvironment {
         initialize_predefined_groups(&database_pool).await?;
         initialize_predefined_configurations(&database_pool).await?;
 
-        println!("Signing into Valkey test server...");
+        trace!("Signing into Valkey test server...");
         let redis_server = RedisServer::new();
         let (redis_host, redis_port) = redis_server
             .host_and_port()

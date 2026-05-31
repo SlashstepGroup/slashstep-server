@@ -21,6 +21,8 @@ use crate::{
     },
 };
 
+use tracing::{info};
+
 enum Interval {
     PerSecond,
     PerMinute,
@@ -98,13 +100,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                     "Requests with {} method are not allowed.",
                     request.method()
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -128,13 +124,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                         "Invalid number value for configuration {}. The value must be a positive integer that can be represented as a usize.",
                         interval_rate_limit_configuration.id
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             }
@@ -143,13 +133,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                 "Missing number value for configuration {}.",
                 interval_rate_limit_configuration.id
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         };
 
@@ -160,13 +144,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                 let http_error = HTTPError::InternalServerError(Some(format!(
                     "Failed to get Redis connection from pool: {error:?}"
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -182,13 +160,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                         "Failed to increment Redis key {rate_limit_key}: {:?}",
                         error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -206,13 +178,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                 "Failed to set expiration for Redis key {rate_limit_key}: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -221,24 +187,12 @@ pub async fn verify_absolute_maximum_rate_limits(
                 "Rate limit exceeded for {}.",
                 interval_rate_limit_configuration_name
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     }
 
-    ServerLogEntry::info(
-        "Successfully verified principal is acting within global rate limits.",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully verified principal is acting within global rate limits.");
 
     let response = next.run(request).await;
     Ok(response)

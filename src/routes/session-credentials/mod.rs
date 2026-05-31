@@ -13,6 +13,7 @@
 pub mod session_credential_id;
 
 use std::sync::Arc;
+use tracing::{trace};
 
 use crate::{
     AppState, HTTPError,
@@ -93,9 +94,7 @@ async fn handle_create_session_credential_request(
         let http_error = HTTPError::Unauthorized(Some(
             "Invalid refresh token. Check your credentials and try again.".to_string(),
         ));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool)
-            .await
-            .ok();
+        http_error.log();
         http_error
     }
 
@@ -106,9 +105,7 @@ async fn handle_create_session_credential_request(
         let http_error = HTTPError::Unauthorized(Some(
             "Invalid username or password. Check your credentials and try again.".to_string(),
         ));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &database_pool)
-            .await
-            .ok();
+        http_error.log();
         http_error
     }
 
@@ -235,13 +232,7 @@ async fn handle_create_session_credential_request(
                 let http_error = HTTPError::BadRequest(Some(
                     "The password field is required when using login credentials.".to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             };
 
@@ -266,13 +257,7 @@ async fn handle_create_session_credential_request(
                     error
                 ))));
 
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         }
@@ -285,13 +270,7 @@ async fn handle_create_session_credential_request(
                 let http_error = HTTPError::BadRequest(Some(
                     "The refresh_token field is required when using a refresh token.".to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             };
             let decoded_claims = match SessionCredential::decode_token(
@@ -334,13 +313,7 @@ async fn handle_create_session_credential_request(
                             ))),
                         };
 
-                        ServerLogEntry::from_http_error(
-                            &http_error,
-                            Some(&http_transaction.id),
-                            &state.database_pool,
-                        )
-                        .await
-                        .ok();
+                        http_error.log();
                         return Err(http_error);
                     }
                 };
@@ -364,13 +337,7 @@ async fn handle_create_session_credential_request(
                         ))),
                     };
 
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -382,26 +349,14 @@ async fn handle_create_session_credential_request(
                 let http_error = HTTPError::Unauthorized(Some(
                     "To protect this account's security, the session associated with this refresh token has expired. Please authenticate using login credentials to make a new session.".to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
             if session.is_expired() {
                 let http_error = HTTPError::Unauthorized(Some(
                     "The session associated with this refresh token has expired. Authenticate again to get a new refresh token.".to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         }
@@ -449,13 +404,7 @@ async fn handle_create_session_credential_request(
                 maximum_refresh_token_lifetime_milliseconds
             } else {
                 let http_error = HTTPError::InternalServerError(Some("The sessions.maximumRefreshTokenLifetimeMilliseconds configuration must have a number value.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         }
@@ -481,13 +430,7 @@ async fn handle_create_session_credential_request(
                 "Failed to create session: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -510,13 +453,7 @@ async fn handle_create_session_credential_request(
                 maximum_access_token_lifetime_milliseconds
             } else {
                 let http_error = HTTPError::InternalServerError(Some("The sessionCredentials.maximumAccessTokenLifetimeMilliseconds configuration must have a number value.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         }
@@ -542,13 +479,7 @@ async fn handle_create_session_credential_request(
                 maximum_refresh_token_lifetime_milliseconds
             } else {
                 let http_error = HTTPError::InternalServerError(Some("The sessionCredentials.maximumRefreshTokenLifetimeMilliseconds configuration must have a number value.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         }
@@ -578,13 +509,7 @@ async fn handle_create_session_credential_request(
                 "Failed to create session credential: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -601,13 +526,7 @@ async fn handle_create_session_credential_request(
     } else {
         let http_error =
             HTTPError::InternalServerError(Some("Failed to generate session token.".to_string()));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     };
 
@@ -619,13 +538,7 @@ async fn handle_create_session_credential_request(
     } else {
         let http_error =
             HTTPError::InternalServerError(Some("Failed to generate refresh token.".to_string()));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     };
 
@@ -738,13 +651,7 @@ async fn handle_list_session_credentials_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing sessionCredentials...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing sessionCredentials...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match Session::list(
         &query,
@@ -772,24 +679,12 @@ async fn handle_list_session_credentials_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting sessionCredentials...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting sessionCredentials...");
     let resource_count = match Session::count(
         &query,
         &state.database_pool,
@@ -805,13 +700,7 @@ async fn handle_list_session_credentials_request(
                 "Failed to count sessions: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -894,5 +783,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(session_credential_id::get_router(state.clone()))
 }

@@ -13,6 +13,7 @@
 pub mod user_id;
 
 use std::sync::Arc;
+use tracing::{trace};
 
 use crate::{
     AppState, HTTPError,
@@ -107,13 +108,7 @@ async fn handle_list_users_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing users...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing users...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match User::list(
         &query,
@@ -139,24 +134,12 @@ async fn handle_list_users_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting users...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting users...");
     let resource_count = match User::count(
         &query,
         &state.database_pool,
@@ -170,13 +153,7 @@ async fn handle_list_users_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to count users: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -323,25 +300,13 @@ async fn handle_create_user_request(
                 "Failed to hash password: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     // Create the user.
-    ServerLogEntry::trace(
-        "Creating user...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating user...");
     let user = match User::create(
         &InitialUserProperties {
             username: Some(create_user_request_body.username.clone()),
@@ -367,13 +332,7 @@ async fn handle_create_user_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -405,13 +364,7 @@ async fn handle_create_user_request(
     .await
     .ok();
 
-    ServerLogEntry::trace(
-        "Getting registered users group...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting registered users group...");
 
     let registered_users_group = match Group::get_protected_group_by_type(
         &GroupParentResourceType::Server,
@@ -428,24 +381,12 @@ async fn handle_create_user_request(
                 "Failed to get registered users group: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Creating membership for user in registered users group...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating membership for user in registered users group...");
 
     if let Err(error) = Membership::create(
         &InitialMembershipProperties {
@@ -465,23 +406,11 @@ async fn handle_create_user_request(
             "Failed to create membership for user {} in registered users group: {:?}",
             user.id, error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
-    ServerLogEntry::trace(
-        "Creating user account owners role for user...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating user account owners role for user...");
 
     let user_account_owners_role = match Role::create(&InitialRoleProperties {
     name: "user-account-owners".to_string(),
@@ -501,20 +430,14 @@ async fn handle_create_user_request(
     Err(error) => {
 
       let http_error = HTTPError::InternalServerError(Some(format!("Failed to create account owners role for user {}: {:?}", user.id, error)));
-      ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+      http_error.log();
       return Err(http_error);
 
     }
 
   };
 
-    ServerLogEntry::trace(
-        "Creating access policies for user account owners role...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating access policies for user account owners role...");
 
     let allowed_actions = vec![
         "accessPolicies.create",
@@ -575,24 +498,12 @@ async fn handle_create_user_request(
                 "Failed to add allowed action {} to user account owners role for user {}: {:?}",
                 action_name, user.id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     }
 
-    ServerLogEntry::trace(
-        "Creating membership for user in their user account owners role...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating membership for user in their user account owners role...");
 
     if let Err(error) = Membership::create(
         &InitialMembershipProperties {
@@ -612,13 +523,7 @@ async fn handle_create_user_request(
             "Failed to create membership for user {} in their user account owners role: {:?}",
             user.id, error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -655,5 +560,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(user_id::get_router(state.clone()))
 }

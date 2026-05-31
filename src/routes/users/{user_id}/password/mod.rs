@@ -35,6 +35,7 @@ use reqwest::StatusCode;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use serde::Deserialize;
 use std::sync::Arc;
+use tracing::{trace};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -212,13 +213,7 @@ async fn handle_update_user_password_request(
                 let http_error = HTTPError::Unauthorized(Some(
                     "The provided password reset token is invalid.".to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
             let password_reset_authorization = get_password_reset_authorization_by_id(
@@ -233,26 +228,14 @@ async fn handle_update_user_password_request(
                         "Failed to delete password reset authorization: {:?}",
                         error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             } else {
                 let http_error = HTTPError::Unauthorized(Some(
                     "The provided password reset token is invalid.".to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         } else if let Some(current_password) = &update_user_password_request_body.current_password {
@@ -271,20 +254,12 @@ async fn handle_update_user_password_request(
 
         };
 
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         } else {
             let http_error = HTTPError::BadRequest(Some("Either current_password or password_reset_authorization must be provided in the request body, unless should_bypass_password_validation is true.".to_string()));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -317,13 +292,7 @@ async fn handle_update_user_password_request(
                 let http_error = HTTPError::InternalServerError(Some(
                     "Invalid minimum password length configuration value.".to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -332,9 +301,7 @@ async fn handle_update_user_password_request(
                 "The new password must be at least {} characters long.",
                 minimum_password_length
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -359,13 +326,7 @@ async fn handle_update_user_password_request(
                 let http_error = HTTPError::InternalServerError(Some(
                     "Invalid maximum password length configuration value.".to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -374,9 +335,7 @@ async fn handle_update_user_password_request(
                 "The new password must be at most {} characters long.",
                 maximum_password_length
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -450,13 +409,7 @@ async fn handle_update_user_password_request(
                 "Failed to hash new password: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -476,13 +429,7 @@ async fn handle_update_user_password_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to delete user: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -516,13 +463,7 @@ async fn handle_update_user_password_request(
     .ok();
 
     if update_user_password_request_body.should_delete_other_sessions {
-        ServerLogEntry::trace(
-            "Deleting user's other sessions...",
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("Deleting user's other sessions...");
 
         let database_client = match state.database_pool.get().await {
             Ok(database_client) => database_client,
@@ -532,13 +473,7 @@ async fn handle_update_user_password_request(
                     "Failed to get database client from pool: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -557,13 +492,7 @@ async fn handle_update_user_password_request(
                 "Failed to delete user's other sessions: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     }
@@ -600,4 +529,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

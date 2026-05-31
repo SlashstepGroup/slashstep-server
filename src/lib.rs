@@ -61,9 +61,9 @@ use axum_extra::response::ErasedJson;
 use colored::Colorize;
 use reqwest::StatusCode;
 use serde::Serialize;
-use tracing::{debug, trace};
 use std::fmt;
 use thiserror::Error;
+use tracing::{debug, trace};
 
 #[derive(Debug, Error)]
 pub enum SlashstepServerError {
@@ -173,16 +173,14 @@ pub enum HTTPError {
 
 impl HTTPError {
     fn log(&self) {
-
         match self {
             HTTPError::InternalServerError(_) => {
                 error!("{}", self.to_string());
-            },
+            }
             _ => {
                 warn!("{}", self.to_string());
             }
         }
-
     }
 }
 

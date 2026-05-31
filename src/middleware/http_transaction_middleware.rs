@@ -4,8 +4,7 @@ use crate::{
         ResourceError,
         http_transaction::{
             EditableHTTPTransactionProperties, HTTPTransaction, InitialHTTPTransactionProperties,
-        },
-        server_log_entry::ServerLogEntry,
+        }
     },
     utilities::route_handler_utilities::get_configuration_by_name,
 };
@@ -17,6 +16,7 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use rust_decimal::prelude::ToPrimitive;
+use tracing::{Span, debug, error};
 use std::{net::SocketAddr, sync::Arc};
 
 pub async fn create_http_transaction(
@@ -51,27 +51,27 @@ pub async fn create_http_transaction(
         Ok(http_transaction) => Arc::new(http_transaction),
 
         Err(error) => {
-            let http_error = match error {
+            let http_error = match &error {
                 ResourceError::PostgresError(postgres_error) => {
                     match postgres_error.as_db_error() {
                         Some(db_error) => {
-                            HTTPError::InternalServerError(Some(format!("{:?}", db_error)))
+                            HTTPError::InternalServerError(Some(format!("Failed to create HTTP transaction: {:?}", db_error)))
                         }
 
                         None => {
-                            HTTPError::InternalServerError(Some(format!("{:?}", postgres_error)))
+                            HTTPError::InternalServerError(Some(format!("Failed to create HTTP transaction: {:?}", postgres_error)))
                         }
                     }
                 }
 
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
-            ServerLogEntry::from_http_error(&http_error, None, &state.database_pool)
-                .await
-                .ok();
+            error!("{}", http_error);
             return Err(http_error);
         }
     };
+
+    Span::current().record("http_transaction_id", http_transaction.id.to_string());
 
     let should_http_transactions_expire_configuration = get_configuration_by_name(
         "httpTransactions.shouldExpire",
@@ -108,13 +108,7 @@ pub async fn create_http_transaction(
                         "Failed to set HTTP transaction expiration timestamp: {:?}",
                         error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    error!("{}", http_error);
                     return Err(http_error);
                 }
             }
@@ -123,13 +117,7 @@ pub async fn create_http_transaction(
 
     request.extensions_mut().insert(http_transaction.clone());
 
-    ServerLogEntry::info(
-        "HTTP request handling started.",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    debug!("HTTP request handling started.");
     let response = next.run(request).await;
     Ok(response)
 }

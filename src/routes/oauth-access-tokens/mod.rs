@@ -52,6 +52,7 @@ use rust_decimal::prelude::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
+use tracing::{trace};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -177,11 +178,9 @@ pub async fn convert_client_id_string_to_uuid(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
+            let http_error: HTTPError = oauth_error_response.clone().into();
 
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -195,13 +194,7 @@ pub async fn decode_authorization_code_jwt_claims(
     json_web_token_public_key: &str,
     token: &str,
 ) -> Result<jsonwebtoken::TokenData<OAuthAuthorizationClaims>, OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        "Decoding and verifying authorization code...",
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Decoding and verifying authorization code...");
 
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
     let decoding_key = match get_decoding_key(
@@ -245,7 +238,7 @@ pub async fn decode_authorization_code_jwt_claims(
                         None,
                     ),
                 };
-                let http_error = oauth_error_response.clone().into();
+                let http_error: HTTPError = oauth_error_response.clone().into();
 
                 ServerLogEntry::from_http_error(
                     &http_error,
@@ -267,13 +260,7 @@ pub async fn decode_app_authorization_credential_jwt_claims(
     json_web_token_public_key: &str,
     token: &str,
 ) -> Result<jsonwebtoken::TokenData<AppAuthorizationCredentialClaims>, OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        "Decoding and verifying refresh token...",
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Decoding and verifying refresh token...");
 
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
     let decoding_key = match get_decoding_key(
@@ -321,11 +308,9 @@ pub async fn decode_app_authorization_credential_jwt_claims(
                     None,
                 ),
             };
-            let http_error = oauth_error_response.clone().into();
+            let http_error: HTTPError = oauth_error_response.clone().into();
 
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -369,11 +354,9 @@ pub async fn get_app_by_client_id(
                     None,
                 ),
             };
-            let http_error = oauth_error_response.clone().into();
+            let http_error: HTTPError = oauth_error_response.clone().into();
 
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -410,10 +393,8 @@ pub async fn get_oauth_authorization_by_id(
         _ => OAuthTokenErrorResponse::new(&OAuthTokenError::InternalServerError, &format!("Failed to get OAuth authorization with the ID \"{}\": {:?}", oauth_authorization_id, error), None, None)
 
       };
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -448,10 +429,8 @@ pub async fn convert_oauth_authorization_id_string_to_uuid(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -465,13 +444,7 @@ pub async fn verify_client_secret(
     http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        "Verifying client secret is present...",
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Verifying client secret is present...");
 
     let client_secret = match client_secret {
         Some(client_secret) => client_secret,
@@ -483,21 +456,13 @@ pub async fn verify_client_secret(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
 
-    ServerLogEntry::trace(
-        "Converting client secret hash string to Argon2 password hash...",
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Converting client secret hash string to Argon2 password hash...");
     let client_secret_hash_string = match client_secret_hash {
         Some(client_secret_hash_string) => client_secret_hash_string,
 
@@ -508,10 +473,8 @@ pub async fn verify_client_secret(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -526,21 +489,13 @@ pub async fn verify_client_secret(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
 
-    ServerLogEntry::trace(
-        "Verifying client secret is correct...",
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Verifying client secret is correct...");
     if let Err(error) =
         Argon2::default().verify_password(client_secret.as_bytes(), &client_secret_hash)
     {
@@ -559,10 +514,8 @@ pub async fn verify_client_secret(
                 None,
             ),
         };
-        let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-            .await
-            .ok();
+        let http_error: HTTPError = oauth_error_response.clone().into();
+        http_error.log();
         return Err(oauth_error_response);
     }
 
@@ -600,10 +553,8 @@ pub async fn update_oauth_authorization_usage_date(
             None,
             None,
         );
-        let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-            .await
-            .ok();
+        let http_error: HTTPError = oauth_error_response.clone().into();
+        http_error.log();
         return Err(oauth_error_response);
     }
 
@@ -615,13 +566,7 @@ pub async fn create_app_authorization(
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<AppAuthorization, OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        "Creating app authorization...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating app authorization...");
 
     let app_authorization = match AppAuthorization::create(
         &InitialAppAuthorizationProperties {
@@ -644,10 +589,8 @@ pub async fn create_app_authorization(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -679,14 +622,8 @@ pub async fn create_app_authorization(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -721,13 +658,7 @@ pub async fn verify_code_verifier(
     database_pool: &deadpool_postgres::Pool,
     oauth_state: Option<&String>,
 ) -> Result<(), OAuthTokenErrorResponse> {
-    ServerLogEntry::trace(
-        "Verifying code_verifier...",
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Verifying code_verifier...");
 
     if code_challenge_method.is_none_or(|code_challenge_method| code_challenge_method != "S256") {
         let oauth_error_response = OAuthTokenErrorResponse::new(
@@ -736,10 +667,8 @@ pub async fn verify_code_verifier(
             None,
             oauth_state,
         );
-        let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-            .await
-            .ok();
+        let http_error: HTTPError = oauth_error_response.clone().into();
+        http_error.log();
         return Err(oauth_error_response);
     }
 
@@ -753,10 +682,8 @@ pub async fn verify_code_verifier(
                 None,
                 oauth_state,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -770,10 +697,8 @@ pub async fn verify_code_verifier(
             None,
             oauth_state,
         );
-        let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-            .await
-            .ok();
+        let http_error: HTTPError = oauth_error_response.clone().into();
+        http_error.log();
         return Err(oauth_error_response);
     }
 
@@ -799,10 +724,8 @@ pub async fn delete_oauth_authorization(
             None,
             None,
         );
-        let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(&oauth_authorization.id), database_pool)
-            .await
-            .ok();
+        let http_error: HTTPError = oauth_error_response.clone().into();
+        http_error.log();
         return Err(oauth_error_response);
     };
 
@@ -832,10 +755,8 @@ pub async fn create_app_authorization_credential(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -858,14 +779,8 @@ pub async fn create_app_authorization_credential(
                             None,
                             None,
                         );
-                        let http_error = oauth_error_response.clone().into();
-                        ServerLogEntry::from_http_error(
-                            &http_error,
-                            Some(&http_transaction.id),
-                            database_pool,
-                        )
-                        .await
-                        .ok();
+                        let http_error: HTTPError = oauth_error_response.clone().into();
+                        http_error.log();
                         return Err(oauth_error_response);
                     }
                 }
@@ -878,14 +793,8 @@ pub async fn create_app_authorization_credential(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -909,14 +818,8 @@ pub async fn create_app_authorization_credential(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -939,14 +842,8 @@ pub async fn create_app_authorization_credential(
                             None,
                             None,
                         );
-                        let http_error = oauth_error_response.clone().into();
-                        ServerLogEntry::from_http_error(
-                            &http_error,
-                            Some(&http_transaction.id),
-                            database_pool,
-                        )
-                        .await
-                        .ok();
+                        let http_error: HTTPError = oauth_error_response.clone().into();
+                        http_error.log();
                         return Err(oauth_error_response);
                     }
                 }
@@ -959,14 +856,8 @@ pub async fn create_app_authorization_credential(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1004,10 +895,8 @@ pub async fn create_app_authorization_credential(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -1053,10 +942,8 @@ pub async fn find_app_authorization_by_oauth_authorization_id(
                     None,
                 ),
             };
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -1076,10 +963,8 @@ pub async fn delete_app_authorization(
             None,
             None,
         );
-        let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        let http_error: HTTPError = oauth_error_response.clone().into();
+        http_error.log();
         return Err(oauth_error_response);
     }
 
@@ -1110,14 +995,8 @@ pub async fn delete_app_authorization(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1191,14 +1070,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1235,14 +1108,8 @@ async fn handle_create_oauth_access_token_request(
                         None,
                         oauth_state.as_ref(),
                     );
-                    let http_error = oauth_error_response.clone().into();
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    let http_error: HTTPError = oauth_error_response.clone().into();
+                    http_error.log();
                     return Err(oauth_error_response);
                 }
             };
@@ -1254,14 +1121,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     oauth_state.as_ref(),
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         }
@@ -1290,14 +1151,8 @@ async fn handle_create_oauth_access_token_request(
                 None,
                 oauth_state.as_ref(),
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
 
@@ -1338,14 +1193,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1363,14 +1212,8 @@ async fn handle_create_oauth_access_token_request(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
 
@@ -1384,14 +1227,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1422,14 +1259,8 @@ async fn handle_create_oauth_access_token_request(
                         None,
                     ),
                 };
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1446,14 +1277,8 @@ async fn handle_create_oauth_access_token_request(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
         let delete_app_authorization_credentials_action = match get_action_by_name(
@@ -1477,14 +1302,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1504,14 +1323,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1552,14 +1365,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         }
@@ -1570,14 +1377,8 @@ async fn handle_create_oauth_access_token_request(
             None,
             None,
         );
-        let http_error = oauth_error_response.clone().into();
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        let http_error: HTTPError = oauth_error_response.clone().into();
+        http_error.log();
         return Err(oauth_error_response);
     }
 
@@ -1598,14 +1399,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1620,14 +1415,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1642,14 +1431,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1686,14 +1469,8 @@ async fn handle_create_oauth_access_token_request(
                 None,
                 None,
             );
-            let http_error = oauth_error_response.clone().into();
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            let http_error: HTTPError = oauth_error_response.clone().into();
+            http_error.log();
             return Err(oauth_error_response);
         }
     };
@@ -1711,14 +1488,8 @@ async fn handle_create_oauth_access_token_request(
                     None,
                     None,
                 );
-                let http_error = oauth_error_response.clone().into();
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                let http_error: HTTPError = oauth_error_response.clone().into();
+                http_error.log();
                 return Err(oauth_error_response);
             }
         };
@@ -1764,4 +1535,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

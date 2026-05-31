@@ -10,6 +10,7 @@
  */
 
 use std::sync::Arc;
+use tracing::{trace};
 use axum::{Extension, Json, Router, extract::{Path, State}};
 use crate::{
   AppState,
@@ -138,7 +139,7 @@ async fn handle_get_server_log_entry_request(
 
 //       };
 
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+//       http_error.log();
 //       return Err(http_error);
 
 //     }
@@ -161,7 +162,7 @@ async fn handle_get_server_log_entry_request(
 //     Err(error) => {
 
 //       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update authenticated_app: {:?}", error)));
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+//       http_error.log();
 //       return Err(http_error);
 
 //     }

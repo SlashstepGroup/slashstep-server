@@ -12,11 +12,12 @@ use crate::resources::{
 };
 use colored::Colorize;
 use rust_decimal::Decimal;
+use tracing::{debug, trace, warn};
 
 pub async fn initialize_predefined_actions(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), ResourceError> {
-    println!("{}", "Initializing predefined actions...".dimmed());
+    trace!("Initializing predefined actions...");
 
     let predefined_actions: Vec<InitialActionProperties> = vec![
     InitialActionProperties {
@@ -1043,13 +1044,9 @@ pub async fn initialize_predefined_actions(
         let mut should_continue = false;
         for action in actions.iter() {
             if action.name == predefined_action.name {
-                println!(
-                    "{}",
-                    format!(
-                        "Skipping predefined action \"{}\" because it already exists.",
-                        predefined_action.name
-                    )
-                    .yellow()
+                warn!(
+                    "Skipping predefined action \"{}\" because it already exists.",
+                    predefined_action.name
                 );
                 should_continue = true;
             }
@@ -1075,7 +1072,7 @@ pub async fn initialize_predefined_actions(
         actions.push(action);
     }
 
-    println!("{}", format!("Successfully initialized {} predefined actions. {} actions were skipped because they already existed.", actions.len(), skipped_action_count).blue());
+    debug!("Successfully initialized {} predefined actions. {} actions were skipped because they already existed.", actions.len(), skipped_action_count);
 
     Ok(())
 }
@@ -1083,7 +1080,7 @@ pub async fn initialize_predefined_actions(
 pub async fn initialize_predefined_groups(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), ResourceError> {
-    println!("{}", "Initializing predefined groups...".dimmed());
+    debug!("Initializing predefined groups...");
 
     let predefined_groups: Vec<InitialGroupProperties> = vec![
     InitialGroupProperties {
@@ -1139,13 +1136,9 @@ pub async fn initialize_predefined_groups(
         let mut should_continue = false;
         for group in groups.iter() {
             if group.name == initial_predefined_group_properties.name {
-                println!(
-                    "{}",
-                    format!(
-                        "Skipping predefined group \"{}\" because it already exists.",
-                        initial_predefined_group_properties.name
-                    )
-                    .yellow()
+                warn!(
+                    "Skipping predefined group \"{}\" because it already exists.",
+                    initial_predefined_group_properties.name
                 );
                 should_continue = true;
             }
@@ -1192,7 +1185,7 @@ pub async fn initialize_predefined_groups(
                         principal_app_id: None,
                         principal_group_id: Some(predefined_group.id),
                         scoped_resource_type: ResourceType::Server,
-                          ..Default::default()
+                        ..Default::default()
                     },
                     database_pool,
                 )
@@ -1201,7 +1194,7 @@ pub async fn initialize_predefined_groups(
         }
     }
 
-    println!("{}", format!("Successfully initialized {} predefined groups. {} groups were skipped because they already existed.", groups.len(), skipped_group_count).blue());
+    debug!("Successfully initialized {} predefined groups. {} groups were skipped because they already existed.", groups.len(), skipped_group_count);
 
     Ok(())
 }
@@ -1209,7 +1202,7 @@ pub async fn initialize_predefined_groups(
 pub async fn initialize_predefined_roles(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), ResourceError> {
-    println!("{}", "Initializing predefined roles...".dimmed());
+    trace!("Initializing predefined roles...");
 
     let predefined_roles: Vec<InitialRoleProperties> = vec![
     InitialRoleProperties {
@@ -1401,13 +1394,9 @@ pub async fn initialize_predefined_roles(
         let mut should_continue = false;
         for role in roles.iter() {
             if role.name == initial_predefined_role_propertiess.name {
-                println!(
-                    "{}",
-                    format!(
-                        "Skipping predefined role \"{}\" because that was already checked.",
-                        initial_predefined_role_propertiess.name
-                    )
-                    .yellow()
+                warn!(
+                    "Skipping predefined role \"{}\" because that was already checked.",
+                    initial_predefined_role_propertiess.name
                 );
                 should_continue = true;
             }
@@ -1454,7 +1443,7 @@ pub async fn initialize_predefined_roles(
                         principal_app_id: None,
                         principal_group_id: None,
                         scoped_resource_type: ResourceType::Server,
-                          ..Default::default()
+                        ..Default::default()
                     },
                     database_pool,
                 )
@@ -1463,7 +1452,7 @@ pub async fn initialize_predefined_roles(
         }
     }
 
-    println!("{}", format!("Successfully initialized {} predefined roles. {} roles were skipped because they already existed.", roles.len(), skipped_role_count).blue());
+    debug!("Successfully initialized {} predefined roles. {} roles were skipped because they already existed.", roles.len(), skipped_role_count);
 
     Ok(())
 }
@@ -1471,7 +1460,7 @@ pub async fn initialize_predefined_roles(
 pub async fn initialize_predefined_configurations(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), ResourceError> {
-    println!("{}", "Initializing predefined configurations...".dimmed());
+    debug!("Initializing predefined configurations...");
 
     let predefined_configurations: Vec<InitialConfigurationProperties> = vec![
     InitialConfigurationProperties {
@@ -2051,13 +2040,9 @@ pub async fn initialize_predefined_configurations(
         let mut should_continue = false;
         for configuration in configurations.iter() {
             if configuration.name == predefined_configuration.name {
-                println!(
-                    "{}",
-                    format!(
-                        "Skipping predefined configuration \"{}\" because it already exists.",
-                        predefined_configuration.name
-                    )
-                    .yellow()
+                warn!(
+                    "Skipping predefined configuration \"{}\" because it already exists.",
+                    predefined_configuration.name
                 );
                 should_continue = true;
             }
@@ -2084,7 +2069,7 @@ pub async fn initialize_predefined_configurations(
         configurations.push(configuration);
     }
 
-    println!("{}", format!("Successfully initialized {} predefined configurations. {} configurations were skipped because they already existed.", configurations.len(), skipped_configuration_count).blue());
+    debug!("Successfully initialized {} predefined configurations. {} configurations were skipped because they already existed.", configurations.len(), skipped_configuration_count);
 
     Ok(())
 }

@@ -38,6 +38,7 @@ use reqwest::StatusCode;
  *
  */
 use std::sync::Arc;
+use tracing::{trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -188,13 +189,7 @@ async fn handle_delete_view_field_request(
             "Failed to delete view field: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -265,13 +260,7 @@ async fn handle_patch_view_field_request(
         let http_error = HTTPError::UnprocessableEntity(Some(
             "A view field cannot be its own next view field.".to_string(),
         ));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -324,13 +313,7 @@ async fn handle_patch_view_field_request(
                 "Failed to update view field: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -406,5 +389,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

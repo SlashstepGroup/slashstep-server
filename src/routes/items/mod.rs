@@ -13,6 +13,7 @@
 pub mod item_id;
 
 use std::sync::Arc;
+use tracing::{trace};
 
 use crate::{
     AppState, HTTPError,
@@ -85,13 +86,7 @@ async fn handle_list_items_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing items...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing items...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match Item::list(
         &query,
@@ -117,24 +112,12 @@ async fn handle_list_items_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting items...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting items...");
     let resource_count = match Item::count(
         &query,
         &state.database_pool,
@@ -148,13 +131,7 @@ async fn handle_list_items_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to count items: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -230,5 +207,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(item_id::get_router(state.clone()))
 }

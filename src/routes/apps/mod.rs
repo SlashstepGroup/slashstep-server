@@ -50,6 +50,7 @@ use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::{trace};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -82,13 +83,7 @@ pub async fn validate_app_name(
         }
     };
 
-    ServerLogEntry::trace(
-        "Creating regex for validating app names...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating regex for validating app names...");
     let regex = match regex::Regex::new(&allowed_name_regex_string) {
         Ok(regex) => regex,
 
@@ -97,28 +92,18 @@ pub async fn validate_app_name(
                 "Failed to create regex for validating app names: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Validating app name against regex...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Validating app name against regex...");
     if !regex.is_match(name) {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
             "App names must match the allowed pattern: {}",
             allowed_name_regex_string
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -148,13 +133,7 @@ pub async fn validate_app_display_name(
         }
     };
 
-    ServerLogEntry::trace(
-        "Creating regex for validating app display names...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating regex for validating app display names...");
     let regex = match regex::Regex::new(&allowed_display_name_regex_string) {
         Ok(regex) => regex,
 
@@ -163,28 +142,18 @@ pub async fn validate_app_display_name(
                 "Failed to create regex for validating app display names: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Validating app display name against regex...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Validating app display name against regex...");
     if !regex.is_match(name) {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
             "App display names must match the allowed pattern: {}",
             allowed_display_name_regex_string
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -233,13 +202,7 @@ async fn handle_list_apps_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing apps...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing apps...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match App::list(
         &query,
@@ -265,24 +228,12 @@ async fn handle_list_apps_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting apps...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting apps...");
     let resource_count = match App::count(
         &query,
         &state.database_pool,
@@ -296,13 +247,7 @@ async fn handle_list_apps_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to count apps: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -436,13 +381,7 @@ async fn handle_create_app_request(
     let mut client_secret_hash = None;
     let mut client_secret = None;
     if app_properties_json.client_type == AppClientType::Confidential {
-        ServerLogEntry::trace(
-            "Generating client secret for confidential app...",
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("Generating client secret for confidential app...");
         let argon2 = Argon2::default();
         let salt = SaltString::generate(&mut OsRng);
         let some_client_secret = rand::rng()
@@ -459,26 +398,14 @@ async fn handle_create_app_request(
                     "Failed to hash client secret: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
     }
 
     // Create the app.
-    ServerLogEntry::trace(
-        "Creating app for server...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating app for server...");
     let app = match App::create(
         &InitialAppProperties {
             name: app_properties_json.name.clone(),
@@ -498,13 +425,7 @@ async fn handle_create_app_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to create app: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -579,5 +500,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(app_id::get_router(state.clone()))
 }

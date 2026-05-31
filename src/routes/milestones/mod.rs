@@ -13,6 +13,7 @@
 pub mod milestone_id;
 
 use std::sync::Arc;
+use tracing::{trace};
 
 use crate::{
     AppState, HTTPError,
@@ -85,13 +86,7 @@ async fn handle_list_milestones_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing milestones...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing milestones...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match Milestone::list(
         &query,
@@ -119,24 +114,12 @@ async fn handle_list_milestones_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting milestones...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting milestones...");
     let resource_count = match Milestone::count(
         &query,
         &state.database_pool,
@@ -152,13 +135,7 @@ async fn handle_list_milestones_request(
                 "Failed to count milestones: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -237,5 +214,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(milestone_id::get_router(state.clone()))
 }

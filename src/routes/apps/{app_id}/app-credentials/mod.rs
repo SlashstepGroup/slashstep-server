@@ -51,6 +51,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::{net::IpAddr, sync::Arc};
 use uuid::Uuid;
+use tracing::{trace};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateAppCredentialResponseBody {
@@ -147,24 +148,12 @@ pub async fn handle_list_app_credentials_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting app credentials...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting app credentials...");
     let resource_count = match AppCredential::count(
         &query,
         &state.database_pool,
@@ -180,13 +169,7 @@ pub async fn handle_list_app_credentials_request(
                 "Failed to count app credentials: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -309,13 +292,7 @@ async fn handle_create_app_credential_request(
                 "Failed to create app credential: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -329,13 +306,7 @@ async fn handle_create_app_credential_request(
                 "Failed to create app credential: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -368,13 +339,7 @@ async fn handle_create_app_credential_request(
                 "Failed to create app credential: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -457,4 +422,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

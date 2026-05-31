@@ -54,6 +54,7 @@ use pg_escape::quote_literal;
 use rand::{RngExt, distr::Alphanumeric};
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tracing::{trace};
 
 /// GET /workspaces/{workspace_id}/apps
 ///
@@ -139,24 +140,12 @@ async fn handle_list_apps_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting apps...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting apps...");
     let resource_count = match App::count(
         &query,
         &state.database_pool,
@@ -170,13 +159,7 @@ async fn handle_list_apps_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to count apps: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -326,13 +309,7 @@ async fn handle_create_app_request(
     let mut client_secret_hash = None;
     let mut client_secret = None;
     if app_properties_json.client_type == AppClientType::Confidential {
-        ServerLogEntry::trace(
-            "Generating client secret for confidential app...",
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("Generating client secret for confidential app...");
         let argon2 = Argon2::default();
         let salt = SaltString::generate(&mut OsRng);
         let some_client_secret = rand::rng()
@@ -349,26 +326,14 @@ async fn handle_create_app_request(
                     "Failed to hash client secret: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
     }
 
     // Create the app.
-    ServerLogEntry::trace(
-        "Creating app for server...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating app for server...");
     let app = match App::create(
         &InitialAppProperties {
             name: app_properties_json.name.clone(),
@@ -389,13 +354,7 @@ async fn handle_create_app_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to create app: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -427,13 +386,7 @@ async fn handle_create_app_request(
     .await
     .ok();
 
-    ServerLogEntry::trace(
-        "Creating app admins role for app...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating app admins role for app...");
 
     let app_admins_role = match Role::create(
         &InitialRoleProperties {
@@ -461,24 +414,12 @@ async fn handle_create_app_request(
                 "Failed to create app admins role on app {}: {:?}",
                 workspace.id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Creating access policies for app admins role...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating access policies for app admins role...");
 
     let allowed_actions = vec![
         "actions.create",
@@ -554,13 +495,7 @@ async fn handle_create_app_request(
                 "Failed to add allowed action {} to workspace admins role for {} {}: {:?}",
                 action_name, principal_type_str, principal_id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     }
@@ -615,4 +550,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

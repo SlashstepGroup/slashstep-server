@@ -45,6 +45,7 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use std::sync::Arc;
+use tracing::{trace};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateMembershipQueryParameters {
@@ -143,13 +144,7 @@ pub async fn handle_create_membership_request(
                 "Failed to delete membership invitation: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -255,13 +250,7 @@ pub async fn handle_create_membership_request(
                 "Failed to create membership: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -389,24 +378,12 @@ pub async fn handle_list_memberships_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting memberships...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting memberships...");
     let resource_count = match Membership::count(
         &query,
         &state.database_pool,
@@ -422,13 +399,7 @@ pub async fn handle_list_memberships_request(
                 "Failed to count memberships: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -512,4 +483,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

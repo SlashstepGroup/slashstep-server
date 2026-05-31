@@ -42,6 +42,7 @@ use reqwest::StatusCode;
  *
  */
 use std::sync::Arc;
+use tracing::{trace};
 
 #[axum::debug_handler]
 async fn handle_list_actions_request(
@@ -118,24 +119,12 @@ async fn handle_list_actions_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting actions...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting actions...");
     let resource_count = match Action::count(
         &query,
         &state.database_pool,
@@ -151,13 +140,7 @@ async fn handle_list_actions_request(
                 "Failed to count actions: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -289,13 +272,7 @@ async fn handle_create_action_request(
                 "Failed to create action: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -360,4 +337,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

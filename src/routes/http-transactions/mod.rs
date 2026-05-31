@@ -13,6 +13,7 @@
 pub mod http_transaction_id;
 
 use std::sync::Arc;
+use tracing::{trace};
 
 use crate::{
     AppState, HTTPError,
@@ -88,13 +89,7 @@ async fn handle_list_http_transactions_request(
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing HTTP transactions...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing HTTP transactions...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match HTTPTransaction::list(
         &query,
@@ -122,24 +117,12 @@ async fn handle_list_http_transactions_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting HTTP transactions...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting HTTP transactions...");
     let resource_count = match HTTPTransaction::count(
         &query,
         &state.database_pool,
@@ -155,13 +138,7 @@ async fn handle_list_http_transactions_request(
                 "Failed to count HTTP transactions: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -240,5 +217,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(http_transaction_id::get_router(state.clone()))
 }

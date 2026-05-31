@@ -37,6 +37,7 @@ use reqwest::StatusCode;
  *
  */
 use std::sync::Arc;
+use tracing::{trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -198,13 +199,7 @@ async fn handle_delete_configuration_request(
             "Failed to delete configuration: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -262,13 +257,7 @@ async fn handle_patch_configuration_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableConfigurationProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Configuration>>, HTTPError> {
-    ServerLogEntry::trace(
-        "Verifying request body...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Verifying request body...");
     let updated_configuration_properties = match body {
         Ok(updated_configuration_properties) => updated_configuration_properties,
 
@@ -295,13 +284,7 @@ async fn handle_patch_configuration_request(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -369,13 +352,7 @@ async fn handle_patch_configuration_request(
                 "Failed to update configuration: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -454,5 +431,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

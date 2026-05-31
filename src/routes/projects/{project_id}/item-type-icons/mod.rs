@@ -50,6 +50,7 @@ use svg_hush::data_url_filter;
 use tokio::fs::create_dir_all;
 use usvg::Tree;
 use uuid::Uuid;
+use tracing::{trace};
 
 /// GET /projects/{project_id}/item-type-icons
 ///
@@ -141,24 +142,12 @@ async fn handle_list_item_type_icons_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting item type icons...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting item type icons...");
     let resource_count = match ItemTypeIcon::count(
         &query,
         &state.database_pool,
@@ -174,13 +163,7 @@ async fn handle_list_item_type_icons_request(
                 "Failed to count item type icons: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -331,9 +314,7 @@ async fn handle_create_item_type_icon_request(
                 "The content type of the file provided in the \"icon_data\" field must be one of the following: {}.",
                 allowed_content_types.join(", ")
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -367,9 +348,7 @@ async fn handle_create_item_type_icon_request(
                 "The file provided in the \"icon_data\" field must match the expected format for {}. The content type provided was {}.",
                 content_type, actual_mime_type
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -399,13 +378,7 @@ async fn handle_create_item_type_icon_request(
                         "The SVG file provided in the \"icon_data\" field is not valid UTF-8."
                             .to_string(),
                     ));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -422,13 +395,7 @@ async fn handle_create_item_type_icon_request(
             if svg_filter_result.is_err() {
                 let http_error =
                     HTTPError::BadRequest(Some("The SVG file could not be parsed.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
 
@@ -443,13 +410,7 @@ async fn handle_create_item_type_icon_request(
                         "The file provided in the \"icon_data\" field is not a valid image: {:?}",
                         error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -467,13 +428,7 @@ async fn handle_create_item_type_icon_request(
                         "Unsupported content type: {}.",
                         content_type
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -482,13 +437,7 @@ async fn handle_create_item_type_icon_request(
                     "Failed to re-encode the provided image: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
 
@@ -499,9 +448,7 @@ async fn handle_create_item_type_icon_request(
             "Unsupported content type: {}.",
             content_type
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         Err(http_error)
     }
 
@@ -524,13 +471,7 @@ async fn handle_create_item_type_icon_request(
                     "Unsupported content type: {}.",
                     content_type
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -560,13 +501,7 @@ async fn handle_create_item_type_icon_request(
                         "Failed to get configuration for item type icon storage directory: {:?}",
                         error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -580,13 +515,7 @@ async fn handle_create_item_type_icon_request(
 
                 None => {
                     let http_error = HTTPError::InternalServerError(Some("The configuration for the item type icon storage directory does not have a value.".to_string()));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -616,9 +545,7 @@ async fn handle_create_item_type_icon_request(
                 "Failed to create directory for item type icon file: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -627,9 +554,7 @@ async fn handle_create_item_type_icon_request(
                 "Failed to save item type icon file: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -640,13 +565,7 @@ async fn handle_create_item_type_icon_request(
         Ok(body) => body,
 
         Err(http_error) => {
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -665,13 +584,7 @@ async fn handle_create_item_type_icon_request(
             let http_error = HTTPError::BadRequest(Some(
                 "The field \"icon_data\" must have a content type.".to_string(),
             ));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -782,13 +695,7 @@ async fn handle_create_item_type_icon_request(
                 "Failed to create item type icon: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -858,4 +765,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

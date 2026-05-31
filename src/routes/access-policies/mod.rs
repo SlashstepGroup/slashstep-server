@@ -16,21 +16,25 @@ use crate::{
         server_log_entry::ServerLogEntry,
         user::User,
     },
-    routes::{CreateResourceResponseBody, ListResourcesResponseBody, ResourceListQueryParameters},
+    routes::{
+        CreateResourceResponseBody, ListResourcesResponseBody, ResourceListQueryParameters,
+        http_transactions::http_transaction_id,
+    },
     utilities::route_handler_utilities::{
-        get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp,
-        get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,
-        is_authenticated_user_anonymous, match_db_error, match_slashstepql_error,
-        verify_delegate_permissions, verify_principal_permissions,
+        create_trace_layer_span, get_action_by_id, get_action_by_name,
+        get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal,
+        get_request_body_without_json_rejection, is_authenticated_user_anonymous, match_db_error,
+        match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions,
     },
 };
 use axum::{
     Extension, Json, Router,
     extract::{Query, State, rejection::JsonRejection},
 };
-use tracing::{info, trace, warn};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use tower_http::trace::TraceLayer;
+use tracing::{info, info_span, trace, warn};
 /*
  *
  * Any functionality for /access-policies should be handled here.
@@ -151,13 +155,7 @@ async fn handle_list_access_policies_request(
                 "Failed to count access policies: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -190,7 +188,15 @@ async fn handle_list_access_policies_request(
     .ok();
 
     let queried_access_policy_list_length = queried_access_policies.len();
-    info!("Successfully returned {} {}.", queried_access_policy_list_length, if queried_access_policy_list_length == 1 { "access policy" } else { "access policies" });
+    info!(
+        "Successfully returned {} {}.",
+        queried_access_policy_list_length,
+        if queried_access_policy_list_length == 1 {
+            "access policy"
+        } else {
+            "access policies"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<AccessPolicy> {
         data: queried_access_policies,
@@ -287,13 +293,7 @@ async fn handle_create_access_policy_request(
     .await?;
 
     // Create the access policy.
-    ServerLogEntry::trace(
-        "Creating access policy for server...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating access policy for server...");
     let access_policy = match AccessPolicy::create(
         &InitialAccessPolicyProperties {
             action_id: create_server_access_policy_request_body.action_id,
@@ -318,13 +318,7 @@ async fn handle_create_access_policy_request(
                 "Failed to create access policy: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -396,5 +390,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policy_id::get_router(state.clone()))
 }

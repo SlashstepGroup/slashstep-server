@@ -44,6 +44,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
+use tracing::{trace};
 use uuid::Uuid;
 
 pub async fn create_regex(
@@ -59,9 +60,7 @@ pub async fn create_regex(
                 "Failed to create regex: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -88,13 +87,7 @@ async fn handle_create_oauth_authorization_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateOAuthAuthorizationResponseBody>), HTTPError> {
-    ServerLogEntry::trace(
-        "Validating request body...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Validating request body...");
     let initial_oauth_authorization_properties_json = match body {
         Ok(initial_oauth_authorization_properties_json) => {
             initial_oauth_authorization_properties_json
@@ -123,13 +116,7 @@ async fn handle_create_oauth_authorization_request(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -146,13 +133,7 @@ async fn handle_create_oauth_authorization_request(
             "The code challenge method must be \"S256\" if a code challenge is provided."
                 .to_string(),
         ));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -165,13 +146,7 @@ async fn handle_create_oauth_authorization_request(
             "The scope must be a space-separated list of action IDs and permission levels."
                 .to_string(),
         ));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -187,13 +162,7 @@ async fn handle_create_oauth_authorization_request(
                         "The action ID \"{}\" is not a valid UUID. Check your scope string.",
                         action_id.as_str()
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             },
@@ -203,13 +172,7 @@ async fn handle_create_oauth_authorization_request(
                     "The scope must be a space-separated list of action IDs and permission levels."
                         .to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -224,13 +187,7 @@ async fn handle_create_oauth_authorization_request(
                             "The maximum permission level \"{}\" is not valid. Check your scope string.",
                             maximum_permission_level.as_str()
                         )));
-                        ServerLogEntry::from_http_error(
-                            &http_error,
-                            Some(&http_transaction.id),
-                            &state.database_pool,
-                        )
-                        .await
-                        .ok();
+                        http_error.log();
                         return Err(http_error);
                     }
                 }
@@ -241,13 +198,7 @@ async fn handle_create_oauth_authorization_request(
                     "The scope must be a space-separated list of action IDs and permission levels."
                         .to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -361,24 +312,12 @@ async fn handle_create_oauth_authorization_request(
                 "Failed to create OAuth authorization: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Generating OAuth authorization code...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Generating OAuth authorization code...");
     let jwt_private_key =
         get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await?;
     let authorization_code =
@@ -390,13 +329,7 @@ async fn handle_create_oauth_authorization_request(
                     "Failed to generate OAuth authorization code: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -492,4 +425,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

@@ -58,7 +58,6 @@ use crate::{
 };
 use axum::{Router, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -118,6 +117,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
         .merge(actions::get_router(state.clone()))
         .merge(action_log_entries::get_router(state.clone()))
@@ -153,5 +153,4 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .merge(view_fields::get_router(state.clone()))
         .merge(workspaces::get_router(state.clone()))
         .fallback(fallback)
-        .layer(TraceLayer::new_for_http())
 }

@@ -26,7 +26,10 @@ use crate::{
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
     utilities::route_handler_utilities::{
-        get_access_policy_by_id, get_action_by_id, get_action_by_name, get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal, get_request_body_without_json_rejection, get_role_by_id, get_uuid_from_string, is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions
+        get_access_policy_by_id, get_action_by_id, get_action_by_name,
+        get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal,
+        get_request_body_without_json_rejection, get_role_by_id, get_uuid_from_string,
+        is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions,
     },
 };
 use axum::{
@@ -35,6 +38,7 @@ use axum::{
 };
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tracing::{trace};
 
 /// GET /access-policies/{access_policy_id}
 ///
@@ -235,21 +239,11 @@ async fn handle_patch_access_policy_request(
     )
     .await?;
     if let Some(principal_role_id) = access_policy.principal_role_id {
-        let principal_role = get_role_by_id(
-            &principal_role_id,
-            &http_transaction,
-            &state.database_pool,
-        )
-        .await?;
+        let principal_role =
+            get_role_by_id(&principal_role_id, &http_transaction, &state.database_pool).await?;
         if principal_role.predefined_role_type.is_some() {
             let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly updated by Slashstep Server. Use custom roles if you need more control.".to_string()));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     }
@@ -272,13 +266,7 @@ async fn handle_patch_access_policy_request(
                 "Failed to update access policy: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -379,21 +367,11 @@ async fn handle_delete_access_policy_request(
     )
     .await?;
     if let Some(principal_role_id) = target_access_policy.principal_role_id {
-        let principal_role = get_role_by_id(
-            &principal_role_id,
-            &http_transaction,
-            &state.database_pool,
-        )
-        .await?;
+        let principal_role =
+            get_role_by_id(&principal_role_id, &http_transaction, &state.database_pool).await?;
         if principal_role.predefined_role_type.is_some() {
             let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly deleted by Slashstep Server. Use custom roles if you need more control.".to_string()));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     }
@@ -403,13 +381,7 @@ async fn handle_delete_access_policy_request(
             "Failed to delete access policy {}: {:?}",
             target_access_policy.id, error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -484,4 +456,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

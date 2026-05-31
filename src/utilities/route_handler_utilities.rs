@@ -39,26 +39,25 @@ use crate::{
     },
     utilities::slashstepql::SlashstepQLError,
 };
-use axum::{Json, extract::rejection::JsonRejection};
+use axum::{Json, extract::rejection::JsonRejection, http::request};
 use chrono::{DateTime, Utc};
 use colored::Colorize;
 use pg_escape::quote_literal;
 use postgres::error::SqlState;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use std::{pin::Pin, sync::Arc};
+use tracing::{info_span, trace, error};
 use uuid::Uuid;
+
+pub fn create_trace_layer_span(_request: &axum::http::Request<axum::body::Body>) -> tracing::Span {
+    info_span!("http_transaction", http_transaction_id = tracing::field::Empty)
+}
 
 pub async fn get_action_log_entry_expiration_timestamp(
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Option<DateTime<Utc>>, HTTPError> {
-    ServerLogEntry::trace(
-        "Getting configuration to determine whether action log entries should expire...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting configuration to determine whether action log entries should expire...");
     let should_action_log_entries_expire_configuration = match Configuration::list(
         &format!(
             "name = {} LIMIT 1",
@@ -75,13 +74,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
 
             None => {
                 let http_error = HTTPError::InternalServerError(Some("Missing configuration for actionLogEntries.shouldExpire. It may have been deleted by a user or an app. Restart the server to restore this configuration.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         },
@@ -91,9 +84,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
                 "Failed to retrieve configurations: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -106,13 +97,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
         return Ok(None);
     }
 
-    ServerLogEntry::trace(
-        "Getting configuration to determine the expiration duration for action log entries...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting configuration to determine the expiration duration for action log entries...");
     let action_log_entry_expiration_duration_configuration = match Configuration::list(
         &format!(
             "name = {} LIMIT 1",
@@ -129,13 +114,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
 
             None => {
                 let http_error = HTTPError::InternalServerError(Some("Missing configuration for actionLogEntries.expirationDurationMilliseconds. It may have been deleted by a user or an app. Restart the server to restore this configuration.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         },
@@ -145,9 +124,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
                 "Failed to retrieve configurations: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -176,9 +153,7 @@ pub async fn get_json_web_token_public_key(
                 "Failed to get JSON web token public key: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -198,9 +173,7 @@ pub async fn get_json_web_token_private_key(
                 "Failed to get JSON web token private key: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -234,9 +207,7 @@ pub async fn get_action_by_name(
                 "Failed to get action \"{}\": {:?}",
                 action_name, error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -287,9 +258,7 @@ pub async fn can_delegate_perform_action(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -357,9 +326,7 @@ pub async fn can_principal_perform_action(
 
         Err(error) => {
             let http_error = map_postgres_error_to_http_error(error);
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -387,13 +354,7 @@ pub async fn can_principal_perform_action(
                         "Failed to verify permissions for principal {} with ID {}: {:?}",
                         principal_type, principal_id, error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             },
@@ -403,13 +364,7 @@ pub async fn can_principal_perform_action(
                     "Failed to verify permissions for principal {} with ID {}: {:?}",
                     principal_type, principal_id, error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         },
@@ -468,9 +423,7 @@ pub async fn verify_principal_permissions(
         } else {
             HTTPError::Forbidden(Some(message))
         };
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -625,9 +578,7 @@ pub async fn get_user_by_id(
                     user_id, error
                 ))),
             };
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -660,9 +611,7 @@ pub async fn get_user_by_username(
                     username, error
                 ))),
             };
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -702,9 +651,7 @@ pub async fn get_uuid_from_string(
                 "You must provide a valid UUID for the {} ID.",
                 resource_type_name_singular
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -1191,9 +1138,7 @@ where
                     resource_type_name_singular, resource_id, error
                 ))),
             };
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -1271,13 +1216,7 @@ pub async fn get_request_body_without_json_rejection<T>(
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Json<T>, HTTPError> {
-    ServerLogEntry::trace(
-        "Verifying request body...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Verifying request body...");
     let request_body = match request_body {
         Ok(updated_access_policy_properties) => updated_access_policy_properties,
 
@@ -1304,9 +1243,7 @@ pub async fn get_request_body_without_json_rejection<T>(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -1319,13 +1256,7 @@ pub async fn get_configuration_by_name(
     http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Configuration, HTTPError> {
-    ServerLogEntry::trace(
-        &format!("Getting configuration \"{}\"...", configuration_name),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting configuration \"{}\"...", configuration_name);
 
     let configuration = match Configuration::get_by_name(configuration_name, database_pool).await {
         Ok(configuration) => configuration,
@@ -1342,9 +1273,7 @@ pub async fn get_configuration_by_name(
                     configuration_name, error
                 ))),
             };
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            error!("{}", http_error);
             return Err(http_error);
         }
     };
@@ -1373,13 +1302,7 @@ pub async fn validate_field_length(
                     "Invalid number value for configuration {}. The value must be a positive integer that can be represented as a usize.",
                     configuration_name
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         },
@@ -1402,9 +1325,7 @@ pub async fn validate_field_length(
             "The \"{}\" field must be at most {} characters long.",
             field_name, maximum_name_length
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -1451,9 +1372,7 @@ pub async fn validate_resource_name(
                 resource_type_name_singular.to_lowercase(),
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -1473,9 +1392,7 @@ pub async fn validate_resource_name(
             "{} names must match the allowed pattern: {}",
             resource_type_name_singular, allowed_name_regex_string
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -1522,9 +1439,7 @@ pub async fn validate_resource_display_name(
                 resource_type_name_singular.to_lowercase(),
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -1544,9 +1459,7 @@ pub async fn validate_resource_display_name(
             "{} display names must match the allowed pattern: {}",
             resource_type_name_singular, allowed_display_name_regex_string
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -1582,9 +1495,7 @@ pub async fn validate_decimal_is_within_range(
             field_name,
             minimum.unwrap()
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -1609,9 +1520,7 @@ pub async fn validate_decimal_is_within_range(
             field_name,
             maximum.unwrap()
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
