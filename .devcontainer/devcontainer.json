@@ -9,6 +9,7 @@
 		"RUSTFLAGS": "-C linker=clang -C link-arg=-fuse-ld=mold"
 	},
 	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}; podman system service --time 0 &",
+	"postCreateCommand": "sh ${containerWorkspaceFolder}/scripts/generate-json-web-token-key-pairs.sh; sh ${containerWorkspaceFolder}/scripts/generate-opensearch-certificates.sh",
 	"mounts": [
 		"type=bind,source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,readonly"
 	],

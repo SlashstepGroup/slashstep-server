@@ -82,7 +82,7 @@ services:
       - "9200"
       - "9300"
     env_file:
-      - .env
+      - opensearch.env
     environment:
       # TODO: Look into multiple nodes later on.
       - discovery.type=single-node
