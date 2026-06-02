@@ -1,0 +1,4 @@
+all_access:
+  reserved: false
+  users:
+    - "your-client-cert-cn-here"

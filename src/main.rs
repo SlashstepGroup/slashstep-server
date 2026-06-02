@@ -134,21 +134,15 @@ async fn main() -> Result<(), SlashstepServerError> {
     println!("Slashstep Server {}", env!("CARGO_PKG_VERSION"));
     let environment_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new(format!("off,{}=trace", env!("CARGO_CRATE_NAME"))));
-    tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::TRACE)
-        .with_env_filter(environment_filter)
-        .init();
     
-    let json_layer = tracing_subscriber::fmt::layer().json();
     let (opensearch_sender, receiver) = mpsc::channel(100);
     let opensearch_layer = OpenSearchLayer {
         sender: opensearch_sender
     };
     tracing_subscriber::registry()
-        // .with(tracing_subscriber::fmt::layer())
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(json_layer)
         .with(opensearch_layer)
+        .with(tracing_subscriber::fmt::layer())
+        .with(environment_filter)
         .init();
 
     let opensearch_client = create_opensearch_client().await?;

@@ -82,12 +82,10 @@ use slashstep_server::{
 };
 use tokio::sync::mpsc;
 use tracing::{level_filters::LevelFilter, trace};
-use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
-
-static INIT: Once = Once::new();
 
 pub struct IntegrationTestEnvironment {
     pub database_pool: deadpool_postgres::Pool,
@@ -102,16 +100,6 @@ pub struct IntegrationTestEnvironment {
 
 impl IntegrationTestEnvironment {
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
-        INIT.call_once(|| {
-
-            let environment_filter = EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
-            tracing_subscriber::fmt()
-                .with_max_level(LevelFilter::TRACE)
-                .with_env_filter(environment_filter)
-                .init();
-
-        });
         import_env_file();
 
         let postgres_version = std::env::var("POSTGRESQL_VERSION").unwrap_or("18.3.0".to_string());
@@ -158,16 +146,16 @@ impl IntegrationTestEnvironment {
         let redis_config = deadpool_redis::Config::from_url(redis_url);
         let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
-        let json_layer = tracing_subscriber::fmt::layer().json();
         let (opensearch_sender, receiver) = mpsc::channel(100);
         let opensearch_layer = OpenSearchLayer {
             sender: opensearch_sender
         };
+        let environment_filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
         tracing_subscriber::registry()
-            // .with(tracing_subscriber::fmt::layer())
-            .with(tracing_subscriber::EnvFilter::from_default_env())
-            .with(json_layer)
             .with(opensearch_layer)
+            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::TRACE))
+            .with(environment_filter)
             .init();
 
         let opensearch_client = create_opensearch_client().await?;

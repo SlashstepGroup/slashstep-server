@@ -1,0 +1,7 @@
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: esnode.pem
+plugins.security.ssl.http.pemkey_filepath: esnode-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: root-ca.pem
+
+# Require or fallback to client certificates
+plugins.security.ssl.http.clientauth_mode: REQUIRE 

@@ -78,11 +78,15 @@ services:
       - "9300:9300"
     volumes:
       - opensearch-data:/usr/share/opensearch/data
+    expose:
+      - "9200"
+      - "9300"
     env_file:
       - .env
     environment:
       # TODO: Look into multiple nodes later on.
       - discovery.type=single-node
+      - plugins.security.ssl.http.enabled=false
 
 volumes:
   postgresql-data:

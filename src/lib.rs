@@ -429,8 +429,15 @@ pub async fn run_opensearch_log_worker(mut receiver: mpsc::Receiver<StructuredLo
             .send()
             .await;
 
-        if let Err(error) = result {
-            error!("Failed to send log entry to OpenSearch: {}", error);
+        match result {
+            Ok(response) => {
+                if !response.status_code().is_success() {
+                    error!("Failed to send log entry to OpenSearch. Status code: {}. Response body: {:?}", response.status_code(), response.text().await.unwrap_or("Could not read response body.".to_string()));
+                }
+            },
+            Err(error) => {
+                error!("Failed to send log entry to OpenSearch: {}", error);
+            }
         }
     }
 }
