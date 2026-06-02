@@ -1,7 +1,12 @@
-plugins.security.ssl.http.enabled: true
-plugins.security.ssl.http.pemcert_filepath: esnode.pem
-plugins.security.ssl.http.pemkey_filepath: esnode-key.pem
-plugins.security.ssl.http.pemtrustedcas_filepath: root-ca.pem
+plugins.security.allow_unsafe_democertificates: false
+# plugins.security.ssl.http.enabled: true
+# plugins.security.ssl.http.pemcert_filepath: /run/secrets/opensearch-node-certificate
+# plugins.security.ssl.http.pemkey_filepath: /run/secrets/opensearch-node-key
+# plugins.security.ssl.http.pemtrustedcas_filepath: /run/secrets/opensearch-root-ca
+# plugins.security.ssl.enforce_hostname_verification: false
+plugins.security.ssl.transport.pemcert_filepath: /run/secrets/opensearch-node-certificate
+plugins.security.ssl.transport.pemkey_filepath: /run/secrets/opensearch-node-key
+plugins.security.ssl.transport.pemtrustedcas_filepath: /run/secrets/opensearch-root-ca
 
 # Require or fallback to client certificates
 plugins.security.ssl.http.clientauth_mode: REQUIRE 

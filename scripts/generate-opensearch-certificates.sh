@@ -12,14 +12,26 @@ openssl req -new -x509 -sha256 -key $secrets_directory/opensearch-root-ca-key.pe
   -addext 'authorityKeyIdentifier = keyid' \
   -subj "/CN=slashstep-root-ca"
 
+echo "Generating OpenSearch node key and certificate signed by the root CA..."
+openssl genrsa -out $secrets_directory/opensearch-node-key.pem 2048
+openssl pkcs8 -inform PEM -outform PEM -in $secrets_directory/opensearch-node-key.pem -topk8 -nocrypt -v1 PBE-SHA1-3DES -out $secrets_directory/opensearch-node-key.pem
+openssl req -new -key $secrets_directory/opensearch-node-key.pem \
+  -out $secrets_directory/opensearch-node-certificate.csr \
+  -subj "/CN=node1.dns.a-record"
+echo 'subjectAltName=DNS:node1.dns.a-record' > $secrets_directory/opensearch-node-certificate.ext
+openssl x509 -req -in $secrets_directory/opensearch-node-certificate.csr -CA $secrets_directory/opensearch-root-ca.pem -CAkey $secrets_directory/opensearch-root-ca-key.pem -CAcreateserial -sha256 -out $secrets_directory/opensearch-node-certificate.pem -days 730 -extfile $secrets_directory/opensearch-node-certificate.ext
+rm -f $secrets_directory/opensearch-node-certificate.csr $secrets_directory/opensearch-node-certificate.ext
+
 echo "Generating OpenSearch client key and certificate signed by the root CA..."
 openssl genrsa -out $secrets_directory/opensearch-client-key.pem 2048
 openssl req -new -key $secrets_directory/opensearch-client-key.pem \
-  -out $secrets_directory/opensearch-client.csr \
-  -subj "/CN=slashstep-server"
-openssl x509 -req -in $secrets_directory/opensearch-client.csr \
+  -out $secrets_directory/opensearch-client-certificate.csr \
+  -subj "/CN=slashstep-server.dns.a-record"
+echo 'subjectAltName=DNS:slashstep-server.dns.a-record' > $secrets_directory/opensearch-client-certificate.ext
+openssl x509 -req -in $secrets_directory/opensearch-client-certificate.csr \
   -CA $secrets_directory/opensearch-root-ca.pem \
   -CAkey $secrets_directory/opensearch-root-ca-key.pem \
   -CAcreateserial \
-  -out $secrets_directory/opensearch-client.pem \
+  -out $secrets_directory/opensearch-client-certificate.pem \
   -days 365
+rm -f $secrets_directory/opensearch-client-certificate.csr $secrets_directory/opensearch-client-certificate.ext

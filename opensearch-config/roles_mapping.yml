@@ -1,4 +1,4 @@
-all_access:
+log_writer:
   reserved: false
   users:
-    - "your-client-cert-cn-here"
+    - "slashstep-server"

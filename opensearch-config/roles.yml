@@ -1,0 +1,4 @@
+log_writer:
+  index_permissions:
+    - index_patterns:
+        - "server_log_entries"

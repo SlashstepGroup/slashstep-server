@@ -14,6 +14,12 @@ secrets:
     file: ./secrets/jwt-private-key.pem
   slashstep-admin-password:
     file: ./secrets/slashstep-admin-password.txt
+  opensearch-root-ca:
+    file: ./secrets/opensearch-root-ca.pem
+  opensearch-node-certificate:
+    file: ./secrets/opensearch-node-certificate.pem
+  opensearch-node-key:
+    file: ./secrets/opensearch-node-key.pem
 
 services:
 
@@ -73,20 +79,37 @@ services:
 
   opensearch-node-1:
     image: opensearchproject/opensearch:3.6.0
+    # command: tail -f /dev/null
     ports:
       - "9200:9200"
       - "9300:9300"
     volumes:
       - opensearch-data:/usr/share/opensearch/data
+      - ./opensearch-config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:ro
+      - ./opensearch-config/roles.yml:/usr/share/opensearch/config/roles.yml:ro
+      - ./opensearch-config/roles_mapping.yml:/usr/share/opensearch/config/roles_mapping.yml:ro
+      - ./opensearch-config/opensearch-security:/usr/share/opensearch/config/opensearch-security/config:ro
     expose:
       - "9200"
       - "9300"
-    env_file:
-      - opensearch.env
     environment:
       # TODO: Look into multiple nodes later on.
       - discovery.type=single-node
+      - bootstrap.memory_lock=true
       - plugins.security.ssl.http.enabled=false
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
+      - DISABLE_PERFORMANCE_ANALYZER_AGENT=true
+    ulimits:
+      memlock:
+        soft: -1 # Set memlock to unlimited (no soft or hard limit)
+        hard: -1
+      nofile:
+        soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
+        hard: 65536
+    secrets:
+      - opensearch-root-ca
+      - opensearch-node-key
+      - opensearch-node-certificate
 
 volumes:
   postgresql-data:
