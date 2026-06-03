@@ -20,7 +20,7 @@ use rand::{
 };
 use redis_test::server::RedisServer;
 use slashstep_server::{
-    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, create_opensearch_client, import_env_file, initialize_required_tables, predefinitions::{
+    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, SlashstepServerConfig, SlashstepServerOpenSearchConfig, create_opensearch_client, import_env_file, initialize_required_tables, predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
     }, resources::{
@@ -96,11 +96,24 @@ pub struct IntegrationTestEnvironment {
     // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
     #[allow(dead_code)]
     pub embedded_postgresql: PostgreSQL,
+    pub tracing_subscriber_guard: tracing::subscriber::DefaultGuard,
 }
 
 impl IntegrationTestEnvironment {
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
         import_env_file();
+
+        let (opensearch_sender, receiver) = mpsc::channel(100);
+        let opensearch_layer = OpenSearchLayer {
+            sender: opensearch_sender
+        };
+        let environment_filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
+        let subscriber = tracing_subscriber::registry()
+            .with(opensearch_layer)
+            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::TRACE))
+            .with(environment_filter);
+        let tracing_subscriber_guard = tracing::subscriber::set_default(subscriber);
 
         let postgres_version = std::env::var("POSTGRESQL_VERSION").unwrap_or("18.3.0".to_string());
         trace!("Setting up PostgreSQL test server...");
@@ -146,19 +159,7 @@ impl IntegrationTestEnvironment {
         let redis_config = deadpool_redis::Config::from_url(redis_url);
         let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
-        let (opensearch_sender, receiver) = mpsc::channel(100);
-        let opensearch_layer = OpenSearchLayer {
-            sender: opensearch_sender
-        };
-        let environment_filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
-        tracing_subscriber::registry()
-            .with(opensearch_layer)
-            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::TRACE))
-            .with(environment_filter)
-            .init();
-
-        let opensearch_client = create_opensearch_client().await?;
+        let opensearch_client = create_opensearch_client(None)?;
         tokio::spawn(run_opensearch_log_worker(receiver, opensearch_client.clone()));
 
         let environment = IntegrationTestEnvironment {
@@ -166,7 +167,8 @@ impl IntegrationTestEnvironment {
             embedded_postgresql,
             redis_pool,
             redis_server,
-            opensearch_client
+            opensearch_client,
+            tracing_subscriber_guard
         };
 
         return Ok(environment);

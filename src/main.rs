@@ -162,7 +162,7 @@ async fn main() -> Result<(), SlashstepServerError> {
                 gracefully_shutdown().await;
                 tokio_handle.graceful_shutdown(None);
             });
-            info!("{}", format!("Slashstep Server is now listening on port {}. You can access it on your machine at https://localhost:{}, or your local network at https://{}:{}.", app_port, app_port, app_ip, app_port).green());
+            info!("Slashstep Server is now listening on port {}. You can access it on your machine at https://localhost:{}, or your local network at https://{}:{}.", app_port, app_port, app_ip, app_port);
             axum_server::bind_rustls(address, rustls_config)
                 .handle(handle)
                 .serve(router.into_make_service_with_connect_info::<SocketAddr>())
@@ -174,7 +174,7 @@ async fn main() -> Result<(), SlashstepServerError> {
 
             warn!("TLS is currently disabled. This may be helpful for development and testing purposes, but it should not be used in production environments. All communication with the server will be unencrypted, which is a security risk. Secure cookies may not work either. It is recommended to enable TLS in production environments to ensure the security of data transmitted between clients and the server.");
             let listener = TcpListener::bind(format!("0.0.0.0:{}", app_port)).await?;
-            info!("{}", format!("Slashstep Server is now listening on port {}. You can access it on your machine at http://localhost:{}, or your local network at http://{}:{}.", app_port, app_port, app_ip, app_port).green());
+            info!("Slashstep Server is now listening on port {}. You can access it on your machine at http://localhost:{}, or your local network at http://{}:{}.", app_port, app_port, app_ip, app_port);
             axum::serve(
                 listener,
                 router.into_make_service_with_connect_info::<SocketAddr>(),

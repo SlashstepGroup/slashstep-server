@@ -502,7 +502,7 @@ pub struct SlashstepServerSetupConfig {
     pub admin_password_file_path: Option<String>
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct SlashstepServerConfig {
     pub postgresql: Option<SlashstepServerPostgreSQLConfig>,

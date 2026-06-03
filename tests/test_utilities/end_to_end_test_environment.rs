@@ -39,6 +39,8 @@ pub struct EndToEndTestEnvironment {
     #[allow(dead_code)]
     pub embedded_postgresql: PostgreSQL,
     pub test_server: TestServer,
+    pub opensearch_client: opensearch::OpenSearch,
+    pub tracing_subscriber_guard: tracing::subscriber::DefaultGuard,
 }
 
 impl EndToEndTestEnvironment {
@@ -115,14 +117,14 @@ impl EndToEndTestEnvironment {
         let opensearch_layer = OpenSearchLayer {
             sender: opensearch_sender
         };
-        tracing_subscriber::registry()
+        let subscriber = tracing_subscriber::registry()
             // .with(tracing_subscriber::fmt::layer())
             .with(tracing_subscriber::EnvFilter::from_default_env())
             .with(json_layer)
-            .with(opensearch_layer)
-            .init();
+            .with(opensearch_layer);
+        let tracing_subscriber_guard = tracing::subscriber::set_default(subscriber);
 
-        let opensearch_client = create_opensearch_client().await?;
+        let opensearch_client = create_opensearch_client(None)?;
         tokio::spawn(run_opensearch_log_worker(receiver, opensearch_client.clone()));
 
         let state = AppState {
@@ -147,6 +149,8 @@ impl EndToEndTestEnvironment {
             redis_pool,
             redis_server,
             test_server,
+            opensearch_client,
+            tracing_subscriber_guard
         };
 
         return Ok(environment);
