@@ -1,12 +1,19 @@
+plugins.security.disabled: false
 plugins.security.allow_unsafe_democertificates: false
-# plugins.security.ssl.http.enabled: true
-# plugins.security.ssl.http.pemcert_filepath: /run/secrets/opensearch-node-certificate
-# plugins.security.ssl.http.pemkey_filepath: /run/secrets/opensearch-node-key
-# plugins.security.ssl.http.pemtrustedcas_filepath: /run/secrets/opensearch-root-ca
-# plugins.security.ssl.enforce_hostname_verification: false
-plugins.security.ssl.transport.pemcert_filepath: /run/secrets/opensearch-node-certificate
-plugins.security.ssl.transport.pemkey_filepath: /run/secrets/opensearch-node-key
-plugins.security.ssl.transport.pemtrustedcas_filepath: /run/secrets/opensearch-root-ca
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: opensearch-node-certificate
+plugins.security.ssl.http.pemkey_filepath: opensearch-node-key
+plugins.security.ssl.http.pemtrustedcas_filepath: opensearch-root-ca
+# transport.ssl.enforce_hostname_verification: false
+plugins.security.ssl.transport.pemcert_filepath: opensearch-node-certificate
+plugins.security.ssl.transport.pemkey_filepath: opensearch-node-key
+plugins.security.ssl.transport.pemtrustedcas_filepath: opensearch-root-ca
+plugins.security.authcz.admin_dn:
+  - 'CN=admin'
+plugins.security.nodes_dn:
+  - 'CN=node1.dns.a-record'
 
 # Require or fallback to client certificates
 plugins.security.ssl.http.clientauth_mode: REQUIRE 
+opendistro_security.audit.config.disabled_rest_categories: NONE
+opendistro_security.audit.config.disabled_transport_categories: NONE

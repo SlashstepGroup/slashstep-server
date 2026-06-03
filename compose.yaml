@@ -20,6 +20,10 @@ secrets:
     file: ./secrets/opensearch-node-certificate.pem
   opensearch-node-key:
     file: ./secrets/opensearch-node-key.pem
+  opensearch-admin-certificate:
+    file: ./secrets/opensearch-admin-certificate.pem
+  opensearch-admin-key:
+    file: ./secrets/opensearch-admin-key.pem
 
 services:
 
@@ -45,7 +49,7 @@ services:
       SLASHSTEP_ADMIN_USERNAME: Admin
       SLASHSTEP_ADMIN_PASSWORD_FILE_PATH: /run/secrets/slashstep-admin-password
       REDIS_URL: redis://valkey-server:6379
-      OPENSEARCH_URL: http://opensearch-node-1:9200
+      OPENSEARCH_URL: https://opensearch-node-1:9200
     secrets:
       - postgresql-password
       - jwt-public-key
@@ -83,12 +87,13 @@ services:
     ports:
       - "9200:9200"
       - "9300:9300"
+      - "9600:9600"
     volumes:
       - opensearch-data:/usr/share/opensearch/data
       - ./opensearch-config/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:ro
-      - ./opensearch-config/roles.yml:/usr/share/opensearch/config/roles.yml:ro
-      - ./opensearch-config/roles_mapping.yml:/usr/share/opensearch/config/roles_mapping.yml:ro
-      - ./opensearch-config/opensearch-security:/usr/share/opensearch/config/opensearch-security/config:ro
+      - ./opensearch-config/opensearch-security/config.yml:/usr/share/opensearch/config/opensearch-security/config.yml:ro
+      - ./opensearch-config/opensearch-security/roles.yml:/usr/share/opensearch/config/opensearch-security/roles.yml:ro
+      - ./opensearch-config/opensearch-security/roles_mapping.yml:/usr/share/opensearch/config/opensearch-security/roles_mapping.yml:ro
     expose:
       - "9200"
       - "9300"
@@ -96,9 +101,9 @@ services:
       # TODO: Look into multiple nodes later on.
       - discovery.type=single-node
       - bootstrap.memory_lock=true
-      - plugins.security.ssl.http.enabled=false
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
       - DISABLE_PERFORMANCE_ANALYZER_AGENT=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
     ulimits:
       memlock:
         soft: -1 # Set memlock to unlimited (no soft or hard limit)
@@ -107,9 +112,21 @@ services:
         soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
         hard: 65536
     secrets:
-      - opensearch-root-ca
-      - opensearch-node-key
-      - opensearch-node-certificate
+      - source: opensearch-root-ca
+        target: /usr/share/opensearch/config/opensearch-root-ca
+        uid: "1000"
+        gid: "1000"
+        mode: 0600
+      - source: opensearch-node-key
+        target: /usr/share/opensearch/config/opensearch-node-key
+        uid: "1000"
+        gid: "1000"
+        mode: 0600
+      - source: opensearch-node-certificate
+        target: /usr/share/opensearch/config/opensearch-node-certificate
+        mode: 0600
+      - opensearch-admin-certificate
+      - opensearch-admin-key
 
 volumes:
   postgresql-data:
