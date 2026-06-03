@@ -161,8 +161,8 @@ jobs:
 
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(routes::${{ matrix.route-name }}::)'
         env:
-          JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
-          JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+          SLASHSTEP_JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
+          SLASHSTEP_JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_TERM_COLOR: always
     
@@ -241,8 +241,8 @@ jobs:
 
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(resources::${{ matrix.resource-name }}::)'
         env:
-          JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
-          JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
+          SLASHSTEP_JWT_PUBLIC_KEY_PATH: ./secrets/jwt-public-key.pem
+          SLASHSTEP_JWT_PRIVATE_KEY_PATH: ./secrets/jwt-private-key.pem
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_TERM_COLOR: always
   

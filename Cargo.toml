@@ -53,7 +53,11 @@ deadpool-redis = "0.23.0"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 tower-http = { version = "0.6.11", features = ["trace"] }
-opensearch = "2.4.0"
+url = "2.5.8"
+rcgen = "0.14.8"
+yaml_serde = "0.10.4"
+# OpenSearch includes native-tls by default, which is incompatible with rustls-tls
+opensearch = { version = "2.4.0", default-features = false, features = ["rustls-tls"] }
 
 [dev-dependencies]
 axum-test = "20.0.0"

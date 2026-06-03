@@ -25,6 +25,10 @@ secrets:
   opensearch-admin-key:
     file: ./secrets/opensearch-admin-key.pem
 
+configs:
+  slashstep-server-config:
+    file: ./slashstep-server.yml
+
 services:
 
   slashstep-server:
@@ -36,20 +40,6 @@ services:
       - "3001:3001"
     expose:
       - "3001"
-    environment:
-      APP_PORT: "3001"
-      POSTGRESQL_HOST: postgresql-server
-      POSTGRESQL_PORT: 5432
-      POSTGRESQL_DATABASE_NAME: slashstep
-      POSTGRESQL_USERNAME: slashstep
-      POSTGRESQL_PASSWORD_FILE_PATH: /run/secrets/postgresql-password
-      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt-public-key
-      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private-key
-      MAXIMUM_POSTGRESQL_CONNECTION_COUNT: 20
-      SLASHSTEP_ADMIN_USERNAME: Admin
-      SLASHSTEP_ADMIN_PASSWORD_FILE_PATH: /run/secrets/slashstep-admin-password
-      REDIS_URL: redis://valkey-server:6379
-      OPENSEARCH_URL: https://opensearch-node-1:9200
     secrets:
       - postgresql-password
       - jwt-public-key
@@ -58,6 +48,9 @@ services:
     depends_on:
       - postgresql-server
       - valkey-server
+    configs:
+      - source: slashstep-server-config
+        target: /app/slashstep-server.yml
 
   postgresql-server:
     image: postgres:18.3
@@ -66,7 +59,7 @@ services:
     expose:
       - "5432"
     environment:
-      POSTGRES_USER: slashstep
+      POSTGRES_USER: slashstep_server
       POSTGRES_PASSWORD_FILE: /run/secrets/postgresql-password
       POSTGRES_DB: slashstep
     volumes:
@@ -94,9 +87,7 @@ services:
       - ./opensearch-config/opensearch-security/config.yml:/usr/share/opensearch/config/opensearch-security/config.yml:ro
       - ./opensearch-config/opensearch-security/roles.yml:/usr/share/opensearch/config/opensearch-security/roles.yml:ro
       - ./opensearch-config/opensearch-security/roles_mapping.yml:/usr/share/opensearch/config/opensearch-security/roles_mapping.yml:ro
-    expose:
-      - "9200"
-      - "9300"
+      - ./scripts/setup-opensearch-securityadmin.sh:/usr/share/opensearch/config/setup-opensearch-securityadmin.sh:ro
     environment:
       # TODO: Look into multiple nodes later on.
       - discovery.type=single-node
@@ -104,6 +95,7 @@ services:
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
       - DISABLE_PERFORMANCE_ANALYZER_AGENT=true
       - DISABLE_INSTALL_DEMO_CONFIG=true
+      - network.host=0.0.0.0
     ulimits:
       memlock:
         soft: -1 # Set memlock to unlimited (no soft or hard limit)
@@ -114,19 +106,13 @@ services:
     secrets:
       - source: opensearch-root-ca
         target: /usr/share/opensearch/config/opensearch-root-ca
-        uid: "1000"
-        gid: "1000"
-        mode: 0600
       - source: opensearch-node-key
         target: /usr/share/opensearch/config/opensearch-node-key
-        uid: "1000"
-        gid: "1000"
-        mode: 0600
       - source: opensearch-node-certificate
         target: /usr/share/opensearch/config/opensearch-node-certificate
-        mode: 0600
       - opensearch-admin-certificate
       - opensearch-admin-key
+    entrypoint: ["/bin/bash", "/usr/share/opensearch/config/setup-opensearch-securityadmin.sh"]
 
 volumes:
   postgresql-data:

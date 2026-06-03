@@ -1,4 +1,9 @@
+
+_meta:
+  type: "rolesmapping"
+  config_version: 2
+
 log_writer:
   reserved: false
   users:
-    - "slashstep-server"
+    - "slashstep-server.dns.a-record"

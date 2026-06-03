@@ -38,7 +38,7 @@
 		"--device=/dev/net/tun"
 	],
 	"forwardPorts": [
-		3001,
+		8080,
 		9200
 	]
 }

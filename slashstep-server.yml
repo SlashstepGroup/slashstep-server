@@ -1,0 +1,7 @@
+postgresql:
+  database-name: slashstep
+  username: slashstep_server
+  password-file: ./secrets/postgresql-password.txt
+
+opensearch:
+  url: https://localhost:9200
