@@ -367,7 +367,7 @@ async fn verify_authorization_code_is_single_use() -> Result<(), TestSlashstepSe
         let state = AppState {
             database_pool: test_environment.database_pool.clone(),
             redis_pool: test_environment.redis_pool.clone(),
-        opensearch_client: test_environment.opensearch_client.clone(),
+            opensearch_client: test_environment.opensearch_client.clone(),
         };
         let router = slashstep_server::routes::oauth_access_tokens::get_router(state.clone())
             .with_state(state)

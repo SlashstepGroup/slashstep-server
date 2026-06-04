@@ -7,10 +7,13 @@ use postgresql_embedded::PostgreSQL;
 use redis_test::server::RedisServer;
 use reqwest::StatusCode;
 use slashstep_server::{
-    AppState, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, create_opensearch_client, import_env_file, initialize_required_tables, predefinitions::{
+    AppState, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer,
+    create_opensearch_client, import_env_file, initialize_required_tables,
+    predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
-    }, resources::{
+    },
+    resources::{
         access_policy::AccessPolicy,
         membership::{
             InitialMembershipProperties, Membership, MembershipParentResourceType,
@@ -19,10 +22,12 @@ use slashstep_server::{
         role::{PredefinedRoleType, Role, RoleParentResourceType},
         session_credential::SessionCredential,
         user::{InitialUserProperties, User},
-    }, routes::{
+    },
+    routes::{
         CreateResourceResponseBody, GetResourceResponseBody,
         access_policies::CreateServerAccessPolicyRequestBody,
-    }, run_opensearch_log_worker
+    },
+    run_opensearch_log_worker,
 };
 use tokio::sync::mpsc;
 use tracing_subscriber::layer::SubscriberExt;
@@ -115,7 +120,7 @@ impl EndToEndTestEnvironment {
         let json_layer = tracing_subscriber::fmt::layer().json();
         let (opensearch_sender, receiver) = mpsc::channel(100);
         let opensearch_layer = OpenSearchLayer {
-            sender: opensearch_sender
+            sender: opensearch_sender,
         };
         let subscriber = tracing_subscriber::registry()
             // .with(tracing_subscriber::fmt::layer())
@@ -125,7 +130,10 @@ impl EndToEndTestEnvironment {
         let tracing_subscriber_guard = tracing::subscriber::set_default(subscriber);
 
         let opensearch_client = create_opensearch_client(None)?;
-        tokio::spawn(run_opensearch_log_worker(receiver, opensearch_client.clone()));
+        tokio::spawn(run_opensearch_log_worker(
+            receiver,
+            opensearch_client.clone(),
+        ));
 
         let state = AppState {
             database_pool: database_pool.clone(),
@@ -150,7 +158,7 @@ impl EndToEndTestEnvironment {
             redis_server,
             test_server,
             opensearch_client,
-            tracing_subscriber_guard
+            tracing_subscriber_guard,
         };
 
         return Ok(environment);

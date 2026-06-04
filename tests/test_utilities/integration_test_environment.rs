@@ -20,10 +20,13 @@ use rand::{
 };
 use redis_test::server::RedisServer;
 use slashstep_server::{
-    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, create_opensearch_client, import_env_file, initialize_required_tables, predefinitions::{
+    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, create_opensearch_client,
+    import_env_file, initialize_required_tables,
+    predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
-    }, resources::{
+    },
+    resources::{
         ResourceType,
         access_policy::{
             AccessPolicy, AccessPolicyPrincipalType, InitialAccessPolicyProperties, PermissionLevel,
@@ -78,7 +81,8 @@ use slashstep_server::{
         view_field::{InitialViewFieldProperties, ViewField},
         webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType},
         workspace::{InitialWorkspaceProperties, Workspace},
-    }, run_opensearch_log_worker
+    },
+    run_opensearch_log_worker,
 };
 use tokio::sync::mpsc;
 use tracing::{level_filters::LevelFilter, trace};
@@ -105,7 +109,7 @@ impl IntegrationTestEnvironment {
 
         let (opensearch_sender, receiver) = mpsc::channel(100);
         let opensearch_layer = OpenSearchLayer {
-            sender: opensearch_sender
+            sender: opensearch_sender,
         };
         let environment_filter = EnvFilter::try_from_default_env()
             .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
@@ -160,7 +164,10 @@ impl IntegrationTestEnvironment {
         let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
         let opensearch_client = create_opensearch_client(None)?;
-        tokio::spawn(run_opensearch_log_worker(receiver, opensearch_client.clone()));
+        tokio::spawn(run_opensearch_log_worker(
+            receiver,
+            opensearch_client.clone(),
+        ));
 
         let environment = IntegrationTestEnvironment {
             database_pool,
@@ -168,7 +175,7 @@ impl IntegrationTestEnvironment {
             redis_pool,
             redis_server,
             opensearch_client,
-            tracing_subscriber_guard
+            tracing_subscriber_guard,
         };
 
         return Ok(environment);
