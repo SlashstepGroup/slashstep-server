@@ -65,7 +65,7 @@ jobs:
       - name: Generate JWT key pair
         run: sh scripts/generate-json-web-token-key-pairs.sh
 
-      - name: Generate OpenSearch SSL certificates
+      - name: Generate OpenSearch certificates
         run: sh scripts/generate-opensearch-certificates.sh
 
       - name: Generate OpenSearch initial admin password
@@ -80,6 +80,7 @@ jobs:
         with:
           path: |
             ./secrets
+            .env
             ~/.theseus
             ~/.cargo
             ./target
@@ -134,6 +135,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: |
+            .env
             ./secrets
             ~/.theseus
             ~/.cargo
@@ -147,11 +149,11 @@ jobs:
           auto-start: "false"
 
       - name: Set up OpenSearch cluster
-        run: docker compose -f ${{ github.workspace }}/compose.yaml up -d opensearch-node-1
+        run: docker compose -f ./compose.yaml up -d opensearch-node-1
 
       - name: Wait for OpenSearch to be ready
         run: |
-          until curl --cacert ${{ github.workspace }}/secrets/opensearch-root-ca.pem --cert ${{ github.workspace }}/secrets/opensearch-admin-certificate.pem --key ${{ github.workspace }}/secrets/opensearch-admin-key.pem https://localhost:9200 > /dev/null; do
+          until curl --cacert ./secrets/opensearch-root-ca.pem --cert ./secrets/opensearch-admin-certificate.pem --key ./secrets/opensearch-admin-key.pem https://localhost:9200 > /dev/null; do
             echo "Waiting for OpenSearch to be ready..."
             sleep 5
           done
@@ -214,6 +216,7 @@ jobs:
         with:
           path: |
             ./secrets
+            .env
             ~/.theseus
             ~/.cargo
             ./target
