@@ -82,8 +82,6 @@ jobs:
       - name: Allow Docker to see secrets
         run: chmod 644 ./secrets/*
 
-      - run: openssl x509 -in secrets/opensearch-client-certificate.pem -noout -text | grep "Version"
-
       - run: cargo nextest run --no-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

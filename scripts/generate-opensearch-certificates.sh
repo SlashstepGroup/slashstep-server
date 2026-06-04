@@ -53,5 +53,6 @@ openssl x509 -req -in $secrets_directory/opensearch-client-certificate.csr \
   -CAkey $secrets_directory/opensearch-root-ca-key.pem \
   -CAcreateserial \
   -out $secrets_directory/opensearch-client-certificate.pem \
-  -days 365
+  -days 365 \
+  -extfile $secrets_directory/opensearch-client-certificate.ext
 rm -f $secrets_directory/opensearch-client-certificate.csr $secrets_directory/opensearch-client-certificate.ext
