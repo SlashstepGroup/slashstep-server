@@ -60,13 +60,13 @@ jobs:
           mv ${HOME}/.theseus/postgresql/postgresql-${POSTGRESQL_VERSION}-${RUST_HOST} ${HOME}/.theseus/postgresql/${POSTGRESQL_VERSION}
 
       - name: Generate PostgreSQL password
-        run: scripts/generate-postgresql-password.sh
+        run: sh scripts/generate-postgresql-password.sh
 
       - name: Generate JWT key pair
-        run: scripts/generate-json-web-token-key-pairs.sh
+        run: sh scripts/generate-json-web-token-key-pairs.sh
 
       - name: Generate OpenSearch SSL certificates
-        run: scripts/generate-opensearch-certificates.sh
+        run: sh scripts/generate-opensearch-certificates.sh
 
       - run: cargo nextest run --no-run
         env:
