@@ -83,7 +83,7 @@ async fn verify_count() -> Result<(), TestSlashstepServerError> {
     let mut created_app_authorization_credentials: Vec<AppAuthorizationCredential> = Vec::new();
     for _ in 0..MAXIMUM_APP_AUTHORIZATION_CREDENTIAL_COUNT {
         let app_authorization_credential = test_environment
-            .create_random_app_authorization_credential(None)
+            .create_random_app_authorization_credential(None, None)
             .await?;
         created_app_authorization_credentials.push(app_authorization_credential);
     }
@@ -108,10 +108,11 @@ async fn verify_creation() -> Result<(), TestSlashstepServerError> {
         .create_random_app_authorization(None)
         .await?;
     let app_authorization_credential_properties = InitialAppAuthorizationCredentialProperties {
+        app_id: app_authorization.app_id.clone(),
         app_authorization_id: app_authorization.id,
         access_token_expiration_date: Utc::now() + Duration::days(30),
         refresh_token_expiration_date: Utc::now() + Duration::days(30),
-        ..Default::default()
+        refreshed_app_authorization_credential_id: None,
     };
     let app_authorization_credential = AppAuthorizationCredential::create(
         &app_authorization_credential_properties,
@@ -164,7 +165,7 @@ async fn verify_get_resource_by_id() -> Result<(), TestSlashstepServerError> {
     let test_environment = IntegrationTestEnvironment::new().await?;
 
     let created_app_authorization_credential = test_environment
-        .create_random_app_authorization_credential(None)
+        .create_random_app_authorization_credential(None, None)
         .await?;
     let retrieved_app_authorization_credential = AppAuthorizationCredential::get_by_id(
         &created_app_authorization_credential.id,
@@ -188,7 +189,7 @@ async fn verify_list_resources_with_default_limit() -> Result<(), TestSlashstepS
     let mut app_authorization_credentials: Vec<AppAuthorizationCredential> = Vec::new();
     for _ in 0..MAXIMUM_APP_AUTHORIZATION_COUNT {
         let app_authorization_credential = test_environment
-            .create_random_app_authorization_credential(None)
+            .create_random_app_authorization_credential(None, None)
             .await?;
         app_authorization_credentials.push(app_authorization_credential);
     }
@@ -212,15 +213,16 @@ async fn verify_list_resources_with_query() -> Result<(), TestSlashstepServerErr
     let mut created_app_authorization_credentials: Vec<AppAuthorizationCredential> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
         let app_authorization_credential = test_environment
-            .create_random_app_authorization_credential(None)
+            .create_random_app_authorization_credential(None, None)
             .await?;
         created_app_authorization_credentials.push(app_authorization_credential);
     }
 
     let app_authorization_with_same_app_authorization_id = test_environment
-        .create_random_app_authorization_credential(Some(
-            &created_app_authorization_credentials[0].app_authorization_id,
-        ))
+        .create_random_app_authorization_credential(
+            Some(&created_app_authorization_credentials[0].app_id),
+            Some(&created_app_authorization_credentials[0].app_authorization_id),
+        )
         .await?;
     created_app_authorization_credentials.push(app_authorization_with_same_app_authorization_id);
 
@@ -266,7 +268,7 @@ async fn verify_list_resources_without_query() -> Result<(), TestSlashstepServer
     let mut created_app_authorization_credentials: Vec<AppAuthorizationCredential> = Vec::new();
     for _ in 0..MAXIMUM_RESOURCE_COUNT {
         let app_authorization_credential = test_environment
-            .create_random_app_authorization_credential(None)
+            .create_random_app_authorization_credential(None, None)
             .await?;
         created_app_authorization_credentials.push(app_authorization_credential);
     }
@@ -301,7 +303,7 @@ async fn verify_list_resources_without_query_and_filter_based_on_requestor_permi
             MINIMUM_ACTION_COUNT - current_app_authorization_credentials.len() as i32;
         for _ in 0..remaining_action_count {
             let app_authorization_credential = test_environment
-                .create_random_app_authorization_credential(None)
+                .create_random_app_authorization_credential(None, None)
                 .await?;
             current_app_authorization_credentials.push(app_authorization_credential);
         }

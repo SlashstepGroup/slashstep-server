@@ -25,15 +25,15 @@ use crate::{
             InitialAppCredentialPropertiesForPredefinedScope,
         },
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
     utilities::route_handler_utilities::{
-        get_action_by_name, get_action_log_entry_expiration_timestamp, get_app_by_id,
-        get_principal_type_and_id_from_principal, get_request_body_without_json_rejection,
-        get_uuid_from_string, is_authenticated_user_anonymous, match_db_error,
-        match_slashstepql_error, verify_delegate_permissions, verify_principal_permissions,
+        create_trace_layer_span, get_action_by_name, get_action_log_entry_expiration_timestamp,
+        get_app_by_id, get_principal_type_and_id_from_principal,
+        get_request_body_without_json_rejection, get_uuid_from_string,
+        is_authenticated_user_anonymous, match_db_error, match_slashstepql_error,
+        verify_delegate_permissions, verify_principal_permissions,
     },
 };
 use axum::{
@@ -50,6 +50,8 @@ use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::{net::IpAddr, sync::Arc};
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,25 +79,19 @@ pub async fn handle_list_app_credentials_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<AppCredential>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let app_id =
-        get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
-    let list_resources_action = get_action_by_name(
-        "appCredentials.list",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let list_resources_action =
+        get_action_by_name("appCredentials.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
+    let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -107,7 +103,6 @@ pub async fn handle_list_app_credentials_request(
         &ResourceType::App,
         Some(&target_app.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -147,24 +142,12 @@ pub async fn handle_list_app_credentials_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting app credentials...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting app credentials...");
     let resource_count = match AppCredential::count(
         &query,
         &state.database_pool,
@@ -180,19 +163,13 @@ pub async fn handle_list_app_credentials_request(
                 "Failed to count app credentials: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -220,21 +197,15 @@ pub async fn handle_list_app_credentials_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "app credential"
-            } else {
-                "app credentials"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "app credential"
+        } else {
+            "app credentials"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<AppCredential> {
         data: queried_resources,
@@ -257,26 +228,18 @@ async fn handle_create_app_credential_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialAppCredentialPropertiesForPredefinedScope>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateAppCredentialResponseBody>), HTTPError> {
-    let app_id =
-        get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
-    let app_credential_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let app_credential_properties_json = get_request_body_without_json_rejection(body).await?;
 
     // Make sure the authenticated_user can create access policies for the target action.
-    let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
-    let create_app_credentials_action = get_action_by_name(
-        "appCredentials.create",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
+    let create_app_credentials_action =
+        get_action_by_name("appCredentials.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_app_credentials_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -292,7 +255,6 @@ async fn handle_create_app_credential_request(
         &ResourceType::App,
         Some(&target_app.id),
         &create_app_credentials_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -309,13 +271,7 @@ async fn handle_create_app_credential_request(
                 "Failed to create app credential: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -329,25 +285,13 @@ async fn handle_create_app_credential_request(
                 "Failed to create app credential: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     // Create the authenticated app credential.
-    ServerLogEntry::trace(
-        &format!("Creating app credential for app {}...", target_app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating app credential for app {}...", target_app.id);
 
     let created_app_credential = match AppCredential::create(
         &InitialAppCredentialProperties {
@@ -368,13 +312,7 @@ async fn handle_create_app_credential_request(
                 "Failed to create app credential: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -389,7 +327,7 @@ async fn handle_create_app_credential_request(
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_app_credentials_action.id,
@@ -414,16 +352,10 @@ async fn handle_create_app_credential_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created authenticated_app credential {}.",
-            created_app_credential.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully created authenticated_app credential {}.",
+        created_app_credential.id
+    );
 
     Ok((
         StatusCode::CREATED,
@@ -457,4 +389,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

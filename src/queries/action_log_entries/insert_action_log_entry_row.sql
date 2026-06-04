@@ -35,6 +35,7 @@ INSERT INTO action_log_entries (
   target_role_id,
   target_server_log_entry_id,
   target_session_id,
+  target_session_credential_id,
   target_status_id,
   target_user_id,
   target_view_id,
@@ -85,5 +86,6 @@ INSERT INTO action_log_entries (
   $40,
   $41,
   $42,
-  $43
+  $43,
+  $44
 ) RETURNING *;

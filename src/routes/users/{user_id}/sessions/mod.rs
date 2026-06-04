@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -21,7 +22,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         session::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Session},
         user::User,
     },
@@ -40,6 +40,8 @@ use axum::{
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 /// GET /users/{user_id}/sessions
 ///
@@ -55,21 +57,18 @@ pub async fn handle_list_sessions_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Session>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let user_id =
-        get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
-    let list_resources_action =
-        get_action_by_name("sessions.list", &http_transaction, &state.database_pool).await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
+    let list_resources_action = get_action_by_name("sessions.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_user = get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
+    let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -81,7 +80,6 @@ pub async fn handle_list_sessions_request(
         &ResourceType::User,
         Some(&target_user.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -121,24 +119,12 @@ pub async fn handle_list_sessions_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting sessions...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting sessions...");
     let resource_count = match Session::count(
         &query,
         &state.database_pool,
@@ -154,19 +140,13 @@ pub async fn handle_list_sessions_request(
                 "Failed to count sessions: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -194,21 +174,15 @@ pub async fn handle_list_sessions_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "session"
-            } else {
-                "sessions"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "session"
+        } else {
+            "sessions"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Session> {
         data: queried_resources,
@@ -240,4 +214,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

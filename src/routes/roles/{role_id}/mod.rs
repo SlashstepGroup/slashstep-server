@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         role::{EditableRoleProperties, EditableRolePropertiesRequestBody, Role},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
@@ -37,7 +36,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -55,17 +57,14 @@ async fn handle_get_role_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Role>>, HTTPError> {
-    let role_id =
-        get_uuid_from_string(&role_id, "role", &http_transaction, &state.database_pool).await?;
-    let target_role = get_role_by_id(&role_id, &http_transaction, &state.database_pool).await?;
-    let get_roles_action =
-        get_action_by_name("roles.get", &http_transaction, &state.database_pool).await?;
+    let role_id = get_uuid_from_string(&role_id, "role").await?;
+    let target_role = get_role_by_id(&role_id, &state.database_pool).await?;
+    let get_roles_action = get_action_by_name("roles.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_roles_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -81,14 +80,13 @@ async fn handle_get_role_request(
         &ResourceType::Role,
         Some(&target_role.id),
         &get_roles_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_roles_action.id,
@@ -113,13 +111,7 @@ async fn handle_get_role_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned role {}.", target_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned role {}.", target_role.id);
 
     let response_body = GetResourceResponseBody {
         data: target_role.clone(),
@@ -140,17 +132,14 @@ async fn handle_delete_role_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let role_id =
-        get_uuid_from_string(&role_id, "role", &http_transaction, &state.database_pool).await?;
-    let target_role = get_role_by_id(&role_id, &http_transaction, &state.database_pool).await?;
-    let delete_roles_action =
-        get_action_by_name("roles.delete", &http_transaction, &state.database_pool).await?;
+    let role_id = get_uuid_from_string(&role_id, "role").await?;
+    let target_role = get_role_by_id(&role_id, &state.database_pool).await?;
+    let delete_roles_action = get_action_by_name("roles.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_roles_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -166,7 +155,6 @@ async fn handle_delete_role_request(
         &ResourceType::Role,
         Some(&target_role.id),
         &delete_roles_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -174,31 +162,19 @@ async fn handle_delete_role_request(
 
     if target_role.predefined_role_type.is_some() {
         let http_error = HTTPError::Forbidden(Some("Predefined roles should only be directly deleted by Slashstep Server. You can indirectly delete roles by deleting the parent resource.".to_string()));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     if let Err(error) = target_role.delete(&state.database_pool).await {
         let http_error =
             HTTPError::InternalServerError(Some(format!("Failed to delete role: {:?}", error)));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_roles_action.id,
@@ -225,13 +201,7 @@ async fn handle_delete_role_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted role {}.", target_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted role {}.", target_role.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -248,17 +218,13 @@ async fn handle_patch_role_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableRolePropertiesRequestBody>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Role>>, HTTPError> {
-    let role_id =
-        get_uuid_from_string(&role_id, "role", &http_transaction, &state.database_pool).await?;
-    let updated_role_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let role_id = get_uuid_from_string(&role_id, "role").await?;
+    let updated_role_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(updated_role_display_name) = &updated_role_properties.display_name {
         validate_field_length(
             updated_role_display_name,
             "roles.maximumDisplayNameLength",
             "display_name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -268,21 +234,18 @@ async fn handle_patch_role_request(
             updated_role_description,
             "roles.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
-    let original_target_role =
-        get_role_by_id(&role_id, &http_transaction, &state.database_pool).await?;
+    let original_target_role = get_role_by_id(&role_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("roles.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("roles.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -298,7 +261,6 @@ async fn handle_patch_role_request(
         &ResourceType::Role,
         Some(&original_target_role.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -306,23 +268,11 @@ async fn handle_patch_role_request(
 
     if original_target_role.predefined_role_type.is_some() {
         let http_error = HTTPError::Forbidden(Some("Predefined roles should only be updated by Slashstep Server. Use custom roles for more customization.".to_string()));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
-    ServerLogEntry::trace(
-        &format!("Updating role {}...", original_target_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating role {}...", original_target_role.id);
     let updated_target_role = match original_target_role
         .update(
             &EditableRoleProperties {
@@ -341,13 +291,7 @@ async fn handle_patch_role_request(
                 "Failed to update role {}: {:?}",
                 original_target_role.id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -375,13 +319,7 @@ async fn handle_patch_role_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated role {}.", updated_target_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated role {}.", updated_target_role.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_role,
@@ -420,6 +358,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
         .merge(memberships::get_router(state.clone()))
 }

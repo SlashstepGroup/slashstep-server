@@ -43,6 +43,7 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
@@ -56,12 +57,12 @@ async fn verify_returned_action_log_entry_by_id() -> Result<(), TestSlashstepSer
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_action_log_entries_action =
         Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
@@ -204,6 +205,7 @@ async fn verify_uuid_when_getting_action_log_entry_by_id() -> Result<(), TestSla
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
@@ -227,6 +229,7 @@ async fn verify_authentication_when_getting_action_log_entry_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
@@ -259,12 +262,12 @@ async fn verify_permission_when_getting_action_log_entry_by_id()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let action_log_entry = test_environment.create_random_action_log_entry().await?;
 
@@ -272,6 +275,7 @@ async fn verify_permission_when_getting_action_log_entry_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
         state.clone(),
@@ -300,6 +304,7 @@ async fn verify_not_found_when_getting_action_log_entry_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
         state.clone(),
@@ -327,12 +332,12 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Grant access to the "actions.delete" action to the user.
@@ -357,6 +362,7 @@ async fn verify_successful_deletion_when_deleting_action_log_entry_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
         state.clone(),
@@ -391,6 +397,7 @@ async fn verify_uuid_when_deleting_action_log_entry_by_id() -> Result<(), TestSl
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
@@ -419,6 +426,7 @@ async fn verify_authentication_when_deleting_action_log_entry_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
         state.clone(),
@@ -446,12 +454,12 @@ async fn verify_permission_when_deleting_action_log_entry_by_id()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Create a dummy action log entry.
@@ -461,6 +469,7 @@ async fn verify_permission_when_deleting_action_log_entry_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
         state.clone(),
@@ -488,6 +497,7 @@ async fn verify_action_log_entry_exists_when_deleting_action_log_entry_by_id()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::action_log_entry_id::get_router(
         state.clone(),

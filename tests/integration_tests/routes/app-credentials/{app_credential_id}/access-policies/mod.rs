@@ -64,12 +64,12 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let create_access_policies_action =
         Action::get_by_name("accessPolicies.create", &test_environment.database_pool).await?;
@@ -100,6 +100,7 @@ async fn verify_successful_access_policy_creation() -> Result<(), TestSlashstepS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
@@ -157,12 +158,12 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_access_policies_action =
         Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
@@ -200,6 +201,7 @@ async fn verify_returned_access_policy_list_without_query() -> Result<(), TestSl
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
@@ -269,12 +271,12 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_access_policies_action =
         Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
@@ -322,6 +324,7 @@ async fn verify_returned_access_policy_list_with_query() -> Result<(), TestSlash
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
@@ -392,12 +395,12 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_access_policies_action =
         Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
@@ -438,6 +441,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
@@ -475,12 +479,12 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_access_policies_action =
         Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
@@ -508,6 +512,7 @@ async fn verify_maximum_access_policy_list_limit() -> Result<(), TestSlashstepSe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
@@ -544,12 +549,12 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_access_policies_action =
         Action::get_by_name("accessPolicies.get", &test_environment.database_pool).await?;
@@ -578,6 +583,7 @@ async fn verify_query_when_listing_access_policies() -> Result<(), TestSlashstep
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
@@ -664,6 +670,7 @@ async fn verify_authentication_when_listing_access_policies() -> Result<(), Test
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(
@@ -695,12 +702,12 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Create a dummy action.
@@ -710,6 +717,7 @@ async fn verify_permission_when_listing_access_policies() -> Result<(), TestSlas
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::app_credentials::app_credential_id::access_policies::get_router(

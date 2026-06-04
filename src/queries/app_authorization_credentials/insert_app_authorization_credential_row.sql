@@ -1,4 +1,5 @@
 insert into app_authorization_credentials (
+  app_id,
   app_authorization_id,
   access_token_expiration_date,
   refresh_token_expiration_date,
@@ -7,5 +8,6 @@ insert into app_authorization_credentials (
   $1,
   $2,
   $3,
-  $4
+  $4,
+  $5
 ) returning *;

@@ -1,6 +1,7 @@
 use std::{
-    net::{IpAddr, Ipv6Addr}, str::FromStr}
-;
+    net::{IpAddr, Ipv6Addr},
+    str::FromStr,
+};
 
 use chrono::{Duration, Utc};
 use deadpool_postgres::tokio_postgres;
@@ -10,6 +11,7 @@ use ed25519_dalek::{
     pkcs8::{EncodePublicKey, spki::der::pem::LineEnding},
 };
 use local_ip_address::local_ip;
+use opensearch::OpenSearch;
 use postgres::NoTls;
 use postgresql_embedded::PostgreSQL;
 use rand::{
@@ -18,7 +20,8 @@ use rand::{
 };
 use redis_test::server::RedisServer;
 use slashstep_server::{
-    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file, initialize_required_tables,
+    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, create_opensearch_client,
+    import_env_file, initialize_required_tables,
     predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
@@ -71,6 +74,7 @@ use slashstep_server::{
         role::{InitialRoleProperties, Role, RoleParentResourceType},
         server_log_entry::{InitialServerLogEntryProperties, ServerLogEntry, ServerLogEntryLevel},
         session::{InitialSessionProperties, Session},
+        session_credential::{InitialSessionCredentialProperties, SessionCredential},
         status::{InitialStatusProperties, Status, StatusType},
         user::{InitialUserProperties, User},
         view::{InitialViewProperties, View, ViewParentResourceType},
@@ -78,7 +82,11 @@ use slashstep_server::{
         webhook::{InitialWebhookProperties, Webhook, WebhookParentResourceType},
         workspace::{InitialWorkspaceProperties, Workspace},
     },
+    run_opensearch_log_worker,
 };
+use tokio::sync::mpsc;
+use tracing::{level_filters::LevelFilter, trace};
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt};
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
@@ -87,19 +95,32 @@ pub struct IntegrationTestEnvironment {
     pub database_pool: deadpool_postgres::Pool,
     pub redis_pool: deadpool_redis::Pool,
     pub redis_server: RedisServer,
+    pub opensearch_client: OpenSearch,
     // This is required to prevent the compiler from complaining about unused fields.
     // We need a wrapper struct to fix lifetime issues, but we don't need to use the container for any test right now.
     #[allow(dead_code)]
     pub embedded_postgresql: PostgreSQL,
+    pub tracing_subscriber_guard: tracing::subscriber::DefaultGuard,
 }
 
 impl IntegrationTestEnvironment {
-
     pub async fn new() -> Result<Self, TestSlashstepServerError> {
         import_env_file();
 
+        let (opensearch_sender, receiver) = mpsc::channel(100);
+        let opensearch_layer = OpenSearchLayer {
+            sender: opensearch_sender,
+        };
+        let environment_filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new(format!("off,slashstep_server=trace")));
+        let subscriber = tracing_subscriber::registry()
+            .with(opensearch_layer)
+            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::TRACE))
+            .with(environment_filter);
+        let tracing_subscriber_guard = tracing::subscriber::set_default(subscriber);
+
         let postgres_version = std::env::var("POSTGRESQL_VERSION").unwrap_or("18.3.0".to_string());
-        println!("Setting up PostgreSQL test server...");
+        trace!("Setting up PostgreSQL test server...");
         let embedded_postgresql_settings = postgresql_embedded::Settings {
             version: postgresql_embedded::VersionReq::from_str(&format!("={}", postgres_version))?,
             ..Default::default()
@@ -107,10 +128,8 @@ impl IntegrationTestEnvironment {
         let mut embedded_postgresql = PostgreSQL::new(embedded_postgresql_settings);
         embedded_postgresql.setup().await?;
 
-        println!("Starting PostgreSQL test server...");
+        trace!("Starting PostgreSQL test server...");
         embedded_postgresql.start().await?;
-
-        println!("Signing into PostgreSQL test server...");
         let mut postgres_config = tokio_postgres::Config::new();
         postgres_config.host(embedded_postgresql.settings().host.clone());
         postgres_config.port(embedded_postgresql.settings().port.clone());
@@ -135,17 +154,28 @@ impl IntegrationTestEnvironment {
         initialize_predefined_groups(&database_pool).await?;
         initialize_predefined_configurations(&database_pool).await?;
 
-        println!("Signing into Valkey test server...");
+        trace!("Signing into Valkey test server...");
         let redis_server = RedisServer::new();
-        let (redis_host, redis_port) = redis_server.host_and_port().expect("Failed to get Redis server host and port");
+        let (redis_host, redis_port) = redis_server
+            .host_and_port()
+            .expect("Failed to get Redis server host and port");
         let redis_url = format!("redis://{redis_host}:{redis_port}");
         let redis_config = deadpool_redis::Config::from_url(redis_url);
         let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
+
+        let opensearch_client = create_opensearch_client(None)?;
+        tokio::spawn(run_opensearch_log_worker(
+            receiver,
+            opensearch_client.clone(),
+        ));
+
         let environment = IntegrationTestEnvironment {
             database_pool,
             embedded_postgresql,
             redis_pool,
             redis_server,
+            opensearch_client,
+            tracing_subscriber_guard,
         };
 
         return Ok(environment);
@@ -258,14 +288,21 @@ impl IntegrationTestEnvironment {
 
     pub async fn create_random_app_authorization_credential(
         &self,
+        app_id: Option<&Uuid>,
         app_authorization_id: Option<&Uuid>,
     ) -> Result<AppAuthorizationCredential, TestSlashstepServerError> {
         // Create a random app.
-        let app_authorization_id = app_authorization_id
+        let app_id = app_id
             .copied()
-            .unwrap_or(self.create_random_app_authorization(None).await?.id);
+            .unwrap_or(self.create_random_app(None, None).await?.id);
+        let app_authorization_id = app_authorization_id.copied().unwrap_or(
+            self.create_random_app_authorization(Some(&app_id))
+                .await?
+                .id,
+        );
         let app_authorization_properties = InitialAppAuthorizationCredentialProperties {
-            app_authorization_id,
+            app_id: app_id,
+            app_authorization_id: app_authorization_id,
             access_token_expiration_date: Utc::now() + Duration::days(1),
             refresh_token_expiration_date: Utc::now() + Duration::days(30),
             refreshed_app_authorization_credential_id: None,
@@ -744,13 +781,38 @@ impl IntegrationTestEnvironment {
 
         let session_properties = InitialSessionProperties {
             user_id: user_id,
-            expiration_date: (Utc::now() + Duration::days(30)),
+            expiration_date: (Utc::now() + Duration::days(90)),
             creation_ip_address: local_ip,
         };
 
         let session = Session::create(&session_properties, &self.database_pool).await?;
 
         return Ok(session);
+    }
+
+    pub async fn create_random_session_credential(
+        &self,
+        session_id: Option<&Uuid>,
+        user_id: Option<&Uuid>,
+    ) -> Result<SessionCredential, TestSlashstepServerError> {
+        let session_id = session_id
+            .copied()
+            .unwrap_or(self.create_random_session(user_id).await?.id);
+        let session_credential_properties = InitialSessionCredentialProperties {
+            user_id: user_id
+                .copied()
+                .unwrap_or(self.create_random_user(None).await?.id),
+            session_id,
+            access_token_expiration_date: Utc::now() + Duration::days(30),
+            refresh_token_expiration_date: Utc::now() + Duration::days(60),
+            creation_ip_address: local_ip()?,
+            refreshed_session_credential_id: None,
+        };
+
+        let session_credential =
+            SessionCredential::create(&session_credential_properties, &self.database_pool).await?;
+
+        return Ok(session_credential);
     }
 
     pub async fn create_random_status(

@@ -13,7 +13,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{
@@ -43,7 +42,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 /// GET /action-log-entries/{action_log_entry_id}/access-policies
 ///
@@ -58,33 +60,19 @@ async fn handle_list_access_policies_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<AccessPolicy>>), HTTPError> {
-    let action_log_entry_id = get_uuid_from_string(
-        &action_log_entry_id,
-        "action log entry",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let action_log_entry = get_action_log_entry_by_id(
-        &action_log_entry_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let action_log_entry_id =
+        get_uuid_from_string(&action_log_entry_id, "action log entry").await?;
+    let action_log_entry =
+        get_action_log_entry_by_id(&action_log_entry_id, &state.database_pool).await?;
 
     // Make sure the principal has access to list resources.
-    let list_resources_action = get_action_by_name(
-        "accessPolicies.list",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let list_resources_action =
+        get_action_by_name("accessPolicies.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -100,7 +88,6 @@ async fn handle_list_access_policies_request(
         &ResourceType::ActionLogEntry,
         Some(&action_log_entry.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -140,24 +127,12 @@ async fn handle_list_access_policies_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting access policies...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting access policies...");
     let resource_count = match AccessPolicy::count(
         &query,
         &state.database_pool,
@@ -173,19 +148,13 @@ async fn handle_list_access_policies_request(
                 "Failed to count access policies: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -213,21 +182,15 @@ async fn handle_list_access_policies_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "access policy"
-            } else {
-                "access policies"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "access policy"
+        } else {
+            "access policies"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<AccessPolicy> {
         data: queried_resources,
@@ -250,36 +213,20 @@ async fn handle_create_access_policy_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialAccessPolicyPropertiesForPredefinedScope>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateResourceResponseBody<AccessPolicy>>), HTTPError> {
-    let action_log_entry_id = get_uuid_from_string(
-        &action_log_entry_id,
-        "action log entry",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let access_policy_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
-    let target_action_log_entry = get_action_log_entry_by_id(
-        &action_log_entry_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let action_log_entry_id =
+        get_uuid_from_string(&action_log_entry_id, "action log entry").await?;
+    let access_policy_properties_json = get_request_body_without_json_rejection(body).await?;
+    let target_action_log_entry =
+        get_action_log_entry_by_id(&action_log_entry_id, &state.database_pool).await?;
 
     // Make sure the authenticated_user can create access policies for the target action log entry.
-    let create_access_policies_action = get_action_by_name(
-        "accessPolicies.create",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let create_access_policies_action =
+        get_action_by_name("accessPolicies.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_access_policies_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -295,7 +242,6 @@ async fn handle_create_access_policy_request(
         &ResourceType::ActionLogEntry,
         Some(&action_log_entry_id),
         &create_access_policies_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -304,13 +250,11 @@ async fn handle_create_access_policy_request(
     // Make sure the authenticated_user has at least editor access to the access policy's action.
     let target_action = get_action_by_id(
         &access_policy_properties_json.action_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
     let access_policy_action = get_action_by_id(
         &access_policy_properties_json.action_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -327,23 +271,16 @@ async fn handle_create_access_policy_request(
         &ResourceType::Action,
         Some(&target_action.id),
         &access_policy_action,
-        &http_transaction,
         &minimum_permission_level,
         &state.database_pool,
     )
     .await?;
 
     // Create the access policy.
-    ServerLogEntry::trace(
-        &format!(
-            "Creating access policy for action log entry {}...",
-            action_log_entry_id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Creating access policy for action log entry {}...",
+        action_log_entry_id
+    );
     let access_policy = match AccessPolicy::create(
         &InitialAccessPolicyProperties {
             action_id: access_policy_properties_json.action_id,
@@ -369,19 +306,13 @@ async fn handle_create_access_policy_request(
                 "Failed to create access policy: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_access_policies_action.id,
@@ -406,13 +337,7 @@ async fn handle_create_access_policy_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created access policy {}.", access_policy.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created access policy {}.", access_policy.id);
 
     let response_body = CreateResourceResponseBody {
         data: access_policy,
@@ -447,4 +372,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

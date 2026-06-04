@@ -11,7 +11,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
@@ -36,7 +35,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./{action_log_entry_id}/mod.rs"]
 pub mod action_log_entry_id;
@@ -54,18 +56,13 @@ async fn handle_list_action_log_entries_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<ActionLogEntry>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action = get_action_by_name(
-        "actionLogEntries.list",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let list_resources_action =
+        get_action_by_name("actionLogEntries.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -81,19 +78,12 @@ async fn handle_list_action_log_entries_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing action log entries...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing action log entries...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match ActionLogEntry::list(
         &query,
@@ -121,24 +111,12 @@ async fn handle_list_action_log_entries_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting action log entries...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting action log entries...");
     let resource_count = match ActionLogEntry::count(
         &query,
         &state.database_pool,
@@ -154,19 +132,13 @@ async fn handle_list_action_log_entries_request(
                 "Failed to count action log entries: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -193,21 +165,15 @@ async fn handle_list_action_log_entries_request(
     .ok();
 
     let queried_action_log_entry_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_action_log_entry_list_length,
-            if queried_action_log_entry_list_length == 1 {
-                "action log entry"
-            } else {
-                "action log entries"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_action_log_entry_list_length,
+        if queried_action_log_entry_list_length == 1 {
+            "action log entry"
+        } else {
+            "action log entries"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ActionLogEntry> {
         data: queried_resources,
@@ -239,5 +205,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(action_log_entry_id::get_router(state.clone()))
 }

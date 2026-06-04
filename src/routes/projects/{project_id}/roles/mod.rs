@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -25,7 +26,6 @@ use crate::{
             DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialRoleProperties,
             InitialRolePropertiesWithPredefinedParent, Role, RoleParentResourceType,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
@@ -45,6 +45,8 @@ use axum::{
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 /// GET /projects/{project_id}/roles
 ///
@@ -60,27 +62,18 @@ async fn handle_list_roles_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Role>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let list_resources_action =
-        get_action_by_name("roles.list", &http_transaction, &state.database_pool).await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let list_resources_action = get_action_by_name("roles.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -92,7 +85,6 @@ async fn handle_list_roles_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -130,24 +122,12 @@ async fn handle_list_roles_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting roles...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting roles...");
     let resource_count = match Role::count(
         &query,
         &state.database_pool,
@@ -161,19 +141,13 @@ async fn handle_list_roles_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to count roles: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -201,21 +175,15 @@ async fn handle_list_roles_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "role"
-            } else {
-                "roles"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "role"
+        } else {
+            "roles"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Role> {
         data: queried_resources,
@@ -239,21 +207,12 @@ async fn handle_create_role_request(
     body: Result<Json<InitialRolePropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Role>), HTTPError> {
     // Make sure the user can create roles for the target action.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let role_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let role_properties_json = get_request_body_without_json_rejection(body).await?;
     validate_field_length(
         &role_properties_json.name,
         "roles.maximumNameLength",
         "name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -261,7 +220,6 @@ async fn handle_create_role_request(
         &role_properties_json.name,
         "roles.allowedNameRegex",
         "role",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -269,7 +227,6 @@ async fn handle_create_role_request(
         &role_properties_json.display_name,
         "roles.maximumDisplayNameLength",
         "display_name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -278,21 +235,17 @@ async fn handle_create_role_request(
             role_description,
             "roles.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
-    let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
-    let create_roles_action =
-        get_action_by_name("roles.create", &http_transaction, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
+    let create_roles_action = get_action_by_name("roles.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_roles_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -308,20 +261,13 @@ async fn handle_create_role_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &create_roles_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     // Create the role.
-    ServerLogEntry::trace(
-        &format!("Creating role for project {}...", project_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating role for project {}...", project_id);
     let role = match Role::create(
         &InitialRoleProperties {
             name: role_properties_json.name.clone(),
@@ -344,19 +290,13 @@ async fn handle_create_role_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to create role: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_roles_action.id,
@@ -381,13 +321,7 @@ async fn handle_create_role_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created role {}.", role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created role {}.", role.id);
 
     Ok((StatusCode::CREATED, Json(role)))
 }
@@ -418,4 +352,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

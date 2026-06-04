@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -25,7 +26,6 @@ use crate::{
             InitialOAuthAuthorizationProperties,
             InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer, OAuthAuthorization,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     utilities::route_handler_utilities::{
@@ -44,13 +44,11 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 use uuid::Uuid;
 
-pub async fn create_regex(
-    string: &str,
-    http_transaction: &HTTPTransaction,
-    database_pool: &deadpool_postgres::Pool,
-) -> Result<Regex, HTTPError> {
+pub async fn create_regex(string: &str) -> Result<Regex, HTTPError> {
     let regex = match Regex::new(string) {
         Ok(regex) => regex,
 
@@ -59,9 +57,7 @@ pub async fn create_regex(
                 "Failed to create regex: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -88,13 +84,7 @@ async fn handle_create_oauth_authorization_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialOAuthAuthorizationPropertiesForPredefinedAuthorizer>, JsonRejection>,
 ) -> Result<(StatusCode, Json<CreateOAuthAuthorizationResponseBody>), HTTPError> {
-    ServerLogEntry::trace(
-        "Validating request body...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Validating request body...");
     let initial_oauth_authorization_properties_json = match body {
         Ok(initial_oauth_authorization_properties_json) => {
             initial_oauth_authorization_properties_json
@@ -123,13 +113,7 @@ async fn handle_create_oauth_authorization_request(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -146,18 +130,12 @@ async fn handle_create_oauth_authorization_request(
             "The code challenge method must be \"S256\" if a code challenge is provided."
                 .to_string(),
         ));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     // Verify the scope.
-    let full_string_regex = create_regex(r"^(?: ?(?P<action_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(?P<maximum_permission_level>None|User|Editor|Admin))+$", &http_transaction, &state.database_pool).await?;
+    let full_string_regex = create_regex(r"^(?: ?(?P<action_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(?P<maximum_permission_level>None|User|Editor|Admin))+$").await?;
     let scope = initial_oauth_authorization_properties_json.scope.clone();
 
     if !full_string_regex.is_match(&scope) {
@@ -165,18 +143,12 @@ async fn handle_create_oauth_authorization_request(
             "The scope must be a space-separated list of action IDs and permission levels."
                 .to_string(),
         ));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     // Make sure each action ID and permission level is valid.
-    let capture_string_regex = create_regex(r"(?: ?(?P<action_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(?P<maximum_permission_level>None|User|Editor|Admin))", &http_transaction, &state.database_pool).await?;
+    let capture_string_regex = create_regex(r"(?: ?(?P<action_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(?P<maximum_permission_level>None|User|Editor|Admin))").await?;
     for captures in capture_string_regex.captures_iter(&scope) {
         let action_id = match captures.name("action_id") {
             Some(action_id) => match Uuid::parse_str(action_id.as_str()) {
@@ -187,13 +159,7 @@ async fn handle_create_oauth_authorization_request(
                         "The action ID \"{}\" is not a valid UUID. Check your scope string.",
                         action_id.as_str()
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             },
@@ -203,13 +169,7 @@ async fn handle_create_oauth_authorization_request(
                     "The scope must be a space-separated list of action IDs and permission levels."
                         .to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -224,13 +184,7 @@ async fn handle_create_oauth_authorization_request(
                             "The maximum permission level \"{}\" is not valid. Check your scope string.",
                             maximum_permission_level.as_str()
                         )));
-                        ServerLogEntry::from_http_error(
-                            &http_error,
-                            Some(&http_transaction.id),
-                            &state.database_pool,
-                        )
-                        .await
-                        .ok();
+                        http_error.log();
                         return Err(http_error);
                     }
                 }
@@ -241,36 +195,24 @@ async fn handle_create_oauth_authorization_request(
                     "The scope must be a space-separated list of action IDs and permission levels."
                         .to_string(),
                 ));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
 
-        get_action_by_id(&action_id, &http_transaction, &state.database_pool).await?;
+        get_action_by_id(&action_id, &state.database_pool).await?;
     }
 
     // Make sure the user can create access policies for the target action.
-    let user_id =
-        get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
-    let target_user = get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
-    let create_oauth_authorizations_action = get_action_by_name(
-        "oauthAuthorizations.create",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
+    let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
+    let create_oauth_authorizations_action =
+        get_action_by_name("oauthAuthorizations.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_oauth_authorizations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -286,25 +228,21 @@ async fn handle_create_oauth_authorization_request(
         &ResourceType::User,
         Some(&target_user.id),
         &create_oauth_authorizations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
     let target_app = get_app_by_id(
         &initial_oauth_authorization_properties_json.app_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
-    let authorize_app_action =
-        get_action_by_name("apps.authorize", &http_transaction, &state.database_pool).await?;
+    let authorize_app_action = get_action_by_name("apps.authorize", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &authorize_app_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -316,23 +254,16 @@ async fn handle_create_oauth_authorization_request(
         &ResourceType::User,
         Some(&target_user.id),
         &authorize_app_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     // Create the action.
-    ServerLogEntry::trace(
-        &format!(
-            "Creating OAuth authorization for user {}...",
-            target_user.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Creating OAuth authorization for user {}...",
+        target_user.id
+    );
     let created_oauth_authorization = match OAuthAuthorization::create(
         &InitialOAuthAuthorizationProperties {
             app_id: target_app.id,
@@ -361,26 +292,13 @@ async fn handle_create_oauth_authorization_request(
                 "Failed to create OAuth authorization: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Generating OAuth authorization code...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
-    let jwt_private_key =
-        get_json_web_token_private_key(&http_transaction.id, &state.database_pool).await?;
+    trace!("Generating OAuth authorization code...");
+    let jwt_private_key = get_json_web_token_private_key().await?;
     let authorization_code =
         match created_oauth_authorization.generate_authorization_code(&jwt_private_key) {
             Ok(authorization_code) => authorization_code,
@@ -390,19 +308,13 @@ async fn handle_create_oauth_authorization_request(
                     "Failed to generate OAuth authorization code: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: authorize_app_action.id,
@@ -452,16 +364,10 @@ async fn handle_create_oauth_authorization_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created OAuth authorization {}.",
-            created_oauth_authorization.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully created OAuth authorization {}.",
+        created_oauth_authorization.id
+    );
 
     let response_body = CreateOAuthAuthorizationResponseBody {
         oauth_authorization: created_oauth_authorization,
@@ -492,4 +398,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

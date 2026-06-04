@@ -1,5 +1,7 @@
 /target
-.env
+*.env
 secrets
 tls
 /media
+oom
+demo-certificates

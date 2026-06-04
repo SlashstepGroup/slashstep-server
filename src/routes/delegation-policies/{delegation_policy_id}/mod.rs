@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         delegation_policy::{DelegationPolicy, EditableDelegationPolicyProperties},
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
@@ -37,7 +36,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -54,31 +56,17 @@ async fn handle_get_delegation_policy_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<DelegationPolicy>>, HTTPError> {
-    let delegation_policy_id = get_uuid_from_string(
-        &delegation_policy_id,
-        "delegation policy",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_delegation_policy = get_delegation_policy_by_id(
-        &delegation_policy_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let get_delegation_policies_action = get_action_by_name(
-        "delegationPolicies.get",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let delegation_policy_id =
+        get_uuid_from_string(&delegation_policy_id, "delegation policy").await?;
+    let target_delegation_policy =
+        get_delegation_policy_by_id(&delegation_policy_id, &state.database_pool).await?;
+    let get_delegation_policies_action =
+        get_action_by_name("delegationPolicies.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_delegation_policies_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -94,14 +82,13 @@ async fn handle_get_delegation_policy_request(
         &ResourceType::DelegationPolicy,
         Some(&target_delegation_policy.id),
         &get_delegation_policies_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_delegation_policies_action.id,
@@ -126,16 +113,10 @@ async fn handle_get_delegation_policy_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned delegation policy {}.",
-            target_delegation_policy.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned delegation policy {}.",
+        target_delegation_policy.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_delegation_policy.clone(),
@@ -156,31 +137,17 @@ async fn handle_delete_delegation_policy_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let delegation_policy_id = get_uuid_from_string(
-        &delegation_policy_id,
-        "delegation policy",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_delegation_policy = get_delegation_policy_by_id(
-        &delegation_policy_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_delegation_policies_action = get_action_by_name(
-        "delegationPolicies.delete",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let delegation_policy_id =
+        get_uuid_from_string(&delegation_policy_id, "delegation policy").await?;
+    let target_delegation_policy =
+        get_delegation_policy_by_id(&delegation_policy_id, &state.database_pool).await?;
+    let delete_delegation_policies_action =
+        get_action_by_name("delegationPolicies.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_delegation_policies_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -196,7 +163,6 @@ async fn handle_delete_delegation_policy_request(
         &ResourceType::DelegationPolicy,
         Some(&target_delegation_policy.id),
         &delete_delegation_policies_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -207,18 +173,12 @@ async fn handle_delete_delegation_policy_request(
             "Failed to delete delegation policy: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_delegation_policies_action.id,
@@ -245,16 +205,10 @@ async fn handle_delete_delegation_policy_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted delegation policy {}.",
-            target_delegation_policy.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully deleted delegation policy {}.",
+        target_delegation_policy.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -272,33 +226,18 @@ async fn handle_patch_delegation_policy_request(
     body: Result<Json<EditableDelegationPolicyProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<DelegationPolicy>>, HTTPError> {
     let updated_delegation_policy_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
-    let delegation_policy_id = get_uuid_from_string(
-        &delegation_policy_id,
-        "delegation policy",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let original_target_delegation_policy = get_delegation_policy_by_id(
-        &delegation_policy_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let update_access_policy_action = get_action_by_name(
-        "delegationPolicies.update",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+        get_request_body_without_json_rejection(body).await?;
+    let delegation_policy_id =
+        get_uuid_from_string(&delegation_policy_id, "delegation policy").await?;
+    let original_target_delegation_policy =
+        get_delegation_policy_by_id(&delegation_policy_id, &state.database_pool).await?;
+    let update_access_policy_action =
+        get_action_by_name("delegationPolicies.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -314,22 +253,15 @@ async fn handle_patch_delegation_policy_request(
         &ResourceType::DelegationPolicy,
         Some(&original_target_delegation_policy.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!(
-            "Updating delegation policy {}...",
-            original_target_delegation_policy.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Updating delegation policy {}...",
+        original_target_delegation_policy.id
+    );
     let updated_target_delegation_policy = match original_target_delegation_policy
         .update(&updated_delegation_policy_properties, &state.database_pool)
         .await
@@ -341,13 +273,7 @@ async fn handle_patch_delegation_policy_request(
                 "Failed to update delegation policy {}: {:?}",
                 original_target_delegation_policy.id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -375,16 +301,10 @@ async fn handle_patch_delegation_policy_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated delegation policy {}.",
-            updated_target_delegation_policy.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully updated delegation policy {}.",
+        updated_target_delegation_policy.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_delegation_policy,
@@ -423,5 +343,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

@@ -146,6 +146,7 @@ CREATE OR REPLACE FUNCTION get_principal_access_policies(
                     access_policies.scoped_server_log_entry_id = parameter_resource_id OR
                     parameter_resource_type = 'Server' OR
                     access_policies.scoped_session_id = parameter_resource_id OR
+                    access_policies.scoped_session_credential_id = parameter_resource_id OR
                     access_policies.scoped_status_id = parameter_resource_id OR
                     access_policies.scoped_user_id = parameter_resource_id OR
                     access_policies.scoped_view_id = parameter_resource_id OR

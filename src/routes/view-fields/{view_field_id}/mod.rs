@@ -10,7 +10,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
         view_field::{EditableViewFieldProperties, ViewField},
     },
@@ -37,7 +36,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -54,23 +56,14 @@ async fn handle_get_view_field_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<ViewField>>, HTTPError> {
-    let view_field_id = get_uuid_from_string(
-        &view_field_id,
-        "view field",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_view_field =
-        get_view_field_by_id(&view_field_id, &http_transaction, &state.database_pool).await?;
-    let get_view_fields_action =
-        get_action_by_name("viewFields.get", &http_transaction, &state.database_pool).await?;
+    let view_field_id = get_uuid_from_string(&view_field_id, "view field").await?;
+    let target_view_field = get_view_field_by_id(&view_field_id, &state.database_pool).await?;
+    let get_view_fields_action = get_action_by_name("viewFields.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_view_fields_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -86,14 +79,13 @@ async fn handle_get_view_field_request(
         &ResourceType::ViewField,
         Some(&target_view_field.id),
         &get_view_fields_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_view_fields_action.id,
@@ -118,13 +110,7 @@ async fn handle_get_view_field_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned view field {}.", target_view_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned view field {}.", target_view_field.id);
 
     let response_body = GetResourceResponseBody {
         data: target_view_field.clone(),
@@ -145,23 +131,15 @@ async fn handle_delete_view_field_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let view_field_id = get_uuid_from_string(
-        &view_field_id,
-        "view field",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_view_field =
-        get_view_field_by_id(&view_field_id, &http_transaction, &state.database_pool).await?;
+    let view_field_id = get_uuid_from_string(&view_field_id, "view field").await?;
+    let target_view_field = get_view_field_by_id(&view_field_id, &state.database_pool).await?;
     let delete_view_fields_action =
-        get_action_by_name("viewFields.delete", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("viewFields.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_view_fields_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -177,7 +155,6 @@ async fn handle_delete_view_field_request(
         &ResourceType::ViewField,
         Some(&target_view_field.id),
         &delete_view_fields_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -188,18 +165,12 @@ async fn handle_delete_view_field_request(
             "Failed to delete view field: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_view_fields_action.id,
@@ -226,13 +197,7 @@ async fn handle_delete_view_field_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted view field {}.", target_view_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted view field {}.", target_view_field.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -249,42 +214,27 @@ async fn handle_patch_view_field_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableViewFieldProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<ViewField>>, HTTPError> {
-    let view_field_id = get_uuid_from_string(
-        &view_field_id,
-        "view field",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let updated_view_field_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let view_field_id = get_uuid_from_string(&view_field_id, "view field").await?;
+    let updated_view_field_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(next_view_field_id)) = updated_view_field_properties.next_view_field_id
         && next_view_field_id == view_field_id
     {
         let http_error = HTTPError::UnprocessableEntity(Some(
             "A view field cannot be its own next view field.".to_string(),
         ));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let original_target_view_field =
-        get_view_field_by_id(&view_field_id, &http_transaction, &state.database_pool).await?;
+        get_view_field_by_id(&view_field_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("viewFields.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("viewFields.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -300,19 +250,12 @@ async fn handle_patch_view_field_request(
         &ResourceType::ViewField,
         Some(&original_target_view_field.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating view field {}...", original_target_view_field.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating view field {}...", original_target_view_field.id);
     let updated_target_view_field = match original_target_view_field
         .update(&updated_view_field_properties, &state.database_pool)
         .await
@@ -324,13 +267,7 @@ async fn handle_patch_view_field_request(
                 "Failed to update view field: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -358,16 +295,10 @@ async fn handle_patch_view_field_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated view field {}.",
-            updated_target_view_field.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully updated view field {}.",
+        updated_target_view_field.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_view_field,
@@ -406,5 +337,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

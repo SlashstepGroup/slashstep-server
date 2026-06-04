@@ -1,0 +1,28 @@
+info:
+  name: Create a user
+  type: http
+
+http:
+  method: POST
+  url: "{{base_url}}/users"
+  body:
+    type: json
+    data: |-
+      {
+        "username": "{{username}}",
+        "password": "{{password}}"
+      }
+  auth: inherit
+
+runtime:
+  variables:
+    - name: username
+      value: ""
+    - name: password
+      value: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

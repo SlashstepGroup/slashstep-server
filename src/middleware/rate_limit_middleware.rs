@@ -14,12 +14,14 @@ use crate::{
     AppState, HTTPError,
     resources::{
         access_policy::AccessPolicyPrincipalType, app::App, app_authorization::AppAuthorization,
-        http_transaction::HTTPTransaction, server_log_entry::ServerLogEntry, user::User,
+        user::User,
     },
     utilities::route_handler_utilities::{
         get_configuration_by_name, get_principal_type_and_id_from_principal,
     },
 };
+
+use tracing::info;
 
 enum Interval {
     PerSecond,
@@ -38,7 +40,6 @@ impl std::fmt::Display for Interval {
 #[axum_macros::debug_middleware]
 pub async fn verify_absolute_maximum_rate_limits(
     State(state): State<AppState>,
-    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
     Extension(authenticated_user): Extension<Option<Arc<User>>>,
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(_authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
@@ -98,20 +99,13 @@ pub async fn verify_absolute_maximum_rate_limits(
                     "Requests with {} method are not allowed.",
                     request.method()
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
 
         let interval_rate_limit_configuration = get_configuration_by_name(
             &interval_rate_limit_configuration_name,
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -128,13 +122,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                         "Invalid number value for configuration {}. The value must be a positive integer that can be represented as a usize.",
                         interval_rate_limit_configuration.id
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             }
@@ -143,13 +131,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                 "Missing number value for configuration {}.",
                 interval_rate_limit_configuration.id
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         };
 
@@ -160,13 +142,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                 let http_error = HTTPError::InternalServerError(Some(format!(
                     "Failed to get Redis connection from pool: {error:?}"
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -182,13 +158,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                         "Failed to increment Redis key {rate_limit_key}: {:?}",
                         error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -206,13 +176,7 @@ pub async fn verify_absolute_maximum_rate_limits(
                 "Failed to set expiration for Redis key {rate_limit_key}: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -221,24 +185,12 @@ pub async fn verify_absolute_maximum_rate_limits(
                 "Rate limit exceeded for {}.",
                 interval_rate_limit_configuration_name
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     }
 
-    ServerLogEntry::info(
-        "Successfully verified principal is acting within global rate limits.",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully verified principal is acting within global rate limits.");
 
     let response = next.run(request).await;
     Ok(response)

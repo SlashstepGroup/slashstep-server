@@ -12,7 +12,10 @@
 #[path = "./{group_id}/mod.rs"]
 pub mod group_id;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -37,7 +40,6 @@ use crate::{
             MembershipPrincipalType,
         },
         role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
@@ -70,14 +72,12 @@ async fn handle_list_groups_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Group>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action =
-        get_action_by_name("groups.list", &http_transaction, &state.database_pool).await?;
+    let list_resources_action = get_action_by_name("groups.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -93,19 +93,12 @@ async fn handle_list_groups_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing groups...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing groups...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match Group::list(
         &query,
@@ -131,24 +124,12 @@ async fn handle_list_groups_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting groups...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting groups...");
     let resource_count = match Group::count(
         &query,
         &state.database_pool,
@@ -164,19 +145,13 @@ async fn handle_list_groups_request(
                 "Failed to count groups: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -203,21 +178,15 @@ async fn handle_list_groups_request(
     .ok();
 
     let queried_group_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_group_list_length,
-            if queried_group_list_length == 1 {
-                "group"
-            } else {
-                "groups"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_group_list_length,
+        if queried_group_list_length == 1 {
+            "group"
+        } else {
+            "groups"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Group> {
         data: queried_resources,
@@ -229,16 +198,9 @@ async fn handle_list_groups_request(
 
 async fn create_role(
     initial_role_properties: &InitialRoleProperties,
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Role, HTTPError> {
-    ServerLogEntry::trace(
-        &format!("Creating role \"{}\"...", initial_role_properties.name),
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating role \"{}\"...", initial_role_properties.name);
 
     match Role::create(initial_role_properties, database_pool).await {
         Ok(role) => Ok(role),
@@ -246,9 +208,7 @@ async fn create_role(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to create role: {:?}", error)));
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             Err(http_error)
         }
     }
@@ -256,16 +216,9 @@ async fn create_role(
 
 async fn create_membership(
     initial_membership_properties: &InitialMembershipProperties,
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Membership, HTTPError> {
-    ServerLogEntry::trace(
-        "Creating membership for principal...",
-        Some(http_transaction_id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating membership for principal...");
 
     match Membership::create(initial_membership_properties, database_pool).await {
         Ok(membership) => Ok(membership),
@@ -275,9 +228,7 @@ async fn create_membership(
                 "Failed to create membership: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             Err(http_error)
         }
     }
@@ -285,18 +236,11 @@ async fn create_membership(
 
 async fn create_default_child_resources(
     group: &Group,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
     principal_type: &AccessPolicyPrincipalType,
     principal_id: &Uuid,
 ) -> Result<(), HTTPError> {
-    ServerLogEntry::trace(
-        "Creating default child resources for group...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating default child resources for group...");
 
     let group_admins_role = create_role(
         &InitialRoleProperties {
@@ -311,7 +255,6 @@ async fn create_default_child_resources(
             predefined_role_type: Some(PredefinedRoleType::GroupAdmins),
             ..Default::default()
         },
-        &http_transaction.id,
         database_pool,
     )
     .await?;
@@ -343,8 +286,7 @@ async fn create_default_child_resources(
     ];
 
     for group_admin_action_name in group_admin_action_names {
-        let group_admin_action =
-            get_action_by_name(group_admin_action_name, http_transaction, database_pool).await?;
+        let group_admin_action = get_action_by_name(group_admin_action_name, database_pool).await?;
         match AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 action_id: group_admin_action.id,
@@ -367,13 +309,7 @@ async fn create_default_child_resources(
                     "Failed to grant admin access to {} action for group admin role: {:?}",
                     group_admin_action_name, error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -400,18 +336,11 @@ async fn create_default_child_resources(
             },
             ..Default::default()
         },
-        &http_transaction.id,
         database_pool,
     )
     .await?;
 
-    ServerLogEntry::info(
-        "Successfully created group admins role and added the authenticated principal to it.",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created group admins role and added the authenticated principal to it.");
 
     let group_members_role = create_role(
         &InitialRoleProperties {
@@ -425,7 +354,6 @@ async fn create_default_child_resources(
             predefined_role_type: Some(PredefinedRoleType::GroupMembers),
             ..Default::default()
         },
-        &http_transaction.id,
         database_pool,
     )
     .await?;
@@ -445,7 +373,7 @@ async fn create_default_child_resources(
 
     for group_member_action_name in group_member_action_names {
         let group_member_action =
-            get_action_by_name(group_member_action_name, http_transaction, database_pool).await?;
+            get_action_by_name(group_member_action_name, database_pool).await?;
         match AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 action_id: group_member_action.id,
@@ -468,13 +396,7 @@ async fn create_default_child_resources(
                     "Failed to grant user access to {} action for group member role: {:?}",
                     group_member_action_name, error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -501,18 +423,11 @@ async fn create_default_child_resources(
             },
             ..Default::default()
         },
-        &http_transaction.id,
         database_pool,
     )
     .await?;
 
-    ServerLogEntry::info(
-        "Successfully created group members role and added the authenticated principal to it.",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created group members role and added the authenticated principal to it.");
 
     Ok(())
 }
@@ -542,14 +457,11 @@ async fn handle_create_group_request(
     body: Result<Json<CreateGroupRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Group>), HTTPError> {
     // TODO: Add configurations to verify inputs.
-    let initial_group_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let initial_group_properties = get_request_body_without_json_rejection(body).await?;
     validate_resource_name(
         &initial_group_properties.name,
         "groups.allowedNameRegex",
         "group",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -557,7 +469,6 @@ async fn handle_create_group_request(
         &initial_group_properties.name,
         "groups.maximumNameLength",
         "name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -565,7 +476,6 @@ async fn handle_create_group_request(
         &initial_group_properties.display_name,
         "groups.maximumDisplayNameLength",
         "display name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -574,21 +484,18 @@ async fn handle_create_group_request(
             field_description,
             "groups.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
 
     // Make sure the authenticated_user can create apps for the target action log entry.
-    let create_groups_action =
-        get_action_by_name("groups.create", &http_transaction, &state.database_pool).await?;
+    let create_groups_action = get_action_by_name("groups.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_groups_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -604,20 +511,13 @@ async fn handle_create_group_request(
         &ResourceType::Server,
         None,
         &create_groups_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     // Create the group.
-    ServerLogEntry::trace(
-        "Creating group...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating group...");
     let group = match Group::create(
         &InitialGroupProperties {
             name: initial_group_properties.name.clone(),
@@ -638,19 +538,13 @@ async fn handle_create_group_request(
                 "Failed to create group: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_groups_action.id,
@@ -675,65 +569,30 @@ async fn handle_create_group_request(
     )
     .await
     .ok();
-    ServerLogEntry::info(
-        &format!("Successfully created group {}.", group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created group {}.", group.id);
 
-    if let Err(error) = create_default_child_resources(
-        &group,
-        &http_transaction,
-        &state.database_pool,
-        &principal_type,
-        &principal_id,
-    )
-    .await
+    if let Err(error) =
+        create_default_child_resources(&group, &state.database_pool, &principal_type, &principal_id)
+            .await
     {
-        ServerLogEntry::trace(
-            "Deleting group due to error creating default child resources...",
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("Deleting group due to error creating default child resources...");
         if let Err(delete_error) = group.delete(&state.database_pool).await {
             let http_error = HTTPError::InternalServerError(Some(format!(
                 "Failed to delete group after error creating default child data: {:?}",
                 delete_error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         };
 
-        ServerLogEntry::info(
-            "Successfully deleted group.",
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        info!("Successfully deleted group.");
         return Err(error);
     };
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created group {} with default child resources.",
-            group.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully created group {} with default child resources.",
+        group.id
+    );
 
     Ok((StatusCode::CREATED, Json(group)))
 }
@@ -758,5 +617,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(group_id::get_router(state.clone()))
 }

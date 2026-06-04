@@ -10,8 +10,8 @@ use crate::{
             InitialMembershipProperties, Membership, MembershipParentResourceType,
             MembershipPrincipalType,
         },
-        server_log_entry::ServerLogEntry,
-        session::{Session, SessionTokenClaims},
+        session::Session,
+        session_credential::{SessionCredential, SessionCredentialTokenClaims},
         user::{InitialUserProperties, User},
     },
     utilities::route_handler_utilities::{get_app_by_id, get_app_credential_by_id},
@@ -27,20 +27,16 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use reqwest::header;
 use std::sync::Arc;
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
-async fn get_jwt_public_key(
-    http_transaction_id: &Uuid,
-    database_pool: &deadpool_postgres::Pool,
-) -> Result<String, HTTPError> {
+async fn get_jwt_public_key() -> Result<String, HTTPError> {
     let jwt_public_key = match get_json_web_token_public_key().await {
         Ok(jwt_public_key) => jwt_public_key,
 
         Err(error) => {
             let http_error = HTTPError::InternalServerError(Some(format!("{:?}", error)));
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -49,8 +45,6 @@ async fn get_jwt_public_key(
 }
 
 pub async fn get_decoding_key(
-    http_transaction_id: &Uuid,
-    database_pool: &deadpool_postgres::Pool,
     jwt_public_key: &str,
 ) -> Result<jsonwebtoken::DecodingKey, HTTPError> {
     let decoding_key = match jsonwebtoken::DecodingKey::from_ed_pem(jwt_public_key.as_bytes()) {
@@ -60,9 +54,7 @@ pub async fn get_decoding_key(
                 "Failed to decode JWT public key: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -71,13 +63,11 @@ pub async fn get_decoding_key(
 }
 
 async fn get_decoded_claims(
-    http_transaction_id: &Uuid,
-    database_pool: &deadpool_postgres::Pool,
     session_token: &str,
     decoding_key: &jsonwebtoken::DecodingKey,
     validation: &jsonwebtoken::Validation,
-) -> Result<jsonwebtoken::TokenData<SessionTokenClaims>, HTTPError> {
-    let decoded_claims = match jsonwebtoken::decode::<SessionTokenClaims>(
+) -> Result<jsonwebtoken::TokenData<SessionCredentialTokenClaims>, HTTPError> {
+    let decoded_claims = match jsonwebtoken::decode::<SessionCredentialTokenClaims>(
         &session_token,
         decoding_key,
         validation,
@@ -90,13 +80,7 @@ async fn get_decoded_claims(
                 )),
 
                 jsonwebtoken::errors::ErrorKind::MissingRequiredClaim(claims) => {
-                    ServerLogEntry::warning(
-                        &format!("Missing required claim \"{}\" in session token.", claims),
-                        Some(http_transaction_id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    warn!("Missing required claim \"{}\" in session token.", claims);
                     HTTPError::Unauthorized(Some(
                         "Please provide a valid session token.".to_string(),
                     ))
@@ -108,9 +92,7 @@ async fn get_decoded_claims(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -119,7 +101,6 @@ async fn get_decoded_claims(
 }
 
 async fn get_user_by_id(
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
     user_id: &Uuid,
 ) -> Result<User, HTTPError> {
@@ -134,9 +115,7 @@ async fn get_user_by_id(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
 
             return Err(http_error);
         }
@@ -146,7 +125,6 @@ async fn get_user_by_id(
 }
 
 async fn get_session_by_id(
-    http_transaction_id: &Uuid,
     database_pool: &deadpool_postgres::Pool,
     session_id: &Uuid,
 ) -> Result<Session, HTTPError> {
@@ -154,10 +132,9 @@ async fn get_session_by_id(
         Ok(session) => session,
         Err(error) => {
             let http_error = match error {
-                ResourceError::NotFoundError(_) => HTTPError::Unauthorized(Some(format!(
-                    "Session with ID {} not found.",
-                    session_id
-                ))),
+                ResourceError::NotFoundError(_) => {
+                    HTTPError::Unauthorized(Some(format!("Please provide a valid session token.")))
+                }
                 ResourceError::PostgresError(error) => match error.as_db_error() {
                     Some(db_error) => {
                         HTTPError::InternalServerError(Some(format!("{:?}", db_error)))
@@ -168,9 +145,37 @@ async fn get_session_by_id(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
+
+            return Err(http_error);
+        }
+    };
+
+    Ok(session)
+}
+
+async fn get_session_credential_by_id(
+    database_pool: &deadpool_postgres::Pool,
+    session_id: &Uuid,
+) -> Result<SessionCredential, HTTPError> {
+    let session = match SessionCredential::get_by_id(session_id, database_pool).await {
+        Ok(session) => session,
+        Err(error) => {
+            let http_error = match error {
+                ResourceError::NotFoundError(_) => {
+                    HTTPError::Unauthorized(Some(format!("Please provide a valid session token.")))
+                }
+                ResourceError::PostgresError(error) => match error.as_db_error() {
+                    Some(db_error) => {
+                        HTTPError::InternalServerError(Some(format!("{:?}", db_error)))
+                    }
+
+                    None => HTTPError::InternalServerError(Some(format!("{:?}", error))),
+                },
+                _ => HTTPError::InternalServerError(Some(error.to_string())),
+            };
+
+            http_error.log();
 
             return Err(http_error);
         }
@@ -190,13 +195,7 @@ pub async fn authenticate_user(
     // Get the cookie from the request.
     let Some(session_token) = cookie_jar.get("session_access_token") else {
         // Use an anonymous user.
-        ServerLogEntry::trace(
-            "No user token found in request. Checking for existing anonymous user...",
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("No user token found in request. Checking for existing anonymous user...");
 
         let anonymous_user =
             match User::get_by_ip_address(&http_transaction.ip_address, &state.database_pool).await
@@ -205,13 +204,7 @@ pub async fn authenticate_user(
 
                 Err(error) => match error {
                     ResourceError::NotFoundError(_) => {
-                        ServerLogEntry::trace(
-                            "No existing anonymous user found. Creating a new one...",
-                            Some(&http_transaction.id),
-                            &state.database_pool,
-                        )
-                        .await
-                        .ok();
+                        trace!("No existing anonymous user found. Creating a new one...");
 
                         match User::create(
                             &InitialUserProperties {
@@ -232,13 +225,7 @@ pub async fn authenticate_user(
                                     "Failed to create anonymous user: {:?}",
                                     error
                                 )));
-                                ServerLogEntry::from_http_error(
-                                    &http_error,
-                                    Some(&http_transaction.id),
-                                    &state.database_pool,
-                                )
-                                .await
-                                .ok();
+                                http_error.log();
                                 return Err(http_error);
                             }
                         }
@@ -249,25 +236,13 @@ pub async fn authenticate_user(
                             "Failed to get anonymous user: {:?}",
                             error
                         )));
-                        ServerLogEntry::from_http_error(
-                            &http_error,
-                            Some(&http_transaction.id),
-                            &state.database_pool,
-                        )
-                        .await
-                        .ok();
+                        http_error.log();
                         return Err(http_error);
                     }
                 },
             };
 
-        ServerLogEntry::trace(
-            "Getting anonymous users group...",
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("Getting anonymous users group...");
         let anonymous_users_group = match Group::get_protected_group_by_type(
             &GroupParentResourceType::Server,
             None,
@@ -283,26 +258,14 @@ pub async fn authenticate_user(
                     "Failed to get anonymous users group: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
-        ServerLogEntry::trace(
-            &format!(
-                "Checking if user {} is in the anonymous users group...",
-                anonymous_user.id
-            ),
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!(
+            "Checking if user {} is in the anonymous users group...",
+            anonymous_user.id
+        );
         let memberships = match Membership::list(
             &format!(
                 "parent_group_id = '{}' and principal_type = 'User' and principal_user_id = '{}'",
@@ -321,25 +284,13 @@ pub async fn authenticate_user(
                     "Failed to get memberships: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
 
         if memberships.is_empty() {
-            ServerLogEntry::trace(
-                "User is not in the anonymous users group. Creating a new group membership...",
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            trace!("User is not in the anonymous users group. Creating a new group membership...");
             Membership::create(
                 &InitialMembershipProperties {
                     parent_resource_type: MembershipParentResourceType::Group,
@@ -354,25 +305,13 @@ pub async fn authenticate_user(
             .ok();
         }
 
-        ServerLogEntry::trace(
-            &format!("Adding user {} to request extensions...", anonymous_user.id),
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        trace!("Adding user {} to request extensions...", anonymous_user.id);
 
         request
             .extensions_mut()
             .insert(Some(anonymous_user.clone()));
 
-        ServerLogEntry::info(
-            &format!("Authenticated as anonymous user {}.", anonymous_user.id),
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        info!("Authenticated as anonymous user {}.", anonymous_user.id);
 
         return Ok(next.run(request).await);
     };
@@ -380,84 +319,59 @@ pub async fn authenticate_user(
     let session_token = session_token.value().to_string();
 
     // Make sure the user token is valid.
-    ServerLogEntry::trace(
-        "Decoding session token...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Decoding session token...");
 
-    let jwt_public_key = get_jwt_public_key(&http_transaction.id, &state.database_pool).await?;
+    let jwt_public_key = get_jwt_public_key().await?;
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
-    let decoding_key =
-        get_decoding_key(&http_transaction.id, &state.database_pool, &jwt_public_key).await?;
-    let decoded_claims = get_decoded_claims(
-        &http_transaction.id,
-        &state.database_pool,
-        &session_token,
-        &decoding_key,
-        &validation,
-    )
-    .await?;
+    let decoding_key = get_decoding_key(&jwt_public_key).await?;
+    let decoded_claims = get_decoded_claims(&session_token, &decoding_key, &validation).await?;
 
     // Set the user and session in the request extensions.
-    let session_id = match Uuid::parse_str(&decoded_claims.claims.jti) {
-        Ok(user_id) => user_id,
+    let session_credential_id = match Uuid::parse_str(&decoded_claims.claims.jti) {
+        Ok(session_credential_id) => session_credential_id,
         Err(_) => {
-            let http_error = HTTPError::BadRequest(Some(
-                "You must provide a valid UUID for the user ID.".to_string(),
-            ));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            let http_error =
+                HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
+            http_error.log();
+            return Err(http_error);
+        }
+    };
+    let session_id = match Uuid::parse_str(&decoded_claims.claims.session_id) {
+        Ok(session_id) => session_id,
+        Err(_) => {
+            let http_error =
+                HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
+            http_error.log();
             return Err(http_error);
         }
     };
     let user_id = match Uuid::parse_str(&decoded_claims.claims.sub) {
         Ok(user_id) => user_id,
         Err(_) => {
-            let http_error = HTTPError::BadRequest(Some(
-                "You must provide a valid UUID for the user ID.".to_string(),
-            ));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            let http_error =
+                HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
+            http_error.log();
             return Err(http_error);
         }
     };
-    ServerLogEntry::trace(
-        "Getting session...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
-    let session =
-        get_session_by_id(&http_transaction.id, &state.database_pool, &session_id).await?;
-    ServerLogEntry::trace(
-        "Getting user from session...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
-    let user = get_user_by_id(&http_transaction.id, &state.database_pool, &user_id).await?;
-    ServerLogEntry::trace(
-        "Adding user and session to request extensions...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting session credential...");
+    let session_credential =
+        get_session_credential_by_id(&state.database_pool, &session_credential_id).await?;
+    trace!("Getting session from session credential...");
+    let session = get_session_by_id(&state.database_pool, &session_id).await?;
+    trace!("Checking if session is still active...");
+    if session.expiration_date < chrono::Utc::now() {
+        let http_error =
+            HTTPError::Unauthorized(Some("Please provide a valid session token.".to_string()));
+        http_error.log();
+        return Err(http_error);
+    }
+    trace!("Getting user from session credential...");
+    let user = get_user_by_id(&state.database_pool, &user_id).await?;
+    trace!("Adding user and session to request extensions...");
+    request
+        .extensions_mut()
+        .insert(Some(Arc::new(session_credential.clone())));
     request
         .extensions_mut()
         .insert(Some(Arc::new(user.clone())));
@@ -465,13 +379,7 @@ pub async fn authenticate_user(
         .extensions_mut()
         .insert(Some(Arc::new(session.clone())));
 
-    ServerLogEntry::info(
-        &format!("Successfully authenticated as user {}.", user_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully authenticated as user {}.", user_id);
 
     let response = next.run(request).await;
 
@@ -481,7 +389,6 @@ pub async fn authenticate_user(
 #[axum_macros::debug_middleware]
 pub async fn authenticate_app(
     State(state): State<AppState>,
-    Extension(http_transaction): Extension<Arc<HTTPTransaction>>,
     headers: HeaderMap,
     mut request: Request<Body>,
     next: Next,
@@ -492,13 +399,7 @@ pub async fn authenticate_app(
 
     // Get the cookie from the request.
     let Some(authorization_token) = headers.get(header::AUTHORIZATION) else {
-        ServerLogEntry::info(
-            "No app token found in request.",
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        debug!("No app token found in request.");
         request.extensions_mut().insert(None as Option<Arc<App>>);
         return Ok(next.run(request).await);
     };
@@ -509,13 +410,7 @@ pub async fn authenticate_app(
         Err(_) => {
             let http_error =
                 HTTPError::BadRequest(Some("Please provide a valid app token.".to_string()));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            warn!("{}", http_error);
             return Err(http_error);
         }
     };
@@ -523,39 +418,20 @@ pub async fn authenticate_app(
     if !authorization_token.starts_with("App ") {
         let http_error =
             HTTPError::Unauthorized(Some("Please provide a valid app token.".to_string()));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        warn!("{}", http_error);
         return Err(http_error);
     }
 
     let authorization_token = authorization_token.to_string().replace("App ", "");
 
     // Make sure the user token is valid.
-    ServerLogEntry::trace(
-        "Decoding app token...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Decoding app token...");
 
-    let jwt_public_key = get_jwt_public_key(&http_transaction.id, &state.database_pool).await?;
+    let jwt_public_key = get_jwt_public_key().await?;
     let validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::EdDSA);
-    let decoding_key =
-        get_decoding_key(&http_transaction.id, &state.database_pool, &jwt_public_key).await?;
-    let decoded_claims = get_decoded_claims(
-        &http_transaction.id,
-        &state.database_pool,
-        &authorization_token,
-        &decoding_key,
-        &validation,
-    )
-    .await?;
+    let decoding_key = get_decoding_key(&jwt_public_key).await?;
+    let decoded_claims =
+        get_decoded_claims(&authorization_token, &decoding_key, &validation).await?;
 
     // Set the user and session in the request extensions.
     let app_credential_id = match Uuid::parse_str(&decoded_claims.claims.jti) {
@@ -565,62 +441,21 @@ pub async fn authenticate_app(
             let http_error = HTTPError::InternalServerError(Some(
                 "App credential ID is not a valid UUID.".to_string(),
             ));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            error!("{}", http_error);
             return Err(http_error);
         }
     };
 
-    let app_credential =
-        match get_app_credential_by_id(&app_credential_id, &http_transaction, &state.database_pool)
-            .await
-        {
-            Ok(app_credential) => app_credential,
-
-            Err(error) => match error {
-                HTTPError::BadRequest(_) | HTTPError::NotFoundError(_) => {
-                    let http_error = HTTPError::Unauthorized(Some(
-                        "Please provide a valid app token.".to_string(),
-                    ));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        &state.database_pool,
-                    )
-                    .await
-                    .ok();
-                    return Err(http_error);
-                }
-
-                _ => return Err(error),
-            },
-        };
-
-    let app = match get_app_by_id(
-        &app_credential.app_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await
+    let app_credential = match get_app_credential_by_id(&app_credential_id, &state.database_pool)
+        .await
     {
-        Ok(app) => app,
+        Ok(app_credential) => app_credential,
 
         Err(error) => match error {
             HTTPError::BadRequest(_) | HTTPError::NotFoundError(_) => {
                 let http_error =
                     HTTPError::Unauthorized(Some("Please provide a valid app token.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    &state.database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
 
@@ -628,27 +463,28 @@ pub async fn authenticate_app(
         },
     };
 
-    ServerLogEntry::trace(
-        "Adding app and app credential to request extensions...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    let app = match get_app_by_id(&app_credential.app_id, &state.database_pool).await {
+        Ok(app) => app,
+
+        Err(error) => match error {
+            HTTPError::BadRequest(_) | HTTPError::NotFoundError(_) => {
+                let http_error =
+                    HTTPError::Unauthorized(Some("Please provide a valid app token.".to_string()));
+                http_error.log();
+                return Err(http_error);
+            }
+
+            _ => return Err(error),
+        },
+    };
+
+    trace!("Adding app and app credential to request extensions...");
     request.extensions_mut().insert(Some(Arc::new(app.clone())));
     request
         .extensions_mut()
         .insert(Some(Arc::new(app_credential.clone())));
 
-    ServerLogEntry::info(
-        &format!("Successfully authenticated as app {}.", app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
-
+    debug!("Successfully authenticated as app {}.", app.id);
     let response = next.run(request).await;
-
     Ok(response)
 }

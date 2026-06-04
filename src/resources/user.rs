@@ -51,6 +51,7 @@ pub struct User {
     pub display_name: Option<String>,
 
     /// The user's hashed password, if applicable. Only non-anonymous users have a hashed password.
+    #[serde(skip)]
     hashed_password: Option<String>,
 
     /// Whether the user is anonymous.
@@ -60,6 +61,7 @@ pub struct User {
     ///
     /// If you need the IP address of a registered user, you might be able to find it
     /// by searching HTTP transactions and filtering by user ID.
+    #[serde(skip)]
     ip_address: Option<IpAddr>,
 }
 
@@ -355,12 +357,8 @@ impl User {
         self.ip_address
     }
 
-    pub fn get_hashed_password(&self) -> &str {
-        let hashed_password = self
-            .hashed_password
-            .as_ref()
-            .expect("User does not have a hashed password.");
-        hashed_password
+    pub fn get_hashed_password(&self) -> Option<String> {
+        self.hashed_password.clone()
     }
 
     pub fn hash_password(plain_text_password: &str) -> Result<String, ResourceError> {
@@ -517,7 +515,9 @@ impl User {
     }
 
     pub fn verify_password(&self, plain_text_password: &str) -> Result<(), ResourceError> {
-        let hashed_password = self.get_hashed_password();
+        let Some(hashed_password) = &self.hashed_password else {
+            return Err(ResourceError::AnonymousUserError(self.id.to_string()));
+        };
         let parsed_hashed_password = match argon2::PasswordHash::new(hashed_password) {
             Ok(parsed_hashed_password) => parsed_hashed_password,
             Err(error) => return Err(ResourceError::Argon2PasswordHashError(error)),

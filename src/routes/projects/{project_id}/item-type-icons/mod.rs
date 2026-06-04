@@ -25,12 +25,11 @@ use crate::{
         item_type_icon::{
             InitialItemTypeIconProperties, ItemTypeIcon, ItemTypeIconParentResourceType,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
     utilities::route_handler_utilities::{
-        get_action_by_name, get_action_log_entry_expiration_timestamp,
+        create_trace_layer_span, get_action_by_name, get_action_log_entry_expiration_timestamp,
         get_principal_type_and_id_from_principal, get_project_by_id, get_uuid_from_string,
         is_authenticated_user_anonymous, match_db_error, match_slashstepql_error,
         validate_field_length, verify_delegate_permissions, verify_principal_permissions,
@@ -48,6 +47,8 @@ use reqwest::StatusCode;
 use std::{io::Cursor, sync::Arc};
 use svg_hush::data_url_filter;
 use tokio::fs::create_dir_all;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 use usvg::Tree;
 use uuid::Uuid;
 
@@ -65,31 +66,19 @@ async fn handle_list_item_type_icons_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<ItemTypeIcon>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let list_resources_action = get_action_by_name(
-        "itemTypeIcons.list",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let list_resources_action =
+        get_action_by_name("itemTypeIcons.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -101,7 +90,6 @@ async fn handle_list_item_type_icons_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -141,24 +129,12 @@ async fn handle_list_item_type_icons_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting item type icons...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting item type icons...");
     let resource_count = match ItemTypeIcon::count(
         &query,
         &state.database_pool,
@@ -174,19 +150,13 @@ async fn handle_list_item_type_icons_request(
                 "Failed to count item type icons: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -214,21 +184,15 @@ async fn handle_list_item_type_icons_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "item type icon"
-            } else {
-                "item type icons"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "item type icon"
+        } else {
+            "item type icons"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ItemTypeIcon> {
         data: queried_resources,
@@ -311,18 +275,8 @@ async fn handle_create_item_type_icon_request(
     body: Result<BaseMultipart<CreateItemTypeIconRequestData, HTTPError>, HTTPError>,
 ) -> Result<(StatusCode, Json<ItemTypeIcon>), HTTPError> {
     /// Validates the provided content type is an allowed content type for item type icon icons.
-    async fn validate_content_type(
-        content_type: &str,
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
-    ) -> Result<(), HTTPError> {
-        ServerLogEntry::trace(
-            &format!("Validating content type {}...", content_type),
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+    async fn validate_content_type(content_type: &str) -> Result<(), HTTPError> {
+        trace!("Validating content type {}...", content_type);
 
         let allowed_content_types = ["image/png", "image/jpeg", "image/gif", "image/svg+xml"];
 
@@ -331,9 +285,7 @@ async fn handle_create_item_type_icon_request(
                 "The content type of the file provided in the \"icon_data\" field must be one of the following: {}.",
                 allowed_content_types.join(", ")
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -343,19 +295,11 @@ async fn handle_create_item_type_icon_request(
     async fn verify_content_type_matches_contents(
         content_type: &str,
         contents: &Bytes,
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
     ) -> Result<(), HTTPError> {
-        ServerLogEntry::trace(
-            &format!(
-                "Verifying content type {} matches file contents...",
-                content_type
-            ),
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+        trace!(
+            "Verifying content type {} matches file contents...",
+            content_type
+        );
 
         let kind = infer::get(contents);
         let actual_mime_type = kind.map(|kind| kind.mime_type()).unwrap_or("unknown");
@@ -367,28 +311,15 @@ async fn handle_create_item_type_icon_request(
                 "The file provided in the \"icon_data\" field must match the expected format for {}. The content type provided was {}.",
                 content_type, actual_mime_type
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
         Ok(())
     }
 
-    async fn sanitize_contents(
-        content_type: &str,
-        contents: &Bytes,
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
-    ) -> Result<Vec<u8>, HTTPError> {
-        ServerLogEntry::trace(
-            &format!("Sanitizing contents for content type {}...", content_type),
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+    async fn sanitize_contents(content_type: &str, contents: &Bytes) -> Result<Vec<u8>, HTTPError> {
+        trace!("Sanitizing contents for content type {}...", content_type);
 
         if content_type == "image/svg+xml" {
             let svg_string = match String::from_utf8(contents.to_vec()) {
@@ -399,13 +330,7 @@ async fn handle_create_item_type_icon_request(
                         "The SVG file provided in the \"icon_data\" field is not valid UTF-8."
                             .to_string(),
                     ));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -422,13 +347,7 @@ async fn handle_create_item_type_icon_request(
             if svg_filter_result.is_err() {
                 let http_error =
                     HTTPError::BadRequest(Some("The SVG file could not be parsed.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
 
@@ -443,13 +362,7 @@ async fn handle_create_item_type_icon_request(
                         "The file provided in the \"icon_data\" field is not a valid image: {:?}",
                         error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -467,13 +380,7 @@ async fn handle_create_item_type_icon_request(
                         "Unsupported content type: {}.",
                         content_type
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -482,13 +389,7 @@ async fn handle_create_item_type_icon_request(
                     "Failed to re-encode the provided image: {:?}",
                     error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
 
@@ -499,17 +400,11 @@ async fn handle_create_item_type_icon_request(
             "Unsupported content type: {}.",
             content_type
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         Err(http_error)
     }
 
-    async fn get_file_extension_from_content_type(
-        content_type: &str,
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
-    ) -> Result<String, HTTPError> {
+    async fn get_file_extension_from_content_type(content_type: &str) -> Result<String, HTTPError> {
         let file_extension = match content_type {
             "image/png" => "png",
 
@@ -524,13 +419,7 @@ async fn handle_create_item_type_icon_request(
                     "Unsupported content type: {}.",
                     content_type
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         };
@@ -539,16 +428,9 @@ async fn handle_create_item_type_icon_request(
     }
 
     async fn get_item_type_icon_storage_directory_path(
-        http_transaction: &HTTPTransaction,
         database_pool: &Pool,
     ) -> Result<String, HTTPError> {
-        ServerLogEntry::trace(
-            "Getting configuration to know where to store item type icons...",
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+        trace!("Getting configuration to know where to store item type icons...");
         let item_type_icon_storage_directory_path_configuration =
             match Configuration::get_by_name("itemTypeIcons.storageDirectoryPath", database_pool)
                 .await
@@ -560,13 +442,7 @@ async fn handle_create_item_type_icon_request(
                         "Failed to get configuration for item type icon storage directory: {:?}",
                         error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -580,13 +456,7 @@ async fn handle_create_item_type_icon_request(
 
                 None => {
                     let http_error = HTTPError::InternalServerError(Some("The configuration for the item type icon storage directory does not have a value.".to_string()));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             };
@@ -594,19 +464,8 @@ async fn handle_create_item_type_icon_request(
         Ok(item_type_icon_storage_directory_path)
     }
 
-    async fn save_icon_file(
-        file_path: &str,
-        contents: &[u8],
-        http_transaction: &HTTPTransaction,
-        database_pool: &Pool,
-    ) -> Result<(), HTTPError> {
-        ServerLogEntry::trace(
-            &format!("Saving item type icon file to {}...", file_path),
-            Some(&http_transaction.id),
-            database_pool,
-        )
-        .await
-        .ok();
+    async fn save_icon_file(file_path: &str, contents: &[u8]) -> Result<(), HTTPError> {
+        trace!("Saving item type icon file to {}...", file_path);
 
         let mut directory_path_list = file_path.split("/").collect::<Vec<&str>>();
         directory_path_list.pop();
@@ -616,9 +475,7 @@ async fn handle_create_item_type_icon_request(
                 "Failed to create directory for item type icon file: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -627,9 +484,7 @@ async fn handle_create_item_type_icon_request(
                 "Failed to save item type icon file: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
 
@@ -640,24 +495,12 @@ async fn handle_create_item_type_icon_request(
         Ok(body) => body,
 
         Err(http_error) => {
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
     let content_type = match &body.icon_data.metadata.content_type {
         Some(content_type) => content_type,
 
@@ -665,56 +508,31 @@ async fn handle_create_item_type_icon_request(
             let http_error = HTTPError::BadRequest(Some(
                 "The field \"icon_data\" must have a content type.".to_string(),
             ));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    validate_content_type(content_type, &http_transaction, &state.database_pool).await?;
-    verify_content_type_matches_contents(
-        content_type,
-        &body.icon_data.contents,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let cleaned_contents = sanitize_contents(
-        content_type,
-        &body.icon_data.contents,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    validate_content_type(content_type).await?;
+    verify_content_type_matches_contents(content_type, &body.icon_data.contents).await?;
+    let cleaned_contents = sanitize_contents(content_type, &body.icon_data.contents).await?;
     validate_field_length(
         &body.display_name,
         "itemTypeIcons.maximumDisplayNameLength",
         "display_name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
 
     // Make sure the user can create item type icons for the target action.
-    let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
-    let create_item_type_icons_action = get_action_by_name(
-        "itemTypeIcons.create",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
+    let create_item_type_icons_action =
+        get_action_by_name("itemTypeIcons.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_item_type_icons_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -730,7 +548,6 @@ async fn handle_create_item_type_icon_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &create_item_type_icons_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -739,31 +556,17 @@ async fn handle_create_item_type_icon_request(
     // Save the icon file to disk.
     // TODO: Support storing item type icons in cloud storage instead of on the local filesystem.
     let item_type_icon_id = Uuid::now_v7();
-    let file_extension =
-        get_file_extension_from_content_type(content_type, &http_transaction, &state.database_pool)
-            .await?;
+    let file_extension = get_file_extension_from_content_type(content_type).await?;
     let item_type_icon_storage_directory_path =
-        get_item_type_icon_storage_directory_path(&http_transaction, &state.database_pool).await?;
+        get_item_type_icon_storage_directory_path(&state.database_pool).await?;
     let item_type_icon_file_path = format!(
         "{}/{}.{}",
         item_type_icon_storage_directory_path, item_type_icon_id, file_extension
     );
-    save_icon_file(
-        &item_type_icon_file_path,
-        &cleaned_contents,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    save_icon_file(&item_type_icon_file_path, &cleaned_contents).await?;
 
     // Create the item type icon.
-    ServerLogEntry::trace(
-        &format!("Creating item type icon for project {}...", project_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating item type icon for project {}...", project_id);
     let item_type_icon = match ItemTypeIcon::create(
         &InitialItemTypeIconProperties {
             id: Some(item_type_icon_id),
@@ -782,20 +585,14 @@ async fn handle_create_item_type_icon_request(
                 "Failed to create item type icon: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     // Log the creation of the item type icon.
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_item_type_icons_action.id,
@@ -821,13 +618,7 @@ async fn handle_create_item_type_icon_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully created item type icon {}.", item_type_icon.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created item type icon {}.", item_type_icon.id);
 
     Ok((StatusCode::CREATED, Json(item_type_icon)))
 }
@@ -858,4 +649,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

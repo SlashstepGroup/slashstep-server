@@ -9,6 +9,7 @@ repository = "https://github.com/SlashstepGroup/slashstep-server"
 license = "MPL-2.0"
 keywords = ["project management", "problem management", "issue tracking"]
 publish = false
+resolver = "2"
 
 [dependencies]
 axum = { version = "0.8.9", features = ["macros", "multipart"] }
@@ -50,11 +51,19 @@ svg-hush = "0.9.6"
 serde_with = "3.20.0"
 time = "0.3.47"
 deadpool-redis = "0.23.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
+tower-http = { version = "0.6.11", features = ["trace"] }
+url = "2.5.8"
+rcgen = "0.14.8"
+yaml_serde = "0.10.4"
+# OpenSearch includes native-tls by default, which is incompatible with rustls-tls
+opensearch = { version = "2.4.0", default-features = false, features = ["rustls-tls"] }
 
 [dev-dependencies]
 axum-test = "20.0.0"
 anyhow = "1.0.102"
-postgresql_embedded = { version = "0.20.2", features = ["bundled"] }
+postgresql_embedded = { version = "0.20.2", features = ["bundled", "theseus", "rustls"], default-features = false }
 redis-test = "1.0.3"
 semver = "1.0.28"
 

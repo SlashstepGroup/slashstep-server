@@ -1,0 +1,14 @@
+info:
+  name: Update a group
+  type: http
+
+http:
+  method: PATCH
+  url: ""
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

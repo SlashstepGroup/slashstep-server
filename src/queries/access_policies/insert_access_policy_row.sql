@@ -37,6 +37,7 @@ INSERT INTO access_policies (
   scoped_role_id,
   scoped_server_log_entry_id,
   scoped_session_id,
+  scoped_session_credential_id,
   scoped_status_id,
   scoped_user_id,
   scoped_view_id,
@@ -87,5 +88,6 @@ INSERT INTO access_policies (
   $41,
   $42,
   $43,
-  $44
+  $44,
+  $45
 ) RETURNING *;

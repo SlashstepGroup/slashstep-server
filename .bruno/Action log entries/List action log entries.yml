@@ -1,0 +1,19 @@
+info:
+  name: List action log entries
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/action-log-entries"
+  params:
+    - name: query
+      value: ""
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

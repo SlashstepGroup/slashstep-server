@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         membership::Membership,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::GetResourceResponseBody,
@@ -36,7 +35,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::info;
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -53,23 +55,15 @@ async fn handle_get_membership_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Membership>>, HTTPError> {
-    let membership_id = get_uuid_from_string(
-        &membership_id,
-        "membership",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_membership =
-        get_membership_by_id(&membership_id, &http_transaction, &state.database_pool).await?;
+    let membership_id = get_uuid_from_string(&membership_id, "membership").await?;
+    let target_membership = get_membership_by_id(&membership_id, &state.database_pool).await?;
     let get_memberships_action =
-        get_action_by_name("memberships.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("memberships.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_memberships_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -85,14 +79,13 @@ async fn handle_get_membership_request(
         &ResourceType::Membership,
         Some(&target_membership.id),
         &get_memberships_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_memberships_action.id,
@@ -117,13 +110,7 @@ async fn handle_get_membership_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned membership {}.", target_membership.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned membership {}.", target_membership.id);
 
     let response_body = GetResourceResponseBody {
         data: target_membership.clone(),
@@ -144,27 +131,15 @@ async fn handle_delete_membership_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let membership_id = get_uuid_from_string(
-        &membership_id,
-        "membership",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_membership =
-        get_membership_by_id(&membership_id, &http_transaction, &state.database_pool).await?;
-    let delete_memberships_action = get_action_by_name(
-        "memberships.delete",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let membership_id = get_uuid_from_string(&membership_id, "membership").await?;
+    let target_membership = get_membership_by_id(&membership_id, &state.database_pool).await?;
+    let delete_memberships_action =
+        get_action_by_name("memberships.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_memberships_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -180,7 +155,6 @@ async fn handle_delete_membership_request(
         &ResourceType::Membership,
         Some(&target_membership.id),
         &delete_memberships_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -191,18 +165,12 @@ async fn handle_delete_membership_request(
             "Failed to delete membership: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_memberships_action.id,
@@ -229,13 +197,7 @@ async fn handle_delete_membership_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted membership {}.", target_membership.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted membership {}.", target_membership.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -276,16 +238,16 @@ async fn handle_delete_membership_request(
 
 //       };
 
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+//       http_error.log();
 //       return Err(http_error);
 
 //     }
 
 //   };
 
-//   let original_target_field = get_app_by_id(&membership_id, &http_transaction, &state.database_pool).await?;
+//   let original_target_field = get_app_by_id(&membership_id, &state.database_pool).await?;
 //   let resource_hierarchy = get_resource_hierarchy(&original_target_field, &ResourceType::App, &original_target_field.id, &http_transaction, &state.database_pool).await?;
-//   let update_access_policy_action = get_action_by_name("apps.update", &http_transaction, &state.database_pool).await?;
+//   let update_access_policy_action = get_action_by_name("apps.update", &state.database_pool).await?;
 //   verify_delegate_permissions(authenticated_app_authorization.as_ref().map(|app_authorization| &app_authorization.id), &update_access_policy_action.id, &http_transaction.id, &PermissionLevel::User, &state.database_pool).await?;
 //   let authenticated_principal = get_authenticated_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
 //   let (principal_type, principal_id) = get_principal_type_and_id_from_principal(authenticated_user.as_ref(), authenticated_app.as_ref())?;
@@ -299,7 +261,7 @@ async fn handle_delete_membership_request(
 //     Err(error) => {
 
 //       let http_error = HTTPError::InternalServerError(Some(format!("Failed to update authenticated_app: {:?}", error)));
-//       ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), &state.database_pool).await.ok();
+//       http_error.log();
 //       return Err(http_error);
 
 //     }
@@ -349,5 +311,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

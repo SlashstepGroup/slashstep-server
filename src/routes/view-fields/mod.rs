@@ -12,7 +12,10 @@
 #[path = "./{view_field_id}/mod.rs"]
 pub mod view_field_id;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -26,7 +29,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
         view_field::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, ViewField},
     },
@@ -56,14 +58,12 @@ async fn handle_list_view_fields_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<ViewField>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action =
-        get_action_by_name("viewFields.list", &http_transaction, &state.database_pool).await?;
+    let list_resources_action = get_action_by_name("viewFields.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -79,19 +79,12 @@ async fn handle_list_view_fields_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing view fields...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing view fields...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match ViewField::list(
         &query,
@@ -119,24 +112,12 @@ async fn handle_list_view_fields_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting view fields...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting view fields...");
     let resource_count = match ViewField::count(
         &query,
         &state.database_pool,
@@ -152,19 +133,13 @@ async fn handle_list_view_fields_request(
                 "Failed to count view fields: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -191,21 +166,15 @@ async fn handle_list_view_fields_request(
     .ok();
 
     let queried_view_field_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_view_field_list_length,
-            if queried_view_field_list_length == 1 {
-                "view field"
-            } else {
-                "view fields"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_view_field_list_length,
+        if queried_view_field_list_length == 1 {
+            "view field"
+        } else {
+            "view fields"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ViewField> {
         data: queried_resources,
@@ -237,5 +206,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(view_field_id::get_router(state.clone()))
 }

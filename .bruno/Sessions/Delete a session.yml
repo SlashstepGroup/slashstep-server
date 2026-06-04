@@ -1,0 +1,23 @@
+info:
+  name: Delete a session
+  type: http
+
+http:
+  method: DELETE
+  url: "{{base_url}}/sessions/:session_id"
+  params:
+    - name: session_id
+      value: "{{session_id}}"
+      type: path
+  auth: inherit
+
+runtime:
+  variables:
+    - name: session_id
+      value: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

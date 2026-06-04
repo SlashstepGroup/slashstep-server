@@ -1,0 +1,19 @@
+info:
+  name: List access policies
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/access-policies"
+  params:
+    - name: query
+      value: ""
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

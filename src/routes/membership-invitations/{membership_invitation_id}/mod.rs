@@ -12,6 +12,7 @@
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -25,7 +26,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         membership_invitation::MembershipInvitation,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::GetResourceResponseBody,
@@ -42,6 +42,8 @@ use axum::{
 };
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::info;
 
 /// GET /membership-invitations/{membership_invitation_id}
 ///
@@ -55,31 +57,17 @@ async fn handle_get_membership_invitation_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<MembershipInvitation>>, HTTPError> {
-    let membership_invitation_id = get_uuid_from_string(
-        &membership_invitation_id,
-        "membership invitation",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_membership_invitation = get_membership_invitation_by_id(
-        &membership_invitation_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let get_membership_invitations_action = get_action_by_name(
-        "membershipInvitations.get",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let membership_invitation_id =
+        get_uuid_from_string(&membership_invitation_id, "membership invitation").await?;
+    let target_membership_invitation =
+        get_membership_invitation_by_id(&membership_invitation_id, &state.database_pool).await?;
+    let get_membership_invitations_action =
+        get_action_by_name("membershipInvitations.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_membership_invitations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -95,14 +83,13 @@ async fn handle_get_membership_invitation_request(
         &ResourceType::MembershipInvitation,
         Some(&target_membership_invitation.id),
         &get_membership_invitations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_membership_invitations_action.id,
@@ -127,16 +114,10 @@ async fn handle_get_membership_invitation_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned membership invitation {}.",
-            target_membership_invitation.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned membership invitation {}.",
+        target_membership_invitation.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_membership_invitation.clone(),
@@ -157,31 +138,17 @@ async fn handle_delete_membership_invitation_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let membership_invitation_id = get_uuid_from_string(
-        &membership_invitation_id,
-        "membership invitation",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_membership_invitation = get_membership_invitation_by_id(
-        &membership_invitation_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_membership_invitations_action = get_action_by_name(
-        "membershipInvitations.delete",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let membership_invitation_id =
+        get_uuid_from_string(&membership_invitation_id, "membership invitation").await?;
+    let target_membership_invitation =
+        get_membership_invitation_by_id(&membership_invitation_id, &state.database_pool).await?;
+    let delete_membership_invitations_action =
+        get_action_by_name("membershipInvitations.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_membership_invitations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -197,7 +164,6 @@ async fn handle_delete_membership_invitation_request(
         &ResourceType::MembershipInvitation,
         Some(&target_membership_invitation.id),
         &delete_membership_invitations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -211,18 +177,12 @@ async fn handle_delete_membership_invitation_request(
             "Failed to delete membership invitation: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_membership_invitations_action.id,
@@ -249,16 +209,10 @@ async fn handle_delete_membership_invitation_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted membership invitation {}.",
-            target_membership_invitation.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully deleted membership invitation {}.",
+        target_membership_invitation.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -288,5 +242,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

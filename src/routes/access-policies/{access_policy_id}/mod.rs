@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -21,14 +22,13 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
     utilities::route_handler_utilities::{
         get_access_policy_by_id, get_action_by_id, get_action_by_name,
         get_action_log_entry_expiration_timestamp, get_principal_type_and_id_from_principal,
-        get_request_body_without_json_rejection, get_uuid_from_string,
+        get_request_body_without_json_rejection, get_role_by_id, get_uuid_from_string,
         is_authenticated_user_anonymous, verify_delegate_permissions, verify_principal_permissions,
     },
 };
@@ -38,6 +38,8 @@ use axum::{
 };
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 /// GET /access-policies/{access_policy_id}
 ///
@@ -52,33 +54,20 @@ async fn handle_get_access_policy_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<AccessPolicy>>, HTTPError> {
     // Make sure the access policy exists.
-    let access_policy_id = get_uuid_from_string(
-        &access_policy_id,
-        "access policy",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let access_policy =
-        get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
+    let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy").await?;
+    let access_policy = get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
 
     // Make sure the delegate and principal have access to the resource.
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
     )?;
-    let action = get_action_by_name(
-        "accessPolicies.get",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let action = get_action_by_name("accessPolicies.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -90,14 +79,13 @@ async fn handle_get_access_policy_request(
         &ResourceType::AccessPolicy,
         Some(&access_policy.id),
         &action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: action.id,
@@ -124,13 +112,7 @@ async fn handle_get_access_policy_request(
     .ok();
 
     // Return the access policy.
-    ServerLogEntry::success(
-        &format!("Successfully returned access policy {}.", access_policy_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned access policy {}.", access_policy_id);
 
     let response_body = GetResourceResponseBody {
         data: access_policy.clone(),
@@ -152,32 +134,18 @@ async fn handle_patch_access_policy_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableAccessPolicyProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<AccessPolicy>>, HTTPError> {
-    let access_policy_id = get_uuid_from_string(
-        &access_policy_id,
-        "access policy",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let updated_access_policy_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy").await?;
+    let updated_access_policy_properties = get_request_body_without_json_rejection(body).await?;
 
     // Make sure the delegate and principal have access to the resource.
-    let access_policy =
-        get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
-    let update_access_policy_action = get_action_by_name(
-        "accessPolicies.update",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let access_policy = get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
+    let update_access_policy_action =
+        get_action_by_name("accessPolicies.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -193,17 +161,12 @@ async fn handle_patch_access_policy_request(
         &ResourceType::AccessPolicy,
         Some(&access_policy.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let access_policy_action = get_action_by_id(
-        &access_policy.action_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let access_policy_action =
+        get_action_by_id(&access_policy.action_id, &state.database_pool).await?;
     let minimum_permission_level = match updated_access_policy_properties.permission_level {
         Some(permission_level) => {
             if permission_level > PermissionLevel::Editor {
@@ -220,7 +183,6 @@ async fn handle_patch_access_policy_request(
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &access_policy_action.id,
-        &http_transaction.id,
         &minimum_permission_level,
         &state.database_pool,
     )
@@ -232,19 +194,20 @@ async fn handle_patch_access_policy_request(
         &ResourceType::AccessPolicy,
         Some(&access_policy.id),
         &access_policy_action,
-        &http_transaction,
         &minimum_permission_level,
         &state.database_pool,
     )
     .await?;
+    if let Some(principal_role_id) = access_policy.principal_role_id {
+        let principal_role = get_role_by_id(&principal_role_id, &state.database_pool).await?;
+        if principal_role.predefined_role_type.is_some() {
+            let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly updated by Slashstep Server. Use custom roles if you need more control.".to_string()));
+            http_error.log();
+            return Err(http_error);
+        }
+    }
 
-    ServerLogEntry::trace(
-        &format!("Updating access policy {}...", access_policy_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating access policy {}...", access_policy_id);
     let access_policy = match access_policy
         .update(&updated_access_policy_properties, &state.database_pool)
         .await
@@ -256,19 +219,13 @@ async fn handle_patch_access_policy_request(
                 "Failed to update access policy: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: update_access_policy_action.id,
@@ -294,13 +251,7 @@ async fn handle_patch_access_policy_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully updated access policy {}.", access_policy_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated access policy {}.", access_policy_id);
 
     let response_body = PatchResourceResponseBody {
         data: access_policy,
@@ -321,27 +272,16 @@ async fn handle_delete_access_policy_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let access_policy_id = get_uuid_from_string(
-        &access_policy_id,
-        "access policy",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let access_policy_id = get_uuid_from_string(&access_policy_id, "access policy").await?;
     let target_access_policy =
-        get_access_policy_by_id(&access_policy_id, &http_transaction, &state.database_pool).await?;
-    let delete_resources_action = get_action_by_name(
-        "accessPolicies.delete",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+        get_access_policy_by_id(&access_policy_id, &state.database_pool).await?;
+    let delete_resources_action =
+        get_action_by_name("accessPolicies.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -357,29 +297,30 @@ async fn handle_delete_access_policy_request(
         &ResourceType::AccessPolicy,
         Some(&target_access_policy.id),
         &delete_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
+    if let Some(principal_role_id) = target_access_policy.principal_role_id {
+        let principal_role = get_role_by_id(&principal_role_id, &state.database_pool).await?;
+        if principal_role.predefined_role_type.is_some() {
+            let http_error = HTTPError::Forbidden(Some("Access policies for predefined roles should only be directly deleted by Slashstep Server. Use custom roles if you need more control.".to_string()));
+            http_error.log();
+            return Err(http_error);
+        }
+    }
 
     if let Err(error) = target_access_policy.delete(&state.database_pool).await {
         let http_error = HTTPError::InternalServerError(Some(format!(
             "Failed to delete access policy {}: {:?}",
             target_access_policy.id, error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_resources_action.id,
@@ -405,16 +346,10 @@ async fn handle_delete_access_policy_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted access policy {}.",
-            target_access_policy.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully deleted access policy {}.",
+        target_access_policy.id
+    );
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -449,4 +384,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

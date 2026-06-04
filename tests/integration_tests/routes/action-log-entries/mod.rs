@@ -46,12 +46,12 @@ async fn verify_returned_action_log_entry_list_without_query()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_action_log_entries_action =
         Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
@@ -93,6 +93,7 @@ async fn verify_returned_action_log_entry_list_without_query()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
@@ -165,12 +166,12 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_action_log_entries_action =
         Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
@@ -212,6 +213,7 @@ async fn verify_returned_action_log_entry_list_with_query() -> Result<(), TestSl
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
@@ -278,12 +280,12 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_action_log_entries_action =
         Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
@@ -329,6 +331,7 @@ async fn verify_default_action_log_entry_list_limit() -> Result<(), TestSlashste
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
@@ -361,12 +364,12 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_action_log_entries_action =
         Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
@@ -405,6 +408,7 @@ async fn verify_maximum_action_log_entry_list_limit() -> Result<(), TestSlashste
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
@@ -434,12 +438,12 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_action_log_entries_action =
         Action::get_by_name("actionLogEntries.get", &test_environment.database_pool).await?;
@@ -478,6 +482,7 @@ async fn verify_query_when_listing_action_log_entries() -> Result<(), TestSlashs
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
@@ -544,6 +549,7 @@ async fn verify_authentication_when_listing_action_log_entries()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)
@@ -568,18 +574,19 @@ async fn verify_permission_when_listing_action_log_entries() -> Result<(), TestS
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::action_log_entries::get_router(state.clone())
         .with_state(state)

@@ -1,0 +1,18 @@
+info:
+  name: Update a configuration
+  type: http
+
+http:
+  method: PATCH
+  url: "{{base_url}}/configurations/:configuration_id"
+  params:
+    - name: configuration_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

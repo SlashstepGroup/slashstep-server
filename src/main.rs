@@ -1,84 +1,28 @@
-use std::net::SocketAddr;
+use std::{
+    fs::{self},
+    net::SocketAddr,
+    path::Path,
+};
 
 use axum_server::tls_rustls::RustlsConfig;
 use colored::Colorize;
-use deadpool_postgres::{Pool, tokio_postgres};
 use local_ip_address::local_ip;
-use postgres::NoTls;
 use slashstep_server::{
-    AppState, DEFAULT_APP_PORT, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, SlashstepServerError,
-    get_environment_variable, import_env_file, initialize_required_tables,
+    AppState, DEFAULT_APP_PORT, OpenSearchLayer, SlashstepServerConfig, SlashstepServerError,
+    SlashstepServerNetworkConfig, TLSMode, create_database_pool, create_opensearch_client,
+    create_redis_pool, get_environment_variable, import_env_file, initialize_required_tables,
     predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
-        initialize_predefined_roles,
+        initialize_predefined_groups, initialize_predefined_roles,
     },
-    routes, setup_admin_user_if_necessary,
+    routes, run_opensearch_log_worker, setup_admin_user_if_necessary,
 };
-use tokio::net::TcpListener;
-
-async fn create_database_pool() -> Result<deadpool_postgres::Pool, SlashstepServerError> {
-    let host = get_environment_variable("POSTGRESQL_HOST")?;
-    let username = get_environment_variable("POSTGRESQL_USERNAME")?;
-    let database_name = get_environment_variable("POSTGRESQL_DATABASE_NAME")?;
-    let password_path = get_environment_variable("POSTGRESQL_PASSWORD_FILE_PATH")?;
-
-    println!(
-        "Attempting to read PostgreSQL password from file at {}...",
-        &password_path
-    );
-    let password = match std::fs::read_to_string(&password_path) {
-        Ok(password) => password,
-        Err(error) => match error.kind() {
-            std::io::ErrorKind::NotFound => panic!(
-                "The PostgreSQL password file was not found at {}. Please make sure it exists and is readable by the application.",
-                &password_path
-            ),
-
-            _ => panic!(
-                "An error occurred while trying to read the PostgreSQL password file: {}",
-                error
-            ),
-        },
-    };
-
-    let mut postgres_config = tokio_postgres::Config::new();
-    postgres_config.host(host);
-    postgres_config.user(username);
-    postgres_config.dbname(database_name);
-    postgres_config.password(password);
-    let manager_config = deadpool_postgres::ManagerConfig {
-        recycling_method: deadpool_postgres::RecyclingMethod::Fast,
-    };
-    let manager = deadpool_postgres::Manager::from_config(postgres_config, NoTls, manager_config);
-
-    let maximum_postgres_connection_count_string = match get_environment_variable(
-        "MAXIMUM_POSTGRESQL_CONNECTION_COUNT",
-    ) {
-        Ok(maximum_postgres_connection_count) => maximum_postgres_connection_count,
-        Err(_) => {
-            println!("{}", format!("Please set a MAXIMUM_POSTGRESQL_CONNECTION_COUNT environment variable. Defaulting to {}.", DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT).yellow());
-            DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT.to_string()
-        }
-    };
-    let maximum_postgres_connection_count =
-        maximum_postgres_connection_count_string.parse::<usize>()?;
-
-    println!("Connecting to the PostgreSQL server...");
-    let pool = Pool::builder(manager)
-        .max_size(maximum_postgres_connection_count)
-        .build()?;
-    Ok(pool)
-}
-
-async fn create_redis_pool() -> Result<deadpool_redis::Pool, SlashstepServerError> {
-    let redis_url = get_environment_variable("REDIS_URL")?;
-    let redis_config = deadpool_redis::Config::from_url(redis_url);
-    let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
-    Ok(redis_pool)
-}
+use tokio::{net::TcpListener, sync::mpsc};
+use tracing::{debug, error, info, trace, warn};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 fn print_shutdown_message() {
-    println!("{}", "Slashstep Server is shutting down...".blue());
+    info!("{}", "Slashstep Server is shutting down...".blue());
 }
 
 async fn gracefully_shutdown() {
@@ -113,71 +57,195 @@ async fn gracefully_shutdown() {
     }
 }
 
-fn get_app_port_string() -> String {
-    match std::env::var("APP_PORT") {
-        Ok(app_port) => app_port,
-        Err(_) => {
-            println!(
-                "{}",
-                format!(
-                    "Please set an APP_PORT environment variable. Defaulting to {}.",
-                    DEFAULT_APP_PORT
-                )
-                .yellow()
+fn get_slashstep_server_config() -> Result<SlashstepServerConfig, SlashstepServerError> {
+    let slashstep_server_config_file_path =
+        get_environment_variable("SLASHSTEP_SERVER_CONFIG_FILE_PATH")
+            .unwrap_or("./slashstep-server.yml".to_string());
+    let slashstep_server_config_file = fs::read_to_string(&slashstep_server_config_file_path)?;
+    let slashstep_server_config: SlashstepServerConfig = match yaml_serde::from_str(
+        &slashstep_server_config_file,
+    ) {
+        Ok(config) => config,
+        Err(error) => {
+            error!(
+                "Failed to read Slashstep Server configuration file at {}: {}. Please ensure that the file exists and is properly formatted.",
+                slashstep_server_config_file_path, error
             );
-            DEFAULT_APP_PORT.to_string()
+            std::process::exit(1);
         }
-    }
+    };
+    Ok(slashstep_server_config)
 }
 
 #[tokio::main]
 async fn main() -> Result<(), SlashstepServerError> {
-    println!("Slashstep Server v{}", env!("CARGO_PKG_VERSION"));
-
+    println!("Slashstep Server {}", env!("CARGO_PKG_VERSION"));
     import_env_file();
+
+    let environment_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(format!("off,{}=trace", env!("CARGO_CRATE_NAME"))));
+
+    let (opensearch_sender, receiver) = mpsc::channel(100);
+    let opensearch_layer = OpenSearchLayer {
+        sender: opensearch_sender,
+    };
+    tracing_subscriber::registry()
+        .with(opensearch_layer)
+        .with(tracing_subscriber::fmt::layer())
+        .with(environment_filter)
+        .init();
+
+    let slashstep_server_config = get_slashstep_server_config()?;
+
+    let opensearch_client = create_opensearch_client(slashstep_server_config.opensearch.as_ref())?;
+    tokio::spawn(run_opensearch_log_worker(
+        receiver,
+        opensearch_client.clone(),
+    ));
+
     let state = AppState {
-        database_pool: create_database_pool().await?,
-        redis_pool: create_redis_pool().await?,
+        database_pool: create_database_pool(slashstep_server_config.postgresql.as_ref()).await?,
+        redis_pool: create_redis_pool(slashstep_server_config.redis.as_ref()).await?,
+        opensearch_client: opensearch_client,
     };
 
     initialize_required_tables(&state.database_pool).await?;
     initialize_predefined_actions(&state.database_pool).await?;
     initialize_predefined_roles(&state.database_pool).await?;
     initialize_predefined_configurations(&state.database_pool).await?;
-    setup_admin_user_if_necessary(&state.database_pool).await?;
+    initialize_predefined_groups(&state.database_pool).await?;
+    setup_admin_user_if_necessary(slashstep_server_config.setup.as_ref(), &state.database_pool)
+        .await?;
 
-    let app_port = get_app_port_string();
+    let slashstep_server_network_config =
+        slashstep_server_config.network.clone().unwrap_or_default();
+    let app_port = slashstep_server_network_config
+        .port
+        .unwrap_or(DEFAULT_APP_PORT);
     let router = routes::get_router(state.clone()).with_state(state);
     let app_ip = local_ip()?;
+    let tls_mode = slashstep_server_config
+        .network
+        .unwrap_or_default()
+        .tls_mode
+        .clone()
+        .unwrap_or(TLSMode::UseDemoCertificate);
 
-    if get_environment_variable("SHOULD_USE_SELF_SIGNED_TLS_CERTIFICATE")
-        .unwrap_or("FALSE".to_string())
-        == "TRUE"
-    {
-        let certificate_path = get_environment_variable("SELF_SIGNED_TLS_CERTIFICATE_PATH")?;
-        let private_key_path = get_environment_variable("SELF_SIGNED_TLS_PRIVATE_KEY_PATH")?;
-        let rustls_config = RustlsConfig::from_pem_file(certificate_path, private_key_path).await?;
-        let address = SocketAddr::from(([0, 0, 0, 0], app_port.parse::<u16>()?));
-        let handle = axum_server::Handle::new();
-        let tokio_handle = handle.clone();
-        tokio::spawn(async move {
-            gracefully_shutdown().await;
-            tokio_handle.graceful_shutdown(None);
-        });
-        println!("{}", format!("Slashstep Server is now listening on port {}. You can access it on your machine at https://localhost:{}, or your local network at https://{}:{}.", app_port, app_port, app_ip, app_port).green());
-        axum_server::bind_rustls(address, rustls_config)
-            .handle(handle)
-            .serve(router.into_make_service_with_connect_info::<SocketAddr>())
+    match tls_mode {
+        TLSMode::UseDemoCertificate | TLSMode::UseCustomCertificate => {
+            async fn get_rustls_config(
+                slashstep_server_network_config: &SlashstepServerNetworkConfig,
+            ) -> Result<RustlsConfig, SlashstepServerError> {
+                let tls_mode = slashstep_server_network_config
+                    .tls_mode
+                    .unwrap_or(TLSMode::UseDemoCertificate);
+                let demo_certificates_directory_path = slashstep_server_network_config
+                    .demo_certificates_directory_path
+                    .clone()
+                    .unwrap_or("./demo-certificates".to_string());
+
+                if tls_mode == TLSMode::UseDemoCertificate {
+                    warn!(
+                        "Slashstep Server is currently set to use a demo TLS certificate. This certificate is helpful for development and testing purposes, but it should not be used in production environments. The certificate is untrusted by default on end user systems. For production environments, please set up your own TLS certificate and private key, and set the SLASHSTEP_TLS_MODE environment variable to USE_CUSTOM_CERTIFICATE."
+                    );
+
+                    fs::create_dir_all(&demo_certificates_directory_path)?;
+                    if !Path::new(
+                        format!("{demo_certificates_directory_path}/slashstep-tls-certificate.pem")
+                            .as_str(),
+                    )
+                    .exists()
+                        || !Path::new(
+                            format!(
+                                "{demo_certificates_directory_path}/slashstep-tls-private-key.pem"
+                            )
+                            .as_str(),
+                        )
+                        .exists()
+                    {
+                        trace!("Generating self-signed TLS certificate for demo purposes...");
+                        let self_signed_certificate = rcgen::generate_simple_self_signed(vec![
+                            "localhost".to_string(),
+                            "127.0.0.1".to_string(),
+                        ])?;
+                        let certificate_pem = self_signed_certificate.cert.pem();
+                        let private_key_pem = self_signed_certificate.signing_key.serialize_pem();
+                        fs::write(
+                            format!(
+                                "{demo_certificates_directory_path}/slashstep-tls-certificate.pem"
+                            ),
+                            certificate_pem,
+                        )?;
+                        fs::write(
+                            format!(
+                                "{demo_certificates_directory_path}/slashstep-tls-private-key.pem"
+                            ),
+                            private_key_pem,
+                        )?;
+                        debug!(
+                            "Demo TLS certificate and private key have been generated and saved to the demo certificates directory."
+                        );
+                    }
+
+                    let certificate_path =
+                        format!("{demo_certificates_directory_path}/slashstep-tls-certificate.pem");
+                    let private_key_path =
+                        format!("{demo_certificates_directory_path}/slashstep-tls-private-key.pem");
+                    let rustls_config =
+                        RustlsConfig::from_pem_file(certificate_path, private_key_path).await?;
+                    return Ok(rustls_config);
+                } else {
+                    trace!(
+                        "Using custom TLS certificate and private key specified by the SLASHSTEP_TLS_CERTIFICATE_PATH and SLASHSTEP_TLS_PRIVATE_KEY_PATH environment variables..."
+                    );
+                    let certificate_path = slashstep_server_network_config
+                        .demo_certificates_directory_path
+                        .clone()
+                        .unwrap_or("./secrets/slashstep-tls-certificate.pem".to_string());
+                    let private_key_path = slashstep_server_network_config
+                        .demo_certificates_directory_path
+                        .clone()
+                        .unwrap_or("./secrets/slashstep-tls-private-key.pem".to_string());
+                    let rustls_config =
+                        RustlsConfig::from_pem_file(certificate_path, private_key_path).await?;
+                    return Ok(rustls_config);
+                }
+            }
+
+            let rustls_config = get_rustls_config(&slashstep_server_network_config).await?;
+            let address = SocketAddr::from(([0, 0, 0, 0], app_port));
+            let handle = axum_server::Handle::new();
+            let tokio_handle = handle.clone();
+            tokio::spawn(async move {
+                gracefully_shutdown().await;
+                tokio_handle.graceful_shutdown(None);
+            });
+            info!(
+                "Slashstep Server is now listening on port {}. You can access it on your machine at https://localhost:{}, or your local network at https://{}:{}.",
+                app_port, app_port, app_ip, app_port
+            );
+            axum_server::bind_rustls(address, rustls_config)
+                .handle(handle)
+                .serve(router.into_make_service_with_connect_info::<SocketAddr>())
+                .await?;
+        }
+
+        TLSMode::DisableTLS => {
+            warn!(
+                "TLS is currently disabled. This may be helpful for development and testing purposes, but it should not be used in production environments. All communication with the server will be unencrypted, which is a security risk. Secure cookies may not work either. It is recommended to enable TLS in production environments to ensure the security of data transmitted between clients and the server."
+            );
+            let listener = TcpListener::bind(format!("0.0.0.0:{}", app_port)).await?;
+            info!(
+                "Slashstep Server is now listening on port {}. You can access it on your machine at http://localhost:{}, or your local network at http://{}:{}.",
+                app_port, app_port, app_ip, app_port
+            );
+            axum::serve(
+                listener,
+                router.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .with_graceful_shutdown(gracefully_shutdown())
             .await?;
-    } else {
-        let listener = TcpListener::bind(format!("0.0.0.0:{}", app_port)).await?;
-        println!("{}", format!("Slashstep Server is now listening on port {}. You can access it on your machine at http://localhost:{}, or your local network at http://{}:{}.", app_port, app_port, app_ip, app_port).green());
-        axum::serve(
-            listener,
-            router.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .with_graceful_shutdown(gracefully_shutdown())
-        .await?;
+        }
     }
 
     return Ok(());

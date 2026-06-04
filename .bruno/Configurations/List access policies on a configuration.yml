@@ -1,0 +1,22 @@
+info:
+  name: List access policies on a configuration
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/configurations/:configuration_id/access-policies"
+  params:
+    - name: configuration_id
+      value: ""
+      type: path
+    - name: query
+      value: ""
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

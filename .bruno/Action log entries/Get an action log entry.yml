@@ -1,0 +1,17 @@
+info:
+  name: Get an action log entry
+  type: http
+
+http:
+  method: get
+  url: "{{base_url}}/action-log-entries/:action_log_entry_id"
+  params:
+    - name: action_log_entry_id
+      value: ""
+      type: path
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,18 @@
+info:
+  name: Delete an action
+  type: http
+
+http:
+  method: DELETE
+  url: "{{base_url}}/actions/:action_id"
+  params:
+    - name: action_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

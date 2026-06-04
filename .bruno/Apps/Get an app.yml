@@ -1,0 +1,18 @@
+info:
+  name: Get an app
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/apps/:app_id"
+  params:
+    - name: app_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

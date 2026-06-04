@@ -1,0 +1,23 @@
+info:
+  name: Create an access policy on a user
+  type: http
+
+http:
+  method: POST
+  url: "{{base_url}}/users/:user_id/access-policiess"
+  params:
+    - name: user_id
+      value: "{{user_id}}"
+      type: path
+  auth: inherit
+
+runtime:
+  variables:
+    - name: user_id
+      value: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

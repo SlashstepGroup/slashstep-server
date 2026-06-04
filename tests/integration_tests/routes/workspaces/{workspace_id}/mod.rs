@@ -47,6 +47,7 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
@@ -58,12 +59,12 @@ async fn verify_returned_resource_by_id() -> Result<(), TestSlashstepServerError
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_workspaces_action =
         Action::get_by_name("workspaces.get", &test_environment.database_pool).await?;
@@ -98,6 +99,7 @@ async fn verify_uuid_when_getting_resource_by_id() -> Result<(), TestSlashstepSe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
@@ -120,6 +122,7 @@ async fn verify_authentication_when_getting_resource_by_id() -> Result<(), TestS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
@@ -148,12 +151,12 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let workspace = test_environment.create_random_workspace().await?;
 
@@ -161,6 +164,7 @@ async fn verify_permission_when_getting_resource_by_id() -> Result<(), TestSlash
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -187,18 +191,19 @@ async fn verify_not_found_when_getting_resource_by_id() -> Result<(), TestSlashs
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -224,12 +229,12 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Grant access to the "workspaces.delete" action to the user.
@@ -248,6 +253,7 @@ async fn verify_successful_deletion_when_deleting_by_id() -> Result<(), TestSlas
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -280,6 +286,7 @@ async fn verify_uuid_when_deleting_by_id() -> Result<(), TestSlashstepServerErro
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
 
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
@@ -305,6 +312,7 @@ async fn verify_authentication_when_deleting_by_id() -> Result<(), TestSlashstep
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -329,12 +337,12 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Create a dummy app.
@@ -344,6 +352,7 @@ async fn verify_permission_when_deleting_by_id() -> Result<(), TestSlashstepServ
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -369,18 +378,19 @@ async fn verify_resource_exists_when_deleting_by_id() -> Result<(), TestSlashste
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -406,12 +416,12 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_fields_action =
         Action::get_by_name("workspaces.update", &test_environment.database_pool).await?;
@@ -430,6 +440,7 @@ async fn verify_successful_patch_by_id() -> Result<(), TestSlashstepServerError>
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -478,6 +489,7 @@ async fn verify_content_type_when_patching_by_id() -> Result<(), TestSlashstepSe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -499,6 +511,7 @@ async fn verify_request_body_exists_when_patching_by_id() -> Result<(), TestSlas
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -523,6 +536,7 @@ async fn verify_request_body_json_when_patching_by_id() -> Result<(), TestSlashs
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -551,6 +565,7 @@ async fn verify_uuid_when_patching_by_id() -> Result<(), TestSlashstepServerErro
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -578,6 +593,7 @@ async fn verify_authentication_when_patching_by_id() -> Result<(), TestSlashstep
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -605,12 +621,12 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Set up the server and send the request.
@@ -618,6 +634,7 @@ async fn verify_permission_when_patching() -> Result<(), TestSlashstepServerErro
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -646,6 +663,7 @@ async fn verify_resource_exists_when_patching() -> Result<(), TestSlashstepServe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -675,12 +693,12 @@ async fn verify_workspace_name_is_at_most_at_maximum_length() -> Result<(), Test
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_workspaces_action =
         Action::get_by_name("workspaces.update", &test_environment.database_pool).await?;
@@ -716,6 +734,7 @@ async fn verify_workspace_name_is_at_most_at_maximum_length() -> Result<(), Test
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -742,12 +761,12 @@ async fn verify_workspace_name_matches_regex() -> Result<(), TestSlashstepServer
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let create_workspaces_action =
         Action::get_by_name("workspaces.create", &test_environment.database_pool).await?;
@@ -783,6 +802,7 @@ async fn verify_workspace_name_matches_regex() -> Result<(), TestSlashstepServer
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -811,12 +831,12 @@ async fn verify_workspace_display_name_is_at_most_at_maximum_length()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_workspaces_action =
         Action::get_by_name("workspaces.update", &test_environment.database_pool).await?;
@@ -852,6 +872,7 @@ async fn verify_workspace_display_name_is_at_most_at_maximum_length()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)
@@ -880,12 +901,12 @@ async fn verify_workspace_description_is_at_most_at_maximum_length()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let update_workspaces_action =
         Action::get_by_name("workspaces.update", &test_environment.database_pool).await?;
@@ -921,6 +942,7 @@ async fn verify_workspace_description_is_at_most_at_maximum_length()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router = slashstep_server::routes::workspaces::workspace_id::get_router(state.clone())
         .with_state(state)

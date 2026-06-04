@@ -14,7 +14,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
@@ -41,7 +40,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[axum::debug_handler]
 async fn handle_list_actions_request(
@@ -54,21 +56,18 @@ async fn handle_list_actions_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Action>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let app_id =
-        get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
-    let list_resources_action =
-        get_action_by_name("actions.list", &http_transaction, &state.database_pool).await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let list_resources_action = get_action_by_name("actions.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
+    let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -80,7 +79,6 @@ async fn handle_list_actions_request(
         &ResourceType::App,
         Some(&target_app.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -118,24 +116,12 @@ async fn handle_list_actions_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting actions...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting actions...");
     let resource_count = match Action::count(
         &query,
         &state.database_pool,
@@ -151,19 +137,13 @@ async fn handle_list_actions_request(
                 "Failed to count actions: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -191,21 +171,15 @@ async fn handle_list_actions_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "action"
-            } else {
-                "actions"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "action"
+        } else {
+            "actions"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Action> {
         data: queried_resources,
@@ -225,22 +199,17 @@ async fn handle_create_action_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialActionPropertiesForPredefinedScope>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Action>), HTTPError> {
-    let app_id =
-        get_uuid_from_string(&app_id, "app", &http_transaction, &state.database_pool).await?;
-    let action_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let app_id = get_uuid_from_string(&app_id, "app").await?;
+    let action_properties_json = get_request_body_without_json_rejection(body).await?;
 
     // Make sure the user can create access policies for the target action.
-    let target_app = get_app_by_id(&app_id, &http_transaction, &state.database_pool).await?;
-    let create_actions_action =
-        get_action_by_name("actions.create", &http_transaction, &state.database_pool).await?;
+    let target_app = get_app_by_id(&app_id, &state.database_pool).await?;
+    let create_actions_action = get_action_by_name("actions.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_actions_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -256,20 +225,13 @@ async fn handle_create_action_request(
         &ResourceType::App,
         Some(&target_app.id),
         &create_actions_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     // Create the action.
-    ServerLogEntry::trace(
-        &format!("Creating action for authenticated_app {}...", target_app.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating action for authenticated_app {}...", target_app.id);
     let created_action = match Action::create(
         &InitialActionProperties {
             name: action_properties_json.name.clone(),
@@ -289,13 +251,7 @@ async fn handle_create_action_request(
                 "Failed to create action: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -323,13 +279,7 @@ async fn handle_create_action_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created action {}.", created_action.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created action {}.", created_action.id);
 
     Ok((StatusCode::CREATED, Json(created_action)))
 }
@@ -360,4 +310,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

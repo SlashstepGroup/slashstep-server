@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         configuration::{Configuration, EditableConfigurationProperties},
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
@@ -36,7 +35,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -53,27 +55,16 @@ async fn handle_get_configuration_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Configuration>>, HTTPError> {
-    let configuration_id = get_uuid_from_string(
-        &configuration_id,
-        "configuration",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let configuration_id = get_uuid_from_string(&configuration_id, "configuration").await?;
     let target_configuration =
-        get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
-    let get_configurations_action = get_action_by_name(
-        "configurations.get",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+        get_configuration_by_id(&configuration_id, &state.database_pool).await?;
+    let get_configurations_action =
+        get_action_by_name("configurations.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_configurations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -89,14 +80,13 @@ async fn handle_get_configuration_request(
         &ResourceType::Configuration,
         Some(&target_configuration.id),
         &get_configurations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_configurations_action.id,
@@ -121,16 +111,10 @@ async fn handle_get_configuration_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned configuration {}.",
-            target_configuration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned configuration {}.",
+        target_configuration.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_configuration.clone(),
@@ -151,27 +135,16 @@ async fn handle_delete_configuration_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let configuration_id = get_uuid_from_string(
-        &configuration_id,
-        "configuration",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let configuration_id = get_uuid_from_string(&configuration_id, "configuration").await?;
     let target_configuration =
-        get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
-    let delete_configurations_action = get_action_by_name(
-        "configurations.delete",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+        get_configuration_by_id(&configuration_id, &state.database_pool).await?;
+    let delete_configurations_action =
+        get_action_by_name("configurations.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_configurations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -187,7 +160,6 @@ async fn handle_delete_configuration_request(
         &ResourceType::Configuration,
         Some(&target_configuration.id),
         &delete_configurations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -198,18 +170,12 @@ async fn handle_delete_configuration_request(
             "Failed to delete configuration: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_configurations_action.id,
@@ -236,16 +202,10 @@ async fn handle_delete_configuration_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted configuration {}.",
-            target_configuration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully deleted configuration {}.",
+        target_configuration.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -262,13 +222,7 @@ async fn handle_patch_configuration_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableConfigurationProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Configuration>>, HTTPError> {
-    ServerLogEntry::trace(
-        "Verifying request body...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Verifying request body...");
     let updated_configuration_properties = match body {
         Ok(updated_configuration_properties) => updated_configuration_properties,
 
@@ -295,38 +249,21 @@ async fn handle_patch_configuration_request(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    let configuration_id = get_uuid_from_string(
-        &configuration_id,
-        "configuration",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let configuration_id = get_uuid_from_string(&configuration_id, "configuration").await?;
     let original_target_configuration =
-        get_configuration_by_id(&configuration_id, &http_transaction, &state.database_pool).await?;
-    let update_access_policy_action = get_action_by_name(
-        "configurations.update",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+        get_configuration_by_id(&configuration_id, &state.database_pool).await?;
+    let update_access_policy_action =
+        get_action_by_name("configurations.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -342,22 +279,15 @@ async fn handle_patch_configuration_request(
         &ResourceType::Configuration,
         Some(&original_target_configuration.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!(
-            "Updating authenticated_configuration {}...",
-            original_target_configuration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Updating authenticated_configuration {}...",
+        original_target_configuration.id
+    );
     let updated_target_configuration = match original_target_configuration
         .update(&updated_configuration_properties, &state.database_pool)
         .await
@@ -369,19 +299,13 @@ async fn handle_patch_configuration_request(
                 "Failed to update configuration: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: update_access_policy_action.id,
@@ -406,16 +330,10 @@ async fn handle_patch_configuration_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated configuration {}.",
-            updated_target_configuration.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully updated configuration {}.",
+        updated_target_configuration.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_configuration,
@@ -454,5 +372,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

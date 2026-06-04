@@ -10,7 +10,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::{EditableUserProperties, EditableUserPropertiesRequestBody, User},
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
@@ -38,7 +37,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -59,17 +61,14 @@ async fn handle_get_user_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<User>>, HTTPError> {
-    let user_id =
-        get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
-    let target_user = get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
-    let get_users_action =
-        get_action_by_name("users.get", &http_transaction, &state.database_pool).await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
+    let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
+    let get_users_action = get_action_by_name("users.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_users_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -85,14 +84,13 @@ async fn handle_get_user_request(
         &ResourceType::User,
         Some(&target_user.id),
         &get_users_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_users_action.id,
@@ -117,13 +115,7 @@ async fn handle_get_user_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned user {}.", target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned user {}.", target_user.id);
 
     let response_body = GetResourceResponseBody {
         data: target_user.clone(),
@@ -144,17 +136,14 @@ async fn handle_delete_user_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let user_id =
-        get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
-    let target_user = get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
-    let delete_users_action =
-        get_action_by_name("users.delete", &http_transaction, &state.database_pool).await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
+    let target_user = get_user_by_id(&user_id, &state.database_pool).await?;
+    let delete_users_action = get_action_by_name("users.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_users_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -170,7 +159,6 @@ async fn handle_delete_user_request(
         &ResourceType::User,
         Some(&target_user.id),
         &delete_users_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -179,18 +167,12 @@ async fn handle_delete_user_request(
     if let Err(error) = target_user.delete(&state.database_pool).await {
         let http_error =
             HTTPError::InternalServerError(Some(format!("Failed to delete user: {:?}", error)));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_users_action.id,
@@ -217,13 +199,7 @@ async fn handle_delete_user_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted user {}.", target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted user {}.", target_user.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -240,17 +216,13 @@ async fn handle_patch_user_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableUserPropertiesRequestBody>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<User>>, HTTPError> {
-    let user_id =
-        get_uuid_from_string(&user_id, "user", &http_transaction, &state.database_pool).await?;
-    let updated_user_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let user_id = get_uuid_from_string(&user_id, "user").await?;
+    let updated_user_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(username)) = &updated_user_properties.username {
         validate_field_length(
             username,
             "users.maximumNameLength",
             "username",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -258,7 +230,6 @@ async fn handle_patch_user_request(
             username,
             "users.allowedNameRegex",
             "user",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -269,22 +240,19 @@ async fn handle_patch_user_request(
             display_name,
             "users.maximumDisplayNameLength",
             "display name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
 
-    let original_target_user =
-        get_user_by_id(&user_id, &http_transaction, &state.database_pool).await?;
+    let original_target_user = get_user_by_id(&user_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("users.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("users.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -300,19 +268,12 @@ async fn handle_patch_user_request(
         &ResourceType::User,
         Some(&original_target_user.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating user {}...", original_target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating user {}...", original_target_user.id);
     let updated_target_user = match original_target_user
         .update(
             &EditableUserProperties {
@@ -353,13 +314,7 @@ async fn handle_patch_user_request(
                 "Failed to update user: {:?}",
                 error
             ))));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -387,13 +342,7 @@ async fn handle_patch_user_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated user {}.", updated_target_user.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated user {}.", updated_target_user.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_user,
@@ -432,6 +381,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
         .merge(oauth_authorizations::get_router(state.clone()))
         .merge(password::get_router(state.clone()))

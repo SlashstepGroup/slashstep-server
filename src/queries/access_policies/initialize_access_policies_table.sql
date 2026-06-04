@@ -51,6 +51,7 @@ DO $$
       scoped_role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
       scoped_server_log_entry_id UUID REFERENCES server_log_entries(id) ON DELETE CASCADE,
       scoped_session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+      scoped_session_credential_id UUID REFERENCES session_credentials(id) ON DELETE CASCADE,
       scoped_status_id UUID REFERENCES statuses(id) ON DELETE CASCADE,
       scoped_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
       scoped_view_id UUID REFERENCES views(id) ON DELETE CASCADE,
@@ -103,6 +104,7 @@ DO $$
           AND scoped_role_id IS NULL
           AND scoped_server_log_entry_id IS NULL
           AND scoped_session_id IS NULL
+          AND scoped_session_credential_id IS NULL
           AND scoped_status_id IS NULL
           AND scoped_user_id IS NULL
           AND scoped_view_id IS NULL
@@ -138,6 +140,7 @@ DO $$
           (scoped_role_id IS NOT NULL)::INTEGER +
           (scoped_server_log_entry_id IS NOT NULL)::INTEGER +
           (scoped_session_id IS NOT NULL)::INTEGER +
+          (scoped_session_credential_id IS NOT NULL)::INTEGER +
           (scoped_status_id IS NOT NULL)::INTEGER +
           (scoped_user_id IS NOT NULL)::INTEGER +
           (scoped_view_id IS NOT NULL)::INTEGER +

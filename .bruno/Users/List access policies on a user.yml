@@ -1,0 +1,27 @@
+info:
+  name: List access policies on a user
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/users/:user_id/access-policies"
+  params:
+    - name: user_id
+      value: "{{user_id}}"
+      type: path
+    - name: query
+      value: ""
+      type: query
+      disabled: true
+  auth: inherit
+
+runtime:
+  variables:
+    - name: user_id
+      value: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -12,6 +12,7 @@
 #[path = "./{membership_id}/mod.rs"]
 pub mod membership_id;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -25,7 +26,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         membership::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, Membership},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
@@ -41,6 +41,8 @@ use axum::{
 };
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 /// GET /memberships
 ///
@@ -56,13 +58,12 @@ async fn handle_list_memberships_request(
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Membership>>), HTTPError> {
     // Make sure the principal has access to list resources.
     let list_resources_action =
-        get_action_by_name("memberships.list", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("memberships.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -78,19 +79,12 @@ async fn handle_list_memberships_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing memberships...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing memberships...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match Membership::list(
         &query,
@@ -118,24 +112,12 @@ async fn handle_list_memberships_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting memberships...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting memberships...");
     let resource_count = match Membership::count(
         &query,
         &state.database_pool,
@@ -151,19 +133,13 @@ async fn handle_list_memberships_request(
                 "Failed to count memberships: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -190,21 +166,15 @@ async fn handle_list_memberships_request(
     .ok();
 
     let queried_membership_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_membership_list_length,
-            if queried_membership_list_length == 1 {
-                "membership"
-            } else {
-                "memberships"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_membership_list_length,
+        if queried_membership_list_length == 1 {
+            "membership"
+        } else {
+            "memberships"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Membership> {
         data: queried_resources,
@@ -236,5 +206,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(membership_id::get_router(state.clone()))
 }

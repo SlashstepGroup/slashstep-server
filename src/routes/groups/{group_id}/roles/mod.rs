@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -25,7 +26,6 @@ use crate::{
             InitialRoleProperties, InitialRolePropertiesWithPredefinedParent, Role,
             RoleParentResourceType,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
@@ -43,6 +43,8 @@ use axum::{
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 /// GET /groups/{group_id}/roles
 ///
@@ -58,21 +60,18 @@ pub async fn handle_list_roles_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Role>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let group_id =
-        get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
-    let list_resources_action =
-        get_action_by_name("roles.list", &http_transaction, &state.database_pool).await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
+    let list_resources_action = get_action_by_name("roles.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
+    let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -84,7 +83,6 @@ pub async fn handle_list_roles_request(
         &ResourceType::Group,
         Some(&target_group.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -122,24 +120,12 @@ pub async fn handle_list_roles_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting roles...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting roles...");
     let resource_count = match Role::count(
         &query,
         &state.database_pool,
@@ -153,19 +139,13 @@ pub async fn handle_list_roles_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to count roles: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -193,21 +173,15 @@ pub async fn handle_list_roles_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "role"
-            } else {
-                "roles"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "role"
+        } else {
+            "roles"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Role> {
         data: queried_resources,
@@ -230,20 +204,15 @@ async fn handle_create_role_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<InitialRolePropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Role>), HTTPError> {
-    let partial_role_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
-    let group_id =
-        get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
-    let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-    let create_roles_action =
-        get_action_by_name("roles.create", &http_transaction, &state.database_pool).await?;
+    let partial_role_properties = get_request_body_without_json_rejection(body).await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
+    let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
+    let create_roles_action = get_action_by_name("roles.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_roles_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -259,20 +228,13 @@ async fn handle_create_role_request(
         &ResourceType::Group,
         Some(&target_group.id),
         &create_roles_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     // Create the role.
-    ServerLogEntry::trace(
-        &format!("Creating role on group {}...", target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating role on group {}...", target_group.id);
 
     let created_role = match Role::create(
         &InitialRoleProperties {
@@ -296,19 +258,13 @@ async fn handle_create_role_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to create role: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_roles_action.id,
@@ -333,13 +289,7 @@ async fn handle_create_role_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created role {}.", created_role.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created role {}.", created_role.id);
 
     Ok((StatusCode::CREATED, Json(created_role)))
 }
@@ -370,4 +320,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

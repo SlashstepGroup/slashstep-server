@@ -27,6 +27,7 @@ pub mod project;
 pub mod role;
 pub mod server_log_entry;
 pub mod session;
+pub mod session_credential;
 pub mod status;
 pub mod user;
 pub mod view;
@@ -86,6 +87,7 @@ pub enum ResourceType {
     Server,
     ServerLogEntry,
     Session,
+    SessionCredential,
     Status,
     User,
     View,
@@ -131,6 +133,7 @@ impl fmt::Display for ResourceType {
             ResourceType::Role => write!(formatter, "Role"),
             ResourceType::ServerLogEntry => write!(formatter, "ServerLogEntry"),
             ResourceType::Session => write!(formatter, "Session"),
+            ResourceType::SessionCredential => write!(formatter, "SessionCredential"),
             ResourceType::Status => write!(formatter, "Status"),
             ResourceType::User => write!(formatter, "User"),
             ResourceType::View => write!(formatter, "View"),
@@ -176,6 +179,7 @@ impl FromStr for ResourceType {
             "Role" => Ok(ResourceType::Role),
             "ServerLogEntry" => Ok(ResourceType::ServerLogEntry),
             "Session" => Ok(ResourceType::Session),
+            "SessionCredential" => Ok(ResourceType::SessionCredential),
             "Status" => Ok(ResourceType::Status),
             "User" => Ok(ResourceType::User),
             "View" => Ok(ResourceType::View),
@@ -205,6 +209,9 @@ pub enum ResourceError {
 
     #[error("The parent resource of the {0} must be the same as the expected type.")]
     DifferentParentError(String),
+
+    #[error("User {0} is anonymous and cannot perform this action.")]
+    AnonymousUserError(String),
 
     #[error(transparent)]
     UUIDError(#[from] uuid::Error),

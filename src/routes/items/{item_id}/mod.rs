@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         item::{EditableItemProperties, Item},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
@@ -37,7 +36,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -58,17 +60,14 @@ async fn handle_get_item_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Item>>, HTTPError> {
-    let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
-    let target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
-    let get_items_action =
-        get_action_by_name("items.get", &http_transaction, &state.database_pool).await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
+    let get_items_action = get_action_by_name("items.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_items_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -84,14 +83,13 @@ async fn handle_get_item_request(
         &ResourceType::Item,
         Some(&target_item.id),
         &get_items_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_items_action.id,
@@ -116,13 +114,7 @@ async fn handle_get_item_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned item {}.", target_item.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned item {}.", target_item.id);
 
     let response_body = GetResourceResponseBody {
         data: target_item.clone(),
@@ -143,17 +135,14 @@ async fn handle_delete_item_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
-    let target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
-    let delete_items_action =
-        get_action_by_name("items.delete", &http_transaction, &state.database_pool).await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
+    let delete_items_action = get_action_by_name("items.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_items_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -169,7 +158,6 @@ async fn handle_delete_item_request(
         &ResourceType::Item,
         Some(&target_item.id),
         &delete_items_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -178,18 +166,12 @@ async fn handle_delete_item_request(
     if let Err(error) = target_item.delete(&state.database_pool).await {
         let http_error =
             HTTPError::InternalServerError(Some(format!("Failed to delete item: {:?}", error)));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_items_action.id,
@@ -216,13 +198,7 @@ async fn handle_delete_item_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted item {}.", target_item.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted item {}.", target_item.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -239,31 +215,25 @@ async fn handle_patch_item_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableItemProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Item>>, HTTPError> {
-    let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
-    let updated_item_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let updated_item_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(summary) = &updated_item_properties.summary {
         validate_field_length(
             summary,
             "items.maximumSummaryLength",
             "summary",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
-    let original_target_item =
-        get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
+    let original_target_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("items.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("items.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -279,19 +249,12 @@ async fn handle_patch_item_request(
         &ResourceType::Item,
         Some(&original_target_item.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating item {}...", original_target_item.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating item {}...", original_target_item.id);
     let updated_target_item = match original_target_item
         .update(&updated_item_properties, &state.database_pool)
         .await
@@ -303,13 +266,7 @@ async fn handle_patch_item_request(
                 "Failed to update item {}: {:?}",
                 original_target_item.id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -337,13 +294,7 @@ async fn handle_patch_item_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated item {}.", updated_target_item.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated item {}.", updated_target_item.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_item,
@@ -382,6 +333,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
         .merge(field_values::get_router(state.clone()))
         .merge(item_connections::get_router(state.clone()))

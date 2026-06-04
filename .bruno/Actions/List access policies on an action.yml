@@ -1,0 +1,18 @@
+info:
+  name: List access policies on an action
+  type: http
+
+http:
+  method: GET
+  url: "{{base_url}}/actions/:action_id/access-policies"
+  params:
+    - name: action_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

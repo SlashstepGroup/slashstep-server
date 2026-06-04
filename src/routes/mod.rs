@@ -41,6 +41,8 @@ pub mod projects;
 pub mod roles;
 // #[path = "./server-log-entries/mod.rs"]
 // pub mod server_log_entries;
+#[path = "./session-credentials/mod.rs"]
+pub mod session_credentials;
 pub mod sessions;
 pub mod statuses;
 pub mod users;
@@ -53,9 +55,11 @@ use crate::{
     AppState, HTTPError,
     middleware::http_transaction_middleware,
     resources::app::{AppClientType, AppParentResourceType},
+    utilities::route_handler_utilities::create_trace_layer_span,
 };
 use axum::{Router, response::IntoResponse};
 use serde::{Deserialize, Serialize};
+use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -115,6 +119,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
         .merge(actions::get_router(state.clone()))
         .merge(action_log_entries::get_router(state.clone()))
@@ -143,6 +148,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
         .merge(roles::get_router(state.clone()))
         // .merge(server_log_entries::get_router(state.clone()))
         .merge(sessions::get_router(state.clone()))
+        .merge(session_credentials::get_router(state.clone()))
         .merge(statuses::get_router(state.clone()))
         .merge(users::get_router(state.clone()))
         .merge(views::get_router(state.clone()))

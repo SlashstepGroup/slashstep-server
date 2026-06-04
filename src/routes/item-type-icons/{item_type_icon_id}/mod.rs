@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
         item_type_icon::{EditableItemTypeIconProperties, ItemTypeIcon},
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
@@ -37,7 +36,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -54,24 +56,16 @@ async fn handle_get_item_type_icon_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<ItemTypeIcon>>, HTTPError> {
-    let item_type_icon_id = get_uuid_from_string(
-        &item_type_icon_id,
-        "item type icon",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let item_type_icon_id = get_uuid_from_string(&item_type_icon_id, "item type icon").await?;
     let target_item_type_icon =
-        get_item_type_icon_by_id(&item_type_icon_id, &http_transaction, &state.database_pool)
-            .await?;
+        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool).await?;
     let get_item_type_icons_action =
-        get_action_by_name("itemTypeIcons.get", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("itemTypeIcons.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_item_type_icons_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -87,14 +81,13 @@ async fn handle_get_item_type_icon_request(
         &ResourceType::ItemTypeIcon,
         Some(&target_item_type_icon.id),
         &get_item_type_icons_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_item_type_icons_action.id,
@@ -119,16 +112,10 @@ async fn handle_get_item_type_icon_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned item type icon {}.",
-            target_item_type_icon.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned item type icon {}.",
+        target_item_type_icon.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_item_type_icon.clone(),
@@ -149,28 +136,16 @@ async fn handle_delete_item_type_icon_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let item_type_icon_id = get_uuid_from_string(
-        &item_type_icon_id,
-        "item type icon",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let item_type_icon_id = get_uuid_from_string(&item_type_icon_id, "item type icon").await?;
     let target_item_type_icon =
-        get_item_type_icon_by_id(&item_type_icon_id, &http_transaction, &state.database_pool)
-            .await?;
-    let delete_item_type_icons_action = get_action_by_name(
-        "itemTypeIcons.delete",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool).await?;
+    let delete_item_type_icons_action =
+        get_action_by_name("itemTypeIcons.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_item_type_icons_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -186,7 +161,6 @@ async fn handle_delete_item_type_icon_request(
         &ResourceType::ItemTypeIcon,
         Some(&target_item_type_icon.id),
         &delete_item_type_icons_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -197,18 +171,12 @@ async fn handle_delete_item_type_icon_request(
             "Failed to delete item type icon: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_item_type_icons_action.id,
@@ -235,16 +203,10 @@ async fn handle_delete_item_type_icon_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted item type icon {}.",
-            target_item_type_icon.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully deleted item type icon {}.",
+        target_item_type_icon.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -261,43 +223,28 @@ async fn handle_patch_item_type_icon_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableItemTypeIconProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<ItemTypeIcon>>, HTTPError> {
-    let item_type_icon_id = get_uuid_from_string(
-        &item_type_icon_id,
-        "item type icon",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let updated_item_type_icon_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let item_type_icon_id = get_uuid_from_string(&item_type_icon_id, "item type icon").await?;
+    let updated_item_type_icon_properties = get_request_body_without_json_rejection(body).await?;
 
     if let Some(display_name) = &updated_item_type_icon_properties.display_name {
         validate_field_length(
             display_name,
             "itemTypeIcons.maximumDisplayNameLength",
             "display name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
 
     let original_target_item_type_icon =
-        get_item_type_icon_by_id(&item_type_icon_id, &http_transaction, &state.database_pool)
-            .await?;
-    let update_access_policy_action = get_action_by_name(
-        "itemTypeIcons.update",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+        get_item_type_icon_by_id(&item_type_icon_id, &state.database_pool).await?;
+    let update_access_policy_action =
+        get_action_by_name("itemTypeIcons.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -313,22 +260,15 @@ async fn handle_patch_item_type_icon_request(
         &ResourceType::ItemTypeIcon,
         Some(&original_target_item_type_icon.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!(
-            "Updating item type icon {}...",
-            original_target_item_type_icon.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Updating item type icon {}...",
+        original_target_item_type_icon.id
+    );
     let updated_target_item_type_icon = match original_target_item_type_icon
         .update(&updated_item_type_icon_properties, &state.database_pool)
         .await
@@ -340,13 +280,7 @@ async fn handle_patch_item_type_icon_request(
                 "Failed to update item type icon: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -374,16 +308,10 @@ async fn handle_patch_item_type_icon_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully updated item type icon {}.",
-            updated_target_item_type_icon.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully updated item type icon {}.",
+        updated_target_item_type_icon.id
+    );
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_item_type_icon,
@@ -422,5 +350,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

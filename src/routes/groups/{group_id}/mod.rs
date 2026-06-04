@@ -11,7 +11,6 @@ use crate::{
         app_authorization::AppAuthorization,
         group::{EditableGroupProperties, Group},
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{GetResourceResponseBody, PatchResourceResponseBody},
@@ -37,7 +36,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -58,17 +60,14 @@ async fn handle_get_group_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<Group>>, HTTPError> {
-    let group_id =
-        get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
-    let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-    let get_groups_action =
-        get_action_by_name("groups.get", &http_transaction, &state.database_pool).await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
+    let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
+    let get_groups_action = get_action_by_name("groups.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_groups_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -84,14 +83,13 @@ async fn handle_get_group_request(
         &ResourceType::Group,
         Some(&target_group.id),
         &get_groups_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_groups_action.id,
@@ -116,13 +114,7 @@ async fn handle_get_group_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned group {}.", target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned group {}.", target_group.id);
 
     let response_body = GetResourceResponseBody {
         data: target_group.clone(),
@@ -143,17 +135,14 @@ async fn handle_delete_group_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let group_id =
-        get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
-    let target_group = get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
-    let delete_groups_action =
-        get_action_by_name("groups.delete", &http_transaction, &state.database_pool).await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
+    let target_group = get_group_by_id(&group_id, &state.database_pool).await?;
+    let delete_groups_action = get_action_by_name("groups.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_groups_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -169,7 +158,6 @@ async fn handle_delete_group_request(
         &ResourceType::Group,
         Some(&target_group.id),
         &delete_groups_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -178,18 +166,12 @@ async fn handle_delete_group_request(
     if let Err(error) = target_group.delete(&state.database_pool).await {
         let http_error =
             HTTPError::InternalServerError(Some(format!("Failed to delete group: {:?}", error)));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_groups_action.id,
@@ -216,13 +198,7 @@ async fn handle_delete_group_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted group {}.", target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted group {}.", target_group.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -239,17 +215,13 @@ async fn handle_patch_group_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableGroupProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<Group>>, HTTPError> {
-    let group_id =
-        get_uuid_from_string(&group_id, "group", &http_transaction, &state.database_pool).await?;
-    let updated_group_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let group_id = get_uuid_from_string(&group_id, "group").await?;
+    let updated_group_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(updated_group_name) = &updated_group_properties.name {
         validate_resource_name(
             updated_group_name,
             "groups.allowedNameRegex",
             "group",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -257,7 +229,6 @@ async fn handle_patch_group_request(
             updated_group_name,
             "groups.maximumNameLength",
             "name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -267,7 +238,6 @@ async fn handle_patch_group_request(
             updated_group_display_name,
             "groups.maximumDisplayNameLength",
             "display name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -277,21 +247,18 @@ async fn handle_patch_group_request(
             updated_group_description,
             "groups.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
-    let original_target_group =
-        get_group_by_id(&group_id, &http_transaction, &state.database_pool).await?;
+    let original_target_group = get_group_by_id(&group_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("groups.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("groups.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -307,19 +274,12 @@ async fn handle_patch_group_request(
         &ResourceType::Group,
         Some(&original_target_group.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating group {}...", original_target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating group {}...", original_target_group.id);
     let updated_target_group = match original_target_group
         .update(&updated_group_properties, &state.database_pool)
         .await
@@ -331,13 +291,7 @@ async fn handle_patch_group_request(
                 "Failed to update group {}: {:?}",
                 original_target_group.id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -365,13 +319,7 @@ async fn handle_patch_group_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated group {}.", updated_target_group.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated group {}.", updated_target_group.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_group,
@@ -410,6 +358,7 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
         .merge(membership_invitations::get_router(state.clone()))
         .merge(memberships::get_router(state.clone()))

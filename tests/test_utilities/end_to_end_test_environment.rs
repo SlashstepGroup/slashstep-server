@@ -7,8 +7,8 @@ use postgresql_embedded::PostgreSQL;
 use redis_test::server::RedisServer;
 use reqwest::StatusCode;
 use slashstep_server::{
-    AppState, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, import_env_file,
-    initialize_required_tables,
+    AppState, DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer,
+    create_opensearch_client, import_env_file, initialize_required_tables,
     predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
@@ -20,14 +20,17 @@ use slashstep_server::{
             MembershipPrincipalType,
         },
         role::{PredefinedRoleType, Role, RoleParentResourceType},
-        session::Session,
+        session_credential::SessionCredential,
         user::{InitialUserProperties, User},
     },
     routes::{
         CreateResourceResponseBody, GetResourceResponseBody,
         access_policies::CreateServerAccessPolicyRequestBody,
     },
+    run_opensearch_log_worker,
 };
+use tokio::sync::mpsc;
+use tracing_subscriber::layer::SubscriberExt;
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
@@ -41,6 +44,8 @@ pub struct EndToEndTestEnvironment {
     #[allow(dead_code)]
     pub embedded_postgresql: PostgreSQL,
     pub test_server: TestServer,
+    pub opensearch_client: opensearch::OpenSearch,
+    pub tracing_subscriber_guard: tracing::subscriber::DefaultGuard,
 }
 
 impl EndToEndTestEnvironment {
@@ -105,14 +110,35 @@ impl EndToEndTestEnvironment {
 
         println!("Signing into Valkey test server...");
         let redis_server = RedisServer::new();
-        let (redis_host, redis_port) = redis_server.host_and_port().expect("Failed to get Redis server host and port");
+        let (redis_host, redis_port) = redis_server
+            .host_and_port()
+            .expect("Failed to get Redis server host and port");
         let redis_url = format!("redis://{redis_host}:{redis_port}");
         let redis_config = deadpool_redis::Config::from_url(redis_url);
         let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
+        let json_layer = tracing_subscriber::fmt::layer().json();
+        let (opensearch_sender, receiver) = mpsc::channel(100);
+        let opensearch_layer = OpenSearchLayer {
+            sender: opensearch_sender,
+        };
+        let subscriber = tracing_subscriber::registry()
+            // .with(tracing_subscriber::fmt::layer())
+            .with(tracing_subscriber::EnvFilter::from_default_env())
+            .with(json_layer)
+            .with(opensearch_layer);
+        let tracing_subscriber_guard = tracing::subscriber::set_default(subscriber);
+
+        let opensearch_client = create_opensearch_client(None)?;
+        tokio::spawn(run_opensearch_log_worker(
+            receiver,
+            opensearch_client.clone(),
+        ));
+
         let state = AppState {
             database_pool: database_pool.clone(),
             redis_pool: redis_pool.clone(),
+            opensearch_client: opensearch_client.clone(),
         };
 
         let router = slashstep_server::routes::get_router(state.clone())
@@ -131,6 +157,8 @@ impl EndToEndTestEnvironment {
             redis_pool,
             redis_server,
             test_server,
+            opensearch_client,
+            tracing_subscriber_guard,
         };
 
         return Ok(environment);
@@ -205,27 +233,28 @@ impl EndToEndTestEnvironment {
         return Ok(user);
     }
 
-    pub async fn create_session(
+    pub async fn create_session_credential_with_login_credentials(
         &self,
         username: &String,
         plain_text_password: &String,
-    ) -> Result<Session, TestSlashstepServerError> {
+    ) -> Result<SessionCredential, TestSlashstepServerError> {
         let create_session_response = self
             .test_server
-            .post("/sessions")
+            .post("/session-credentials")
             .json(&serde_json::json!({
-              "username": username,
-              "password": plain_text_password
+                "authentication_method": "LoginCredentials",
+                "username": username,
+                "password": plain_text_password
             }))
             .await;
 
         assert_eq!(create_session_response.status_code(), StatusCode::CREATED);
 
-        let create_session_response_body: CreateResourceResponseBody<Session> =
+        let create_session_response_body: CreateResourceResponseBody<SessionCredential> =
             create_session_response.json();
-        let session = create_session_response_body.data;
+        let session_credential = create_session_response_body.data;
 
-        return Ok(session);
+        return Ok(session_credential);
     }
 
     pub async fn get_access_policy_by_id(

@@ -10,6 +10,9 @@
  */
 
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
+use tracing::{trace};
 use axum::{Extension, Router, extract::{Query, State}};
 use axum_extra::response::ErasedJson;
 use crate::{AppState, HTTPError, middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware}, resources::{access_policy::ResourceType, action_log_entry::ResourceType, app::{App, DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT}, app_authorization::AppAuthorization, http_transaction::HTTPTransaction, user::User}};

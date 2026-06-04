@@ -35,8 +35,8 @@ services:
       POSTGRESQL_DATABASE_NAME: slashstep
       POSTGRESQL_USERNAME: slashstep
       POSTGRESQL_PASSWORD_FILE_PATH: /run/secrets/postgresql-password
-      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt-public-key
-      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private-key
+      SLASHSTEP_JWT_PUBLIC_KEY_PATH: /run/secrets/jwt-public-key
+      SLASHSTEP_JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private-key
       MAXIMUM_POSTGRESQL_CONNECTION_COUNT: 20
       SHOULD_USE_SELF_SIGNED_TLS_CERTIFICATE: "TRUE"
       SELF_SIGNED_TLS_CERTIFICATE_PATH: /run/tls/localhost+2.pem

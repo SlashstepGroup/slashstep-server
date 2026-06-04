@@ -1,0 +1,18 @@
+info:
+  name: Create an action on an app
+  type: http
+
+http:
+  method: POST
+  url: "{{base_url}}/apps/:app_id/actions"
+  params:
+    - name: app_id
+      value: ""
+      type: path
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

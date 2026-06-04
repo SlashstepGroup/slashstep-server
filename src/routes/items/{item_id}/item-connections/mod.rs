@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -26,7 +27,6 @@ use crate::{
             InitialItemConnectionProperties,
             InitialItemConnectionPropertiesWithPredefinedOutwardItem, ItemConnection,
         },
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::{ListResourcesResponseBody, ResourceListQueryParameters},
@@ -44,6 +44,8 @@ use axum::{
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 /// GET /items/{item_id}/item-connections
 ///
@@ -59,25 +61,19 @@ async fn handle_list_item_connections_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<ItemConnection>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
-    let list_resources_action = get_action_by_name(
-        "itemConnections.list",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let list_resources_action =
+        get_action_by_name("itemConnections.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
+    let target_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -89,7 +85,6 @@ async fn handle_list_item_connections_request(
         &ResourceType::Item,
         Some(&target_item.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -130,24 +125,12 @@ async fn handle_list_item_connections_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting item connections...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting item connections...");
     let resource_count = match ItemConnection::count(
         &query,
         &state.database_pool,
@@ -163,19 +146,13 @@ async fn handle_list_item_connections_request(
                 "Failed to count item connections: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -203,21 +180,15 @@ async fn handle_list_item_connections_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "item connection"
-            } else {
-                "item connections"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "item connection"
+        } else {
+            "item connections"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<ItemConnection> {
         data: queried_resources,
@@ -244,30 +215,21 @@ async fn handle_create_item_connection_request(
     body: Result<Json<InitialItemConnectionPropertiesWithPredefinedOutwardItem>, JsonRejection>,
 ) -> Result<(StatusCode, Json<ItemConnection>), HTTPError> {
     // Make sure the user can create item connections for the target action.
-    let item_id =
-        get_uuid_from_string(&item_id, "item", &http_transaction, &state.database_pool).await?;
-    let item_connection_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
-    let outward_item = get_item_by_id(&item_id, &http_transaction, &state.database_pool).await?;
+    let item_id = get_uuid_from_string(&item_id, "item").await?;
+    let item_connection_properties_json = get_request_body_without_json_rejection(body).await?;
+    let outward_item = get_item_by_id(&item_id, &state.database_pool).await?;
     let inward_item = get_item_by_id(
         &item_connection_properties_json.inward_item_id,
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
-    let create_item_connections_action = get_action_by_name(
-        "itemConnections.create",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let create_item_connections_action =
+        get_action_by_name("itemConnections.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_item_connections_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -283,7 +245,6 @@ async fn handle_create_item_connection_request(
         &ResourceType::Item,
         Some(&outward_item.id),
         &create_item_connections_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -298,7 +259,6 @@ async fn handle_create_item_connection_request(
                     &ResourceType::Item,
                     Some(&inward_item.id),
                     &create_item_connections_action,
-                    &http_transaction,
                     &PermissionLevel::User,
                     &state.database_pool,
                 )
@@ -310,13 +270,7 @@ async fn handle_create_item_connection_request(
     }
 
     // Create the item connection.
-    ServerLogEntry::trace(
-        &format!("Creating item connection for item {}...", item_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating item connection for item {}...", item_id);
     let item_connection = match ItemConnection::create(
         &InitialItemConnectionProperties {
             item_connection_type_id: item_connection_properties_json.item_connection_type_id,
@@ -334,19 +288,13 @@ async fn handle_create_item_connection_request(
                 "Failed to create item connection: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_item_connections_action.id,
@@ -371,16 +319,10 @@ async fn handle_create_item_connection_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully created item connection {}.",
-            item_connection.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully created item connection {}.",
+        item_connection.id
+    );
 
     Ok((StatusCode::CREATED, Json(item_connection)))
 }
@@ -411,4 +353,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

@@ -12,6 +12,7 @@
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -24,7 +25,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
     },
     routes::GetResourceResponseBody,
@@ -40,6 +40,8 @@ use axum::{
 };
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::info;
 
 /// GET /app-authorizations/{app_authorization_id}
 ///
@@ -53,31 +55,17 @@ async fn handle_get_app_authorization_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<AppAuthorization>>, HTTPError> {
-    let app_authorization_id = get_uuid_from_string(
-        &app_authorization_id,
-        "app authorization",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_app_authorization = get_app_authorization_by_id(
-        &app_authorization_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let get_app_authorizations_action = get_action_by_name(
-        "appAuthorizations.get",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let app_authorization_id =
+        get_uuid_from_string(&app_authorization_id, "app authorization").await?;
+    let target_app_authorization =
+        get_app_authorization_by_id(&app_authorization_id, &state.database_pool).await?;
+    let get_app_authorizations_action =
+        get_action_by_name("appAuthorizations.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_app_authorizations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -93,14 +81,13 @@ async fn handle_get_app_authorization_request(
         &ResourceType::AppAuthorization,
         Some(&target_app_authorization.id),
         &get_app_authorizations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_app_authorizations_action.id,
@@ -125,16 +112,10 @@ async fn handle_get_app_authorization_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned app authorization {}.",
-            target_app_authorization.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned app authorization {}.",
+        target_app_authorization.id
+    );
 
     let response_body = GetResourceResponseBody {
         data: target_app_authorization.clone(),
@@ -155,31 +136,17 @@ async fn handle_delete_app_authorization_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let app_authorization_id = get_uuid_from_string(
-        &app_authorization_id,
-        "app authorization",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let target_app_authorization = get_app_authorization_by_id(
-        &app_authorization_id,
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let delete_app_authorizations_action = get_action_by_name(
-        "appAuthorizations.delete",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
+    let app_authorization_id =
+        get_uuid_from_string(&app_authorization_id, "app authorization").await?;
+    let target_app_authorization =
+        get_app_authorization_by_id(&app_authorization_id, &state.database_pool).await?;
+    let delete_app_authorizations_action =
+        get_action_by_name("appAuthorizations.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_app_authorizations_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -195,7 +162,6 @@ async fn handle_delete_app_authorization_request(
         &ResourceType::AppAuthorization,
         Some(&target_app_authorization.id),
         &delete_app_authorizations_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -206,18 +172,12 @@ async fn handle_delete_app_authorization_request(
             "Failed to delete app authorization: {:?}",
             error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_app_authorizations_action.id,
@@ -244,16 +204,10 @@ async fn handle_delete_app_authorization_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!(
-            "Successfully deleted app authorization {}.",
-            target_app_authorization.id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully deleted app authorization {}.",
+        target_app_authorization.id
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -283,5 +237,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

@@ -9,6 +9,7 @@
  *
  */
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use crate::{
     AppState, HTTPError,
     middleware::{authentication_middleware, http_transaction_middleware, rate_limit_middleware},
@@ -21,7 +22,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
         view::{
             DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialViewProperties,
@@ -45,6 +45,8 @@ use axum::{
 use pg_escape::quote_literal;
 use reqwest::StatusCode;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 /// GET /projects/{project_id}/views
 ///
@@ -60,27 +62,18 @@ async fn handle_list_views_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<View>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let list_resources_action =
-        get_action_by_name("views.list", &http_transaction, &state.database_pool).await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let list_resources_action = get_action_by_name("views.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
-    let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
     let (principal_type, principal_id) = get_principal_type_and_id_from_principal(
         authenticated_user.as_ref(),
         authenticated_app.as_ref(),
@@ -92,7 +85,6 @@ async fn handle_list_views_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -130,24 +122,12 @@ async fn handle_list_views_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting views...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting views...");
     let resource_count = match View::count(
         &query,
         &state.database_pool,
@@ -161,19 +141,13 @@ async fn handle_list_views_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to count views: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -201,21 +175,15 @@ async fn handle_list_views_request(
     .ok();
 
     let queried_resource_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_resource_list_length,
-            if queried_resource_list_length == 1 {
-                "view"
-            } else {
-                "views"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_resource_list_length,
+        if queried_resource_list_length == 1 {
+            "view"
+        } else {
+            "views"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<View> {
         data: queried_resources,
@@ -239,21 +207,12 @@ async fn handle_create_view_request(
     body: Result<Json<InitialViewPropertiesWithPredefinedParent>, JsonRejection>,
 ) -> Result<(StatusCode, Json<View>), HTTPError> {
     // Make sure the user can create views for the target action.
-    let project_id = get_uuid_from_string(
-        &project_id,
-        "project",
-        &http_transaction,
-        &state.database_pool,
-    )
-    .await?;
-    let view_properties_json =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let project_id = get_uuid_from_string(&project_id, "project").await?;
+    let view_properties_json = get_request_body_without_json_rejection(body).await?;
     validate_field_length(
         &view_properties_json.name,
         "views.maximumNameLength",
         "name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -261,7 +220,6 @@ async fn handle_create_view_request(
         &view_properties_json.name,
         "views.allowedNameRegex",
         "view",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -269,7 +227,6 @@ async fn handle_create_view_request(
         &view_properties_json.display_name,
         "views.maximumDisplayNameLength",
         "display_name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -278,21 +235,17 @@ async fn handle_create_view_request(
             view_description,
             "views.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
-    let target_project =
-        get_project_by_id(&project_id, &http_transaction, &state.database_pool).await?;
-    let create_views_action =
-        get_action_by_name("views.create", &http_transaction, &state.database_pool).await?;
+    let target_project = get_project_by_id(&project_id, &state.database_pool).await?;
+    let create_views_action = get_action_by_name("views.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_views_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -308,20 +261,13 @@ async fn handle_create_view_request(
         &ResourceType::Project,
         Some(&target_project.id),
         &create_views_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     // Create the view.
-    ServerLogEntry::trace(
-        &format!("Creating view for project {}...", project_id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating view for project {}...", project_id);
     let view = match View::create(
         &InitialViewProperties {
             name: view_properties_json.name.clone(),
@@ -342,19 +288,13 @@ async fn handle_create_view_request(
         Err(error) => {
             let http_error =
                 HTTPError::InternalServerError(Some(format!("Failed to create view: {:?}", error)));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_views_action.id,
@@ -379,13 +319,7 @@ async fn handle_create_view_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully created view {}.", view.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created view {}.", view.id);
 
     Ok((StatusCode::CREATED, Json(view)))
 }
@@ -416,4 +350,5 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
 }

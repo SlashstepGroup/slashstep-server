@@ -33,6 +33,7 @@ BEGIN
       'Role',
       'ServerLogEntry',
       'Session',
+      'SessionCredential',
       'Status',
       'User',
       'View',

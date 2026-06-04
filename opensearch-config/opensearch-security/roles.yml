@@ -1,0 +1,15 @@
+_meta:
+  type: "roles"
+  config_version: 2
+
+log_writer:
+  cluster_permissions:
+    - "indices:data/write/bulk"
+  index_permissions: 
+    - index_patterns:
+        - "server_log_entries"
+      allowed_actions:
+        - "indices:admin/create"
+        - "indices:admin/mapping/put"
+        - "indices:data/write/index"
+        - "indices:data/write/bulk*"

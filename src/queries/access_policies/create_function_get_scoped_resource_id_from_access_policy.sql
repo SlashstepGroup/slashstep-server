@@ -62,6 +62,8 @@ CREATE OR REPLACE FUNCTION get_scoped_resource_id_from_access_policy(access_poli
         RETURN access_policy_record.scoped_server_log_entry_id;
       WHEN 'Session' THEN 
         RETURN access_policy_record.scoped_session_id;
+      WHEN 'SessionCredential' THEN 
+        RETURN access_policy_record.scoped_session_credential_id;
       WHEN 'Status' THEN 
         RETURN access_policy_record.scoped_status_id;
       WHEN 'User' THEN 

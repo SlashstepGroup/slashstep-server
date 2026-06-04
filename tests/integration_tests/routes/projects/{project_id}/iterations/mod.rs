@@ -43,12 +43,12 @@ async fn verify_successful_iteration_creation() -> Result<(), TestSlashstepServe
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let create_iterations_action =
         Action::get_by_name("iterations.create", &test_environment.database_pool).await?;
@@ -72,6 +72,7 @@ async fn verify_successful_iteration_creation() -> Result<(), TestSlashstepServe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())
@@ -142,12 +143,12 @@ async fn verify_iteration_display_name_is_at_most_at_maximum_length()
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let create_iterations_action =
         Action::get_by_name("iterations.create", &test_environment.database_pool).await?;
@@ -186,6 +187,7 @@ async fn verify_iteration_display_name_is_at_most_at_maximum_length()
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())
@@ -214,12 +216,12 @@ async fn verify_returned_iteration_list_without_query() -> Result<(), TestSlashs
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_iterations_action =
         Action::get_by_name("iterations.get", &test_environment.database_pool).await?;
@@ -244,6 +246,7 @@ async fn verify_returned_iteration_list_without_query() -> Result<(), TestSlashs
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())
@@ -299,12 +302,12 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_iterations_action =
         Action::get_by_name("iterations.get", &test_environment.database_pool).await?;
@@ -330,6 +333,7 @@ async fn verify_returned_resource_list_with_query() -> Result<(), TestSlashstepS
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())
@@ -387,12 +391,12 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_iterations_action =
         Action::get_by_name("iterations.get", &test_environment.database_pool).await?;
@@ -418,6 +422,7 @@ async fn verify_default_resource_list_limit() -> Result<(), TestSlashstepServerE
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())
@@ -450,12 +455,12 @@ async fn verify_maximum_iteration_list_limit() -> Result<(), TestSlashstepServer
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_iterations_action =
         Action::get_by_name("iterations.get", &test_environment.database_pool).await?;
@@ -475,6 +480,7 @@ async fn verify_maximum_iteration_list_limit() -> Result<(), TestSlashstepServer
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())
@@ -506,12 +512,12 @@ async fn verify_query_when_listing_iterations() -> Result<(), TestSlashstepServe
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
     let get_iterations_action =
         Action::get_by_name("iterations.get", &test_environment.database_pool).await?;
@@ -532,6 +538,7 @@ async fn verify_query_when_listing_iterations() -> Result<(), TestSlashstepServe
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())
@@ -600,6 +607,7 @@ async fn verify_authentication_when_listing_iterations() -> Result<(), TestSlash
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())
@@ -626,12 +634,12 @@ async fn verify_permission_when_listing_iterations() -> Result<(), TestSlashstep
     let user = test_environment
         .create_random_user(Some(&plain_text_password))
         .await?;
-    let session = test_environment
-        .create_random_session(Some(&user.id))
+    let session_credential = test_environment
+        .create_random_session_credential(None, Some(&user.id))
         .await?;
     let json_web_token_private_key = get_json_web_token_private_key().await?;
-    let session_token = session
-        .generate_access_token(&json_web_token_private_key, session.expiration_date)
+    let session_token = session_credential
+        .generate_access_token(&json_web_token_private_key)
         .await?;
 
     // Create a dummy action.
@@ -641,6 +649,7 @@ async fn verify_permission_when_listing_iterations() -> Result<(), TestSlashstep
     let state = AppState {
         database_pool: test_environment.database_pool.clone(),
         redis_pool: test_environment.redis_pool.clone(),
+        opensearch_client: test_environment.opensearch_client.clone(),
     };
     let router =
         slashstep_server::routes::projects::project_id::iterations::get_router(state.clone())

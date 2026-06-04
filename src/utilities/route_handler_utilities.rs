@@ -30,6 +30,7 @@ use crate::{
         role::Role,
         server_log_entry::ServerLogEntry,
         session::Session,
+        session_credential::SessionCredential,
         status::Status,
         user::User,
         view::View,
@@ -45,19 +46,20 @@ use pg_escape::quote_literal;
 use postgres::error::SqlState;
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use std::{pin::Pin, sync::Arc};
+use tracing::{error, info_span, trace, warn};
 use uuid::Uuid;
 
+pub fn create_trace_layer_span(_request: &axum::http::Request<axum::body::Body>) -> tracing::Span {
+    info_span!(
+        "http_transaction",
+        http_transaction_id = tracing::field::Empty
+    )
+}
+
 pub async fn get_action_log_entry_expiration_timestamp(
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Option<DateTime<Utc>>, HTTPError> {
-    ServerLogEntry::trace(
-        "Getting configuration to determine whether action log entries should expire...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting configuration to determine whether action log entries should expire...");
     let should_action_log_entries_expire_configuration = match Configuration::list(
         &format!(
             "name = {} LIMIT 1",
@@ -74,13 +76,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
 
             None => {
                 let http_error = HTTPError::InternalServerError(Some("Missing configuration for actionLogEntries.shouldExpire. It may have been deleted by a user or an app. Restart the server to restore this configuration.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         },
@@ -90,9 +86,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
                 "Failed to retrieve configurations: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -105,13 +99,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
         return Ok(None);
     }
 
-    ServerLogEntry::trace(
-        "Getting configuration to determine the expiration duration for action log entries...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting configuration to determine the expiration duration for action log entries...");
     let action_log_entry_expiration_duration_configuration = match Configuration::list(
         &format!(
             "name = {} LIMIT 1",
@@ -128,13 +116,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
 
             None => {
                 let http_error = HTTPError::InternalServerError(Some("Missing configuration for actionLogEntries.expirationDurationMilliseconds. It may have been deleted by a user or an app. Restart the server to restore this configuration.".to_string()));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         },
@@ -144,9 +126,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
                 "Failed to retrieve configurations: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -163,10 +143,7 @@ pub async fn get_action_log_entry_expiration_timestamp(
     Ok(expiration_timestamp)
 }
 
-pub async fn get_json_web_token_public_key(
-    http_transaction_id: &Uuid,
-    database_pool: &deadpool_postgres::Pool,
-) -> Result<String, HTTPError> {
+pub async fn get_json_web_token_public_key() -> Result<String, HTTPError> {
     let json_web_token_public_key = match crate::get_json_web_token_public_key().await {
         Ok(json_web_token_public_key) => json_web_token_public_key,
 
@@ -175,9 +152,7 @@ pub async fn get_json_web_token_public_key(
                 "Failed to get JSON web token public key: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -185,10 +160,7 @@ pub async fn get_json_web_token_public_key(
     Ok(json_web_token_public_key)
 }
 
-pub async fn get_json_web_token_private_key(
-    http_transaction_id: &Uuid,
-    database_pool: &deadpool_postgres::Pool,
-) -> Result<String, HTTPError> {
+pub async fn get_json_web_token_private_key() -> Result<String, HTTPError> {
     let json_web_token_private_key = match crate::get_json_web_token_private_key().await {
         Ok(json_web_token_private_key) => json_web_token_private_key,
 
@@ -197,9 +169,7 @@ pub async fn get_json_web_token_private_key(
                 "Failed to get JSON web token private key: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -215,16 +185,9 @@ pub fn map_postgres_error_to_http_error(error: deadpool_postgres::PoolError) -> 
 
 pub async fn get_action_by_name(
     action_name: &str,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Action, HTTPError> {
-    ServerLogEntry::trace(
-        &format!("Getting action \"{}\"...", action_name),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting action \"{}\"...", action_name);
     let action = match Action::get_by_name(action_name, database_pool).await {
         Ok(action) => action,
 
@@ -233,9 +196,7 @@ pub async fn get_action_by_name(
                 "Failed to get action \"{}\": {:?}",
                 action_name, error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -257,7 +218,6 @@ pub fn is_authenticated_user_anonymous(authenticated_user: Option<&Arc<User>>) -
 pub async fn can_delegate_perform_action(
     app_authorization_id: Option<&Uuid>,
     action_id: &Uuid,
-    http_transaction_id: &Uuid,
     required_permission_level: &PermissionLevel,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<bool, HTTPError> {
@@ -286,9 +246,7 @@ pub async fn can_delegate_perform_action(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(&http_error, Some(http_transaction_id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -303,7 +261,6 @@ pub async fn can_delegate_perform_action(
 pub async fn verify_delegate_permissions(
     app_authorization_id: Option<&Uuid>,
     action_id: &Uuid,
-    http_transaction_id: &Uuid,
     required_permission_level: &PermissionLevel,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), HTTPError> {
@@ -316,7 +273,6 @@ pub async fn verify_delegate_permissions(
     if !can_delegate_perform_action(
         Some(app_authorization_id),
         action_id,
-        http_transaction_id,
         required_permission_level,
         database_pool,
     )
@@ -337,28 +293,19 @@ pub async fn can_principal_perform_action(
     resource_type: &ResourceType,
     resource_id: Option<&Uuid>,
     action: &Action,
-    http_transaction: &HTTPTransaction,
     minimum_permission_level: &PermissionLevel,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<bool, HTTPError> {
-    ServerLogEntry::trace(
-        &format!(
-            "Checking whether principal can use \"{}\" action...",
-            action.name
-        ),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Checking whether principal can use \"{}\" action...",
+        action.name
+    );
     let database_client = match database_pool.get().await {
         Ok(database_client) => database_client,
 
         Err(error) => {
             let http_error = map_postgres_error_to_http_error(error);
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -386,13 +333,7 @@ pub async fn can_principal_perform_action(
                         "Failed to verify permissions for principal {} with ID {}: {:?}",
                         principal_type, principal_id, error
                     )));
-                    ServerLogEntry::from_http_error(
-                        &http_error,
-                        Some(&http_transaction.id),
-                        database_pool,
-                    )
-                    .await
-                    .ok();
+                    http_error.log();
                     return Err(http_error);
                 }
             },
@@ -402,13 +343,7 @@ pub async fn can_principal_perform_action(
                     "Failed to verify permissions for principal {} with ID {}: {:?}",
                     principal_type, principal_id, error
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         },
@@ -425,17 +360,10 @@ pub async fn verify_principal_permissions(
     resource_type: &ResourceType,
     resource_id: Option<&Uuid>,
     action: &Action,
-    http_transaction: &HTTPTransaction,
     minimum_permission_level: &PermissionLevel,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), HTTPError> {
-    ServerLogEntry::trace(
-        &format!("Verifying principal may use \"{}\" action...", action.name),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Verifying principal may use \"{}\" action...", action.name);
 
     if !can_principal_perform_action(
         principal_type,
@@ -443,7 +371,6 @@ pub async fn verify_principal_permissions(
         resource_type,
         resource_id,
         action,
-        http_transaction,
         minimum_permission_level,
         database_pool,
     )
@@ -467,9 +394,7 @@ pub async fn verify_principal_permissions(
         } else {
             HTTPError::Forbidden(Some(message))
         };
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -478,13 +403,11 @@ pub async fn verify_principal_permissions(
 
 pub async fn get_access_policy_by_id(
     access_policy_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<AccessPolicy, HTTPError> {
     let access_policy = get_resource_by_id::<AccessPolicy, _>(
         "access policy",
         access_policy_id,
-        http_transaction,
         database_pool,
         |access_policy_id, database_pool| {
             Box::new(AccessPolicy::get_by_id(access_policy_id, database_pool))
@@ -496,13 +419,11 @@ pub async fn get_access_policy_by_id(
 
 pub async fn get_action_by_id(
     action_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Action, HTTPError> {
     let action = get_resource_by_id::<Action, _>(
         "action",
         action_id,
-        http_transaction,
         database_pool,
         |action_id, database_pool| Box::new(Action::get_by_id(action_id, database_pool)),
     )
@@ -512,13 +433,11 @@ pub async fn get_action_by_id(
 
 pub async fn get_action_log_entry_by_id(
     action_log_entry_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<ActionLogEntry, HTTPError> {
     let action_log_entry = get_resource_by_id::<ActionLogEntry, _>(
         "action log entry",
         action_log_entry_id,
-        http_transaction,
         database_pool,
         |action_log_entry_id, database_pool| {
             Box::new(ActionLogEntry::get_by_id(
@@ -533,29 +452,23 @@ pub async fn get_action_log_entry_by_id(
 
 pub async fn get_app_by_id(
     app_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<App, HTTPError> {
-    let app = get_resource_by_id::<App, _>(
-        "app",
-        app_id,
-        http_transaction,
-        database_pool,
-        |app_id, database_pool| Box::new(App::get_by_id(app_id, database_pool)),
-    )
-    .await?;
+    let app =
+        get_resource_by_id::<App, _>("app", app_id, database_pool, |app_id, database_pool| {
+            Box::new(App::get_by_id(app_id, database_pool))
+        })
+        .await?;
     Ok(app)
 }
 
 pub async fn get_app_authorization_by_id(
     app_authorization_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<AppAuthorization, HTTPError> {
     let app_authorization = get_resource_by_id::<AppAuthorization, _>(
         "app authorization",
         app_authorization_id,
-        http_transaction,
         database_pool,
         |app_authorization_id, database_pool| {
             Box::new(AppAuthorization::get_by_id(
@@ -570,13 +483,11 @@ pub async fn get_app_authorization_by_id(
 
 pub async fn get_app_authorization_credential_by_id(
     app_authorization_credential_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<AppAuthorizationCredential, HTTPError> {
     let app_authorization_credential = get_resource_by_id::<AppAuthorizationCredential, _>(
         "app authorization credential",
         app_authorization_credential_id,
-        http_transaction,
         database_pool,
         |app_authorization_credential_id, database_pool| {
             Box::new(AppAuthorizationCredential::get_by_id(
@@ -591,13 +502,11 @@ pub async fn get_app_authorization_credential_by_id(
 
 pub async fn get_app_credential_by_id(
     app_credential_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<AppCredential, HTTPError> {
     let app_credential = get_resource_by_id::<AppCredential, _>(
         "app credential",
         app_credential_id,
-        http_transaction,
         database_pool,
         |app_credential_id, database_pool| {
             Box::new(AppCredential::get_by_id(app_credential_id, database_pool))
@@ -609,7 +518,6 @@ pub async fn get_app_credential_by_id(
 
 pub async fn get_user_by_id(
     user_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<User, HTTPError> {
     let user = match User::get_by_id(user_id, database_pool).await {
@@ -624,9 +532,7 @@ pub async fn get_user_by_id(
                     user_id, error
                 ))),
             };
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -636,16 +542,9 @@ pub async fn get_user_by_id(
 
 pub async fn get_user_by_username(
     username: &str,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<User, HTTPError> {
-    ServerLogEntry::trace(
-        &format!("Getting user with username \"{}\"...", username),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting user with username \"{}\"...", username);
 
     let user = match User::get_by_username(username, database_pool).await {
         Ok(user) => user,
@@ -659,9 +558,7 @@ pub async fn get_user_by_username(
                     username, error
                 ))),
             };
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -671,13 +568,11 @@ pub async fn get_user_by_username(
 
 pub async fn get_configuration_by_id(
     configuration_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Configuration, HTTPError> {
     let configuration = get_resource_by_id::<Configuration, _>(
         "configuration",
         configuration_id,
-        http_transaction,
         database_pool,
         |configuration_id, database_pool| {
             Box::new(Configuration::get_by_id(configuration_id, database_pool))
@@ -690,8 +585,6 @@ pub async fn get_configuration_by_id(
 pub async fn get_uuid_from_string(
     string: &str,
     resource_type_name_singular: &str,
-    http_transaction: &HTTPTransaction,
-    database_pool: &deadpool_postgres::Pool,
 ) -> Result<Uuid, HTTPError> {
     let uuid = match Uuid::parse_str(string) {
         Ok(uuid) => uuid,
@@ -701,9 +594,7 @@ pub async fn get_uuid_from_string(
                 "You must provide a valid UUID for the {} ID.",
                 resource_type_name_singular
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -713,13 +604,11 @@ pub async fn get_uuid_from_string(
 
 pub async fn get_field_by_id(
     field_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Field, HTTPError> {
     let field = get_resource_by_id::<Field, _>(
         "field",
         field_id,
-        http_transaction,
         database_pool,
         |field_id, database_pool| Box::new(Field::get_by_id(field_id, database_pool)),
     )
@@ -729,13 +618,11 @@ pub async fn get_field_by_id(
 
 pub async fn get_field_choice_by_id(
     field_choice_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<FieldChoice, HTTPError> {
     let field_choice = get_resource_by_id::<FieldChoice, _>(
         "field choice",
         field_choice_id,
-        http_transaction,
         database_pool,
         |field_choice_id, database_pool| {
             Box::new(FieldChoice::get_by_id(field_choice_id, database_pool))
@@ -747,13 +634,11 @@ pub async fn get_field_choice_by_id(
 
 pub async fn get_field_value_by_id(
     field_value_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<FieldValue, HTTPError> {
     let field_value = get_resource_by_id::<FieldValue, _>(
         "field value",
         field_value_id,
-        http_transaction,
         database_pool,
         |field_value_id, database_pool| {
             Box::new(FieldValue::get_by_id(field_value_id, database_pool))
@@ -765,29 +650,23 @@ pub async fn get_field_value_by_id(
 
 pub async fn get_item_by_id(
     item_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Item, HTTPError> {
-    let item = get_resource_by_id::<Item, _>(
-        "item",
-        item_id,
-        http_transaction,
-        database_pool,
-        |item_id, database_pool| Box::new(Item::get_by_id(item_id, database_pool)),
-    )
-    .await?;
+    let item =
+        get_resource_by_id::<Item, _>("item", item_id, database_pool, |item_id, database_pool| {
+            Box::new(Item::get_by_id(item_id, database_pool))
+        })
+        .await?;
     Ok(item)
 }
 
 pub async fn get_group_by_id(
     group_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Group, HTTPError> {
     let group = get_resource_by_id::<Group, _>(
         "group",
         group_id,
-        http_transaction,
         database_pool,
         |group_id, database_pool| Box::new(Group::get_by_id(group_id, database_pool)),
     )
@@ -797,13 +676,11 @@ pub async fn get_group_by_id(
 
 pub async fn get_http_transaction_by_id(
     http_transaction_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<HTTPTransaction, HTTPError> {
     let target_http_transaction = get_resource_by_id::<HTTPTransaction, _>(
         "HTTP transaction",
         http_transaction_id,
-        http_transaction,
         database_pool,
         |http_transaction_id, database_pool| {
             Box::new(HTTPTransaction::get_by_id(
@@ -818,13 +695,11 @@ pub async fn get_http_transaction_by_id(
 
 pub async fn get_item_connection_by_id(
     item_connection_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<ItemConnection, HTTPError> {
     let target_item_connection = get_resource_by_id::<ItemConnection, _>(
         "item connection",
         item_connection_id,
-        http_transaction,
         database_pool,
         |item_connection_id, database_pool| {
             Box::new(ItemConnection::get_by_id(item_connection_id, database_pool))
@@ -836,13 +711,11 @@ pub async fn get_item_connection_by_id(
 
 pub async fn get_item_connection_type_by_id(
     item_connection_type_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<ItemConnectionType, HTTPError> {
     let target_item_connection_type = get_resource_by_id::<ItemConnectionType, _>(
         "item connection type",
         item_connection_type_id,
-        http_transaction,
         database_pool,
         |item_connection_type_id, database_pool| {
             Box::new(ItemConnectionType::get_by_id(
@@ -857,13 +730,11 @@ pub async fn get_item_connection_type_by_id(
 
 pub async fn get_item_type_by_id(
     item_type_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<ItemType, HTTPError> {
     let target_item_type = get_resource_by_id::<ItemType, _>(
         "item type",
         item_type_id,
-        http_transaction,
         database_pool,
         |item_type_id, database_pool| Box::new(ItemType::get_by_id(item_type_id, database_pool)),
     )
@@ -873,13 +744,11 @@ pub async fn get_item_type_by_id(
 
 pub async fn get_item_type_icon_by_id(
     item_type_icon_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<ItemTypeIcon, HTTPError> {
     let target_item_type_icon = get_resource_by_id::<ItemTypeIcon, _>(
         "item type icon",
         item_type_icon_id,
-        http_transaction,
         database_pool,
         |item_type_icon_id, database_pool| {
             Box::new(ItemTypeIcon::get_by_id(item_type_icon_id, database_pool))
@@ -891,13 +760,11 @@ pub async fn get_item_type_icon_by_id(
 
 pub async fn get_iteration_by_id(
     iteration_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Iteration, HTTPError> {
     let target_iteration = get_resource_by_id::<Iteration, _>(
         "iteration",
         iteration_id,
-        http_transaction,
         database_pool,
         |iteration_id, database_pool| Box::new(Iteration::get_by_id(iteration_id, database_pool)),
     )
@@ -907,13 +774,11 @@ pub async fn get_iteration_by_id(
 
 pub async fn get_membership_by_id(
     membership_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Membership, HTTPError> {
     let target_membership = get_resource_by_id::<Membership, _>(
         "membership",
         membership_id,
-        http_transaction,
         database_pool,
         |membership_id, database_pool| {
             Box::new(Membership::get_by_id(membership_id, database_pool))
@@ -925,13 +790,11 @@ pub async fn get_membership_by_id(
 
 pub async fn get_membership_invitation_by_id(
     membership_invitation_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<MembershipInvitation, HTTPError> {
     let target_membership_invitation = get_resource_by_id::<MembershipInvitation, _>(
         "membership invitation",
         membership_invitation_id,
-        http_transaction,
         database_pool,
         |membership_invitation_id, database_pool| {
             Box::new(MembershipInvitation::get_by_id(
@@ -946,13 +809,11 @@ pub async fn get_membership_invitation_by_id(
 
 pub async fn get_milestone_by_id(
     milestone_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Milestone, HTTPError> {
     let target_milestone = get_resource_by_id::<Milestone, _>(
         "milestone",
         milestone_id,
-        http_transaction,
         database_pool,
         |milestone_id, database_pool| Box::new(Milestone::get_by_id(milestone_id, database_pool)),
     )
@@ -962,13 +823,11 @@ pub async fn get_milestone_by_id(
 
 pub async fn get_password_reset_authorization_by_id(
     password_reset_authorization_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<PasswordResetAuthorization, HTTPError> {
     let password_reset_authorization = get_resource_by_id::<PasswordResetAuthorization, _>(
         "password reset authorization",
         password_reset_authorization_id,
-        http_transaction,
         database_pool,
         |password_reset_authorization_id, database_pool| {
             Box::new(PasswordResetAuthorization::get_by_id(
@@ -983,13 +842,11 @@ pub async fn get_password_reset_authorization_by_id(
 
 pub async fn get_project_by_id(
     project_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Project, HTTPError> {
     let project = get_resource_by_id::<Project, _>(
         "project",
         project_id,
-        http_transaction,
         database_pool,
         |project_id, database_pool| Box::new(Project::get_by_id(project_id, database_pool)),
     )
@@ -999,29 +856,23 @@ pub async fn get_project_by_id(
 
 pub async fn get_role_by_id(
     role_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Role, HTTPError> {
-    let role = get_resource_by_id::<Role, _>(
-        "role",
-        role_id,
-        http_transaction,
-        database_pool,
-        |role_id, database_pool| Box::new(Role::get_by_id(role_id, database_pool)),
-    )
-    .await?;
+    let role =
+        get_resource_by_id::<Role, _>("role", role_id, database_pool, |role_id, database_pool| {
+            Box::new(Role::get_by_id(role_id, database_pool))
+        })
+        .await?;
     Ok(role)
 }
 
 pub async fn get_server_log_entry_by_id(
     server_log_entry_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<ServerLogEntry, HTTPError> {
     let server_log_entry = get_resource_by_id::<ServerLogEntry, _>(
         "server log entry",
         server_log_entry_id,
-        http_transaction,
         database_pool,
         |server_log_entry_id, database_pool| {
             Box::new(ServerLogEntry::get_by_id(
@@ -1036,13 +887,11 @@ pub async fn get_server_log_entry_by_id(
 
 pub async fn get_session_by_id(
     session_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Session, HTTPError> {
     let session = get_resource_by_id::<Session, _>(
         "session",
         session_id,
-        http_transaction,
         database_pool,
         |session_id, database_pool| Box::new(Session::get_by_id(session_id, database_pool)),
     )
@@ -1050,15 +899,32 @@ pub async fn get_session_by_id(
     Ok(session)
 }
 
+pub async fn get_session_credential_by_id(
+    session_credential_id: &Uuid,
+    database_pool: &deadpool_postgres::Pool,
+) -> Result<SessionCredential, HTTPError> {
+    let session = get_resource_by_id::<SessionCredential, _>(
+        "session credential",
+        session_credential_id,
+        database_pool,
+        |session_credential_id, database_pool| {
+            Box::new(SessionCredential::get_by_id(
+                session_credential_id,
+                database_pool,
+            ))
+        },
+    )
+    .await?;
+    Ok(session)
+}
+
 pub async fn get_status_by_id(
     status_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Status, HTTPError> {
     let status = get_resource_by_id::<Status, _>(
         "status",
         status_id,
-        http_transaction,
         database_pool,
         |status_id, database_pool| Box::new(Status::get_by_id(status_id, database_pool)),
     )
@@ -1068,29 +934,23 @@ pub async fn get_status_by_id(
 
 pub async fn get_view_by_id(
     view_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<View, HTTPError> {
-    let view = get_resource_by_id::<View, _>(
-        "view",
-        view_id,
-        http_transaction,
-        database_pool,
-        |view_id, database_pool| Box::new(View::get_by_id(view_id, database_pool)),
-    )
-    .await?;
+    let view =
+        get_resource_by_id::<View, _>("view", view_id, database_pool, |view_id, database_pool| {
+            Box::new(View::get_by_id(view_id, database_pool))
+        })
+        .await?;
     Ok(view)
 }
 
 pub async fn get_view_field_by_id(
     view_field_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<ViewField, HTTPError> {
     let view_field = get_resource_by_id::<ViewField, _>(
         "view field",
         view_field_id,
-        http_transaction,
         database_pool,
         |view_field_id, database_pool| Box::new(ViewField::get_by_id(view_field_id, database_pool)),
     )
@@ -1100,13 +960,11 @@ pub async fn get_view_field_by_id(
 
 pub async fn get_workspace_by_id(
     workspace_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Workspace, HTTPError> {
     let workspace = get_resource_by_id::<Workspace, _>(
         "workspace",
         workspace_id,
-        http_transaction,
         database_pool,
         |workspace_id, database_pool| Box::new(Workspace::get_by_id(workspace_id, database_pool)),
     )
@@ -1116,13 +974,11 @@ pub async fn get_workspace_by_id(
 
 pub async fn get_delegation_policy_by_id(
     delegation_policy_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<DelegationPolicy, HTTPError> {
     let delegation_policy = get_resource_by_id::<DelegationPolicy, _>(
         "delegation policy",
         delegation_policy_id,
-        http_transaction,
         database_pool,
         |delegation_policy_id, database_pool| {
             Box::new(DelegationPolicy::get_by_id(
@@ -1138,7 +994,6 @@ pub async fn get_delegation_policy_by_id(
 pub async fn get_resource_by_id<ResourceStruct, GetResourceByIDFunction>(
     resource_type_name_singular: &str,
     resource_id: &Uuid,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
     get_resource_by_id_function: GetResourceByIDFunction,
 ) -> Result<ResourceStruct, HTTPError>
@@ -1150,13 +1005,7 @@ where
         dyn Future<Output = Result<ResourceStruct, ResourceError>> + 'a + Send,
     >,
 {
-    ServerLogEntry::trace(
-        &format!("Getting {} {}...", resource_type_name_singular, resource_id),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting {} {}...", resource_type_name_singular, resource_id);
     let resource = match Pin::from(get_resource_by_id_function(resource_id, database_pool)).await {
         Ok(resource) => resource,
 
@@ -1169,9 +1018,7 @@ where
                     resource_type_name_singular, resource_id, error
                 ))),
             };
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -1246,16 +1093,8 @@ pub fn get_principal_type_and_id_from_principal(
 
 pub async fn get_request_body_without_json_rejection<T>(
     request_body: Result<Json<T>, JsonRejection>,
-    http_transaction: &HTTPTransaction,
-    database_pool: &deadpool_postgres::Pool,
 ) -> Result<Json<T>, HTTPError> {
-    ServerLogEntry::trace(
-        "Verifying request body...",
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Verifying request body...");
     let request_body = match request_body {
         Ok(updated_access_policy_properties) => updated_access_policy_properties,
 
@@ -1282,9 +1121,7 @@ pub async fn get_request_body_without_json_rejection<T>(
                 _ => HTTPError::InternalServerError(Some(error.to_string())),
             };
 
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -1294,16 +1131,9 @@ pub async fn get_request_body_without_json_rejection<T>(
 
 pub async fn get_configuration_by_name(
     configuration_name: &str,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<Configuration, HTTPError> {
-    ServerLogEntry::trace(
-        &format!("Getting configuration \"{}\"...", configuration_name),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Getting configuration \"{}\"...", configuration_name);
 
     let configuration = match Configuration::get_by_name(configuration_name, database_pool).await {
         Ok(configuration) => configuration,
@@ -1320,9 +1150,7 @@ pub async fn get_configuration_by_name(
                     configuration_name, error
                 ))),
             };
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            error!("{}", http_error);
             return Err(http_error);
         }
     };
@@ -1334,11 +1162,10 @@ pub async fn validate_field_length(
     name: &str,
     configuration_name: &str,
     field_name: &str,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), HTTPError> {
     let maximum_name_length_configuration =
-        get_configuration_by_name(configuration_name, http_transaction, database_pool).await?;
+        get_configuration_by_name(configuration_name, database_pool).await?;
     let maximum_name_length = match maximum_name_length_configuration
         .number_value
         .or(maximum_name_length_configuration.default_number_value)
@@ -1351,38 +1178,27 @@ pub async fn validate_field_length(
                     "Invalid number value for configuration {}. The value must be a positive integer that can be represented as a usize.",
                     configuration_name
                 )));
-                ServerLogEntry::from_http_error(
-                    &http_error,
-                    Some(&http_transaction.id),
-                    database_pool,
-                )
-                .await
-                .ok();
+                http_error.log();
                 return Err(http_error);
             }
         },
 
         None => {
-            ServerLogEntry::warning(&format!("Missing value and default value for configuration {}. This is a security risk. Consider setting a restrictive maximum name length in the configuration.", configuration_name), Some(&http_transaction.id), database_pool).await.ok();
+            warn!(
+                "Missing value and default value for configuration {}. This is a security risk. Consider setting a restrictive maximum name length in the configuration.",
+                configuration_name
+            );
             return Ok(());
         }
     };
 
-    ServerLogEntry::trace(
-        &format!("Validating \"{}\" field length...", field_name),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!("Validating \"{}\" field length...", field_name);
     if name.len() > maximum_name_length {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
             "The \"{}\" field must be at most {} characters long.",
             field_name, maximum_name_length
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -1393,11 +1209,10 @@ pub async fn validate_resource_name(
     name: &str,
     configuration_name: &str,
     resource_type_name_singular: &str,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), HTTPError> {
     let allowed_name_regex_configuration =
-        get_configuration_by_name(configuration_name, http_transaction, database_pool).await?;
+        get_configuration_by_name(configuration_name, database_pool).await?;
     let allowed_name_regex_string = match allowed_name_regex_configuration
         .text_value
         .or(allowed_name_regex_configuration.default_text_value)
@@ -1405,21 +1220,18 @@ pub async fn validate_resource_name(
         Some(allowed_name_regex_string) => allowed_name_regex_string,
 
         None => {
-            ServerLogEntry::warning(&format!("Missing value and default value for configuration {}. Consider setting a regex pattern in the configuration for better security.", configuration_name), Some(&http_transaction.id), database_pool).await.ok();
+            warn!(
+                "Missing value and default value for configuration {}. This is a security risk. Consider setting a regex pattern in the configuration for better validation.",
+                configuration_name
+            );
             return Ok(());
         }
     };
 
-    ServerLogEntry::trace(
-        &format!(
-            "Creating regex for validating {} names...",
-            resource_type_name_singular.to_lowercase()
-        ),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Creating regex for validating {} names...",
+        resource_type_name_singular.to_lowercase()
+    );
     let regex = match regex::Regex::new(&allowed_name_regex_string) {
         Ok(regex) => regex,
 
@@ -1429,31 +1241,21 @@ pub async fn validate_resource_name(
                 resource_type_name_singular.to_lowercase(),
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        &format!(
-            "Validating {} name against regex...",
-            resource_type_name_singular.to_lowercase()
-        ),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Validating {} name against regex...",
+        resource_type_name_singular.to_lowercase()
+    );
     if !regex.is_match(name) {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
             "{} names must match the allowed pattern: {}",
             resource_type_name_singular, allowed_name_regex_string
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -1464,11 +1266,10 @@ pub async fn validate_resource_display_name(
     name: &str,
     configuration_name: &str,
     resource_type_name_singular: &str,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), HTTPError> {
     let allowed_display_name_regex_configuration =
-        get_configuration_by_name(configuration_name, http_transaction, database_pool).await?;
+        get_configuration_by_name(configuration_name, database_pool).await?;
     let allowed_display_name_regex_string = match allowed_display_name_regex_configuration
         .text_value
         .or(allowed_display_name_regex_configuration.default_text_value)
@@ -1476,21 +1277,18 @@ pub async fn validate_resource_display_name(
         Some(allowed_display_name_regex_string) => allowed_display_name_regex_string,
 
         None => {
-            ServerLogEntry::warning(&format!("Missing value and default value for configuration {}. Consider setting a regex pattern in the configuration for better security.", configuration_name), Some(&http_transaction.id), database_pool).await.ok();
+            warn!(
+                "Missing value and default value for configuration {}. Consider setting a regex pattern in the configuration for better security.",
+                configuration_name
+            );
             return Ok(());
         }
     };
 
-    ServerLogEntry::trace(
-        &format!(
-            "Creating regex for validating {} display names...",
-            resource_type_name_singular.to_lowercase()
-        ),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Creating regex for validating {} display names...",
+        resource_type_name_singular.to_lowercase()
+    );
     let regex = match regex::Regex::new(&allowed_display_name_regex_string) {
         Ok(regex) => regex,
 
@@ -1500,31 +1298,21 @@ pub async fn validate_resource_display_name(
                 resource_type_name_singular.to_lowercase(),
                 error
             )));
-            ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-                .await
-                .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        &format!(
-            "Validating {} display name against regex...",
-            resource_type_name_singular.to_lowercase()
-        ),
-        Some(&http_transaction.id),
-        database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Validating {} display name against regex...",
+        resource_type_name_singular.to_lowercase()
+    );
     if !regex.is_match(name) {
         let http_error = HTTPError::UnprocessableEntity(Some(format!(
             "{} display names must match the allowed pattern: {}",
             resource_type_name_singular, allowed_display_name_regex_string
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
@@ -1536,12 +1324,10 @@ pub async fn validate_decimal_is_within_range(
     minimum_configuration_name: &str,
     maximum_configuration_name: &str,
     field_name: &str,
-    http_transaction: &HTTPTransaction,
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), HTTPError> {
     let minimum_configuration =
-        get_configuration_by_name(minimum_configuration_name, http_transaction, database_pool)
-            .await?;
+        get_configuration_by_name(minimum_configuration_name, database_pool).await?;
     let minimum = match minimum_configuration
         .number_value
         .or(minimum_configuration.default_number_value)
@@ -1549,7 +1335,10 @@ pub async fn validate_decimal_is_within_range(
         Some(minimum) => Some(minimum),
 
         None => {
-            ServerLogEntry::warning(&format!("Missing value and default value for configuration {}. This is a security risk. Consider setting a minimum value in the configuration for better validation.", minimum_configuration_name), Some(&http_transaction.id), database_pool).await.ok();
+            warn!(
+                "Missing value and default value for configuration {}. This is a security risk. Consider setting a minimum value in the configuration for better validation.",
+                minimum_configuration_name
+            );
             None
         }
     };
@@ -1560,15 +1349,12 @@ pub async fn validate_decimal_is_within_range(
             field_name,
             minimum.unwrap()
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let maximum_configuration =
-        get_configuration_by_name(maximum_configuration_name, http_transaction, database_pool)
-            .await?;
+        get_configuration_by_name(maximum_configuration_name, database_pool).await?;
     let maximum = match maximum_configuration
         .number_value
         .or(maximum_configuration.default_number_value)
@@ -1576,7 +1362,10 @@ pub async fn validate_decimal_is_within_range(
         Some(maximum) => Some(maximum),
 
         None => {
-            ServerLogEntry::warning(&format!("Missing value and default value for configuration {}. This is a security risk. Consider setting a maximum value in the configuration for better validation.", maximum_configuration_name), Some(&http_transaction.id), database_pool).await.ok();
+            warn!(
+                "Missing value and default value for configuration {}. This is a security risk. Consider setting a maximum value in the configuration for better validation.",
+                maximum_configuration_name
+            );
             None
         }
     };
@@ -1587,9 +1376,7 @@ pub async fn validate_decimal_is_within_range(
             field_name,
             maximum.unwrap()
         )));
-        ServerLogEntry::from_http_error(&http_error, Some(&http_transaction.id), database_pool)
-            .await
-            .ok();
+        http_error.log();
         return Err(http_error);
     }
 

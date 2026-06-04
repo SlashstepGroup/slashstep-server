@@ -10,7 +10,6 @@ use crate::{
         app::App,
         app_authorization::AppAuthorization,
         http_transaction::HTTPTransaction,
-        server_log_entry::ServerLogEntry,
         user::User,
         view::{EditableViewProperties, View},
     },
@@ -38,7 +37,10 @@ use reqwest::StatusCode;
  * © 2026 Beastslash LLC
  *
  */
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 #[path = "./access-policies/mod.rs"]
 pub mod access_policies;
@@ -55,17 +57,14 @@ async fn handle_get_view_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<Json<GetResourceResponseBody<View>>, HTTPError> {
-    let view_id =
-        get_uuid_from_string(&view_id, "view", &http_transaction, &state.database_pool).await?;
-    let target_view = get_view_by_id(&view_id, &http_transaction, &state.database_pool).await?;
-    let get_views_action =
-        get_action_by_name("views.get", &http_transaction, &state.database_pool).await?;
+    let view_id = get_uuid_from_string(&view_id, "view").await?;
+    let target_view = get_view_by_id(&view_id, &state.database_pool).await?;
+    let get_views_action = get_action_by_name("views.get", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &get_views_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -81,14 +80,13 @@ async fn handle_get_view_request(
         &ResourceType::View,
         Some(&target_view.id),
         &get_views_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: get_views_action.id,
@@ -113,13 +111,7 @@ async fn handle_get_view_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully returned view {}.", target_view.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully returned view {}.", target_view.id);
 
     let response_body = GetResourceResponseBody {
         data: target_view.clone(),
@@ -140,17 +132,14 @@ async fn handle_delete_view_request(
     Extension(authenticated_app): Extension<Option<Arc<App>>>,
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<StatusCode, HTTPError> {
-    let view_id =
-        get_uuid_from_string(&view_id, "view", &http_transaction, &state.database_pool).await?;
-    let target_view = get_view_by_id(&view_id, &http_transaction, &state.database_pool).await?;
-    let delete_views_action =
-        get_action_by_name("views.delete", &http_transaction, &state.database_pool).await?;
+    let view_id = get_uuid_from_string(&view_id, "view").await?;
+    let target_view = get_view_by_id(&view_id, &state.database_pool).await?;
+    let delete_views_action = get_action_by_name("views.delete", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &delete_views_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -166,7 +155,6 @@ async fn handle_delete_view_request(
         &ResourceType::View,
         Some(&target_view.id),
         &delete_views_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -175,18 +163,12 @@ async fn handle_delete_view_request(
     if let Err(error) = target_view.delete(&state.database_pool).await {
         let http_error =
             HTTPError::InternalServerError(Some(format!("Failed to delete view: {:?}", error)));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: delete_views_action.id,
@@ -213,13 +195,7 @@ async fn handle_delete_view_request(
     .await
     .ok();
 
-    ServerLogEntry::success(
-        &format!("Successfully deleted view {}.", target_view.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully deleted view {}.", target_view.id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -236,15 +212,12 @@ async fn handle_patch_view_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<EditableViewProperties>, JsonRejection>,
 ) -> Result<Json<PatchResourceResponseBody<View>>, HTTPError> {
-    let updated_view_properties =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let updated_view_properties = get_request_body_without_json_rejection(body).await?;
     if let Some(Some(view_description)) = &updated_view_properties.description {
         validate_field_length(
             view_description,
             "views.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -254,7 +227,6 @@ async fn handle_patch_view_request(
             view_display_name,
             "views.maximumDisplayNameLength",
             "display_name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -264,7 +236,6 @@ async fn handle_patch_view_request(
             view_name,
             "views.maximumNameLength",
             "name",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -272,23 +243,19 @@ async fn handle_patch_view_request(
             view_name,
             "views.allowedNameRegex",
             "view",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
     }
-    let view_id =
-        get_uuid_from_string(&view_id, "view", &http_transaction, &state.database_pool).await?;
-    let original_target_view =
-        get_view_by_id(&view_id, &http_transaction, &state.database_pool).await?;
+    let view_id = get_uuid_from_string(&view_id, "view").await?;
+    let original_target_view = get_view_by_id(&view_id, &state.database_pool).await?;
     let update_access_policy_action =
-        get_action_by_name("views.update", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("views.update", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &update_access_policy_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -304,19 +271,12 @@ async fn handle_patch_view_request(
         &ResourceType::View,
         Some(&original_target_view.id),
         &update_access_policy_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        &format!("Updating view {}...", original_target_view.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Updating view {}...", original_target_view.id);
     let updated_target_view = match original_target_view
         .update(&updated_view_properties, &state.database_pool)
         .await
@@ -328,13 +288,7 @@ async fn handle_patch_view_request(
                 "Failed to update view {}: {:?}",
                 original_target_view.id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
@@ -362,13 +316,7 @@ async fn handle_patch_view_request(
     )
     .await
     .ok();
-    ServerLogEntry::success(
-        &format!("Successfully updated view {}.", updated_target_view.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully updated view {}.", updated_target_view.id);
 
     let response_body = PatchResourceResponseBody {
         data: updated_target_view,
@@ -407,5 +355,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(access_policies::get_router(state.clone()))
 }

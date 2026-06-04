@@ -6,8 +6,18 @@ pub mod resources;
 pub mod routes;
 pub mod utilities;
 
-pub const DEFAULT_APP_PORT: i16 = 8080;
+pub const DEFAULT_APP_PORT: u16 = 8080;
 pub const DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT: u32 = 5;
+
+use deadpool_postgres::tokio_postgres;
+use opensearch::{OpenSearch, http::transport::SingleNodeConnectionPool};
+use postgres::NoTls;
+use rust_decimal::prelude::ToPrimitive;
+use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
+use tracing::{Subscriber, error, warn};
+use url::Url;
+use uuid::Uuid;
 
 use crate::resources::{
     ResourceError,
@@ -43,6 +53,7 @@ use crate::resources::{
     role::{PredefinedRoleType, Role, RoleParentResourceType},
     server_log_entry::ServerLogEntry,
     session::Session,
+    session_credential::SessionCredential,
     status::Status,
     user::{InitialUserProperties, User},
     view::View,
@@ -57,9 +68,9 @@ use axum::{
 use axum_extra::response::ErasedJson;
 use colored::Colorize;
 use reqwest::StatusCode;
-use serde::Serialize;
-use std::fmt;
+use std::{error::Error, fmt};
 use thiserror::Error;
+use tracing::{debug, trace};
 
 #[derive(Debug, Error)]
 pub enum SlashstepServerError {
@@ -89,14 +100,112 @@ pub enum SlashstepServerError {
 
     #[error(transparent)]
     LocalIPAddressError(#[from] local_ip_address::Error),
+
+    #[error(transparent)]
+    OpenSearchError(#[from] opensearch::Error),
+
+    #[error(transparent)]
+    OpenSearchTransportBuilderBuildError(#[from] opensearch::http::transport::BuildError),
+
+    #[error(transparent)]
+    UrlParseError(#[from] url::ParseError),
+
+    #[error(transparent)]
+    RcgenError(#[from] rcgen::Error),
+
+    #[error(transparent)]
+    YAMLSerdeError(#[from] yaml_serde::Error),
+}
+
+pub async fn create_database_pool(
+    slashstep_server_postgresql_config: Option<&SlashstepServerPostgreSQLConfig>,
+) -> Result<deadpool_postgres::Pool, SlashstepServerError> {
+    let slashstep_server_postgresql_config = slashstep_server_postgresql_config
+        .cloned()
+        .unwrap_or_default();
+    let host = slashstep_server_postgresql_config
+        .host
+        .clone()
+        .unwrap_or("localhost".to_string());
+    let port = slashstep_server_postgresql_config
+        .port
+        .clone()
+        .unwrap_or(5432);
+    let username = slashstep_server_postgresql_config
+        .username
+        .clone()
+        .unwrap_or("slashstep_server".to_string());
+    let database_name = slashstep_server_postgresql_config
+        .database_name
+        .clone()
+        .unwrap_or("postgres".to_string());
+    let password_path = slashstep_server_postgresql_config
+        .password_file_path
+        .clone()
+        .unwrap_or("./secrets/postgresql-password.txt".to_string());
+
+    trace!(
+        "Attempting to read PostgreSQL password from file at {}...",
+        &password_path
+    );
+    let password = match std::fs::read_to_string(&password_path) {
+        Ok(password) => password,
+        Err(error) => match error.kind() {
+            std::io::ErrorKind::NotFound => panic!(
+                "The PostgreSQL password file was not found at {}. Please make sure it exists and is readable by the application.",
+                &password_path
+            ),
+
+            _ => panic!(
+                "An error occurred while trying to read the PostgreSQL password file: {}",
+                error
+            ),
+        },
+    };
+
+    let mut postgres_config = tokio_postgres::Config::new();
+    postgres_config.host(host);
+    postgres_config.port(port);
+    postgres_config.user(username);
+    postgres_config.dbname(database_name);
+    postgres_config.password(password);
+    let manager_config = deadpool_postgres::ManagerConfig {
+        recycling_method: deadpool_postgres::RecyclingMethod::Fast,
+    };
+    let manager = deadpool_postgres::Manager::from_config(postgres_config, NoTls, manager_config);
+
+    let maximum_postgres_connection_count = slashstep_server_postgresql_config
+        .maximum_connection_count
+        .unwrap_or(
+            DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT
+                .to_usize()
+                .expect("Failed to convert default maximum PostgreSQL connection count to usize."),
+        );
+
+    let pool = deadpool_postgres::Pool::builder(manager)
+        .max_size(maximum_postgres_connection_count)
+        .build()?;
+    Ok(pool)
+}
+
+pub async fn create_redis_pool(
+    slashstep_server_redis_config: Option<&SlashstepServerRedisConfig>,
+) -> Result<deadpool_redis::Pool, SlashstepServerError> {
+    let slashstep_server_redis_config = slashstep_server_redis_config.cloned().unwrap_or_default();
+    let redis_url = slashstep_server_redis_config
+        .url
+        .clone()
+        .unwrap_or("redis://localhost:6379".to_string());
+    let redis_config = deadpool_redis::Config::from_url(redis_url);
+    let redis_pool = redis_config.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
+    Ok(redis_pool)
 }
 
 pub async fn initialize_required_tables(
     database_pool: &deadpool_postgres::Pool,
 ) -> Result<(), SlashstepServerError> {
-    
-    println!("Initializing required tables...");
-    
+    trace!("Initializing required tables...");
+
     let create_general_types_query = include_str!("./queries/create_general_types.sql");
     database_pool
         .get()
@@ -111,6 +220,7 @@ pub async fn initialize_required_tables(
     User::initialize_resource_table(database_pool).await?;
     PasswordResetAuthorization::initialize_resource_table(database_pool).await?;
     Session::initialize_resource_table(database_pool).await?;
+    SessionCredential::initialize_resource_table(database_pool).await?;
     Group::initialize_resource_table(database_pool).await?;
     App::initialize_resource_table(database_pool).await?;
     Project::initialize_resource_table(database_pool).await?;
@@ -145,7 +255,7 @@ pub async fn initialize_required_tables(
     let query = include_str!("./queries/items/initialize_searchable_items_view.sql");
     database_client.execute(query, &[]).await?;
 
-    println!("{}", "Successfully initialized all tables.".blue());
+    debug!("Successfully initialized all tables.");
 
     Ok(())
 }
@@ -165,6 +275,19 @@ pub enum HTTPError {
     UnprocessableEntity(Option<String>),
     PayloadTooLarge(Option<String>),
     TooManyRequests(Option<String>),
+}
+
+impl HTTPError {
+    fn log(&self) {
+        match self {
+            HTTPError::InternalServerError(_) => {
+                error!("{}", self.to_string());
+            }
+            _ => {
+                warn!("{}", self.to_string());
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -336,30 +459,232 @@ impl IntoResponse for HTTPError {
 pub struct AppState {
     pub database_pool: deadpool_postgres::Pool,
     pub redis_pool: deadpool_redis::Pool,
+    pub opensearch_client: OpenSearch,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Clone, Copy)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TLSMode {
+    UseDemoCertificate,
+    UseCustomCertificate,
+    DisableTLS,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct SlashstepServerPostgreSQLConfig {
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub database_name: Option<String>,
+    pub username: Option<String>,
+    pub password_file_path: Option<String>,
+    pub maximum_connection_count: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct SlashstepServerNetworkConfig {
+    pub port: Option<u16>,
+    pub tls_mode: Option<TLSMode>,
+    pub demo_certificates_directory_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct SlashstepServerJWTConfig {
+    pub public_key_path: Option<String>,
+    pub private_key_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct SlashstepServerOpenSearchConfig {
+    pub url: Option<String>,
+    pub client_certificate_path: Option<String>,
+    pub client_key_path: Option<String>,
+    pub root_ca_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct SlashstepServerRedisConfig {
+    pub url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct SlashstepServerSetupConfig {
+    pub admin_username: Option<String>,
+    pub admin_password_file_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "kebab-case")]
+pub struct SlashstepServerConfig {
+    pub postgresql: Option<SlashstepServerPostgreSQLConfig>,
+    pub network: Option<SlashstepServerNetworkConfig>,
+    pub jwt: Option<SlashstepServerJWTConfig>,
+    pub opensearch: Option<SlashstepServerOpenSearchConfig>,
+    pub redis: Option<SlashstepServerRedisConfig>,
+    pub setup: Option<SlashstepServerSetupConfig>,
+}
+
+pub fn create_opensearch_client(
+    slashstep_server_opensearch_config: Option<&SlashstepServerOpenSearchConfig>,
+) -> Result<OpenSearch, SlashstepServerError> {
+    trace!("Creating OpenSearch client...");
+    let slashstep_server_opensearch_config = slashstep_server_opensearch_config
+        .cloned()
+        .unwrap_or_default();
+    let opensearch_url_string = slashstep_server_opensearch_config
+        .url
+        .clone()
+        .unwrap_or("https://localhost:9200".to_string());
+    let opensearch_url = Url::parse(&opensearch_url_string)?;
+    let opensearch_client_certificate_path = slashstep_server_opensearch_config
+        .client_certificate_path
+        .clone()
+        .unwrap_or("./secrets/opensearch-client-certificate.pem".to_string());
+    let opensearch_client_key_path = slashstep_server_opensearch_config
+        .client_key_path
+        .clone()
+        .unwrap_or("./secrets/opensearch-client-key.pem".to_string());
+    let opensearch_root_ca_path = slashstep_server_opensearch_config
+        .root_ca_path
+        .clone()
+        .unwrap_or("./secrets/opensearch-root-ca.pem".to_string());
+    let mut opensearch_credential_bytes = std::fs::read(opensearch_client_certificate_path)?;
+    opensearch_credential_bytes.extend(std::fs::read(opensearch_client_key_path)?);
+    let root_ca_bytes = std::fs::read(opensearch_root_ca_path)?;
+    let opensearch_client_certificate =
+        opensearch::auth::ClientCertificate::Pem(opensearch_credential_bytes);
+    let opensearch_credentials =
+        opensearch::auth::Credentials::Certificate(opensearch_client_certificate);
+    let opensearch_connection_pool = SingleNodeConnectionPool::new(opensearch_url);
+    let opensearch_transport =
+        opensearch::http::transport::TransportBuilder::new(opensearch_connection_pool)
+            .auth(opensearch_credentials)
+            .cert_validation(opensearch::cert::CertificateValidation::Full(
+                opensearch::cert::Certificate::from_pem(&root_ca_bytes)?,
+            ))
+            .build()?;
+    let opensearch_client = OpenSearch::new(opensearch_transport);
+    Ok(opensearch_client)
+}
+
+#[derive(Debug)]
+pub struct OpenSearchLayer {
+    pub sender: mpsc::Sender<StructuredLogEntry>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct StructuredLogEntry {
+    /// The message of the server log entry.
+    pub message: String,
+
+    /// The HTTP transaction ID of the server log entry, if applicable.
+    pub http_transaction_id: Option<Uuid>,
+
+    /// The level of the server log entry.
+    pub level: String,
+}
+
+#[derive(Debug, Default)]
+pub struct OpenSearchLogVisitor {
+    pub message: String,
+    pub http_transaction_id: Option<Uuid>,
+}
+
+impl<S: Subscriber> tracing_subscriber::layer::Layer<S> for OpenSearchLayer {
+    fn on_event(
+        &self,
+        event: &tracing::Event<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let mut visitor = OpenSearchLogVisitor::default();
+        event.record(&mut visitor);
+
+        let log_entry = StructuredLogEntry {
+            message: visitor.message,
+            http_transaction_id: visitor.http_transaction_id,
+            level: event.metadata().level().to_string(),
+        };
+
+        let _ = self.sender.try_send(log_entry);
+    }
+}
+
+impl tracing::field::Visit for OpenSearchLogVisitor {
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        if field.name() == "http_transaction_id" {
+            self.http_transaction_id = Uuid::parse_str(value)
+                .and_then(|value| Ok(Some(value)))
+                .unwrap_or(None);
+        }
+    }
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        if field.name() == "message" {
+            self.message = format!("{:?}", value);
+        }
+    }
+}
+
+pub async fn run_opensearch_log_worker(
+    mut receiver: mpsc::Receiver<StructuredLogEntry>,
+    opensearch_client: OpenSearch,
+) {
+    while let Some(log_entry) = receiver.recv().await {
+        let result = opensearch_client
+            .index(opensearch::IndexParts::Index("server_log_entries"))
+            .body(serde_json::json!(log_entry))
+            .send()
+            .await;
+
+        match result {
+            Ok(response) => {
+                if !response.status_code().is_success() {
+                    eprintln!(
+                        "Failed to send log entry to OpenSearch. Status code: {}. Response body: {:?}",
+                        response.status_code(),
+                        response
+                            .text()
+                            .await
+                            .unwrap_or("Could not read response body.".to_string())
+                    );
+                }
+            }
+            Err(error) => {
+                eprintln!(
+                    "Failed to send log entry to OpenSearch: {:?}",
+                    error.source()
+                );
+            }
+        }
+    }
 }
 
 pub async fn get_json_web_token_public_key() -> Result<String, ResourceError> {
-    let jwt_public_key_path = std::env::var("JWT_PUBLIC_KEY_PATH")?;
+    let jwt_public_key_path = std::env::var("SLASHSTEP_JWT_PUBLIC_KEY_PATH")?;
     let jwt_public_key = std::fs::read_to_string(&jwt_public_key_path)?;
 
     Ok(jwt_public_key)
 }
 
 pub async fn get_json_web_token_private_key() -> Result<String, ResourceError> {
-    let jwt_private_key_path = std::env::var("JWT_PRIVATE_KEY_PATH")?;
+    let jwt_private_key_path = std::env::var("SLASHSTEP_JWT_PRIVATE_KEY_PATH")?;
     let jwt_private_key = std::fs::read_to_string(&jwt_private_key_path)?;
 
     Ok(jwt_private_key)
 }
 
 pub fn handle_pool_error(error: deadpool_postgres::PoolError) -> Response<Body> {
-    eprintln!("{}", format!("Failed to get database connection, so the log cannot be saved. Printing to the console: {}", error).red());
+    error!("Failed to get database connection: {}", error);
     let http_error = HTTPError::InternalServerError(Some(error.to_string()));
     http_error.into_response()
 }
 
 pub fn get_environment_variable(variable_name: &str) -> Result<String, SlashstepServerError> {
-    println!("Getting environment variable {}...", variable_name);
+    trace!("Getting environment variable {}...", variable_name);
     let variable_value = match std::env::var(variable_name) {
         Ok(variable_value) => variable_value,
 
@@ -375,14 +700,12 @@ pub fn get_environment_variable(variable_name: &str) -> Result<String, Slashstep
 
 pub fn import_env_file() {
     if dotenvy::dotenv().is_ok() {
-        println!(
-            "{}",
-            "Successfully imported environment variables from .env file.".blue()
-        );
+        debug!("Successfully imported environment variables from .env file.");
     }
 }
 
 pub async fn setup_admin_user_if_necessary(
+    slashstep_server_setup_config: Option<&SlashstepServerSetupConfig>,
     postgres_pool: &deadpool_postgres::Pool,
 ) -> Result<(), SlashstepServerError> {
     let postgres_pool = postgres_pool.clone();
@@ -395,20 +718,19 @@ pub async fn setup_admin_user_if_necessary(
         return Ok(());
     }
 
-    let mut slashstep_admin_username =
-        get_environment_variable("SLASHSTEP_ADMIN_USERNAME").unwrap_or("".to_string());
-    let mut slashstep_admin_password =
-        match get_environment_variable("SLASHSTEP_ADMIN_PASSWORD_FILE_PATH") {
-            Ok(slashstep_admin_password_file_path) => {
-                std::fs::read_to_string(&slashstep_admin_password_file_path)?
-            }
+    let slashstep_server_setup_config = slashstep_server_setup_config.cloned().unwrap_or_default();
+    let mut slashstep_admin_username = slashstep_server_setup_config
+        .admin_username
+        .clone()
+        .unwrap_or("".to_string());
+    let mut slashstep_admin_password = match &slashstep_server_setup_config.admin_password_file_path
+    {
+        Some(slashstep_admin_password_file_path) => {
+            std::fs::read_to_string(slashstep_admin_password_file_path)?
+        }
 
-            Err(error) => match error {
-                SlashstepServerError::EnvironmentVariableNotSet(_) => "".to_string(),
-
-                _ => return Err(error),
-            },
-        };
+        None => "".to_string(),
+    };
 
     println!(
         "\nIt looks like this is your first time running the Slashstep Server, so let's set up an admin user."

@@ -62,6 +62,7 @@ pub const ALLOWED_QUERY_KEYS: &[&str] = &[
     "scoped_role_id",
     "scoped_server_log_entry_id",
     "scoped_session_id",
+    "scoped_session_credential_id",
     "scoped_status_id",
     "scoped_user_id",
     "scoped_view_id",
@@ -107,6 +108,7 @@ pub const UUID_QUERY_KEYS: &[&str] = &[
     "scoped_role_id",
     "scoped_server_log_entry_id",
     "scoped_session_id",
+    "scoped_session_credential_id",
     "scoped_status_id",
     "scoped_user_id",
     "scoped_view_id",
@@ -279,6 +281,8 @@ pub struct InitialAccessPolicyProperties {
 
     pub scoped_session_id: Option<Uuid>,
 
+    pub scoped_session_credential_id: Option<Uuid>,
+
     pub scoped_status_id: Option<Uuid>,
 
     pub scoped_user_id: Option<Uuid>,
@@ -395,6 +399,8 @@ pub struct AccessPolicy {
 
     pub scoped_session_id: Option<Uuid>,
 
+    pub scoped_session_credential_id: Option<Uuid>,
+
     pub scoped_status_id: Option<Uuid>,
 
     pub scoped_user_id: Option<Uuid>,
@@ -506,6 +512,7 @@ impl AccessPolicy {
             &initial_properties.scoped_role_id,
             &initial_properties.scoped_server_log_entry_id,
             &initial_properties.scoped_session_id,
+            &initial_properties.scoped_session_credential_id,
             &initial_properties.scoped_status_id,
             &initial_properties.scoped_user_id,
             &initial_properties.scoped_view_id,
@@ -618,6 +625,7 @@ impl AccessPolicy {
             scoped_role_id: row.get("scoped_role_id"),
             scoped_server_log_entry_id: row.get("scoped_server_log_entry_id"),
             scoped_session_id: row.get("scoped_session_id"),
+            scoped_session_credential_id: row.get("scoped_session_credential_id"),
             scoped_status_id: row.get("scoped_status_id"),
             scoped_user_id: row.get("scoped_user_id"),
             scoped_view_id: row.get("scoped_view_id"),
@@ -860,6 +868,7 @@ impl AccessPolicy {
             ResourceType::Role => self.scoped_role_id,
             ResourceType::ServerLogEntry => self.scoped_server_log_entry_id,
             ResourceType::Session => self.scoped_session_id,
+            ResourceType::SessionCredential => self.scoped_session_credential_id,
             ResourceType::Status => self.scoped_session_id,
             ResourceType::User => self.scoped_user_id,
             ResourceType::View => self.scoped_view_id,

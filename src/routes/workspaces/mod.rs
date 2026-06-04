@@ -12,7 +12,10 @@
 #[path = "./{workspace_id}/mod.rs"]
 pub mod workspace_id;
 
+use crate::utilities::route_handler_utilities::create_trace_layer_span;
 use std::sync::Arc;
+use tower_http::trace::TraceLayer;
+use tracing::{info, trace};
 
 use crate::{
     AppState, HTTPError,
@@ -33,7 +36,6 @@ use crate::{
             MembershipPrincipalType,
         },
         role::{InitialRoleProperties, PredefinedRoleType, Role, RoleParentResourceType},
-        server_log_entry::ServerLogEntry,
         user::User,
         workspace::{DEFAULT_MAXIMUM_RESOURCE_LIST_LIMIT, InitialWorkspaceProperties, Workspace},
     },
@@ -66,14 +68,12 @@ async fn handle_list_workspaces_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
 ) -> Result<(StatusCode, Json<ListResourcesResponseBody<Workspace>>), HTTPError> {
     // Make sure the principal has access to list resources.
-    let list_resources_action =
-        get_action_by_name("workspaces.list", &http_transaction, &state.database_pool).await?;
+    let list_resources_action = get_action_by_name("workspaces.list", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &list_resources_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -89,19 +89,12 @@ async fn handle_list_workspaces_request(
         &ResourceType::Server,
         None,
         &list_resources_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
-    ServerLogEntry::trace(
-        "Listing workspaces...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Listing workspaces...");
     let query = query_parameters.query.unwrap_or("".to_string());
     let queried_resources = match Workspace::list(
         &query,
@@ -129,24 +122,12 @@ async fn handle_list_workspaces_request(
                 ))),
             };
 
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Counting workspaces...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Counting workspaces...");
     let resource_count = match Workspace::count(
         &query,
         &state.database_pool,
@@ -162,19 +143,13 @@ async fn handle_list_workspaces_request(
                 "Failed to count workspaces: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: list_resources_action.id,
@@ -201,21 +176,15 @@ async fn handle_list_workspaces_request(
     .ok();
 
     let queried_workspace_list_length = queried_resources.len();
-    ServerLogEntry::success(
-        &format!(
-            "Successfully returned {} {}.",
-            queried_workspace_list_length,
-            if queried_workspace_list_length == 1 {
-                "workspace"
-            } else {
-                "workspaces"
-            }
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!(
+        "Successfully returned {} {}.",
+        queried_workspace_list_length,
+        if queried_workspace_list_length == 1 {
+            "workspace"
+        } else {
+            "workspaces"
+        }
+    );
 
     let response_body = ListResourcesResponseBody::<Workspace> {
         data: queried_resources,
@@ -244,14 +213,11 @@ async fn handle_create_workspace_request(
     Extension(authenticated_app_authorization): Extension<Option<Arc<AppAuthorization>>>,
     body: Result<Json<CreateWorkspaceRequestBody>, JsonRejection>,
 ) -> Result<(StatusCode, Json<Workspace>), HTTPError> {
-    let create_workspace_request_body =
-        get_request_body_without_json_rejection(body, &http_transaction, &state.database_pool)
-            .await?;
+    let create_workspace_request_body = get_request_body_without_json_rejection(body).await?;
     validate_resource_name(
         &create_workspace_request_body.name,
         "workspaces.allowedNameRegex",
         "workspace",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -259,7 +225,6 @@ async fn handle_create_workspace_request(
         &create_workspace_request_body.name,
         "workspaces.maximumNameLength",
         "name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -267,7 +232,6 @@ async fn handle_create_workspace_request(
         &create_workspace_request_body.display_name,
         "workspaces.maximumDisplayNameLength",
         "display name",
-        &http_transaction,
         &state.database_pool,
     )
     .await?;
@@ -277,7 +241,6 @@ async fn handle_create_workspace_request(
             description,
             "workspaces.maximumDescriptionLength",
             "description",
-            &http_transaction,
             &state.database_pool,
         )
         .await?;
@@ -285,13 +248,12 @@ async fn handle_create_workspace_request(
 
     // Make sure the authenticated_user can create apps for the target action log entry.
     let create_workspaces_action =
-        get_action_by_name("workspaces.create", &http_transaction, &state.database_pool).await?;
+        get_action_by_name("workspaces.create", &state.database_pool).await?;
     verify_delegate_permissions(
         authenticated_app_authorization
             .as_ref()
             .map(|app_authorization| &app_authorization.id),
         &create_workspaces_action.id,
-        &http_transaction.id,
         &PermissionLevel::User,
         &state.database_pool,
     )
@@ -307,20 +269,13 @@ async fn handle_create_workspace_request(
         &ResourceType::Server,
         None,
         &create_workspaces_action,
-        &http_transaction,
         &PermissionLevel::User,
         &state.database_pool,
     )
     .await?;
 
     // Create the workspace.
-    ServerLogEntry::trace(
-        "Creating workspace...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating workspace...");
     let workspace = match Workspace::create(
         &InitialWorkspaceProperties {
             name: create_workspace_request_body.name.clone(),
@@ -338,19 +293,13 @@ async fn handle_create_workspace_request(
                 "Failed to create workspace: {:?}",
                 error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
     let expiration_timestamp =
-        get_action_log_entry_expiration_timestamp(&http_transaction, &state.database_pool).await?;
+        get_action_log_entry_expiration_timestamp(&state.database_pool).await?;
     ActionLogEntry::create(
         &InitialActionLogEntryProperties {
             action_id: create_workspaces_action.id,
@@ -376,13 +325,7 @@ async fn handle_create_workspace_request(
     .await
     .ok();
 
-    ServerLogEntry::trace(
-        "Creating workspace admins role on workspace...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating workspace admins role on workspace...");
 
     let workspace_admins_role = match Role::create(
         &InitialRoleProperties {
@@ -410,24 +353,12 @@ async fn handle_create_workspace_request(
                 "Failed to create workspace admins role on workspace {}: {:?}",
                 workspace.id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     };
 
-    ServerLogEntry::trace(
-        "Creating access policies for workspace admins role...",
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!("Creating access policies for workspace admins role...");
 
     let allowed_actions = vec![
         "accessPolicies.create",
@@ -543,19 +474,11 @@ async fn handle_create_workspace_request(
         "app"
     };
     for action_name in allowed_actions {
-        let action =
-            get_action_by_name(action_name, &http_transaction, &state.database_pool).await?;
-
-        ServerLogEntry::trace(
-            &format!(
-                "Creating access policy for action {} in workspace admins role...",
-                action_name
-            ),
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        let action = get_action_by_name(action_name, &state.database_pool).await?;
+        trace!(
+            "Creating access policy for action {} in workspace admins role...",
+            action_name
+        );
         if let Err(error) = AccessPolicy::create(
             &InitialAccessPolicyProperties {
                 principal_type: AccessPolicyPrincipalType::Role,
@@ -588,27 +511,15 @@ async fn handle_create_workspace_request(
                 "Failed to add allowed action {} to workspace admins role for {} {}: {:?}",
                 action_name, principal_type_str, principal_id, error
             )));
-            ServerLogEntry::from_http_error(
-                &http_error,
-                Some(&http_transaction.id),
-                &state.database_pool,
-            )
-            .await
-            .ok();
+            http_error.log();
             return Err(http_error);
         }
     }
 
-    ServerLogEntry::trace(
-        &format!(
-            "Creating membership for {} {} in their workspace admins role...",
-            principal_type_str, principal_id
-        ),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    trace!(
+        "Creating membership for {} {} in their workspace admins role...",
+        principal_type_str, principal_id
+    );
 
     if let Err(error) = Membership::create(
         &InitialMembershipProperties {
@@ -640,23 +551,11 @@ async fn handle_create_workspace_request(
             "Failed to create membership for {} {} in their workspace admins role: {:?}",
             principal_type_str, principal_id, error
         )));
-        ServerLogEntry::from_http_error(
-            &http_error,
-            Some(&http_transaction.id),
-            &state.database_pool,
-        )
-        .await
-        .ok();
+        http_error.log();
         return Err(http_error);
     }
 
-    ServerLogEntry::success(
-        &format!("Successfully created workspace {}.", workspace.id),
-        Some(&http_transaction.id),
-        &state.database_pool,
-    )
-    .await
-    .ok();
+    info!("Successfully created workspace {}.", workspace.id);
 
     Ok((StatusCode::CREATED, Json(workspace)))
 }
@@ -687,5 +586,6 @@ pub fn get_router(state: AppState) -> Router<AppState> {
             state.clone(),
             http_transaction_middleware::create_http_transaction,
         ))
+        .layer(TraceLayer::new_for_http().make_span_with(create_trace_layer_span))
         .merge(workspace_id::get_router(state.clone()))
 }
