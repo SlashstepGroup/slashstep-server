@@ -94,12 +94,6 @@ jobs:
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
-      - name: Upload Cache Folder as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug
-          path: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
-
   test-routes:
     name: Test routes
     runs-on: ubuntu-latest
@@ -242,6 +236,7 @@ jobs:
       - name: Wait for OpenSearch to be ready
         run: |
           until curl --cacert ./secrets/opensearch-root-ca.pem --cert ./secrets/opensearch-admin-certificate.pem --key ./secrets/opensearch-admin-key.pem https://localhost:9200 > /dev/null; do
+            docker compose logs --tail 100 opensearch-node-1
             echo "Waiting for OpenSearch to be ready..."
             sleep 5
           done
