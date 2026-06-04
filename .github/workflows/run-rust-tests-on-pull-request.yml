@@ -52,13 +52,6 @@ jobs:
         with:
           tool: nextest@0.9.132
 
-      - name: Install mkcert
-        run: |
-          MKCERT_VERSION="v1.4.4"
-          wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/${MKCERT_VERSION}/mkcert-${MKCERT_VERSION}-linux-amd64
-          chmod +x mkcert
-          sudo mv mkcert /usr/local/bin/mkcert
-
       - name: Install PostgreSQL
         run: |
           RUST_HOST=$(rustc -vV | sed -n 's/host: //p')
@@ -66,11 +59,14 @@ jobs:
           wget -qO - https://github.com/theseus-rs/postgresql-binaries/releases/download/${POSTGRESQL_VERSION}/postgresql-${POSTGRESQL_VERSION}-${RUST_HOST}.tar.gz | tar -xz -C ${HOME}/.theseus/postgresql
           mv ${HOME}/.theseus/postgresql/postgresql-${POSTGRESQL_VERSION}-${RUST_HOST} ${HOME}/.theseus/postgresql/${POSTGRESQL_VERSION}
 
-      - run: mkdir secrets
+      - name: Generate PostgreSQL password
+        run: scripts/generate-postgresql-password.sh
 
-      - run: openssl genpkey -algorithm ED25519 -out secrets/jwt-private-key.pem
+      - name: Generate JWT key pair
+        run: scripts/generate-json-web-token-key-pairs.sh
 
-      - run: openssl pkey -in secrets/jwt-private-key.pem -pubout -out ./secrets/jwt-public-key.pem
+      - name: Generate OpenSearch SSL certificates
+        run: scripts/generate-opensearch-certificates.sh
 
       - run: cargo nextest run --no-run
         env:
@@ -80,7 +76,6 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: |
-            /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
             ~/.cargo
@@ -136,28 +131,27 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: |
-            /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
             ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
-      - name: Install mkcert CA
-        run: mkcert -install
-
-      - name: Generate SSL certificates
-        run: |
-          mkdir tls
-          cd tls
-          mkcert localhost 127.0.0.1 ::1
-          cd ..
-
       - name: Set up Redis
         uses: shogo82148/actions-setup-redis@v1.51.0
         with:
           redis-version: "8.6.3"
           auto-start: "false"
+
+      - name: Set up OpenSearch cluster
+        run: docker compose -f ${{ github.workspace }}/compose.yaml up -d opensearch-node-1
+
+      - name: Wait for OpenSearch to be ready
+        run: |
+          until curl --cacert ${{ github.workspace }}/secrets/opensearch-root-ca.pem --cert ${{ github.workspace }}/secrets/opensearch-admin-certificate.pem --key ${{ github.workspace }}/secrets/opensearch-admin-key.pem https://localhost:9200 > /dev/null; do
+            echo "Waiting for OpenSearch to be ready..."
+            sleep 5
+          done
 
       - run: cargo nextest run --no-tests pass --test integration_tests -E 'test(routes::${{ matrix.route-name }}::)'
         env:
@@ -216,22 +210,21 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: |
-            /usr/local/bin/mkcert
             ./secrets
             ~/.theseus
             ~/.cargo
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
-      - name: Install mkcert CA
-        run: mkcert -install
+      - name: Set up OpenSearch cluster
+        run: docker compose -f ./compose.yaml up -d opensearch-node-1
 
-      - name: Generate SSL certificates
+      - name: Wait for OpenSearch to be ready
         run: |
-          mkdir tls
-          cd tls
-          mkcert localhost 127.0.0.1 ::1
-          cd ..
+          until curl --cacert ./secrets/opensearch-root-ca.pem --cert ./secrets/opensearch-admin-certificate.pem --key ./secrets/opensearch-admin-key.pem https://localhost:9200 > /dev/null; do
+            echo "Waiting for OpenSearch to be ready..."
+            sleep 5
+          done
 
       - name: Set up Redis
         uses: shogo82148/actions-setup-redis@v1.51.0

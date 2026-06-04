@@ -4,5 +4,4 @@ postgresql:
   password-file: ./secrets/postgresql-password.txt
 
 opensearch:
-  is_enabled: true
   url: https://localhost:9200
