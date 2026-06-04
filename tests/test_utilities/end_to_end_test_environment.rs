@@ -25,7 +25,7 @@ use slashstep_server::{
     }, run_opensearch_log_worker
 };
 use tokio::sync::mpsc;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::layer::SubscriberExt;
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;

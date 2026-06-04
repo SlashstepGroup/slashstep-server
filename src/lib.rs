@@ -563,7 +563,7 @@ pub struct OpenSearchLogVisitor {
 }
 
 impl<S: Subscriber> tracing_subscriber::layer::Layer<S> for OpenSearchLayer {
-    fn on_event(&self, event: &tracing::Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
+    fn on_event(&self, event: &tracing::Event<'_>, _ctx: tracing_subscriber::layer::Context<'_, S>) {
         
         let mut visitor = OpenSearchLogVisitor::default();
         event.record(&mut visitor);

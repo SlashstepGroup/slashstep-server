@@ -1,6 +1,6 @@
 use std::{
     net::{IpAddr, Ipv6Addr},
-    str::FromStr, sync::Once,
+    str::FromStr,
 };
 
 use chrono::{Duration, Utc};
@@ -20,7 +20,7 @@ use rand::{
 };
 use redis_test::server::RedisServer;
 use slashstep_server::{
-    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, SlashstepServerConfig, SlashstepServerOpenSearchConfig, create_opensearch_client, import_env_file, initialize_required_tables, predefinitions::{
+    DEFAULT_MAXIMUM_POSTGRESQL_CONNECTION_COUNT, OpenSearchLayer, create_opensearch_client, import_env_file, initialize_required_tables, predefinitions::{
         initialize_predefined_actions, initialize_predefined_configurations,
         initialize_predefined_groups, initialize_predefined_roles,
     }, resources::{
@@ -82,7 +82,7 @@ use slashstep_server::{
 };
 use tokio::sync::mpsc;
 use tracing::{level_filters::LevelFilter, trace};
-use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt};
 use uuid::Uuid;
 
 use crate::test_utilities::test_slashstep_server_error::TestSlashstepServerError;
