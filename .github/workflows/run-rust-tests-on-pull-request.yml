@@ -94,6 +94,12 @@ jobs:
             ./target
           key: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
 
+      - name: Upload Cache Folder as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug
+          path: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+
   test-routes:
     name: Test routes
     runs-on: ubuntu-latest
