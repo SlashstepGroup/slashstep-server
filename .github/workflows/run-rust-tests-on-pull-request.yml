@@ -31,7 +31,7 @@ jobs:
         uses: dorny/paths-filter@v3.0.0
         with:
           filters: |
-            rust-code:
+            rust-code-changed:
               - 'src/**'
               - 'tests/**'
               - 'Cargo.toml'
