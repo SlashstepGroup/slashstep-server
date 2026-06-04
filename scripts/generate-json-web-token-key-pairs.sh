@@ -8,3 +8,4 @@ mkdir -p $secrets_directory
 echo "Generating JSON web token key pairs..."
 openssl genpkey -algorithm Ed25519 -out $secrets_directory/jwt-private-key.pem
 openssl pkey -in $secrets_directory/jwt-private-key.pem -pubout -out $secrets_directory/jwt-public-key.pem
+chmod 644 $secrets_directory/jwt-private-key.pem $secrets_directory/jwt-public-key.pem

@@ -56,3 +56,12 @@ openssl x509 -req -in $secrets_directory/opensearch-client-certificate.csr \
   -days 365 \
   -extfile $secrets_directory/opensearch-client-certificate.ext
 rm -f $secrets_directory/opensearch-client-certificate.csr $secrets_directory/opensearch-client-certificate.ext
+
+chmod 644 \
+  $secrets_directory/opensearch-root-ca.pem \
+  $secrets_directory/opensearch-admin-key.pem \
+  $secrets_directory/opensearch-admin-certificate.pem \
+  $secrets_directory/opensearch-node-key.pem \
+  $secrets_directory/opensearch-node-certificate.pem \
+  $secrets_directory/opensearch-client-key.pem \
+  $secrets_directory/opensearch-client-certificate.pem
