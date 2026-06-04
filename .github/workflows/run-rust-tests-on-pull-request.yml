@@ -60,16 +60,24 @@ jobs:
           mv ${HOME}/.theseus/postgresql/postgresql-${POSTGRESQL_VERSION}-${RUST_HOST} ${HOME}/.theseus/postgresql/${POSTGRESQL_VERSION}
 
       - name: Generate PostgreSQL password
-        run: sh scripts/generate-postgresql-password.sh
+        run: |
+          chmod +x scripts/generate-postgresql-password.sh
+          scripts/generate-postgresql-password.sh
 
       - name: Generate JWT key pair
-        run: sh scripts/generate-json-web-token-key-pairs.sh
+        run: |
+          chmod +x scripts/generate-json-web-token-key-pairs.sh
+          scripts/generate-json-web-token-key-pairs.sh
 
       - name: Generate OpenSearch certificates
-        run: sh scripts/generate-opensearch-certificates.sh
+        run: |
+          chmod +x scripts/generate-opensearch-certificates.sh
+          scripts/generate-opensearch-certificates.sh
 
       - name: Generate OpenSearch initial admin password
-        run: sh scripts/generate-opensearch-initial-admin-password.sh
+        run: |
+          chmod +x scripts/generate-opensearch-initial-admin-password.sh
+          scripts/generate-opensearch-initial-admin-password.sh
 
       - run: cargo nextest run --no-run
         env:
