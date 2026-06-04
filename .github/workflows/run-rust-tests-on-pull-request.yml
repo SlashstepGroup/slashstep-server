@@ -73,6 +73,7 @@ jobs:
         run: |
           chmod +x scripts/generate-opensearch-certificates.sh
           scripts/generate-opensearch-certificates.sh
+          ls -l ./secrets
 
       - name: Generate OpenSearch initial admin password
         run: |
