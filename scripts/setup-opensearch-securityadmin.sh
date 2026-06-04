@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 # Start OpenSearch in the background
 /usr/share/opensearch/opensearch-docker-entrypoint.sh &

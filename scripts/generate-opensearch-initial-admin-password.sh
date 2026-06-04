@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/bash -e
+
 script_directory="$(dirname "$0")"
 root_directory="$script_directory/.."
 

@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/bash -e
+
 script_directory="$(dirname "$0")"
 secrets_directory="$script_directory/../secrets"
 
