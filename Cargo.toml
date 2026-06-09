@@ -13,7 +13,7 @@ resolver = "2"
 
 [dependencies]
 axum = { version = "0.8.9", features = ["macros", "multipart"] }
-chrono = { version = "0.4.44", features = ["serde"] }
+chrono = { version = "0.4.45", features = ["serde"] }
 colored = "3.1.1"
 deadpool-postgres = { version = "0.14.1", features = ["serde"] }
 dotenvy = "0.15.7"
