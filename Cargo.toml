@@ -63,7 +63,7 @@ opensearch = { version = "2.4.0", default-features = false, features = ["rustls-
 [dev-dependencies]
 axum-test = "20.0.0"
 anyhow = "1.0.102"
-postgresql_embedded = { version = "0.20.2", features = ["bundled", "theseus", "rustls"], default-features = false }
+postgresql_embedded = { version = "0.20.3", features = ["bundled", "theseus", "rustls"], default-features = false }
 redis-test = "1.0.4"
 semver = "1.0.28"
 
